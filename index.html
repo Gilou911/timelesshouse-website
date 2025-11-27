@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <title>TimelessHouse – Films de Mariage & Photographie Fine Art</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="TimelessHouse - Équipe de photographes et vidéastes de mariage. Films cinématiques et photographie fine art pour couples modernes. Votre histoire, notre expertise." />
+  
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://timelesshouse.com" />
+  <meta property="og:title" content="TimelessHouse – Films de Mariage & Photographie Fine Art" />
+  <meta property="og:description" content="Votre histoire, notre expertise. Films cinématiques et photographie fine art pour mariages inoubliables." />
+  <meta property="og:image" content="https://timelesshouse.com/096803038746876cfaa9e6af3e57a06a.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="TimelessHouse – Films de Mariage" />
+  <meta name="twitter:description" content="Votre histoire, notre expertise" />
+  <meta name="twitter:image" content="https://timelesshouse.com/096803038746876cfaa9e6af3e57a06a.jpg" />
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  
+  <style>
+    :root {
+      --bg: #fdfbf7; --bg-alt: #f4f0eb; --bg-card: #ffffff;
+      --text-main: #4a4a4a; --text-muted: #8c857f; --accent: #b08968;
+      --accent-light: #e6dace; --border: #e6e1db; --max-width: 1180px;
+      --header-height: 80px; --shadow-soft: 0 20px 40px rgba(176, 137, 104, 0.08);
+    }
+    html { scroll-behavior: smooth; scroll-padding-top: var(--header-height); }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body {
+      font-family: "Montserrat", sans-serif; background-color: var(--bg); 
+      color: var(--text-main); line-height: 1.7; -webkit-font-smoothing: antialiased;
+      margin: 0; padding: 0; width: 100%; max-width: 100vw; overflow-x: hidden;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    header, main, footer, .nav, .section, .hero, .mobile-menu { 
+        width: 100%; max-width: 100vw; box-sizing: border-box;
+    }
+    .paper-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 50; opacity: 0.4;
+      background-image: url("https://www.transparenttextures.com/patterns/cream-paper.png");
+      mix-blend-mode: multiply;
+    }
+    [data-lang="en"] { display: none !important; }
+    body.en-mode [data-lang="fr"] { display: none !important; }
+    body.en-mode [data-lang="en"] { display: block !important; }
+    body.en-mode span[data-lang="en"] { display: inline !important; }
+
+    h1, h2, h3, .serif { font-family: "Cormorant Garamond", serif; font-weight: 400; }
+    h1 { letter-spacing: -0.02em; }
+    img { max-width:100%; display:block; }
+    a { text-decoration:none; color:inherit; transition: color 0.3s ease; cursor: pointer; }
+    button { font-family: inherit; cursor: pointer; }
+
+    header {
+      position: sticky; top: 0; z-index: 100; width: 100%; height: var(--header-height);
+      background: rgba(253, 251, 247, 0.95); backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(0,0,0,0.03);
+    }
+    .nav {
+      max-width:var(--max-width); margin:0 auto; height: 100%; padding:0 30px;
+      display:flex; align-items:center; justify-content:space-between; position: relative;
+    }
+    .logo { 
+        font-family: "Cormorant Garamond", serif; font-size: 24px; font-weight: 600; 
+        color: var(--text-main); letter-spacing: 0.05em; text-transform: uppercase; 
+        cursor: pointer; z-index: 102;
+    }
+    .nav-links { display:flex; gap:35px; }
+    .nav-links a {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.15em;
+      color: var(--text-muted); position: relative; padding: 5px 0; font-weight: 500;
+    }
+    .nav-links a:hover { color: var(--accent); }
+    .nav-right { display: flex; align-items: center; gap: 25px; z-index: 102;}
+    .lang-switch {
+      background: none; border: none; cursor: pointer; font-size: 11px; 
+      font-weight: 600; letter-spacing: 0.1em; color: var(--text-muted);
+    }
+    .btn-primary {
+      padding: 12px 30px; border-radius: 2px; background-color: var(--accent); 
+      color: white; border: none; font-size: 11px; text-transform: uppercase; 
+      letter-spacing: 0.2em; font-weight: 500; cursor: pointer; 
+      box-shadow: var(--shadow-soft); transition: all 0.3s ease;
+    }
+    .btn-primary:hover { background-color: #9a7555; transform: translateY(-2px); }
+    .btn-outline {
+        padding: 11px 29px; border-radius: 2px; border: 1px solid var(--accent); 
+        color: var(--accent); background: transparent; font-size: 11px; 
+        text-transform: uppercase; letter-spacing: 0.2em; font-weight: 500;
+        cursor: pointer; transition: all 0.3s;
+    }
+    .btn-outline:hover { background: var(--accent); color: white; }
+
+    .burger-toggle { display: none; flex-direction: column; gap: 6px; cursor: pointer; z-index: 102; padding: 10px; }
+    .burger-line { width: 25px; height: 2px; background: var(--text-main); transition: 0.3s; }
+    
+    .mobile-menu {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100vh; 
+        background: rgba(253, 251, 247, 0.98);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
+        padding-top: 0; transform: translateY(-100%);
+        transition: transform 0.5s cubic-bezier(0.77, 0, 0.175, 1); 
+        z-index: 1500;
+    }
+    .mobile-menu.open { transform: translateY(0); }
+    .mobile-header {
+        width: 100%; height: var(--header-height); display: flex; 
+        justify-content: space-between; align-items: center; padding: 0 30px;
+        border-bottom: 1px solid rgba(0,0,0,0.03); margin-bottom: 40px;
+    }
+    .close-btn { font-size: 30px; cursor: pointer; color: var(--text-main); line-height: 1; padding: 10px; }
+    .mobile-links-container { display: flex; flex-direction: column; gap: 30px; align-items: center; }
+    .mobile-menu a { font-family: "Cormorant Garamond", serif; font-size: 2rem; color: var(--text-main); cursor: pointer; }
+    
+    /* Instagram Icon Styling */
+    .instagram-icon { 
+        width: 24px; height: 24px; 
+        transition: all 0.3s ease; 
+        fill: var(--text-main);
+    }
+    .instagram-icon:hover { 
+        fill: var(--accent); 
+        transform: scale(1.1); 
+    }
+    .social-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+    }
+    .social-link:hover {
+        background: var(--bg-alt);
+    }
+
+    .hero {
+      padding: 160px 24px 100px; max-width: var(--max-width); margin: 0 auto;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; min-height: 90vh;
+    }
+    .hero-content h1 { font-size: 4rem; line-height: 1.1; margin-bottom: 24px; color: var(--text-main); }
+    .hero-content i { font-family: "Cormorant Garamond", serif; font-style: italic; color: var(--accent); }
+    .hero-subtitle { font-size: 1.1rem; color: var(--text-muted); margin-bottom: 40px; font-weight: 300; max-width: 450px; }
+    .hero-actions { display: flex; gap: 15px; justify-content: flex-start; margin: 0 auto; }
+
+    /* === GESTION VIDEO/IMAGE === */
+    .video-frame, .img-block {
+        border-radius: 200px 200px 0 0; overflow: hidden; box-shadow: var(--shadow-soft); 
+        border: 8px solid white; 
+        position: relative; z-index: 2;
+    }
+    .video-frame { aspect-ratio: 3/4; }
+    .img-block { border-radius: 2px; border: none; aspect-ratio: 16/9; } 
+
+    /* MODIFICATION ICI : Ajout de transition sur l'image */
+    .bg-image { 
+        width: 100%; height: 100%; object-fit: cover; 
+        position: absolute; top: 0; left: 0; z-index: 1; 
+        transition: opacity 0.5s ease; /* Transition douce */
+        opacity: 1;
+    }
+    
+    /* NOUVELLE CLASSE : Pour cacher l'image */
+    .bg-image.hidden {
+        opacity: 0;
+    }
+
+    .bg-video { 
+        width: 100%; height: 100%; object-fit: cover; 
+        position: absolute; top: 0; left: 0; z-index: 2; 
+        opacity: 0; transition: opacity 0.5s ease; pointer-events: none; 
+    }
+    .video-playing { opacity: 1; }
+    
+    video::-webkit-media-controls { display: none !important; }
+    video::-webkit-media-controls-start-playback-button { display: none !important; }
+    /* ======================================= */
+
+    .circle-deco { position: absolute; top: -30px; right: -30px; width: 150px; height: 150px; border-radius: 50%; background: var(--bg-alt); z-index: 1; }
+    .section { padding: 100px 24px; max-width: var(--max-width); margin: 0 auto; }
+    .section-header { text-align: center; margin-bottom: 60px; }
+    .kicker { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3em; color: var(--accent); margin-bottom: 15px; }
+    .title-lg { font-size: 2.5rem; color: var(--text-main); margin-bottom: 20px; }
+    
+    .prestations-toggle { display: flex; justify-content: center; gap: 20px; margin-bottom: 50px; }
+    .toggle-btn { padding: 12px 30px; border-radius: 2px; background: transparent; border: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 500; color: var(--text-muted); cursor: pointer; transition: all 0.3s; }
+    .toggle-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .prestations-content { display: none; }
+    .prestations-content.active { display: block; }
+    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+    .pricing-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 40px 30px; text-align: center; transition: all 0.3s; box-shadow: 0 5px 20px rgba(0,0,0,0.03); display: flex; flex-direction: column; height: 100%; }
+    .pricing-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-soft); }
+    .pricing-card h3 { font-size: 1.8rem; margin-bottom: 15px; }
+    .pricing-card .price { font-size: 2rem; color: var(--accent); font-weight: 600; margin: 20px 0; }
+    .pricing-card ul { list-style: none; margin: 25px 0; text-align: left; flex-grow: 1; }
+    .pricing-card li { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .pricing-card li:last-child { border: none; }
+    .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; }
+    .gallery-item { position: relative; cursor: pointer; }
+    .gallery-img-wrap { overflow: hidden; border-radius: 4px; aspect-ratio: 4/5; background: var(--bg-alt); position: relative; }
+    .gallery-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.8s ease; }
+    .gallery-item:hover img { transform: scale(1.05); }
+    .gallery-info { padding-top: 15px; text-align: center; }
+    .gallery-title { font-family: "Cormorant Garamond"; font-size: 1.5rem; margin-bottom: 5px; }
+    .gallery-meta { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); }
+    .play-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50px; height: 50px; background: rgba(255,255,255,0.8); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 20px; color: var(--accent); opacity: 0; transition: all 0.3s; pointer-events: none; }
+    .gallery-item:hover .play-indicator { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    .philosophy { background: var(--bg-alt); padding: 120px 24px; position: relative; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; max-width: var(--max-width); margin: 0 auto; }
+    .testimonials-carousel { position: relative; max-width: 800px; margin: 0 auto; overflow: hidden; }
+    .testimonials-wrapper { display: flex; transition: transform 0.5s ease; }
+    .testimonial-slide { min-width: 100%; text-align: center; padding: 0 20px; }
+    .quote-icon { font-size: 60px; color: var(--accent-light); font-family: serif; line-height: 1; }
+    .quote-text { font-family: "Cormorant Garamond"; font-size: 1.8rem; font-style: italic; margin: 30px 0; color: var(--text-main); }
+    .quote-author { font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 600; }
+    .carousel-nav { display: flex; justify-content: center; gap: 10px; margin-top: 30px; }
+    .carousel-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); cursor: pointer; transition: all 0.3s; }
+    .carousel-dot.active { background: var(--accent); transform: scale(1.3); }
+    .faq-container { max-width: 800px; margin: 0 auto; }
+    .faq-item { border-bottom: 1px solid var(--border); }
+    .faq-question { width: 100%; padding: 25px 20px; background: none; border: none; text-align: left; font-size: 1.1rem; font-weight: 500; color: var(--text-main); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: color 0.3s; }
+    .faq-question:hover { color: var(--accent); }
+    .faq-icon { font-size: 1.5rem; transition: transform 0.3s; }
+    .faq-question.active .faq-icon { transform: rotate(45deg); }
+    .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; padding: 0 20px; color: var(--text-muted); line-height: 1.8; }
+    .faq-answer.active { max-height: 500px; padding: 0 20px 25px 20px; }
+    
+    /* MODALS GENERAL */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); display: none; justify-content: center; align-items: center; z-index: 2000; }
+    .modal-overlay.active { display: flex; }
+    .modal-content { background: var(--bg-card); border-radius: 4px; padding: 50px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .modal-close { position: absolute; top: 20px; right: 20px; font-size: 30px; cursor: pointer; color: var(--text-muted); line-height: 1; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .input-group label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 8px; }
+    input, textarea, select { width: 100%; padding: 14px; border: 1px solid var(--border); background: #faf9f6; font-family: inherit; font-size: 14px; color: var(--text-main); transition: 0.3s; border-radius: 2px; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+    
+    /* VIDEO OVERLAY */
+    .video-overlay { z-index: 3000; background: rgba(0,0,0,0.9); }
+    .video-modal-content { background: transparent; box-shadow: none; padding: 0; width: 90%; max-width: 1000px; position: relative; }
+    .video-wrapper { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; background: #000; border-radius: 4px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+    .video-wrapper video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    .video-close { color: white; top: -40px; right: 0; font-size: 40px; opacity: 0.8; cursor: pointer; }
+    .video-close:hover { opacity: 1; color: var(--accent); }
+    
+    .reveal { opacity: 0; transform: translateY(20px); transition: all 1s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    .reveal.active { opacity: 1; transform: translateY(0); }
+    footer { padding: 60px 24px; text-align: center; border-top: 1px solid var(--border); margin-top: 100px; color: var(--text-muted); font-size: 12px; }
+    .footer-social { margin: 20px 0; }
+
+    @media (max-width: 900px) {
+        .nav-links { display: none; }
+        .burger-toggle { display: flex; }
+        .nav-right .btn-primary { display: none; }
+        .hero { grid-template-columns: 1fr; padding: 120px 24px 60px 24px; text-align: center; gap: 40px; min-height: auto; }
+        .hero-content h1 { font-size: 2.8rem; }
+        .hero-subtitle { margin: 0 auto 30px auto; font-size: 1rem; }
+        .hero-actions { justify-content: center !important; }
+        
+        .video-frame { width: 100%; border-radius: 120px 120px 0 0; border-width: 5px; }
+        .circle-deco { width: 100px; height: 100px; top: -20px; right: -10px; }
+        .section, .philosophy { padding: 60px 20px; }
+        .grid-2, .gallery-grid, .form-row, .pricing-grid { grid-template-columns: 1fr; gap: 40px; }
+        .modal-content { padding: 30px 20px; }
+        .quote-text { font-size: 1.4rem; }
+        .prestations-toggle { flex-direction: column; align-items: center; }
+    }
+  </style>
+</head>
+<body id="top">
+
+  <div class="paper-overlay"></div>
+
+  <div class="mobile-menu" id="mobileMenu">
+      <div class="mobile-header">
+          <div class="logo" onclick="toggleMenu(); document.getElementById('top').scrollIntoView({ behavior: 'smooth' })">
+              TimelessHouse
+          </div>
+          <div class="close-btn" onclick="toggleMenu()">✕</div>
+      </div>
+      <div class="mobile-links-container">
+          <a href="#about" onclick="toggleMenu()"><span data-lang="fr">Philosophie</span><span data-lang="en">Philosophy</span></a>
+          <a href="#prestations" onclick="toggleMenu()"><span data-lang="fr">Prestations</span><span data-lang="en">Services</span></a>
+          <a href="#portfolio" onclick="toggleMenu()">Portfolio</a>
+          <a href="#faq" onclick="toggleMenu()">FAQ</a>
+          <a onclick="toggleMenu(); openClientModal()"><span data-lang="fr">Espace Clients</span><span data-lang="en">Client Area</span></a>
+          
+          <button class="btn-primary" onclick="toggleMenu(); openModal()">
+              <span data-lang="fr">Réserver</span><span data-lang="en">Book Now</span>
+          </button>
+      </div>
+  </div>
+
+  <header>
+    <nav class="nav">
+      <div class="burger-toggle" onclick="toggleMenu()">
+          <div class="burger-line"></div>
+          <div class="burger-line"></div>
+          <div class="burger-line"></div>
+      </div>
+      <a href="#top" class="logo">TimelessHouse</a>
+      <div class="nav-links">
+        <a href="#about"><span data-lang="fr">Philosophie</span><span data-lang="en">Philosophy</span></a>
+        <a href="#prestations"><span data-lang="fr">Prestations</span><span data-lang="en">Services</span></a>
+        <a href="#portfolio">Portfolio</a>
+        <a href="#faq">FAQ</a>
+        <a onclick="openClientModal()"><span data-lang="fr">Espace Clients</span><span data-lang="en">Client Area</span></a>
+      </div>
+      <div class="nav-right">
+        <a href="https://www.instagram.com/_timelesshouse" target="_blank" rel="noopener noreferrer" aria-label="Suivez-nous sur Instagram" class="social-link">
+          <svg class="instagram-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C14.717 2 15.056 2.01 16.122 2.06C17.187 2.11 17.912 2.277 18.55 2.525C19.21 2.779 19.766 3.123 20.322 3.678C20.8305 4.1779 21.224 4.78259 21.475 5.45C21.722 6.087 21.89 6.813 21.94 7.878C21.987 8.944 22 9.283 22 12C22 14.717 21.99 15.056 21.94 16.122C21.89 17.187 21.722 17.912 21.475 18.55C21.2247 19.2178 20.8311 19.8226 20.322 20.322C19.822 20.8303 19.2173 21.2238 18.55 21.475C17.913 21.722 17.187 21.89 16.122 21.94C15.056 21.987 14.717 22 12 22C9.283 22 8.944 21.99 7.878 21.94C6.813 21.89 6.088 21.722 5.45 21.475C4.78233 21.2245 4.17753 20.8309 3.678 20.322C3.16941 19.8222 2.77593 19.2175 2.525 18.55C2.277 17.913 2.11 17.187 2.06 16.122C2.013 15.056 2 14.717 2 12C2 9.283 2.01 8.944 2.06 7.878C2.11 6.812 2.277 6.088 2.525 5.45C2.77524 4.78218 3.1688 4.17732 3.678 3.678C4.17767 3.16923 4.78243 2.77573 5.45 2.525C6.088 2.277 6.812 2.11 7.878 2.06C8.944 2.013 9.283 2 12 2ZM12 7C10.6739 7 9.40215 7.52678 8.46447 8.46447C7.52678 9.40215 7 10.6739 7 12C7 13.3261 7.52678 14.5979 8.46447 15.5355C9.40215 16.4732 10.6739 17 12 17C13.3261 17 14.5979 16.4732 15.5355 15.5355C16.4732 14.5979 17 13.3261 17 12C17 10.6739 16.4732 9.40215 15.5355 8.46447C14.5979 7.52678 13.3261 7 12 7ZM18.5 6.75C18.5 6.41848 18.3683 6.10054 18.1339 5.86612C17.8995 5.6317 17.5815 5.5 17.25 5.5C16.9185 5.5 16.6005 5.6317 16.3661 5.86612C16.1317 6.10054 16 6.41848 16 6.75C16 7.08152 16.1317 7.39946 16.3661 7.63388C16.6005 7.8683 16.9185 8 17.25 8C17.5815 8 17.8995 7.8683 18.1339 7.63388C18.3683 7.39946 18.5 7.08152 18.5 6.75ZM12 9C12.7956 9 13.5587 9.31607 14.1213 9.87868C14.6839 10.4413 15 11.2044 15 12C15 12.7956 14.6839 13.5587 14.1213 14.1213C13.5587 14.6839 12.7956 15 12 15C11.2044 15 10.4413 14.6839 9.87868 14.1213C9.31607 13.5587 9 12.7956 9 12C9 11.2044 9.31607 10.4413 9.87868 9.87868C10.4413 9.31607 11.2044 9 12 9Z" fill="currentColor"/>
+          </svg>
+        </a>
+        <button class="lang-switch" onclick="toggleLanguage()" aria-label="Changer de langue">EN/FR</button>
+        <button class="btn-primary" onclick="openModal()">
+            <span data-lang="fr">Réserver</span><span data-lang="en">Book Now</span>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero reveal">
+        <div class="hero-content">
+            <h1>
+                <span data-lang="fr">Votre histoire,<br><i>notre expertise</i>.</span>
+                <span data-lang="en">Your story,<br><i>our expertise</i>.</span>
+            </h1>
+            <p class="hero-subtitle">
+                <span data-lang="fr">TimelessHouse. Films de mariage & Photographie Fine Art. Une approche organique pour des couples modernes.</span>
+                <span data-lang="en">TimelessHouse. Wedding Films & Fine Art Photography. An organic approach for modern couples.</span>
+            </p>
+            <div class="hero-actions">
+                <button class="btn-outline" onclick="document.getElementById('portfolio').scrollIntoView()">
+                    <span data-lang="fr">Voir le Portfolio</span><span data-lang="en">View Portfolio</span>
+                </button>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="circle-deco"></div>
+            <div class="video-frame">
+                <img src="Vignette_Eunice&_Josue.jpg" alt="Couple" class="bg-image">
+                <video class="bg-video" autoplay muted loop playsinline preload="auto">
+                    <source src="https://streamable.com/l/clh7jh/mp4-high.mp4" type="video/mp4" />
+                </video>
+            </div>
+        </div>
+    </section>
+
+    <section id="about" class="philosophy reveal">
+        <div class="grid-2">
+            <div class="img-block">
+                <img src="Vignette_Eunice&_Josue.jpg" alt="Couple" class="bg-image">
+                <video class="bg-video" autoplay muted loop playsinline preload="auto">
+                    <source src="https://streamable.com/l/clh7jh/mp4-high.mp4" type="video/mp4" />
+                </video>
+            </div>
+            <div class="text-block">
+                <span class="kicker"><span data-lang="fr">Approche</span><span data-lang="en">Approach</span></span>
+                <h2 class="title-lg">
+                    <span data-lang="fr">Votre histoire, notre expertise.</span>
+                    <span data-lang="en">Your story, our expertise.</span>
+                </h2>
+                <p>
+                    <span data-lang="fr">Nous sommes une équipe passionnée qui croit aux images qui respirent. Pas de poses figées ou de sourires forcés. Nous cherchons la douceur d'un regard, le mouvement d'une robe, la lumière qui caresse un visage. Chaque mariage est une histoire unique que nous racontons avec authenticité et poésie.</span>
+                    <span data-lang="en">We are a passionate team that believes in images that breathe. No stiff poses or forced smiles. We seek the softness of a glance, the movement of a dress, the light caressing a face. Every wedding is a unique story we tell with authenticity and poetry.</span>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="prestations" class="section reveal">
+        <div class="section-header">
+            <span class="kicker"><span data-lang="fr">Prestations</span><span data-lang="en">Services</span></span>
+            <h2 class="title-lg"><span data-lang="fr">Nos Offres</span><span data-lang="en">Our Offers</span></h2>
+        </div>
+
+        <div class="prestations-toggle">
+            <button class="toggle-btn active" onclick="switchPricing('packages')" id="btnPackages">
+                <span data-lang="fr">Packages Complets</span><span data-lang="en">Complete Packages</span>
+            </button>
+            <button class="toggle-btn" onclick="switchPricing('alacarte')" id="btnAlacarte">
+                <span data-lang="fr">À la Carte</span><span data-lang="en">À la Carte</span>
+            </button>
+        </div>
+
+        <div class="prestations-content active" id="packages">
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <h3 class="serif"><span data-lang="fr">Essentiel</span><span data-lang="en">Essential</span></h3>
+                    <p class="price">2.500€</p>
+                    <ul>
+                        <li><span data-lang="fr">Vidéo Émotion (2-3 min)</span><span data-lang="en">Emotion Video (2-3 min)</span></li>
+                        <li><span data-lang="fr">100 photos retouchées</span><span data-lang="en">100 edited photos</span></li>
+                        <li><span data-lang="fr">Couverture 4h</span><span data-lang="en">4h coverage</span></li>
+                        <li><span data-lang="fr">Galerie en ligne privée</span><span data-lang="en">Private online gallery</span></li>
+                    </ul>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
+                        <span data-lang="fr">Choisir</span><span data-lang="en">Choose</span>
+                    </button>
+                </div>
+
+                <div class="pricing-card" style="border: 2px solid var(--accent);">
+                    <h3 class="serif"><span data-lang="fr">Signature</span><span data-lang="en">Signature</span></h3>
+                    <p class="price">3.800€</p>
+                    <ul>
+                        <li><span data-lang="fr">Vidéo Souvenir (8-12 min)</span><span data-lang="en">Memory Video (8-12 min)</span></li>
+                        <li><span data-lang="fr">200 photos retouchées</span><span data-lang="en">200 edited photos</span></li>
+                        <li><span data-lang="fr">Couverture 8h</span><span data-lang="en">8h coverage</span></li>
+                        <li><span data-lang="fr">Session engagement incluse</span><span data-lang="en">Engagement session included</span></li>
+                        <li><span data-lang="fr">Galerie en ligne + clé USB</span><span data-lang="en">Online gallery + USB key</span></li>
+                    </ul>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
+                        <span data-lang="fr">Choisir</span><span data-lang="en">Choose</span>
+                    </button>
+                </div>
+
+                <div class="pricing-card">
+                    <h3 class="serif"><span data-lang="fr">Prestige</span><span data-lang="en">Prestige</span></h3>
+                    <p class="price">5.500€</p>
+                    <ul>
+                        <li><span data-lang="fr">Vidéo Éternité (20-60 min)</span><span data-lang="en">Eternity Video (20-60 min)</span></li>
+                        <li><span data-lang="fr">400 photos retouchées</span><span data-lang="en">400 edited photos</span></li>
+                        <li><span data-lang="fr">Couverture 12h complète</span><span data-lang="en">Full 12h coverage</span></li>
+                        <li><span data-lang="fr">Session engagement + Day After</span><span data-lang="en">Engagement + Day After session</span></li>
+                        <li><span data-lang="fr">Album photo premium 30x30cm</span><span data-lang="en">Premium photo album 30x30cm</span></li>
+                    </ul>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
+                        <span data-lang="fr">Choisir</span><span data-lang="en">Choose</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="prestations-content" id="alacarte">
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <h3 class="serif"><span data-lang="fr">Vidéo Émotion</span><span data-lang="en">Emotion Video</span></h3>
+                    <p class="price"><span data-lang="fr">À partir de</span><span data-lang="en">From</span> 800€</p>
+                    <ul>
+                        <li><span data-lang="fr">Film court 2-3 minutes</span><span data-lang="en">Short film 2-3 minutes</span></li>
+                        <li><span data-lang="fr">Livraison rapide sous 3 semaines</span><span data-lang="en">Fast delivery in 3 weeks</span></li>
+                        <li><span data-lang="fr">Musique et étalonnage pro</span><span data-lang="en">Music and pro color grading</span></li>
+                    </ul>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
+                        <span data-lang="fr">Réserver</span><span data-lang="en">Book</span>
+                    </button>
+                </div>
+
+                <div class="pricing-card">
+                    <h3 class="serif"><span data-lang="fr">Vidéo Souvenir</span><span data-lang="en">Memory Video</span></h3>
+                    <p class="price"><span data-lang="fr">À partir de</span><span data-lang="en">From</span> 1.500€</p>
+                    <ul>
+                        <li><span data-lang="fr">Film complet 8-12 minutes</span><span data-lang="en">Complete film 8-12 minutes</span></li>
+                        <li><span data-lang="fr">Toute la journée capturée</span><span data-lang="en">Full day captured</span></li>
+                        <li><span data-lang="fr">Livraison sous 6 semaines</span><span data-lang="en">Delivery in 6 weeks</span></li>
+                    </ul>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
+                        <span data-lang="fr">Réserver</span><span data-lang="en">Book</span>
+                    </button>
+                </div>
+                
+                 <div class="pricing-card">
+                    <h3 class="serif"><span data-lang="fr">Vidéo Éternité</span><span data-lang="en">Eternity Video</span></h3>
+                    <p class="price"><span data-lang="fr">À partir de</span><span data-lang="en">From</span> 2.800€</p>
+                    <ul>
+                        <li><span data-lang="fr">Film documentaire 20-60 min</span><span data-lang="en">Documentary film 20-60 min</span></li>
+                        <li><span data-lang="fr">Chaque moment préservé</span><span data-lang="en">Every moment preserved</span></li>
+                        <li><span data-lang="fr">Livraison sous 8 semaines</span><span data-lang="en">Delivery in 8 weeks</span></li>
+                    </ul>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
+                        <span data-lang="fr">Réserver</span><span data-lang="en">Book</span>
+                    </button>
+                </div>
+
+                <div class="pricing-card">
+                    <h3 class="serif"><span data-lang="fr">Photo Half-Day</span><span data-lang="en">Photo Half-Day</span></h3>
+                    <p class="price"><span data-lang="fr">À partir de</span><span data-lang="en">From</span> 1.200€</p>
+                    <ul>
+                        <li><span data-lang="fr">Couverture 4 heures</span><span data-lang="en">4 hours coverage</span></li>
+                        <li><span data-lang="fr">150 photos retouchées</span><span data-lang="en">150 edited photos</span></li>
+                        <li><span data-lang="fr">Galerie en ligne privée</span><span data-lang="en">Private online gallery</span></li>
+                    </ul>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
+                        <span data-lang="fr">Réserver</span><span data-lang="en">Book</span>
+                    </button>
+                </div>
+
+                <div class="pricing-card">
+                    <h3 class="serif"><span data-lang="fr">Photo Full-Day</span><span data-lang="en">Photo Full-Day</span></h3>
+                    <p class="price"><span data-lang="fr">À partir de</span><span data-lang="en">From</span> 2.000€</p>
+                    <ul>
+                        <li><span data-lang="fr">Couverture 8 heures</span><span data-lang="en">8 hours coverage</span></li>
+                        <li><span data-lang="fr">300 photos retouchées</span><span data-lang="en">300 edited photos</span></li>
+                        <li><span data-lang="fr">Clé USB + galerie en ligne</span><span data-lang="en">USB key + online gallery</span></li>
+                    </ul>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
+                        <span data-lang="fr">Réserver</span><span data-lang="en">Book</span>
+                    </button>
+                </div>
+
+                <div class="pricing-card">
+                    <h3 class="serif"><span data-lang="fr">Session Engagement</span><span data-lang="en">Engagement Session</span></h3>
+                    <p class="price"><span data-lang="fr">À partir de</span><span data-lang="en">From</span> 450€</p>
+                    <ul>
+                        <li><span data-lang="fr">Séance 2 heures</span><span data-lang="en">2 hours session</span></li>
+                        <li><span data-lang="fr">50 photos retouchées</span><span data-lang="en">50 edited photos</span></li>
+                        <li><span data-lang="fr">Idéal pour save-the-date</span><span data-lang="en">Perfect for save-the-date</span></li>
+                    </ul>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
+                        <span data-lang="fr">Réserver</span><span data-lang="en">Book</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="portfolio" class="section reveal">
+        <div class="section-header">
+            <span class="kicker"><span data-lang="fr">Journal</span><span data-lang="en">Journal</span></span>
+            <h2 class="title-lg"><span data-lang="fr">Histoires d'Amour</span><span data-lang="en">Love Stories</span></h2>
+        </div>
+        <div class="gallery-grid">
+            <div class="gallery-item" onclick="openVideoModal('https://streamable.com/l/72q0qy/mp4-high.mp4')">
+                <div class="gallery-img-wrap">
+                    <img src="Video_5.jpg" alt="Head Spa Treatment" loading="lazy">
+                    <div class="play-indicator">▶</div>
+                </div>
+                <div class="gallery-info">
+                    <h3 class="gallery-title"><span data-lang="fr">Provence & Lavande</span><span data-lang="en">Provence & Lavender</span></h3>
+                    <span class="gallery-meta">Sophie & Marc</span>
+                </div>
+            </div>
+
+            <div class="gallery-item" onclick="openVideoModal('https://streamable.com/l/h01gec/mp4-high.mp4')">
+                <div class="gallery-img-wrap">
+                    <img src="video-1-detente.jpg" alt="Relaxation Spa" loading="lazy">
+                    <div class="play-indicator">▶</div>
+                </div>
+                <div class="gallery-info">
+                    <h3 class="gallery-title"><span data-lang="fr">Elopement en Italie</span><span data-lang="en">Italian Elopement</span></h3>
+                    <span class="gallery-meta">Clara & Thomas</span>
+                </div>
+            </div>
+
+            <div class="gallery-item" onclick="openVideoModal('https://streamable.com/l/h01gec/mp4-high.mp4')">
+                <div class="gallery-img-wrap">
+                    <img src="Video_2_Rincage.jpg" alt="Rinsing Process" loading="lazy">
+                    <div class="play-indicator">▶</div>
+                </div>
+                <div class="gallery-info">
+                    <h3 class="gallery-title"><span data-lang="fr">Château de la Loire</span><span data-lang="en">Loire Valley Castle</span></h3>
+                    <span class="gallery-meta">Élise & Julien</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="kind-words" class="section reveal" style="background-color: var(--bg-alt);">
+        <div class="section-header">
+            <span class="kicker"><span data-lang="fr">Témoignages</span><span data-lang="en">Testimonials</span></span>
+            <h2 class="title-lg"><span data-lang="fr">Mots Doux</span><span data-lang="en">Kind Words</span></h2>
+        </div>
+        <div class="testimonials-carousel">
+            <div class="testimonials-wrapper" id="testimonialsWrapper">
+                <div class="testimonial-slide">
+                    <div class="quote-icon">"</div>
+                    <p class="quote-text">
+                        <span data-lang="fr">OMG !! J'aime trop ! Incroyable, j'arrête pas de la regarder, vraiment merci.</span>
+                        <span data-lang="en">OMG!! I love it so much! Incredible, I can't stop watching it, really thank you.</span>
+                    </p>
+                    <div class="quote-author">Eunice & Josué</div>
+                </div>
+                <div class="testimonial-slide">
+                    <div class="quote-icon">"</div>
+                    <p class="quote-text">
+                        <span data-lang="fr">Une douceur incroyable se dégage de vos images. Nous avons pleuré en découvrant la vidéo. Merci d'avoir sublimé notre journée avec tant de poésie.</span>
+                        <span data-lang="en">An incredible softness radiates from your images. We cried watching the video. Thank you for sublimating our day with such poetry.</span>
+                    </p>
+                    <div class="quote-author">Thomas & Morgane</div>
+                </div>
+                <div class="testimonial-slide">
+                    <div class="quote-icon">"</div>
+                    <p class="quote-text">
+                        <span data-lang="fr">Vous avez capturé des moments que nous n'avions même pas remarqués. Chaque image raconte une histoire. C'est exactement ce que nous voulions.</span>
+                        <span data-lang="en">You captured moments we didn't even notice. Every image tells a story. It's exactly what we wanted.</span>
+                    </p>
+                    <div class="quote-author">Sophie & Antoine</div>
+                </div>
+            </div>
+            <div class="carousel-nav">
+                <span class="carousel-dot active" onclick="goToSlide(0)"></span>
+                <span class="carousel-dot" onclick="goToSlide(1)"></span>
+                <span class="carousel-dot" onclick="goToSlide(2)"></span>
+            </div>
+        </div>
+    </section>
+
+    <section id="faq" class="section reveal">
+        <div class="section-header">
+            <span class="kicker">FAQ</span>
+            <h2 class="title-lg"><span data-lang="fr">Questions Fréquentes</span><span data-lang="en">Frequently Asked Questions</span></h2>
+        </div>
+        <div class="faq-container">
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>
+                        <span data-lang="fr">Quand devons-nous réserver vos services ?</span>
+                        <span data-lang="en">When should we book your services?</span>
+                    </span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <span data-lang="fr">Idéalement 8 à 12 mois avant votre mariage, surtout pour les dates de haute saison (mai à septembre). Nous prenons un nombre limité de mariages par an pour garantir une qualité optimale.</span>
+                    <span data-lang="en">Ideally 8 to 12 months before your wedding, especially for peak season dates (May to September). We take a limited number of weddings per year to ensure optimal quality.</span>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>
+                        <span data-lang="fr">Couvrez-vous les mariages partout en France ?</span>
+                        <span data-lang="en">Do you cover weddings throughout France?</span>
+                    </span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <span data-lang="fr">Oui ! Nous sommes basés en Île-de-France mais nous nous déplaçons dans toute la France et même à l'international. Les frais de déplacement sont inclus pour la région parisienne, et calculés au cas par cas pour les autres destinations.</span>
+                    <span data-lang="en">Yes! We are based in Île-de-France but we travel throughout France and even internationally. Travel costs are included for the Paris region, and calculated case by case for other destinations.</span>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>
+                        <span data-lang="fr">Quel est votre délai de livraison ?</span>
+                        <span data-lang="en">What is your delivery time?</span>
+                    </span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <span data-lang="fr">Les photos sont livrées sous 4 à 6 semaines. La vidéo Émotion sous 3 semaines, la vidéo Souvenir sous 6 semaines, et la vidéo Éternité sous 8 semaines. Nous privilégions la qualité sur la vitesse !</span>
+                    <span data-lang="en">Photos are delivered within 4 to 6 weeks. Emotion video within 3 weeks, Memory video within 6 weeks, and Eternity video within 8 weeks. We prioritize quality over speed!</span>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>
+                        <span data-lang="fr">Proposez-vous un deuxième photographe/vidéaste ?</span>
+                        <span data-lang="en">Do you offer a second photographer/videographer?</span>
+                    </span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <span data-lang="fr">Absolument ! Pour les mariages de plus de 100 invités ou avec des préparatifs séparés, nous recommandons un deuxième photographe (supplément de 600€) pour ne rien manquer de votre journée.</span>
+                    <span data-lang="en">Absolutely! For weddings with more than 100 guests or with separate preparations, we recommend a second photographer (supplement of 600€) to not miss anything from your day.</span>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>
+                        <span data-lang="fr">Peut-on personnaliser les formules ?</span>
+                        <span data-lang="en">Can we customize packages?</span>
+                    </span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <span data-lang="fr">Oui ! Nos formules sont modulables. Vous pouvez combiner photo et vidéo selon vos besoins, ajouter une session Day After, un album photo, ou toute autre prestation. Contactez-nous pour un devis sur mesure.</span>
+                    <span data-lang="en">Yes! Our packages are flexible. You can combine photo and video according to your needs, add a Day After session, a photo album, or any other service. Contact us for a custom quote.</span>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>
+                        <span data-lang="fr">Quel est votre style photographique ?</span>
+                        <span data-lang="en">What is your photographic style?</span>
+                    </span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <span data-lang="fr">Notre style est un mélange de documentaire et de fine art. Nous capturons les moments spontanés avec une approche artistique, en privilégiant la lumière naturelle et les émotions authentiques. Pas de poses rigides, juste vous, naturellement.</span>
+                    <span data-lang="en">Our style is a blend of documentary and fine art. We capture spontaneous moments with an artistic approach, favoring natural light and authentic emotions. No rigid poses, just you, naturally.</span>
+                </div>
+            </div>
+        </div>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="contactModal" onclick="closeModalOnOverlay(event)">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal()">✕</span>
+        <div class="section-header">
+            <span class="kicker">Contact</span>
+            <h2 class="title-lg"><span data-lang="fr">Parlons de votre journée</span><span data-lang="en">Let's talk about your day</span></h2>
+        </div>
+        
+        <form action="https://formspree.io/f/mnnrrvay" method="POST">
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label><span data-lang="fr">Je suis... *</span><span data-lang="en">I am a... *</span></label>
+                <select name="role" required style="width: 100%; padding: 14px; border: 1px solid var(--border); background: #faf9f6; font-family: inherit; font-size: 14px;">
+                    <option value="">Choisir...</option>
+                    <option value="Couple">Un couple / A Couple</option>
+                    <option value="Planner">Wedding Planner</option>
+                    <option value="Other">Autre / Other</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="input-group">
+                    <label><span data-lang="fr">Noms & Prénoms *</span><span data-lang="en">Full Names *</span></label>
+                    <input type="text" name="name" placeholder="Vous deux" required>
+                </div>
+                <div class="input-group">
+                    <label><span data-lang="fr">Date du mariage *</span><span data-lang="en">Wedding Date *</span></label>
+                    <input type="date" name="date" required>
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label>Email *</label>
+                <input type="email" name="email" placeholder="hello@exemple.com" required>
+            </div>
+
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label><span data-lang="fr">Téléphone</span><span data-lang="en">Phone</span></label>
+                <input type="tel" name="phone" placeholder="+33 6 00 00 00 00">
+            </div>
+
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label><span data-lang="fr">Lieu de réception</span><span data-lang="en">Venue Name & Location</span></label>
+                <input type="text" name="venue" placeholder="Ex: Château de Vallery, France">
+            </div>
+
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label><span data-lang="fr">Budget estimé (Photo/Vidéo) *</span><span data-lang="en">Estimated Budget *</span></label>
+                <select name="budget" required style="width: 100%; padding: 14px; border: 1px solid var(--border); background: #faf9f6; font-family: inherit; font-size: 14px;">
+                    <option value="">Choisir...</option>
+                    <option value="<5k">&lt; 5 000 €</option>
+                    <option value="5k-8k">5 000 € - 8 000 €</option>
+                    <option value="8k-12k">8 000 € - 12 000 €</option>
+                    <option value="12k+">12 000 € +</option>
+                </select>
+            </div>
+
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label><span data-lang="fr">Prestation souhaitée</span><span data-lang="en">Desired Service</span></label>
+                <select name="service" style="width: 100%; padding: 14px; border: 1px solid var(--border); background: #faf9f6; font-family: inherit; font-size: 14px;">
+                    <option value="">Choisir...</option>
+                    <option value="essentiel">Essentiel / Essential</option>
+                    <option value="signature">Signature</option>
+                    <option value="prestige">Prestige</option>
+                    <option value="video-emotion">Vidéo Émotion / Emotion Video</option>
+                    <option value="video-souvenir">Vidéo Souvenir / Memory Video</option>
+                    <option value="video-eternite">Vidéo Éternité / Eternity Video</option>
+                    <option value="photo-halfday">Photo Half-Day</option>
+                    <option value="photo-fullday">Photo Full-Day</option>
+                    <option value="custom">Sur mesure / Custom</option>
+                </select>
+            </div>
+
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label><span data-lang="fr">Où en êtes-vous dans votre recherche ? *</span><span data-lang="en">Where are you at in the process of booking a videographer? *</span></label>
+                <select name="booking_stage" required style="width: 100%; padding: 14px; border: 1px solid var(--border); background: #faf9f6; font-family: inherit; font-size: 14px;">
+                    <option value="">Choisir...</option>
+                    <option value="Just starting">Je commence juste mes recherches / Just starting</option>
+                    <option value="Narrowing down">J'affine ma sélection / Narrowing down options</option>
+                    <option value="Ready to book">Je suis prêt(e) à réserver ! / Ready to book</option>
+                </select>
+            </div>
+
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label><span data-lang="fr">Comment nous avez-vous connus ?</span><span data-lang="en">How did you find us?</span></label>
+                <select name="source" style="width: 100%; padding: 14px; border: 1px solid var(--border); background: #faf9f6; font-family: inherit; font-size: 14px;">
+                    <option value="">Choisir...</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="Google">Google</option>
+                    <option value="Referral">Bouche à oreille / Referral</option>
+                    <option value="Planner">Wedding Planner</option>
+                    <option value="Other">Autre / Other</option>
+                </select>
+            </div>
+
+            <div class="input-group" style="margin-bottom: 30px;">
+                <label><span data-lang="fr">Message / Votre Histoire</span><span data-lang="en">Message / Your Story</span></label>
+                <textarea rows="5" name="message" placeholder="Racontez-nous votre histoire..." required></textarea>
+            </div>
+            
+            <button type="submit" class="btn-primary" style="width: 100%;">
+                <span data-lang="fr">Envoyer</span><span data-lang="en">Send Message</span>
+            </button>
+        </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="clientModal" onclick="closeClientModalOnOverlay(event)">
+      <div class="modal-content" style="max-width: 400px; text-align: center; padding-top: 40px;">
+          <span class="modal-close" onclick="closeClientModal()">✕</span>
+          <div class="section-header">
+              <span class="kicker"><span data-lang="fr">Espace Privé</span><span data-lang="en">Private Area</span></span>
+              <h2 class="title-lg" style="font-size: 2rem; margin-bottom: 10px;"><span data-lang="fr">Accès Mariés</span><span data-lang="en">Client Access</span></h2>
+          </div>
+          
+          <p style="margin-bottom: 30px; font-size: 14px; color: var(--text-muted);">
+              <span data-lang="fr">Entrez votre code d'accès personnel pour visionner vos films.</span>
+              <span data-lang="en">Enter your personal access code to view your films.</span>
+          </p>
+          
+          <div class="input-group" style="margin-bottom: 20px;">
+              <input type="password" id="clientCode" placeholder="CODE" style="text-align: center; letter-spacing: 0.2em; text-transform: uppercase;" onkeypress="handleClientEnter(event)">
+          </div>
+          
+          <button onclick="checkClientCode()" class="btn-primary" style="width: 100%;">
+              <span data-lang="fr">Accéder</span><span data-lang="en">Enter</span>
+          </button>
+          <p id="clientError" style="color: var(--accent); font-size: 12px; margin-top: 15px; display: none;">Code incorrect / Incorrect code</p>
+      </div>
+  </div>
+
+  <div class="modal-overlay video-overlay" id="videoModal" onclick="closeVideoModalOnOverlay(event)">
+      <div class="video-modal-content">
+          <span class="modal-close video-close" onclick="closeVideoModal()">✕</span>
+          <div class="video-wrapper">
+              <video id="mainVideoPlayer" controls playsinline>
+                  <source src="" type="video/mp4">
+                  Votre navigateur ne supporte pas la vidéo.
+              </video>
+          </div>
+      </div>
+  </div>
+
+  <footer>
+    <div class="footer-social">
+        <a href="https://www.instagram.com/_timelesshouse" target="_blank" rel="noopener noreferrer" aria-label="Suivez-nous sur Instagram" class="social-link">
+            <svg class="instagram-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 32px; height: 32px;">
+              <path d="M12 2C14.717 2 15.056 2.01 16.122 2.06C17.187 2.11 17.912 2.277 18.55 2.525C19.21 2.779 19.766 3.123 20.322 3.678C20.8305 4.1779 21.224 4.78259 21.475 5.45C21.722 6.087 21.89 6.813 21.94 7.878C21.987 8.944 22 9.283 22 12C22 14.717 21.99 15.056 21.94 16.122C21.89 17.187 21.722 17.912 21.475 18.55C21.2247 19.2178 20.8311 19.8226 20.322 20.322C19.822 20.8303 19.2173 21.2238 18.55 21.475C17.913 21.722 17.187 21.89 16.122 21.94C15.056 21.987 14.717 22 12 22C9.283 22 8.944 21.99 7.878 21.94C6.813 21.89 6.088 21.722 5.45 21.475C4.78233 21.2245 4.17753 20.8309 3.678 20.322C3.16941 19.8222 2.77593 19.2175 2.525 18.55C2.277 17.913 2.11 17.187 2.06 16.122C2.013 15.056 2 14.717 2 12C2 9.283 2.01 8.944 2.06 7.878C2.11 6.812 2.277 6.088 2.525 5.45C2.77524 4.78218 3.1688 4.17732 3.678 3.678C4.17767 3.16923 4.78243 2.77573 5.45 2.525C6.088 2.277 6.812 2.11 7.878 2.06C8.944 2.013 9.283 2 12 2ZM12 7C10.6739 7 9.40215 7.52678 8.46447 8.46447C7.52678 9.40215 7 10.6739 7 12C7 13.3261 7.52678 14.5979 8.46447 15.5355C9.40215 16.4732 10.6739 17 12 17C13.3261 17 14.5979 16.4732 15.5355 15.5355C16.4732 14.5979 17 13.3261 17 12C17 10.6739 16.4732 9.40215 15.5355 8.46447C14.5979 7.52678 13.3261 7 12 7ZM18.5 6.75C18.5 6.41848 18.3683 6.10054 18.1339 5.86612C17.8995 5.6317 17.5815 5.5 17.25 5.5C16.9185 5.5 16.6005 5.6317 16.3661 5.86612C16.1317 6.10054 16 6.41848 16 6.75C16 7.08152 16.1317 7.39946 16.3661 7.63388C16.6005 7.8683 16.9185 8 17.25 8C17.5815 8 17.8995 7.8683 18.1339 7.63388C18.3683 7.39946 18.5 7.08152 18.5 6.75ZM12 9C12.7956 9 13.5587 9.31607 14.1213 9.87868C14.6839 10.4413 15 11.2044 15 12C15 12.7956 14.6839 13.5587 14.1213 14.1213C13.5587 14.6839 12.7956 15 12 15C11.2044 15 10.4413 14.6839 9.87868 14.1213C9.31607 13.5587 9 12.7956 9 12C9 11.2044 9.31607 10.4413 9.87868 9.87868C10.4413 9.31607 11.2044 9 12 9Z" fill="currentColor"/>
+          </svg>
+        </a>
+    </div>
+    <p>
+        &copy; 2025 TimelessHouse. <br>
+        <span data-lang="fr">Votre histoire, notre expertise.</span>
+        <span data-lang="en">Your story, our expertise.</span>
+    </p>
+    <p style="margin-top: 10px; font-size: 11px;">
+        <a href="mailto:timelessfilms.house@gmail.com" style="color: var(--accent); transition: opacity 0.3s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">timelessfilms.house@gmail.com</a>
+    </p>
+  </footer>
+
+  <script>
+    function toggleMenu() {
+        document.getElementById('mobileMenu').classList.toggle('open');
+    }
+
+    function openModal() {
+        document.getElementById('contactModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeModal() {
+        document.getElementById('contactModal').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    function closeModalOnOverlay(e) {
+        if(e.target.classList.contains('modal-overlay')) closeModal();
+    }
+
+    /* === NOUVEAU : LOGIQUE ESPACE CLIENT === */
+    function openClientModal() {
+        document.getElementById('clientModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeClientModal() {
+        document.getElementById('clientModal').classList.remove('active');
+        document.body.style.overflow = '';
+        document.getElementById('clientError').style.display = 'none';
+    }
+    function closeClientModalOnOverlay(e) {
+        if(e.target.classList.contains('modal-overlay')) closeClientModal();
+    }
+    function checkClientCode() {
+        const code = document.getElementById('clientCode').value.toLowerCase().trim().replace(/\s+/g, '-');
+        if(code) {
+            window.location.href = code + ".html";
+        } else {
+            document.getElementById('clientError').style.display = 'block';
+        }
+    }
+    function handleClientEnter(e) {
+        if(e.key === 'Enter') checkClientCode();
+    }
+    /* ======================================= */
+
+    function toggleLanguage() {
+      document.body.classList.toggle('en-mode');
+    }
+
+    function switchPricing(type) {
+        document.querySelectorAll('.prestations-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.toggle-btn').forEach(el => el.classList.remove('active'));
+        
+        document.getElementById(type).classList.add('active');
+        document.getElementById('btn' + type.charAt(0).toUpperCase() + type.slice(1)).classList.add('active');
+    }
+
+    let currentSlide = 0;
+    const totalSlides = 3;
+    
+    function goToSlide(index) {
+        currentSlide = index;
+        const wrapper = document.getElementById('testimonialsWrapper');
+        wrapper.style.transform = `translateX(-${currentSlide * 100}%)`;
+        
+        document.querySelectorAll('.carousel-dot').forEach((dot, i) => {
+            dot.classList.toggle('active', i === currentSlide);
+        });
+    }
+
+    setInterval(() => {
+        currentSlide = (currentSlide + 1) % totalSlides;
+        goToSlide(currentSlide);
+    }, 6000);
+
+    function toggleFaq(button) {
+        const answer = button.nextElementSibling;
+        const isActive = button.classList.contains('active');
+        
+        document.querySelectorAll('.faq-question').forEach(q => q.classList.remove('active'));
+        document.querySelectorAll('.faq-answer').forEach(a => a.classList.remove('active'));
+        
+        if (!isActive) {
+            button.classList.add('active');
+            answer.classList.add('active');
+        }
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('active');
+        }
+      });
+    }, { threshold: 0.1 });
+    
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href');
+
+            const mobileMenu = document.getElementById('mobileMenu');
+            if (mobileMenu.classList.contains('open')) {
+                toggleMenu();
+            }
+
+            if(targetId === '#' || targetId === '#top') {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
+            }
+            
+            const targetElement = document.querySelector(targetId);
+            if (targetElement) {
+                targetElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+
+    // VIDEO MODAL LOGIC
+    const videoModal = document.getElementById('videoModal');
+    const videoPlayer = document.getElementById('mainVideoPlayer');
+
+    function openVideoModal(videoUrl) {
+        if(!videoUrl) return;
+        videoPlayer.src = videoUrl;
+        videoModal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        videoPlayer.play();
+    }
+
+    function closeVideoModal() {
+        videoModal.classList.remove('active');
+        document.body.style.overflow = '';
+        videoPlayer.pause();
+        videoPlayer.currentTime = 0;
+        videoPlayer.src = ""; 
+    }
+
+    function closeVideoModalOnOverlay(e) {
+        if(e.target.classList.contains('video-overlay')) {
+            closeVideoModal();
+        }
+    }
+
+    // --- SCRIPT DE GESTION INTELLIGENTE DES VIDÉOS DE FOND ---
+    document.addEventListener('DOMContentLoaded', function() {
+        var backgroundVideos = document.querySelectorAll('.bg-video');
+        
+        backgroundVideos.forEach(function(video) {
+            // On essaie de lancer la vidéo
+            var playPromise = video.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.then(function() {
+                    // Si la lecture démarre :
+                    
+                    // 1. On affiche la vidéo
+                    video.classList.add('video-playing');
+                    
+                    // 2. On cache l'image qui est derrière
+                    var container = video.parentElement;
+                    var imageArrierePlan = container.querySelector('.bg-image');
+                    if (imageArrierePlan) {
+                        imageArrierePlan.classList.add('hidden');
+                    }
+
+                }).catch(function(error) {
+                    console.log("Autoplay bloqué (mode économie ou mobile), l'image reste visible.");
+                    // Ici on ne fait rien, donc l'image reste visible par défaut
+                });
+            }
+        });
+    });
+</script>
+</body>
+</html>

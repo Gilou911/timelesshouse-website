@@ -1,5 +1,11 @@
 <!DOCTYPE html>
 <html lang="fr">
+    <script>
+    // VÉRIFICATION DE SÉCURITÉ
+    if (!sessionStorage.getItem('access_granted')) {
+        window.location.href = "index.html";
+    }
+</script>
 <head>
   <meta charset="UTF-8" />
   <title>Galerie Photos – Sophie & Marc</title>

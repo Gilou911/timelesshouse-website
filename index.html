@@ -888,10 +888,29 @@
     function closeClientModalOnOverlay(e) {
         if(e.target.classList.contains('modal-overlay')) closeClientModal();
     }
+    /* === LOGIQUE ESPACE CLIENT SÉCURISÉE === */
+    const codesValides = {
+        "precieuse-ronny": "precieuse-ronny.html",
+        // "julie-thomas": "julie-thomas.html", // Exemple pour le futur
+    };
+
     function checkClientCode() {
-        const code = document.getElementById('clientCode').value.toLowerCase().trim().replace(/\s+/g, '-');
-        if(code) {
-            window.location.href = code + ".html";
+        let rawCode = document.getElementById('clientCode').value;
+        
+        const code = rawCode
+            .toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .replace(/&/g, ' ')
+            .trim()
+            .replace(/[^a-z0-9]/g, '-')
+            .replace(/-+/g, '-');
+
+        if (codesValides.hasOwnProperty(code)) {
+            // --- NOUVEAUTÉ ICI : ON DONNE LE JETON D'ACCÈS ---
+            sessionStorage.setItem('access_granted', code); 
+            // -------------------------------------------------
+            
+            window.location.href = codesValides[code];
         } else {
             document.getElementById('clientError').style.display = 'block';
         }

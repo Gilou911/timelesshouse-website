@@ -1024,34 +1024,35 @@
         }
     }
 
-    // --- SCRIPT DE GESTION INTELLIGENTE DES VIDÉOS DE FOND ---
+   // --- SCRIPT DE CHARGEMENT (Vidéo + Auto-ouverture Modal) ---
     document.addEventListener('DOMContentLoaded', function() {
-        var backgroundVideos = document.querySelectorAll('.bg-video');
         
+        // 1. GESTION DES VIDÉOS DE FOND (Code existant)
+        var backgroundVideos = document.querySelectorAll('.bg-video');
         backgroundVideos.forEach(function(video) {
-            // On essaie de lancer la vidéo
             var playPromise = video.play();
-            
             if (playPromise !== undefined) {
                 playPromise.then(function() {
-                    // Si la lecture démarre :
-                    
-                    // 1. On affiche la vidéo
                     video.classList.add('video-playing');
-                    
-                    // 2. On cache l'image qui est derrière
                     var container = video.parentElement;
                     var imageArrierePlan = container.querySelector('.bg-image');
                     if (imageArrierePlan) {
                         imageArrierePlan.classList.add('hidden');
                     }
-
                 }).catch(function(error) {
-                    console.log("Autoplay bloqué (mode économie ou mobile), l'image reste visible.");
-                    // Ici on ne fait rien, donc l'image reste visible par défaut
+                    console.log("Autoplay bloqué, affichage image fixe.");
                 });
             }
         });
+
+        // 2. OUVERTURE AUTOMATIQUE ESPACE CLIENT (Nouveau !)
+        // Si le lien contient "#clients", on ouvre le modal
+        if(window.location.hash === '#clients') {
+            // Petit délai de 0.5s pour laisser le site charger visuellement avant d'ouvrir
+            setTimeout(function() {
+                openClientModal();
+            }, 500);
+        }
     });
 </script>
 </body>

@@ -386,7 +386,7 @@
 
         <div class="prestations-toggle">
             <button class="toggle-btn active" onclick="switchPricing('packages')" id="btnPackages">
-                <span data-lang="fr">Packages Complets</span><span data-lang="en">Complete Packages</span>
+                <span data-lang="fr">Collections</span><span data-lang="en">Collections</span>
             </button>
             <button class="toggle-btn" onclick="switchPricing('alacarte')" id="btnAlacarte">
                 <span data-lang="fr">À la Carte</span><span data-lang="en">À la Carte</span>
@@ -395,9 +395,13 @@
 
         <div class="prestations-content active" id="packages">
             <div class="pricing-grid">
+                
                 <div class="pricing-card">
                     <h3 class="serif"><span data-lang="fr">Essentiel</span><span data-lang="en">Essential</span></h3>
-                    <p class="price">2.500€</p>
+                    <p class="price" style="font-size: 1.2rem; margin-bottom: 10px; line-height: 1.4;">
+                        <span data-lang="fr">Pour les mariages intimistes</span>
+                        <span data-lang="en">For intimate weddings</span>
+                    </p>
                     <ul>
                         <li><span data-lang="fr">Vidéo Émotion (2-3 min)</span><span data-lang="en">Emotion Video (2-3 min)</span></li>
                         <li><span data-lang="fr">100 photos retouchées</span><span data-lang="en">100 edited photos</span></li>
@@ -405,13 +409,16 @@
                         <li><span data-lang="fr">Galerie en ligne privée</span><span data-lang="en">Private online gallery</span></li>
                     </ul>
                     <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Choisir</span><span data-lang="en">Choose</span>
+                        <span data-lang="fr">Demander un devis</span><span data-lang="en">Request a Quote</span>
                     </button>
                 </div>
 
                 <div class="pricing-card" style="border: 2px solid var(--accent);">
                     <h3 class="serif"><span data-lang="fr">Signature</span><span data-lang="en">Signature</span></h3>
-                    <p class="price">3.800€</p>
+                    <p class="price" style="font-size: 1.2rem; margin-bottom: 10px; line-height: 1.4;">
+                        <span data-lang="fr">L'expérience complète</span>
+                        <span data-lang="en">The complete experience</span>
+                    </p>
                     <ul>
                         <li><span data-lang="fr">Vidéo Souvenir (8-12 min)</span><span data-lang="en">Memory Video (8-12 min)</span></li>
                         <li><span data-lang="fr">200 photos retouchées</span><span data-lang="en">200 edited photos</span></li>
@@ -420,13 +427,16 @@
                         <li><span data-lang="fr">Galerie en ligne + clé USB</span><span data-lang="en">Online gallery + USB key</span></li>
                     </ul>
                     <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Choisir</span><span data-lang="en">Choose</span>
+                        <span data-lang="fr">Demander un devis</span><span data-lang="en">Request a Quote</span>
                     </button>
                 </div>
 
                 <div class="pricing-card">
                     <h3 class="serif"><span data-lang="fr">Prestige</span><span data-lang="en">Prestige</span></h3>
-                    <p class="price">5.500€</p>
+                    <p class="price" style="font-size: 1.2rem; margin-bottom: 10px; line-height: 1.4;">
+                        <span data-lang="fr">L'héritage ultime</span>
+                        <span data-lang="en">The ultimate legacy</span>
+                    </p>
                     <ul>
                         <li><span data-lang="fr">Vidéo Éternité (20-60 min)</span><span data-lang="en">Eternity Video (20-60 min)</span></li>
                         <li><span data-lang="fr">400 photos retouchées</span><span data-lang="en">400 edited photos</span></li>
@@ -435,7 +445,7 @@
                         <li><span data-lang="fr">Album photo premium 30x30cm</span><span data-lang="en">Premium photo album 30x30cm</span></li>
                     </ul>
                     <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Choisir</span><span data-lang="en">Choose</span>
+                        <span data-lang="fr">Demander un devis</span><span data-lang="en">Request a Quote</span>
                     </button>
                 </div>
             </div>
@@ -445,79 +455,79 @@
             <div class="pricing-grid">
                 <div class="pricing-card">
                     <h3 class="serif"><span data-lang="fr">Vidéo Émotion</span><span data-lang="en">Emotion Video</span></h3>
-                    <p class="price"><span data-lang="fr">À partir de</span><span data-lang="en">From</span> 800€</p>
+                    <p class="price" style="font-size: 1.2rem;"><span data-lang="fr">Sur Devis</span><span data-lang="en">Custom Quote</span></p>
                     <ul>
                         <li><span data-lang="fr">Film court 2-3 minutes</span><span data-lang="en">Short film 2-3 minutes</span></li>
                         <li><span data-lang="fr">Livraison rapide sous 3 semaines</span><span data-lang="en">Fast delivery in 3 weeks</span></li>
                         <li><span data-lang="fr">Musique et étalonnage pro</span><span data-lang="en">Music and pro color grading</span></li>
                     </ul>
                     <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Réserver</span><span data-lang="en">Book</span>
+                        <span data-lang="fr">Contacter</span><span data-lang="en">Contact</span>
                     </button>
                 </div>
 
                 <div class="pricing-card">
                     <h3 class="serif"><span data-lang="fr">Vidéo Souvenir</span><span data-lang="en">Memory Video</span></h3>
-                    <p class="price"><span data-lang="fr">À partir de</span><span data-lang="en">From</span> 1.500€</p>
+                    <p class="price" style="font-size: 1.2rem;"><span data-lang="fr">Sur Devis</span><span data-lang="en">Custom Quote</span></p>
                     <ul>
                         <li><span data-lang="fr">Film complet 8-12 minutes</span><span data-lang="en">Complete film 8-12 minutes</span></li>
                         <li><span data-lang="fr">Toute la journée capturée</span><span data-lang="en">Full day captured</span></li>
                         <li><span data-lang="fr">Livraison sous 6 semaines</span><span data-lang="en">Delivery in 6 weeks</span></li>
                     </ul>
                     <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Réserver</span><span data-lang="en">Book</span>
+                        <span data-lang="fr">Contacter</span><span data-lang="en">Contact</span>
                     </button>
                 </div>
                 
-                 <div class="pricing-card">
+                <div class="pricing-card">
                     <h3 class="serif"><span data-lang="fr">Vidéo Éternité</span><span data-lang="en">Eternity Video</span></h3>
-                    <p class="price"><span data-lang="fr">À partir de</span><span data-lang="en">From</span> 2.800€</p>
+                    <p class="price" style="font-size: 1.2rem;"><span data-lang="fr">Sur Devis</span><span data-lang="en">Custom Quote</span></p>
                     <ul>
                         <li><span data-lang="fr">Film documentaire 20-60 min</span><span data-lang="en">Documentary film 20-60 min</span></li>
                         <li><span data-lang="fr">Chaque moment préservé</span><span data-lang="en">Every moment preserved</span></li>
                         <li><span data-lang="fr">Livraison sous 8 semaines</span><span data-lang="en">Delivery in 8 weeks</span></li>
                     </ul>
                     <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Réserver</span><span data-lang="en">Book</span>
+                        <span data-lang="fr">Contacter</span><span data-lang="en">Contact</span>
                     </button>
                 </div>
 
                 <div class="pricing-card">
                     <h3 class="serif"><span data-lang="fr">Photo Half-Day</span><span data-lang="en">Photo Half-Day</span></h3>
-                    <p class="price"><span data-lang="fr">À partir de</span><span data-lang="en">From</span> 1.200€</p>
+                    <p class="price" style="font-size: 1.2rem;"><span data-lang="fr">Sur Devis</span><span data-lang="en">Custom Quote</span></p>
                     <ul>
                         <li><span data-lang="fr">Couverture 4 heures</span><span data-lang="en">4 hours coverage</span></li>
                         <li><span data-lang="fr">150 photos retouchées</span><span data-lang="en">150 edited photos</span></li>
                         <li><span data-lang="fr">Galerie en ligne privée</span><span data-lang="en">Private online gallery</span></li>
                     </ul>
                     <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Réserver</span><span data-lang="en">Book</span>
+                        <span data-lang="fr">Contacter</span><span data-lang="en">Contact</span>
                     </button>
                 </div>
 
                 <div class="pricing-card">
                     <h3 class="serif"><span data-lang="fr">Photo Full-Day</span><span data-lang="en">Photo Full-Day</span></h3>
-                    <p class="price"><span data-lang="fr">À partir de</span><span data-lang="en">From</span> 2.000€</p>
+                    <p class="price" style="font-size: 1.2rem;"><span data-lang="fr">Sur Devis</span><span data-lang="en">Custom Quote</span></p>
                     <ul>
                         <li><span data-lang="fr">Couverture 8 heures</span><span data-lang="en">8 hours coverage</span></li>
                         <li><span data-lang="fr">300 photos retouchées</span><span data-lang="en">300 edited photos</span></li>
                         <li><span data-lang="fr">Clé USB + galerie en ligne</span><span data-lang="en">USB key + online gallery</span></li>
                     </ul>
                     <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Réserver</span><span data-lang="en">Book</span>
+                        <span data-lang="fr">Contacter</span><span data-lang="en">Contact</span>
                     </button>
                 </div>
 
                 <div class="pricing-card">
                     <h3 class="serif"><span data-lang="fr">Session Engagement</span><span data-lang="en">Engagement Session</span></h3>
-                    <p class="price"><span data-lang="fr">À partir de</span><span data-lang="en">From</span> 450€</p>
+                    <p class="price" style="font-size: 1.2rem;"><span data-lang="fr">Sur Devis</span><span data-lang="en">Custom Quote</span></p>
                     <ul>
                         <li><span data-lang="fr">Séance 2 heures</span><span data-lang="en">2 hours session</span></li>
                         <li><span data-lang="fr">50 photos retouchées</span><span data-lang="en">50 edited photos</span></li>
                         <li><span data-lang="fr">Idéal pour save-the-date</span><span data-lang="en">Perfect for save-the-date</span></li>
                     </ul>
                     <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Réserver</span><span data-lang="en">Book</span>
+                        <span data-lang="fr">Contacter</span><span data-lang="en">Contact</span>
                     </button>
                 </div>
             </div>
@@ -530,36 +540,36 @@
             <h2 class="title-lg"><span data-lang="fr">Histoires d'Amour</span><span data-lang="en">Love Stories</span></h2>
         </div>
         <div class="gallery-grid">
-            <div class="gallery-item" onclick="openVideoModal('https://streamable.com/l/72q0qy/mp4-high.mp4')">
+            <div class="gallery-item" onclick="openVideoModal('https://streamable.com/l/5p6n3h/mp4.mp4')">
                 <div class="gallery-img-wrap">
-                    <img src="Video_5.jpg" alt="Head Spa Treatment" loading="lazy">
+                    <img src="OrnelaLuka.png" alt="Head Spa Treatment" loading="lazy">
                     <div class="play-indicator">▶</div>
                 </div>
                 <div class="gallery-info">
-                    <h3 class="gallery-title"><span data-lang="fr">Provence & Lavande</span><span data-lang="en">Provence & Lavender</span></h3>
-                    <span class="gallery-meta">Sophie & Marc</span>
+                    <h3 class="gallery-title"><span data-lang="fr">Domaine de Montblin</span><span data-lang="en">Domaine de Montblin</span></h3>
+                    <span class="gallery-meta">Ornella & Luka</span>
                 </div>
             </div>
 
-            <div class="gallery-item" onclick="openVideoModal('https://streamable.com/l/h01gec/mp4-high.mp4')">
+            <div class="gallery-item" onclick="openVideoModal('https://streamable.com/l/eal7y8/mp4-high.mp4')">
                 <div class="gallery-img-wrap">
-                    <img src="video-1-detente.jpg" alt="Relaxation Spa" loading="lazy">
+                    <img src="StessyJunior.png" alt="Relaxation Spa" loading="lazy">
                     <div class="play-indicator">▶</div>
                 </div>
                 <div class="gallery-info">
-                    <h3 class="gallery-title"><span data-lang="fr">Elopement en Italie</span><span data-lang="en">Italian Elopement</span></h3>
-                    <span class="gallery-meta">Clara & Thomas</span>
+                    <h3 class="gallery-title"><span data-lang="fr">L'Orangerie</span><span data-lang="en">L'Orangerie</span></h3>
+                    <span class="gallery-meta">Stessy & Junior</span>
                 </div>
             </div>
 
-            <div class="gallery-item" onclick="openVideoModal('https://streamable.com/l/h01gec/mp4-high.mp4')">
+            <div class="gallery-item" onclick="openVideoModal('https://streamable.com/l/u4qyjv/mp4.mp4')">
                 <div class="gallery-img-wrap">
-                    <img src="Video_2_Rincage.jpg" alt="Rinsing Process" loading="lazy">
+                    <img src="ThelanaManoah.png" alt="Rinsing Process" loading="lazy">
                     <div class="play-indicator">▶</div>
                 </div>
                 <div class="gallery-info">
-                    <h3 class="gallery-title"><span data-lang="fr">Château de la Loire</span><span data-lang="en">Loire Valley Castle</span></h3>
-                    <span class="gallery-meta">Élise & Julien</span>
+                    <h3 class="gallery-title"><span data-lang="fr">Domaine d'Orléans</span><span data-lang="en">Domaine d'Orléans</span></h3>
+                    <span class="gallery-meta">Thelana & Manoah</span>
                 </div>
             </div>
         </div>
@@ -575,26 +585,26 @@
                 <div class="testimonial-slide">
                     <div class="quote-icon">"</div>
                     <p class="quote-text">
-                        <span data-lang="fr">OMG !! J'aime trop ! Incroyable, j'arrête pas de la regarder, vraiment merci.</span>
-                        <span data-lang="en">OMG!! I love it so much! Incredible, I can't stop watching it, really thank you.</span>
+                        <span data-lang="fr">OMG !! J'aime trop ! Incroyable.</span>
+                        <span data-lang="en">OMG!! I love it so much! Incredible.</span>
                     </p>
                     <div class="quote-author">Eunice & Josué</div>
                 </div>
                 <div class="testimonial-slide">
                     <div class="quote-icon">"</div>
                     <p class="quote-text">
-                        <span data-lang="fr">Une douceur incroyable se dégage de vos images. Nous avons pleuré en découvrant la vidéo. Merci d'avoir sublimé notre journée avec tant de poésie.</span>
-                        <span data-lang="en">An incredible softness radiates from your images. We cried watching the video. Thank you for sublimating our day with such poetry.</span>
+                        <span data-lang="fr">Vraiment vous nous avez respecté, excellent travail, merci merci merci.</span>
+                        <span data-lang="en">You really came through for us, excellent job, thank you so, so much.</span>
                     </p>
-                    <div class="quote-author">Thomas & Morgane</div>
+                    <div class="quote-author">Stessy & Junior</div>
                 </div>
                 <div class="testimonial-slide">
                     <div class="quote-icon">"</div>
                     <p class="quote-text">
-                        <span data-lang="fr">Vous avez capturé des moments que nous n'avions même pas remarqués. Chaque image raconte une histoire. C'est exactement ce que nous voulions.</span>
-                        <span data-lang="en">You captured moments we didn't even notice. Every image tells a story. It's exactly what we wanted.</span>
+                        <span data-lang="fr">Je n'arrête pas de la regarder, vraiment merci</span>
+                        <span data-lang="en">I can't take my eyes off it, really, thank you.</span>
                     </p>
-                    <div class="quote-author">Sophie & Antoine</div>
+                    <div class="quote-author">Thomas & Morgane</div>
                 </div>
             </div>
             <div class="carousel-nav">

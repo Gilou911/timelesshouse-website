@@ -253,24 +253,27 @@
 
     function addImagesFromCategory(category) {
         for (let i = 1; i <= category.count; i++) {
+            // On garde votre logique de numérotation (01, 010, 056...)
             const baseFilename = formatNumber(i);
+            
+            // Chemin par défaut (minuscule)
             const defaultPath = `${MAIN_FOLDER}/${category.folder}/${baseFilename}.jpg`;
             
+            // On prépare les index pour la lightbox
             currentFilteredImages.push(defaultPath);
             const localIndex = currentFilteredImages.length - 1; 
 
+            // Création HTML
             const div = document.createElement('div');
             div.className = 'photo-item';
             div.onclick = () => openLightbox(localIndex);
-
-            // Ajout d'un petit délai d'apparition aléatoire pour un effet "naturel"
-            // div.style.animationDelay = `${Math.random() * 0.2}s`; 
 
             const img = document.createElement('img');
             img.src = defaultPath;
             img.loading = "lazy";
             img.alt = category.name;
 
+            // Bouton DL
             const overlay = document.createElement('div');
             overlay.className = 'photo-overlay';
             const linkDl = document.createElement('a');
@@ -281,15 +284,26 @@
             linkDl.onclick = (e) => e.stopPropagation();
             linkDl.setAttribute('download', '');
 
-            // Gestion extensions
+            // --- GESTION DES ERREURS AMÉLIORÉE (Minuscules ET Majuscules) ---
             img.onerror = function() {
                 const currentSrc = this.src;
+                
+                // 1. Si .jpg échoue, on tente .JPG (Majuscule)
                 if (currentSrc.endsWith('.jpg')) {
-                    const newSrc = currentSrc.replace('.jpg', '.jpeg');
+                    const newSrc = currentSrc.replace('.jpg', '.JPG');
                     this.src = newSrc;
                     linkDl.href = newSrc;
                     currentFilteredImages[localIndex] = newSrc;
-                } else if (currentSrc.endsWith('.jpeg')) {
+                } 
+                // 2. Si .JPG échoue, on tente .jpeg (Minuscule)
+                else if (currentSrc.endsWith('.JPG')) {
+                    const newSrc = currentSrc.replace('.JPG', '.jpeg');
+                    this.src = newSrc;
+                    linkDl.href = newSrc;
+                    currentFilteredImages[localIndex] = newSrc;
+                }
+                // 3. Si .jpeg échoue, on tente .png
+                else if (currentSrc.endsWith('.jpeg')) {
                     const newSrc = currentSrc.replace('.jpeg', '.png');
                     this.src = newSrc;
                     linkDl.href = newSrc;

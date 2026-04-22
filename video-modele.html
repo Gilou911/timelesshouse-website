@@ -32,18 +32,19 @@
       // Laissez le lien 4K vide ("") si vous ne l'avez pas, le bouton 4K disparaîtra.
       
       teaserUrls: {
-        "1080p": "https://streamable.com/l/9j8j9q/mp4.mp4",   // LIEN STREAMABLE TEASER 1080P
-        "4K": "https://streamable.com/l/9j8j9q/mp4-high.mp4" // Remplacez par votre lien 4K ou laissez vide
+        "1080p": "https://streamable.com/l/9j8j9q/mp4.mp4",
+        "4K": "https://streamable.com/l/9j8j9q/mp4-high.mp4" 
       },
 
       filmUrls: {
         "1080p": "LIEN STREAMABLE FILM COMPLET 1080P",
-        "4K": "" // Remplacez par votre lien 4K ou laissez vide
+        "4K": "" 
       },
 
-      // ───── LIENS DE TÉLÉCHARGEMENT  ─────
-      teaserDriveId: "Lien",
-      filmDriveId:   "Lien2",
+      // ───── LIENS DE TÉLÉCHARGEMENT DIRECTS (BACKBLAZE) ─────
+      // Collez ici l'URL complète récupérée sur Cyberduck
+      teaserDownloadUrl: "https://f003.backblazeb2.com/file/Timelesshouse-org/Wed/Teaser_Keysia%26Jason.mp4",
+      filmDownloadUrl:   "VOTRE_LIEN_BACKBLAZE_FILM",
 
       // ───── LIENS INTERNES ─────
       photosUrl: "",        
@@ -633,10 +634,9 @@
       setupVideoQuality("videoTeaser", "qualityControlsTeaser", c.teaserUrls);
       setupVideoQuality("videoFilm", "qualityControlsFilm", c.filmUrls);
 
-      // Liens de téléchargement Google Drive
-      const driveUrl = (id) => 'https://drive.google.com/uc?export=download&id=' + id;
-      if (document.getElementById('downloadTeaser')) document.getElementById('downloadTeaser').href = driveUrl(c.teaserDriveId);
-      if (document.getElementById('downloadFilm')) document.getElementById('downloadFilm').href = driveUrl(c.filmDriveId);
+      // Liens de téléchargement directs
+      if (document.getElementById('downloadTeaser')) document.getElementById('downloadTeaser').href = c.teaserDownloadUrl;
+      if (document.getElementById('downloadFilm')) document.getElementById('downloadFilm').href = c.filmDownloadUrl;
     })();
 
     // ============================================

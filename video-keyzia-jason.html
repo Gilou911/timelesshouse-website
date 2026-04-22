@@ -23,28 +23,33 @@
     const WEDDING_CONFIG = {
 
       // ───── INFOS DU COUPLE ─────
-      couple: "Keysia & Jason",              // Nom affiché en grand titre
-      date: "20 Septembre 2025",                  // ex: "15 Juin 2025"
-      lieu: "",                  // ex: "Château de Versailles"
-      dateISO: "2025-01-01",                 // Format YYYY-MM-DD (pour le SEO)
+      couple: "Keysia & Jason",              
+      date: "20 Septembre 2025",                  
+      lieu: "",                  
+      dateISO: "2025-09-20",                 
 
-      // ───── LIENS VIDÉO (lecteur intégré) ─────
-      // Collez ici les liens d'intégration Streamable / Cloudflare / Vimeo
-      teaserEmbedUrl: "https://streamable.com/9j8j9q",   // LIEN STREAMABLE TEASER
-      filmEmbedUrl:   "LIEN STREAMABLE FILM COMPLET",
+      // ───── LIENS VIDÉO (LECTEUR DIRECT) ─────
+      // Laissez le lien 4K vide ("") si vous ne l'avez pas, le bouton 4K disparaîtra.
+      
+      teaserUrls: {
+        "1080p": "https://streamable.com/l/9j8j9q/mp4.mp4",   // LIEN STREAMABLE TEASER 1080P
+        "4K": "https://streamable.com/l/9j8j9q/mp4-high.mp4" // Remplacez par votre lien 4K ou laissez vide
+      },
+
+      filmUrls: {
+        "1080p": "LIEN STREAMABLE FILM COMPLET 1080P",
+        "4K": "" // Remplacez par votre lien 4K ou laissez vide
+      },
 
       // ───── LIENS DE TÉLÉCHARGEMENT  ─────
-      
       teaserDriveId: "Lien",
       filmDriveId:   "Lien2",
 
-      // ───── LIENS INTERNES (vers les autres pages du client) ─────
-      // Laissez photosUrl vide ("") pour cacher automatiquement le bouton "Voir la Galerie Photos"
-      photosUrl: "",        // Page galerie photos
-      accueilUrl: "index.html",              // Page d'accueil du client
+      // ───── LIENS INTERNES ─────
+      photosUrl: "photo-modele.html",        
+      accueilUrl: "index.html",              
 
       // ───── VIDÉO AFFICHÉE PAR DÉFAUT ─────
-      // "teaser" ou "full"
       defaultVideo: "teaser"
     };
   </script>
@@ -210,7 +215,7 @@
     }
     .selector-btn.active { color: var(--bg-dark); font-weight: 500; }
 
-    /* LECTEUR */
+    /* LECTEUR ET SÉLECTEUR DE QUALITÉ */
     .cinema-container {
       max-width: 1200px; margin: 0 auto 40px; padding: 0 20px;
       position: relative; z-index: 2;
@@ -244,7 +249,42 @@
       transition: opacity 0.8s var(--ease-cinema), visibility 0.8s var(--ease-cinema);
     }
     .video-slide.active { opacity: 1; visibility: visible; }
-    .video-slide iframe { width: 100%; height: 100%; border: none; display: block; }
+    .video-slide video { width: 100%; height: 100%; display: block; background: #000; outline: none; border: none; }
+
+    /* CONTROLES DE QUALITÉ (Boutons 1080p / 4K) */
+    .quality-controls {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 10;
+      display: flex;
+      gap: 4px;
+      background: rgba(10, 10, 10, 0.75);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      padding: 4px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+      transition: opacity 0.3s ease;
+    }
+    .quality-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: "Montserrat", sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      padding: 6px 10px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.3s var(--ease-cinema);
+      letter-spacing: 0.1em;
+    }
+    .quality-btn:hover { color: var(--text-light); }
+    .quality-btn.active {
+      background: var(--accent);
+      color: var(--bg-dark);
+    }
 
     .transition-veil {
       position: absolute; inset: 0; background: #000;
@@ -362,6 +402,8 @@
         padding: 10px 20px; min-width: 120px;
         font-size: 9px; letter-spacing: 0.25em;
       }
+      .quality-controls { top: 12px; right: 12px; padding: 2px; }
+      .quality-btn { padding: 4px 8px; font-size: 9px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -418,24 +460,19 @@
     <section class="cinema-container" aria-label="Lecteur vidéo">
       <div class="video-wrapper">
         <div class="video-stage">
+          
           <div class="video-slide active" data-slide="teaser" role="tabpanel">
-            <iframe
-              id="iframeTeaser"
-              title="Teaser"
-              allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
-              allowfullscreen
-              loading="lazy">
-            </iframe>
+            <div class="quality-controls" id="qualityControlsTeaser" style="display: none;">
+              </div>
+            <video id="videoTeaser" controls playsinline preload="metadata"></video>
           </div>
+          
           <div class="video-slide" data-slide="full" role="tabpanel">
-            <iframe
-              id="iframeFilm"
-              title="Film Complet"
-              allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
-              allowfullscreen
-              loading="lazy">
-            </iframe>
+            <div class="quality-controls" id="qualityControlsFilm" style="display: none;">
+              </div>
+            <video id="videoFilm" controls playsinline preload="metadata"></video>
           </div>
+
         </div>
         <div class="transition-veil" id="veil" aria-hidden="true"></div>
       </div>
@@ -505,6 +542,62 @@
 
   <script>
     // ============================================
+    // GESTION DU CHANGEMENT DE QUALITÉ VIDÉO
+    // ============================================
+    function setupVideoQuality(videoId, controlsId, urls) {
+      const video = document.getElementById(videoId);
+      const controls = document.getElementById(controlsId);
+      
+      // S'il n'y a aucune URL fournie, on arrête
+      if (!urls["1080p"] && !urls["4K"]) return;
+
+      // S'il y a les deux qualités, on affiche le sélecteur
+      if (urls["1080p"] && urls["4K"]) {
+        controls.style.display = "flex";
+        
+        // On crée les boutons
+        const btn1080 = document.createElement("button");
+        btn1080.className = "quality-btn active";
+        btn1080.textContent = "1080p";
+        
+        const btn4K = document.createElement("button");
+        btn4K.className = "quality-btn";
+        btn4K.textContent = "4K";
+
+        // Logique de changement de qualité
+        const switchQuality = (targetRes, clickedBtn, otherBtn) => {
+          if (clickedBtn.classList.contains("active")) return; // Déjà actif
+          
+          // Sauvegarde de l'état actuel de la vidéo
+          const currentTime = video.currentTime;
+          const isPaused = video.paused;
+
+          // Changement UI
+          clickedBtn.classList.add("active");
+          otherBtn.classList.remove("active");
+
+          // Changement source vidéo
+          video.src = urls[targetRes];
+          video.load();
+          video.currentTime = currentTime; // On remet au même endroit
+          
+          if (!isPaused) {
+            video.play().catch(() => {}); // Reprend la lecture sans erreur si bloqué
+          }
+        };
+
+        btn1080.onclick = () => switchQuality("1080p", btn1080, btn4K);
+        btn4K.onclick = () => switchQuality("4K", btn4K, btn1080);
+
+        controls.appendChild(btn1080);
+        controls.appendChild(btn4K);
+      }
+
+      // Par défaut, on charge toujours la 1080p pour que ça charge vite (ou la 4K s'il n'y a que ça)
+      video.src = urls["1080p"] || urls["4K"];
+    }
+
+    // ============================================
     // INJECTION DE LA CONFIGURATION DANS LA PAGE
     // ============================================
     (function applyConfig() {
@@ -515,29 +608,35 @@
       document.querySelector('meta[property="og:title"]').setAttribute('content', c.couple + ' — TimelessHouse');
 
       // Header
-      document.getElementById('coupleTitle').textContent = c.couple;
-      document.getElementById('dateLieu').textContent = c.date + ' • ' + c.lieu;
-      document.getElementById('dateLieu').setAttribute('datetime', c.dateISO);
-
-      // Liens internes
-      document.getElementById('logoLink').href = c.accueilUrl;
-
-      // LOGIQUE POUR LE BOUTON GALERIE PHOTOS
-      const photosBtn = document.getElementById('photosLink');
-      if (c.photosUrl && c.photosUrl.trim() !== "") {
-        photosBtn.href = c.photosUrl;
-      } else {
-        photosBtn.style.display = 'none';
+      if (document.getElementById('coupleTitle')) document.getElementById('coupleTitle').textContent = c.couple;
+      if (document.getElementById('dateLieu')) {
+        let lieuDateStr = c.date;
+        if (c.lieu) lieuDateStr += ' • ' + c.lieu;
+        document.getElementById('dateLieu').textContent = lieuDateStr;
+        document.getElementById('dateLieu').setAttribute('datetime', c.dateISO);
       }
 
-      // Sources des iframes vidéo
-      document.getElementById('iframeTeaser').src = c.teaserEmbedUrl;
-      document.getElementById('iframeFilm').src = c.filmEmbedUrl;
+      // Liens internes
+      if (document.getElementById('logoLink')) document.getElementById('logoLink').href = c.accueilUrl;
+
+      // BOUTON GALERIE PHOTOS
+      const photosBtn = document.getElementById('photosLink');
+      if (photosBtn) {
+        if (c.photosUrl && c.photosUrl.trim() !== "") {
+          photosBtn.href = c.photosUrl;
+        } else {
+          photosBtn.style.display = 'none';
+        }
+      }
+
+      // INITIALISATION DES LECTEURS ET DE LA QUALITÉ
+      setupVideoQuality("videoTeaser", "qualityControlsTeaser", c.teaserUrls);
+      setupVideoQuality("videoFilm", "qualityControlsFilm", c.filmUrls);
 
       // Liens de téléchargement Google Drive
       const driveUrl = (id) => 'https://drive.google.com/uc?export=download&id=' + id;
-      document.getElementById('downloadTeaser').href = driveUrl(c.teaserDriveId);
-      document.getElementById('downloadFilm').href = driveUrl(c.filmDriveId);
+      if (document.getElementById('downloadTeaser')) document.getElementById('downloadTeaser').href = driveUrl(c.teaserDriveId);
+      if (document.getElementById('downloadFilm')) document.getElementById('downloadFilm').href = driveUrl(c.filmDriveId);
     })();
 
     // ============================================
@@ -545,12 +644,14 @@
     // ============================================
     window.addEventListener('load', () => {
       const loader = document.getElementById('loader');
-      setTimeout(() => loader.classList.add('reveal'), 1800);
-      setTimeout(() => loader.classList.add('hidden'), 3200);
+      if(loader) {
+        setTimeout(() => loader.classList.add('reveal'), 1800);
+        setTimeout(() => loader.classList.add('hidden'), 3200);
+      }
     });
 
     // ============================================
-    // SÉLECTEUR VIDÉO
+    // SÉLECTEUR VIDÉO (Teaser vs Film Complet)
     // ============================================
     const selectorTrack = document.querySelector('.selector-track');
     const selectorBtns = document.querySelectorAll('.selector-btn');
@@ -564,7 +665,7 @@
     let isAnimating = false;
 
     // Applique la vidéo par défaut
-    if (currentTarget === 'full') {
+    if (currentTarget === 'full' && selectorTrack) {
       selectorTrack.dataset.active = 'full';
       selectorBtns.forEach(btn => {
         const isActive = btn.dataset.target === 'full';
@@ -574,12 +675,16 @@
       slides.forEach(slide => {
         slide.classList.toggle('active', slide.dataset.slide === 'full');
       });
-      nowPlaying.innerHTML = 'En cours — <span>' + labels.full + '</span>';
+      if(nowPlaying) nowPlaying.innerHTML = 'En cours — <span>' + labels.full + '</span>';
     }
 
     function switchVideo(target) {
       if (target === currentTarget || isAnimating) return;
       isAnimating = true;
+
+      // On met en pause la vidéo actuelle
+      const currentVideo = document.querySelector(`.video-slide[data-slide="${currentTarget}"] video`);
+      if (currentVideo) currentVideo.pause();
 
       selectorTrack.dataset.active = target;
       selectorBtns.forEach(btn => {
@@ -619,20 +724,23 @@
     const toast = document.getElementById('toast');
 
     function showToast(message) {
+      if(!toast) return;
       toast.textContent = message;
       toast.classList.add('visible');
       setTimeout(() => toast.classList.remove('visible'), 2400);
     }
 
     const nativeBtn = document.querySelector('[data-share="native"]');
-    if (navigator.share) {
-      nativeBtn.addEventListener('click', async () => {
-        try {
-          await navigator.share({ title: pageTitle, text: shareText, url: pageUrl });
-        } catch (err) {}
-      });
-    } else {
-      nativeBtn.addEventListener('click', () => copyLink());
+    if (nativeBtn) {
+      if (navigator.share) {
+        nativeBtn.addEventListener('click', async () => {
+          try {
+            await navigator.share({ title: pageTitle, text: shareText, url: pageUrl });
+          } catch (err) {}
+        });
+      } else {
+        nativeBtn.addEventListener('click', () => copyLink());
+      }
     }
 
     function copyLink() {
@@ -641,14 +749,15 @@
         () => showToast('Impossible de copier')
       );
     }
-    document.querySelector('[data-share="copy"]').addEventListener('click', copyLink);
+    
+    const copyBtn = document.querySelector('[data-share="copy"]');
+    if(copyBtn) copyBtn.addEventListener('click', copyLink);
 
-    document.querySelector('[data-share="whatsapp"]').href =
-      'https://wa.me/?text=' + encodeURIComponent(shareText + ' — ' + pageUrl);
+    const waBtn = document.querySelector('[data-share="whatsapp"]');
+    if(waBtn) waBtn.href = 'https://wa.me/?text=' + encodeURIComponent(shareText + ' — ' + pageUrl);
 
-    document.querySelector('[data-share="email"]').href =
-      'mailto:?subject=' + encodeURIComponent(pageTitle) +
-      '&body=' + encodeURIComponent(shareText + '\n\n' + pageUrl);
+    const emailBtn = document.querySelector('[data-share="email"]');
+    if(emailBtn) emailBtn.href = 'mailto:?subject=' + encodeURIComponent(pageTitle) + '&body=' + encodeURIComponent(shareText + '\n\n' + pageUrl);
   </script>
 
 </body>

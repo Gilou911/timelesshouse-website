@@ -869,6 +869,31 @@
   </footer>
 
   <script>
+    /* ============================================================
+       ⚙️  CONFIGURATION DES ACCÈS CLIENTS
+       ============================================================
+       👉  Seul endroit à modifier pour ajouter/retirer un client.
+       👉  Chaque ligne = un couple.
+       👉  À GAUCHE  : le code d'accès que le client tape (en minuscules,
+                      sans accent, avec des tirets entre les prénoms).
+       👉  À DROITE  : le nom du fichier HTML de leur espace privé.
+
+       Ex : pour ajouter le couple "Julie & Thomas" dont l'espace est
+            dans le fichier "photo-julie-thomas.html", ajoutez :
+
+            "julie-thomas": "photo-julie-thomas.html",
+
+       ⚠️  Ne pas oublier la virgule à la fin de chaque ligne.
+       ============================================================ */
+    const CODES_CLIENTS = {
+        "precieuse-ronny": "precieuse-ronny.html",
+        "ezla-davy": "photo-ezla-davy.html",
+        // "julie-thomas": "photo-julie-thomas.html",
+    };
+    /* ============================================================
+       🚫  NE RIEN MODIFIER EN-DESSOUS DE CETTE LIGNE
+       ============================================================ */
+
     function toggleMenu() {
         document.getElementById('mobileMenu').classList.toggle('open');
     }
@@ -899,11 +924,7 @@
         if(e.target.classList.contains('modal-overlay')) closeClientModal();
     }
     /* === LOGIQUE ESPACE CLIENT SÉCURISÉE === */
-    const codesValides = {
-        "precieuse-ronny": "precieuse-ronny.html",
-        "ezla-davy": "photo-ezla-davy.html",
-        // "julie-thomas": "julie-thomas.html", // Exemple pour le futur
-    };
+    const codesValides = CODES_CLIENTS;
 
     function checkClientCode() {
         let rawCode = document.getElementById('clientCode').value;

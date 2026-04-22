@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio | Videography & Photography</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Syne:wght@700;800&family=Playfair+Display:ital,wght@1,700;1,800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-black: #050505;
+            --bg-beige: #f4f1eb;
+            --text-white: #ffffff;
+            --text-black: #111111;
+            --accent-red: #ff2310;
+            --glow-red: rgba(255, 35, 16, 0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-black);
+            color: var(--text-white);
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        .title-brutalist {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            color: var(--accent-red);
+            text-transform: uppercase;
+            line-height: 0.9;
+            text-shadow: 0 0 40px var(--glow-red);
+        }
+
+        /* Italic script for category headings (Landscape, Event, Video Edit) */
+        .title-script {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-weight: 800;
+            color: var(--accent-red);
+            line-height: 1.1;
+        }
+
+        /* ── NAV ── */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            padding: 28px 40px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* ── HERO ── */
+        .hero {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hero h1 {
+            font-size: clamp(4rem, 16vw, 17rem);
+            margin-bottom: 16px;
+            letter-spacing: -4px;
+            padding: 0 20px;
+            text-align: center;
+        }
+
+        .hero-img {
+            width: 100%;
+            max-height: 65vh;
+            object-fit: cover;
+            filter: contrast(1.1) brightness(0.85);
+            display: block;
+        }
+
+        /* ── BEIGE BANNER ── */
+        .beige-banner {
+            background-color: var(--bg-beige);
+            color: var(--text-black);
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .beige-banner h2 {
+            font-family: 'Inter', sans-serif;
+            font-size: clamp(2rem, 5.5vw, 5rem);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            line-height: 1;
+        }
+
+        .beige-banner p {
+            font-size: clamp(0.75rem, 1.4vw, 1rem);
+            font-weight: 500;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #555;
+        }
+
+        /* ── PROFILE ── */
+        .profile-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 700px;
+        }
+
+        .profile-left {
+            position: relative;
+            background: var(--bg-beige);
+        }
+
+        .profile-left img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .profile-left-name {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            padding: 24px 30px;
+            z-index: 2;
+        }
+
+        .profile-left-name h2 {
+            font-size: clamp(3rem, 5.5vw, 6rem);
+        }
+
+        .profile-right {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .profile-bio {
+            background: var(--bg-beige);
+            color: var(--text-black);
+            padding: 50px 60px 40px;
+            flex: 1;
+        }
+
+        .profile-bio h3 {
+            font-family: 'Inter', sans-serif;
+            font-size: clamp(1.8rem, 3vw, 2.8rem);
+            font-weight: 800;
+            margin-bottom: 20px;
+        }
+
+        .profile-bio p {
+            font-size: clamp(0.88rem, 1.1vw, 1rem);
+            line-height: 1.75;
+        }
+
+        .profile-skills {
+            background: var(--bg-black);
+            padding: 50px 60px;
+        }
+
+        .section-label {
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--accent-red);
+            display: inline-block;
+        }
+
+        .education-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px 30px;
+            margin-bottom: 44px;
+        }
+
+        .edu-item h5 {
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .edu-item p {
+            font-size: 0.82rem;
+            color: #aaa;
+            line-height: 1.6;
+        }
+
+        .edu-item p em {
+            display: block;
+            font-style: italic;
+        }
+
+        .skills-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px 40px;
+        }
+
+        .skill-col h4 {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+        }
+
+        .skill-col ul {
+            list-style: none;
+            color: #aaa;
+            line-height: 2.2;
+            font-size: 0.88rem;
+        }
+
+        /* ── SECTION COVER (full-bleed) ── */
+        .section-cover {
+            position: relative;
+            width: 100%;
+            height: 70vh;
+            overflow: hidden;
+        }
+
+        .section-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(0.7) contrast(1.05);
+        }
+
+        .cover-overlay {
+            position: absolute;
+            inset: 0;
+            padding: 40px 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .cover-overlay .cover-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .cover-overlay .cover-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            width: 100%;
+            padding: 0 20px;
+        }
+
+        .cover-overlay .cover-center h2 {
+            font-size: clamp(4rem, 10vw, 11rem);
+            letter-spacing: -3px;
+        }
+
+        .cover-overlay .cover-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .cover-my-works {
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: clamp(1.4rem, 2.8vw, 2.8rem);
+            color: var(--text-white);
+            line-height: 1.05;
+        }
+
+        .cover-category-label {
+            font-size: clamp(1.2rem, 2.2vw, 2.2rem);
+        }
+
+        /* ── CATEGORY SECTIONS ── */
+        .category-section {
+            padding: 70px 50px;
+            background: var(--bg-black);
+        }
+
+        .category-title {
+            font-size: clamp(2.2rem, 4.5vw, 4rem);
+            margin-bottom: 44px;
+        }
+
+        /* 2-column featured grid */
+        .featured-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .featured-item .thumb-wrapper {
+            width: 100%;
+            aspect-ratio: 16/10;
+            overflow: hidden;
+            border-radius: 4px;
+        }
+
+        .featured-item .thumb-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.6s ease;
+        }
+
+        .featured-item:hover .thumb-wrapper img {
+            transform: scale(1.03);
+        }
+
+        .item-meta {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            gap: 2px 10px;
+            font-size: 0.84rem;
+            margin-top: 16px;
+            line-height: 1.9;
+        }
+
+        .item-meta strong { font-style: italic; font-weight: 600; }
+
+        .item-desc {
+            margin-top: 18px;
+            color: #aaa;
+            line-height: 1.7;
+            font-size: 0.9rem;
+            max-width: 580px;
+        }
+
+        /* 4-col photo mosaic (no gaps) */
+        .mosaic-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .mosaic-grid-4 .mosaic-item { overflow: hidden; }
+
+        .mosaic-grid-4 .mosaic-item img {
+            width: 100%;
+            aspect-ratio: 3/2;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.5s ease;
+        }
+
+        .mosaic-grid-4 .mosaic-item:hover img { transform: scale(1.04); }
+
+        /* 3-col video mosaic (rounded, gapped) */
+        .mosaic-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding: 0 50px 70px;
+            background: var(--bg-black);
+        }
+
+        .mosaic-grid-3 .mosaic-item {
+            overflow: hidden;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+
+        .mosaic-grid-3 .mosaic-item img {
+            width: 100%;
+            aspect-ratio: 16/9;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.5s ease;
+        }
+
+        .mosaic-grid-3 .mosaic-item:hover img { transform: scale(1.04); }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 1100px) {
+            .mosaic-grid-4 { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (max-width: 900px) {
+            .profile-section { grid-template-columns: 1fr; }
+            .profile-left { height: 460px; }
+            .profile-bio { background: var(--bg-black); color: var(--text-white); }
+            .profile-bio h3 { color: var(--text-white); }
+            .profile-bio { padding: 40px 30px; }
+            .profile-skills { padding: 40px 30px; }
+            .education-grid { grid-template-columns: 1fr; }
+            .featured-grid { grid-template-columns: 1fr; }
+            .mosaic-grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .mosaic-grid-3 { grid-template-columns: repeat(2, 1fr); padding: 0 20px 40px; }
+            .category-section { padding: 50px 30px; }
+        }
+
+        @media (max-width: 600px) {
+            nav { padding: 20px; font-size: 11px; }
+            .beige-banner { padding: 36px 20px; }
+            .category-section { padding: 40px 20px; }
+            .cover-overlay { padding: 24px; }
+            .skills-grid { grid-template-columns: 1fr; }
+            .mosaic-grid-3 { grid-template-columns: 1fr; padding: 0 20px 40px; }
+            .section-cover { height: 50vh; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════ NAV ══════════════ -->
+<nav>
+    <span>TON NOM ICI</span>
+    <span>2025</span>
+</nav>
+
+<!-- ══════════════ HERO ══════════════ -->
+<section class="hero">
+    <h1 class="title-brutalist">PORTFOLIO</h1>
+    <img src="https://res.cloudinary.com/dyfa4zztq/image/upload/q_auto,f_auto/Photos_ezla-davy/couple/01.jpeg"
+         alt="Hero" class="hero-img" id="heroImage">
+</section>
+
+<!-- ══════════════ BEIGE BANNER ══════════════ -->
+<section class="beige-banner">
+    <h2>PHOTOGRAPHER / VIDEO EDITOR</h2>
+    <p>Collector of moments, turning vision into reality</p>
+</section>
+
+<!-- ══════════════ PROFILE ══════════════ -->
+<section class="profile-section">
+
+    <div class="profile-left">
+        <img src="https://res.cloudinary.com/dyfa4zztq/image/upload/w_800,q_auto,f_auto/Photos_ezla-davy/portrait/01.jpeg"
+             alt="Portrait">
+        <div class="profile-left-name">
+            <h2 class="title-brutalist">TON<br>NOM<br>ICI</h2>
+        </div>
+    </div>
+
+    <div class="profile-right">
+        <div class="profile-bio">
+            <h3>My Profile</h3>
+            <p>
+                Hi, my name is [Ton Nom], and I'm a freelance photographer/videographer based in Paris.
+                I love traveling and creative work because it brings me joy while keeping me productive.
+                For the past few years, I have been working in a different field and always find myself
+                seeking a way to express myself creatively. By the end of the day, I believe it is never
+                too late to try and do what you love.
+            </p>
+        </div>
+
+        <div class="profile-skills">
+
+            <div style="margin-bottom: 44px;">
+                <span class="section-label">Education</span>
+                <div class="education-grid">
+                    <div class="edu-item">
+                        <h5>University of Architecture</h5>
+                        <p>Graphic Design<em>2018 – 2022</em></p>
+                    </div>
+                    <div class="edu-item">
+                        <h5>Formation Vidéo</h5>
+                        <p>Video Editor<em>2022 – 2023</em></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="skills-grid">
+                <div class="skill-col">
+                    <h4>Skills</h4>
+                    <ul>
+                        <li>Photoshop / Lightroom</li>
+                        <li>DaVinci Resolve</li>
+                        <li>Premiere Pro</li>
+                        <li>Illustrator</li>
+                        <li>Drone / Flycam User</li>
+                    </ul>
+                </div>
+                <div class="skill-col">
+                    <h4>Expertise</h4>
+                    <ul>
+                        <li>Color Grading</li>
+                        <li>Photography</li>
+                        <li>Video Editing</li>
+                        <li>Typography</li>
+                        <li>Story Teller / Visual Identity</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════ PHOTOGRAPHY COVER ══════════════ -->
+<div class="section-cover">
+    <img src="https://res.cloudinary.com/dyfa4zztq/image/upload/q_auto,f_auto/Photos_ezla-davy/couple/01.jpeg" alt="Photography">
+    <div class="cover-overlay">
+        <div class="cover-top">
+            <div class="cover-my-works">My<br>Works.</div>
+            <h2 class="title-brutalist" style="font-size:clamp(3rem,7vw,8rem);text-align:right;">PHOTOGRAPHY</h2>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ LANDSCAPE PHOTOGRAPHY ══════════════ -->
+<section class="category-section">
+    <h2 class="title-script category-title">Landscape<br>Photography</h2>
+    <div class="featured-grid" id="landscapeGrid"></div>
+</section>
+
+<!-- Landscape photo mosaic -->
+<div class="mosaic-grid-4" id="landscapeMosaic"></div>
+
+<!-- ══════════════ EVENT PHOTOGRAPHY ══════════════ -->
+<section class="category-section">
+    <h2 class="title-script category-title">Event<br>Photography</h2>
+    <div class="featured-grid" id="eventGrid"></div>
+</section>
+
+<!-- ══════════════ VIDEOGRAPHY COVER ══════════════ -->
+<div class="section-cover">
+    <img src="https://res.cloudinary.com/dyfa4zztq/image/upload/q_auto,f_auto/Photos_ezla-davy/couple/01.jpeg" alt="Videography">
+    <div class="cover-overlay">
+        <div class="cover-center">
+            <h2 class="title-brutalist">VIDEOGRAPHY</h2>
+        </div>
+        <div class="cover-bottom">
+            <span class="title-script cover-category-label">Video Edit /<br>Color Grading</span>
+            <div class="cover-my-works">My<br>Works.</div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ VIDEO EDIT / COLOR GRADING ══════════════ -->
+<section class="category-section">
+    <h2 class="title-script category-title">Video Edit /<br>Color Grading</h2>
+    <div class="featured-grid" id="videoFeaturedGrid"></div>
+</section>
+
+<!-- Video mosaic 3-col -->
+<div class="mosaic-grid-3" id="videoMosaicGrid"></div>
+
+
+<script>
+    const CLOUD = 'dyfa4zztq';
+    const cdn = (path, w = 1200) =>
+        `https://res.cloudinary.com/${CLOUD}/image/upload/w_${w},q_auto,f_auto/${path}`;
+
+    /* ─── HELPERS ─── */
+    function featuredItem(thumbUrl, fallbackUrl, location, year, desc, clickFn) {
+        return `
+            <div class="featured-item">
+                <div class="thumb-wrapper"${clickFn ? ` style="cursor:pointer;" onclick="${clickFn}"` : ''}>
+                    <img src="${thumbUrl}" alt="${location}"
+                         onerror="this.src='${fallbackUrl}'" loading="lazy">
+                </div>
+                <div class="item-meta">
+                    <strong>Location</strong><span>: ${location}</span>
+                    <strong>Year</strong><span>: ${year}</span>
+                </div>
+                ${desc ? `<p class="item-desc">${desc}</p>` : ''}
+            </div>`;
+    }
+
+    /* ─── 1. LANDSCAPE FEATURED ─── */
+    const landscapeFeatured = [
+        {
+            path: 'Photos_ezla-davy/mairie/01.jpeg',
+            location: 'Tam Chuc Pagoda, Ha Nam', year: '2024',
+            desc: 'I find joy in capturing the beauty of nature through landscape photography. Whether it\'s the stillness of the quiet lake or the challenge of framing a scene that may happen only once, photography allows me to connect with the world within me.'
+        },
+        {
+            path: 'Photos_ezla-davy/couple/02.jpeg',
+            location: 'Hai Van Station, Da Nang', year: '2024', desc: ''
+        }
+    ];
+    const landscapeGrid = document.getElementById('landscapeGrid');
+    landscapeFeatured.forEach(it => {
+        landscapeGrid.innerHTML += featuredItem(cdn(it.path, 900), cdn(it.path, 900), it.location, it.year, it.desc);
+    });
+
+    /* ─── 2. LANDSCAPE MOSAIC ─── */
+    const landscapeMosaicPaths = [
+        'Photos_ezla-davy/mairie/01.jpeg',
+        'Photos_ezla-davy/couple/02.jpeg',
+        'Photos_ezla-davy/soiree/03.jpeg',
+        'Photos_ezla-davy/preparatifs/04.jpeg',
+        'Photos_ezla-davy/portrait/05.jpeg',
+        'Photos_ezla-davy/ceremonie/06.jpeg',
+        'Photos_ezla-davy/couple/01.jpeg',
+        'Photos_ezla-davy/mairie/01.jpeg',
+    ];
+    const landscapeMosaic = document.getElementById('landscapeMosaic');
+    landscapeMosaicPaths.forEach(p => {
+        landscapeMosaic.innerHTML += `<div class="mosaic-item"><img src="${cdn(p, 600)}" alt="Landscape" loading="lazy"></div>`;
+    });
+
+    /* ─── 3. EVENT FEATURED ─── */
+    const eventFeatured = [
+        {
+            path: 'Photos_ezla-davy/soiree/03.jpeg',
+            location: 'MIMI LOUNGE, Paris', year: '2025',
+            desc: 'From the composition and lighting to the atmosphere, there\'s something satisfying about giving each space and moment its own characteristics.'
+        },
+        {
+            path: 'Photos_ezla-davy/preparatifs/04.jpeg',
+            location: 'MIMI LOUNGE, Paris', year: '2025', desc: ''
+        }
+    ];
+    const eventGrid = document.getElementById('eventGrid');
+    eventFeatured.forEach(it => {
+        eventGrid.innerHTML += featuredItem(cdn(it.path, 900), cdn(it.path, 900), it.location, it.year, it.desc);
+    });
+
+    /* ─── 4. VIDEO FEATURED ─── */
+    // Remplace streamableId par tes vrais IDs Streamable
+    const videosFeatured = [
+        {
+            streamableId: 'ta_video_id_1',
+            fallbackPath: 'Photos_ezla-davy/couple/01.jpeg',
+            location: 'Tam Coc, Ninh Binh', year: '2024',
+            desc: 'I see the world through my own vision, and bring it to life through color grading and video editing. Every frame holds a feeling through careful adjustments of color, tone, and sound. I shape the mood and atmosphere to match the story I want to tell.'
+        },
+        {
+            streamableId: 'ta_video_id_2',
+            fallbackPath: 'Photos_ezla-davy/mairie/01.jpeg',
+            location: 'Tam Coc, Ninh Binh', year: '2024', desc: ''
+        }
+    ];
+    const videoFeaturedGrid = document.getElementById('videoFeaturedGrid');
+    videosFeatured.forEach(vid => {
+        const thumb = `https://cdn-cf-east.streamable.com/image/${vid.streamableId}.jpg`;
+        const fallback = cdn(vid.fallbackPath, 900);
+        videoFeaturedGrid.innerHTML += featuredItem(thumb, fallback, vid.location, vid.year, vid.desc, `openVideo('${vid.streamableId}')`);
+    });
+
+    /* ─── 5. VIDEO MOSAIC ─── */
+    const videosMosaic = [
+        { id: 'vid_id_3',  fb: 'Photos_ezla-davy/couple/02.jpeg' },
+        { id: 'vid_id_4',  fb: 'Photos_ezla-davy/soiree/03.jpeg' },
+        { id: 'vid_id_5',  fb: 'Photos_ezla-davy/preparatifs/04.jpeg' },
+        { id: 'vid_id_6',  fb: 'Photos_ezla-davy/portrait/05.jpeg' },
+        { id: 'vid_id_7',  fb: 'Photos_ezla-davy/ceremonie/06.jpeg' },
+        { id: 'vid_id_8',  fb: 'Photos_ezla-davy/couple/01.jpeg' },
+        { id: 'vid_id_9',  fb: 'Photos_ezla-davy/mairie/01.jpeg' },
+        { id: 'vid_id_10', fb: 'Photos_ezla-davy/couple/02.jpeg' },
+        { id: 'vid_id_11', fb: 'Photos_ezla-davy/soiree/03.jpeg' },
+    ];
+    const videoMosaicGrid = document.getElementById('videoMosaicGrid');
+    videosMosaic.forEach(vid => {
+        const thumb = `https://cdn-cf-east.streamable.com/image/${vid.id}.jpg`;
+        const fallback = cdn(vid.fb, 600);
+        videoMosaicGrid.innerHTML += `
+            <div class="mosaic-item" onclick="openVideo('${vid.id}')">
+                <img src="${thumb}" alt="Video" onerror="this.src='${fallback}'" loading="lazy">
+            </div>`;
+    });
+
+    /* ─── 6. LIGHTBOX VIDEO ─── */
+    function openVideo(id) {
+        const ov = document.createElement('div');
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:1000;cursor:pointer;';
+        ov.innerHTML = `
+            <div style="width:min(90vw,1100px);aspect-ratio:16/9;position:relative;">
+                <iframe src="https://streamable.com/e/${id}?autoplay=1"
+                    style="width:100%;height:100%;border:none;border-radius:8px;" allowfullscreen></iframe>
+                <button onclick="document.body.removeChild(this.closest('div').parentElement)"
+                    style="position:absolute;top:-38px;right:0;background:none;border:none;color:#fff;font-family:'Inter',sans-serif;font-size:.82rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;">
+                    ✕ FERMER
+                </button>
+            </div>`;
+        ov.addEventListener('click', e => { if (e.target === ov) document.body.removeChild(ov); });
+        document.body.appendChild(ov);
+    }
+</script>
+
+</body>
+</html>

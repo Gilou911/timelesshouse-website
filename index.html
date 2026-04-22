@@ -22,13 +22,37 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="preload" as="image" href="Vignette_Eunice&_Josue.jpg" fetchpriority="high" />
   
   <style>
     :root {
-      --bg: #fdfbf7; --bg-alt: #f4f0eb; --bg-card: #ffffff;
-      --text-main: #4a4a4a; --text-muted: #8c857f; --accent: #b08968;
-      --accent-light: #e6dace; --border: #e6e1db; --max-width: 1180px;
-      --header-height: 80px; --shadow-soft: 0 20px 40px rgba(176, 137, 104, 0.08);
+      /* Palette pastel claire (sections lumineuses) */
+      --bg: #faf6f0;              /* ivoire chaud */
+      --bg-alt: #efe8de;          /* sable pâle */
+      --bg-card: #ffffff;
+      --text-main: #3d342c;       /* brun profond, plus chaud que gris */
+      --text-muted: #8c7f71;      /* taupe doux */
+
+      /* Accents cinématographiques */
+      --accent: #b08968;          /* bronze chaud - couleur signature */
+      --accent-soft: #d4b896;     /* champagne pastel */
+      --accent-light: #e8d9c4;    /* beige doré */
+      --sage: #9aafa3;            /* sage pastel (touches fraîches) */
+      --rose-dust: #c9a9a0;       /* rose poudré */
+      --border: #e6ddd1;
+
+      /* Palette sombre cinématographique (hero + guiding principles) */
+      --cine-dark: #201913;       /* noir chaud profond */
+      --cine-dark-solid: #2b221b; /* brun-noir cinéma */
+      --cine-dark-alt: #37291f;   /* brun profond chaud */
+      --cine-cream: #f5ecdf;      /* crème lumineuse pour textes sur fond sombre */
+      --cine-cream-soft: #d9ceba; /* crème atténuée */
+
+      --max-width: 1180px;
+      --header-height: 80px;
+      --shadow-soft: 0 20px 40px rgba(176, 137, 104, 0.08);
+      --shadow-cine: 0 30px 60px rgba(43, 34, 27, 0.25);
     }
     html { scroll-behavior: smooth; scroll-padding-top: var(--header-height); }
     *{box-sizing:border-box;margin:0;padding:0}
@@ -47,10 +71,14 @@
       background-image: url("https://www.transparenttextures.com/patterns/cream-paper.png");
       mix-blend-mode: multiply;
     }
+    /* === SYSTÈME DE TRADUCTION === */
     [data-lang="en"] { display: none !important; }
+    [data-lang="fr"] { display: inline; }
+    div[data-lang="fr"], p[data-lang="fr"] { display: block; }
     body.en-mode [data-lang="fr"] { display: none !important; }
-    body.en-mode [data-lang="en"] { display: block !important; }
-    body.en-mode span[data-lang="en"] { display: inline !important; }
+    body.en-mode [data-lang="en"] { display: inline !important; }
+    body.en-mode div[data-lang="en"],
+    body.en-mode p[data-lang="en"] { display: block !important; }
 
     h1, h2, h3, .serif { font-family: "Cormorant Garamond", serif; font-weight: 400; }
     h1 { letter-spacing: -0.02em; }
@@ -60,36 +88,55 @@
 
     header {
       position: sticky; top: 0; z-index: 100; width: 100%; height: var(--header-height);
-      background: rgba(253, 251, 247, 0.95); backdrop-filter: blur(10px);
-      border-bottom: 1px solid rgba(0,0,0,0.03);
+      background: rgba(250, 246, 240, 0.96); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(61, 52, 44, 0.06);
+      transition: background 0.4s ease, border-color 0.4s ease;
     }
     .nav {
-      max-width:var(--max-width); margin:0 auto; height: 100%; padding:0 30px;
-      display:flex; align-items:center; justify-content:space-between; position: relative;
+      max-width: var(--max-width); margin: 0 auto; height: 100%; padding: 0 30px;
+      display: grid; 
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center; 
+      position: relative;
+      gap: 20px;
     }
+    .nav-links { display: flex; gap: 35px; justify-self: start; }
     .logo { 
-        font-family: "Cormorant Garamond", serif; font-size: 24px; font-weight: 600; 
-        color: var(--text-main); letter-spacing: 0.05em; text-transform: uppercase; 
-        cursor: pointer; z-index: 102;
+      font-family: "Cormorant Garamond", serif; font-size: 24px; font-weight: 600; 
+      color: var(--text-main); letter-spacing: 0.12em; text-transform: uppercase; 
+      cursor: pointer; z-index: 102; justify-self: center; white-space: nowrap;
+      transition: color 0.3s ease, letter-spacing 0.3s ease;
     }
-    .nav-links { display:flex; gap:35px; }
+    .logo:hover { letter-spacing: 0.16em; }
     .nav-links a {
-      font-size: 12px; text-transform: uppercase; letter-spacing: 0.15em;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em;
       color: var(--text-muted); position: relative; padding: 5px 0; font-weight: 500;
+      transition: color 0.3s ease;
     }
     .nav-links a:hover { color: var(--accent); }
-    .nav-right { display: flex; align-items: center; gap: 25px; z-index: 102;}
+    .nav-right { display: flex; align-items: center; gap: 22px; z-index: 102; justify-self: end; }
+    .nav-right .client-link {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em;
+      color: var(--text-muted); font-weight: 500; transition: color 0.3s ease;
+    }
+    .nav-right .client-link:hover { color: var(--accent); }
+    body.hero-mode .nav-right .client-link { color: var(--cine-cream); }
+    body.hero-mode .nav-right .client-link:hover { color: var(--accent-soft); }
+
+    @media (max-width: 1100px) { .nav-right .client-link { display: none; } }
     .lang-switch {
       background: none; border: none; cursor: pointer; font-size: 11px; 
       font-weight: 600; letter-spacing: 0.1em; color: var(--text-muted);
+      transition: color 0.3s ease;
     }
+    .lang-switch:hover { color: var(--accent); }
     .btn-primary {
-      padding: 12px 30px; border-radius: 2px; background-color: var(--accent); 
-      color: white; border: none; font-size: 11px; text-transform: uppercase; 
+      padding: 11px 26px; border-radius: 2px; background-color: var(--accent); 
+      color: white; border: 1px solid var(--accent); font-size: 11px; text-transform: uppercase; 
       letter-spacing: 0.2em; font-weight: 500; cursor: pointer; 
       box-shadow: var(--shadow-soft); transition: all 0.3s ease;
     }
-    .btn-primary:hover { background-color: #9a7555; transform: translateY(-2px); }
+    .btn-primary:hover { background-color: #9a7555; border-color: #9a7555; transform: translateY(-2px); }
     .btn-outline {
         padding: 11px 29px; border-radius: 2px; border: 1px solid var(--accent); 
         color: var(--accent); background: transparent; font-size: 11px; 
@@ -120,69 +167,115 @@
     .mobile-links-container { display: flex; flex-direction: column; gap: 30px; align-items: center; }
     .mobile-menu a { font-family: "Cormorant Garamond", serif; font-size: 2rem; color: var(--text-main); cursor: pointer; }
     
-    /* Instagram Icon Styling */
-    .instagram-icon { 
-        width: 24px; height: 24px; 
-        transition: all 0.3s ease; 
-        fill: var(--text-main);
-    }
-    .instagram-icon:hover { 
-        fill: var(--accent); 
-        transform: scale(1.1); 
-    }
-    .social-link {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 8px;
-        border-radius: 50%;
-        transition: all 0.3s ease;
-    }
-    .social-link:hover {
-        background: var(--bg-alt);
-    }
+    .instagram-icon { width: 24px; height: 24px; transition: all 0.3s ease; fill: var(--text-main); }
+    .instagram-icon:hover { fill: var(--accent); transform: scale(1.1); }
+    .social-link { display: inline-flex; align-items: center; justify-content: center; padding: 8px; border-radius: 50%; transition: all 0.3s ease; }
+    .social-link:hover { background: var(--bg-alt); }
 
+    /* === HERO CINÉMATIQUE PLEINE LARGEUR === */
     .hero {
-      padding: 160px 24px 100px; max-width: var(--max-width); margin: 0 auto;
-      display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; min-height: 90vh;
+      position: relative; width: 100%; max-width: 100%; 
+      min-height: calc(100vh - var(--header-height));
+      margin: calc(-1 * var(--header-height)) 0 0; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; background: var(--cine-dark-solid);
     }
-    .hero-content h1 { font-size: 4rem; line-height: 1.1; margin-bottom: 24px; color: var(--text-main); }
-    .hero-content i { font-family: "Cormorant Garamond", serif; font-style: italic; color: var(--accent); }
-    .hero-subtitle { font-size: 1.1rem; color: var(--text-muted); margin-bottom: 40px; font-weight: 300; max-width: 450px; }
-    .hero-actions { display: flex; gap: 15px; justify-content: flex-start; margin: 0 auto; }
+    .hero-media { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+    .hero-media img, .hero-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .hero-media video { position: absolute; top: 0; left: 0; opacity: 0; transition: opacity 1s ease; }
+    .hero-media video.loaded { opacity: 1; }
+    .hero-media::after {
+      content: ""; position: absolute; inset: 0; z-index: 2;
+      background: 
+        linear-gradient(to bottom, rgba(43, 34, 27, 0.45) 0%, rgba(43, 34, 27, 0.15) 35%, rgba(43, 34, 27, 0.25) 70%, rgba(43, 34, 27, 0.65) 100%),
+        radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.25) 100%);
+      pointer-events: none;
+    }
+    .hero::before, .guiding-principles::after {
+      content: ""; position: absolute; inset: 0; z-index: 4;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.12 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+      opacity: 0.4; mix-blend-mode: overlay; pointer-events: none;
+    }
+    .guiding-principles::after { opacity: 0.25; }
+    .hero-content {
+      position: relative; z-index: 3; text-align: center;
+      padding: 0 32px; max-width: min(1000px, 92vw); margin-top: var(--header-height);
+    }
+    .hero-tagline {
+      font-family: "Cormorant Garamond", serif; font-size: clamp(0.7rem, 1.4vw, 1.05rem);
+      text-transform: uppercase; letter-spacing: clamp(0.15em, 0.35vw, 0.35em);
+      color: var(--cine-cream); font-weight: 300; line-height: 2; word-spacing: 0.1em;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.5);
+    }
+    .hero-tagline i { font-style: italic; color: var(--accent-soft); letter-spacing: 0.12em; text-transform: none; font-size: 1.15em; font-weight: 400; }
+    .hero-cta { margin-top: 45px; display: flex; justify-content: center; opacity: 0; animation: fadeInUp 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) 0.8s forwards; }
+    .hero-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 14px 34px; background: transparent; border: 1px solid rgba(245, 236, 223, 0.5);
+      color: var(--cine-cream); font-family: "Montserrat", sans-serif;
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.3em;
+      font-weight: 500; transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+      cursor: pointer; backdrop-filter: blur(4px);
+    }
+    .hero-btn:hover { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--cine-dark-solid); letter-spacing: 0.35em; }
+    .hero-btn svg { transition: transform 0.4s ease; }
+    .hero-btn:hover svg { transform: translateX(4px); }
+    @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } from { opacity: 0; transform: translateY(15px); } }
+    .hero-scroll {
+      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+      z-index: 3; color: var(--cine-cream); font-size: 10px; text-transform: uppercase;
+      letter-spacing: 0.3em; opacity: 0.65; display: flex; flex-direction: column;
+      align-items: center; gap: 10px; animation: floaty 2.5s ease-in-out infinite;
+    }
+    .hero-scroll::after { content: ""; width: 1px; height: 40px; background: var(--cine-cream); opacity: 0.5; }
+    @keyframes floaty { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, 8px); } }
+
+    body.hero-mode header { background: transparent; backdrop-filter: none; border-bottom: none; box-shadow: none; }
+    body.hero-mode header .logo, body.hero-mode header .nav-links a, body.hero-mode header .lang-switch { color: var(--cine-cream); }
+    body.hero-mode header .nav-links a:hover { color: var(--accent-soft); }
+    body.hero-mode header .instagram-icon { fill: var(--cine-cream); }
+    body.hero-mode header .burger-line { background: var(--cine-cream); }
+    body.hero-mode header .btn-primary { background: transparent; border: 1px solid var(--cine-cream); color: var(--cine-cream); }
+    body.hero-mode header .btn-primary:hover { background: var(--cine-cream); color: var(--cine-dark-solid); }
+
+    /* === SECTION GUIDING PRINCIPLES === */
+    .guiding-principles { background: var(--cine-dark-solid); color: var(--cine-cream-soft); width: 100%; padding: 110px 24px 130px; position: relative; overflow: hidden; }
+    .guiding-principles::before {
+      content: ""; position: absolute; inset: 0; z-index: 0;
+      background: radial-gradient(ellipse at 20% 20%, rgba(176, 137, 104, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(154, 175, 163, 0.05) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    .guiding-principles .inner { max-width: var(--max-width); margin: 0 auto; position: relative; z-index: 1; }
+    .guiding-principles .gp-header { text-align: center; margin-bottom: 75px; }
+    .guiding-principles .gp-kicker {
+      font-family: "Cormorant Garamond", serif; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.4em;
+      color: var(--accent-soft); font-weight: 400; position: relative; display: inline-block;
+    }
+    .guiding-principles .gp-kicker::before, .guiding-principles .gp-kicker::after {
+      content: ""; position: absolute; top: 50%; width: 40px; height: 1px; background: var(--accent-soft); opacity: 0.4;
+    }
+    .guiding-principles .gp-kicker::before { right: calc(100% + 20px); }
+    .guiding-principles .gp-kicker::after { left: calc(100% + 20px); }
+
+    .gp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 60px; }
+    .gp-col h3 { font-family: "Cormorant Garamond", serif; font-size: 1.9rem; line-height: 1.3; margin-bottom: 22px; font-weight: 400; color: var(--cine-cream); }
+    .gp-col h3 .bold { font-weight: 700; }
+    .gp-col h3 .ital { font-style: italic; font-weight: 400; }
+    .gp-col h3 .accent-gold { color: var(--accent-soft); font-weight: 700; }
+    .gp-col h3 .accent-teal { color: var(--sage); font-style: italic; font-weight: 400; }
+    .gp-col h3 .underline { text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 1.5px; font-weight: 700; text-decoration-color: var(--accent-soft); }
+    .gp-col p { font-size: 0.92rem; line-height: 1.8; color: var(--cine-cream-soft); font-weight: 300; opacity: 0.85; }
 
     /* === GESTION VIDEO/IMAGE === */
-    .video-frame, .img-block {
-        border-radius: 200px 200px 0 0; overflow: hidden; box-shadow: var(--shadow-soft); 
-        border: 8px solid white; 
-        position: relative; z-index: 2;
-    }
+    .video-frame, .img-block { border-radius: 200px 200px 0 0; overflow: hidden; box-shadow: var(--shadow-soft); border: 8px solid white; position: relative; z-index: 2; }
     .video-frame { aspect-ratio: 3/4; }
     .img-block { border-radius: 2px; border: none; aspect-ratio: 16/9; } 
-
-    /* MODIFICATION ICI : Ajout de transition sur l'image */
-    .bg-image { 
-        width: 100%; height: 100%; object-fit: cover; 
-        position: absolute; top: 0; left: 0; z-index: 1; 
-        transition: opacity 0.5s ease; /* Transition douce */
-        opacity: 1;
-    }
-    
-    /* NOUVELLE CLASSE : Pour cacher l'image */
-    .bg-image.hidden {
-        opacity: 0;
-    }
-
-    .bg-video { 
-        width: 100%; height: 100%; object-fit: cover; 
-        position: absolute; top: 0; left: 0; z-index: 2; 
-        opacity: 0; transition: opacity 0.5s ease; pointer-events: none; 
-    }
+    .bg-image { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; transition: opacity 0.5s ease; opacity: 1; }
+    .bg-image.hidden { opacity: 0; }
+    .bg-video { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 2; opacity: 0; transition: opacity 0.5s ease; pointer-events: none; }
     .video-playing { opacity: 1; }
-    
     video::-webkit-media-controls { display: none !important; }
     video::-webkit-media-controls-start-playback-button { display: none !important; }
-    /* ======================================= */
 
     .circle-deco { position: absolute; top: -30px; right: -30px; width: 150px; height: 150px; border-radius: 50%; background: var(--bg-alt); z-index: 1; }
     .section { padding: 100px 24px; max-width: var(--max-width); margin: 0 auto; }
@@ -203,16 +296,85 @@
     .pricing-card ul { list-style: none; margin: 25px 0; text-align: left; flex-grow: 1; }
     .pricing-card li { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
     .pricing-card li:last-child { border: none; }
-    .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; }
-    .gallery-item { position: relative; cursor: pointer; }
-    .gallery-img-wrap { overflow: hidden; border-radius: 4px; aspect-ratio: 4/5; background: var(--bg-alt); position: relative; }
-    .gallery-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.8s ease; }
-    .gallery-item:hover img { transform: scale(1.05); }
-    .gallery-info { padding-top: 15px; text-align: center; }
-    .gallery-title { font-family: "Cormorant Garamond"; font-size: 1.5rem; margin-bottom: 5px; }
-    .gallery-meta { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); }
-    .play-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50px; height: 50px; background: rgba(255,255,255,0.8); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 20px; color: var(--accent); opacity: 0; transition: all 0.3s; pointer-events: none; }
-    .gallery-item:hover .play-indicator { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    
+    /* === PORTFOLIO SECTION WRAPPER === */
+    .portfolio-section { width: 100%; background: #0f0d0b; padding: 90px 0 0; }
+    .portfolio-header { text-align: center; padding: 0 24px; margin-bottom: 50px; }
+    .portfolio-header .kicker { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3em; margin-bottom: 15px; }
+
+    /* === PORTFOLIO CINÉMATIQUE (Centrage automatique intelligent) === */
+    .gallery-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center; /* Centre les vidéos s'il en manque sur la dernière ligne */
+      gap: 16px; 
+      padding: 0 24px 60px; 
+      max-width: var(--max-width);
+      margin: 0 auto;
+    }
+
+    .gallery-item {
+      flex: 0 0 calc(33.333% - 11px); /* Conserve exactement 3 colonnes */
+      max-width: calc(33.333% - 11px);
+      position: relative;
+      cursor: none;
+      overflow: hidden;
+      border-radius: 12px; 
+      background: #0f0d0b;
+    }
+
+    .gallery-img-wrap {
+      overflow: hidden;
+      border-radius: 12px;
+      aspect-ratio: 16 / 9; /* Format paysage standard */
+      position: relative;
+      background: #1a1410;
+    }
+
+    .gallery-img-wrap img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      transition: transform 1s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.6s ease;
+      filter: brightness(0.88) saturate(1.1);
+    }
+    .gallery-item:hover .gallery-img-wrap img { transform: scale(1.06); filter: brightness(0.65) saturate(1.15); }
+
+    /* Overlay info au survol */
+    .gallery-info {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      justify-content: flex-end; padding: 20px;
+      background: linear-gradient(to top, rgba(15, 10, 6, 0.88) 0%, rgba(15, 10, 6, 0.4) 45%, transparent 75%);
+      opacity: 0; transform: translateY(6px); transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+      pointer-events: none;
+    }
+    .gallery-item:hover .gallery-info { opacity: 1; transform: translateY(0); }
+
+    .gallery-venue {
+      position: absolute; bottom: 16px; left: 20px; font-size: 10px; text-transform: uppercase;
+      letter-spacing: 0.3em; color: var(--accent-soft); font-weight: 500; opacity: 0.85; transition: opacity 0.4s ease;
+    }
+    .gallery-item:hover .gallery-venue { opacity: 0; }
+
+    .gallery-title { font-family: "Cormorant Garamond", serif; font-size: 1.5rem; font-weight: 400; color: #f5ecdf; margin-bottom: 6px; line-height: 1.2; }
+    .gallery-meta { font-size: 9px; text-transform: uppercase; letter-spacing: 0.3em; color: var(--accent-soft); font-weight: 500; }
+
+    .gallery-play-icon {
+      width: 40px; height: 40px; border: 1px solid rgba(245, 236, 223, 0.4); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; margin-bottom: 12px; flex-shrink: 0;
+    }
+    .gallery-play-icon svg { width: 12px; height: 12px; fill: #f5ecdf; margin-left: 2px; }
+
+    /* === CURSEUR CUSTOM "PLAY" SUR LE PORTFOLIO === */
+    .custom-cursor {
+      position: fixed; top: 0; left: 0; width: 80px; height: 80px; border-radius: 50%;
+      background: var(--accent-soft); color: var(--cine-dark-solid);
+      display: flex; align-items: center; justify-content: center; font-size: 9px; text-transform: uppercase; letter-spacing: 0.25em;
+      font-weight: 600; font-family: "Montserrat", sans-serif; pointer-events: none; z-index: 9999;
+      opacity: 0; transform: translate(-50%, -50%) scale(0.5); transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+      box-shadow: 0 10px 35px rgba(0,0,0,0.3);
+    }
+    .custom-cursor.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    @media (hover: none), (max-width: 900px) { .custom-cursor { display: none !important; } .gallery-item { cursor: pointer; } }
+    
     .philosophy { background: var(--bg-alt); padding: 120px 24px; position: relative; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; max-width: var(--max-width); margin: 0 auto; }
     .testimonials-carousel { position: relative; max-width: 800px; margin: 0 auto; overflow: hidden; }
@@ -256,28 +418,60 @@
     footer { padding: 60px 24px; text-align: center; border-top: 1px solid var(--border); margin-top: 100px; color: var(--text-muted); font-size: 12px; }
     .footer-social { margin: 20px 0; }
 
+    /* === RESPONSIVE === */
     @media (max-width: 900px) {
+        .nav { grid-template-columns: 1fr auto 1fr; padding: 0 20px; gap: 10px; }
         .nav-links { display: none; }
-        .burger-toggle { display: flex; }
+        .burger-toggle { display: flex; justify-self: start; }
         .nav-right .btn-primary { display: none; }
-        .hero { grid-template-columns: 1fr; padding: 120px 24px 60px 24px; text-align: center; gap: 40px; min-height: auto; }
-        .hero-content h1 { font-size: 2.8rem; }
-        .hero-subtitle { margin: 0 auto 30px auto; font-size: 1rem; }
-        .hero-actions { justify-content: center !important; }
+        .logo { font-size: 20px; letter-spacing: 0.1em; }
+        .hero { min-height: 85vh; }
+        .hero-content { padding: 0 24px; }
+        .hero-tagline { letter-spacing: 0.18em; font-size: clamp(0.7rem, 2.6vw, 0.9rem); line-height: 2.2; }
+        .hero-tagline i { font-size: 1.1em; }
+        .hero-cta { margin-top: 35px; }
+        .hero-btn { padding: 12px 26px; font-size: 9px; letter-spacing: 0.25em; }
+        .hero-scroll { bottom: 25px; }
+        .gp-grid { grid-template-columns: 1fr; gap: 50px; }
+        .guiding-principles { padding: 70px 24px 80px; }
+        .gp-col h3 { font-size: 1.75rem; }
+        .guiding-principles .gp-kicker::before, .guiding-principles .gp-kicker::after { display: none; }
+
+        /* Portfolio mobile : 1 seule colonne */
+        .gallery-grid { padding: 0 16px; }
+        .gallery-item { flex: 0 0 100%; max-width: 100%; }
+        .portfolio-section { padding: 60px 0 0; }
+        .gallery-info { opacity: 1; transform: none; }
+        .gallery-img-wrap img { filter: brightness(0.7) saturate(1.1); }
         
-        .video-frame { width: 100%; border-radius: 120px 120px 0 0; border-width: 5px; }
-        .circle-deco { width: 100px; height: 100px; top: -20px; right: -10px; }
         .section, .philosophy { padding: 60px 20px; }
-        .grid-2, .gallery-grid, .form-row, .pricing-grid { grid-template-columns: 1fr; gap: 40px; }
+        .grid-2, .form-row, .pricing-grid { grid-template-columns: 1fr; gap: 40px; }
         .modal-content { padding: 30px 20px; }
         .quote-text { font-size: 1.4rem; }
         .prestations-toggle { flex-direction: column; align-items: center; }
+    }
+    
+    @media (max-width: 480px) {
+        .nav { padding: 0 16px; }
+        .logo { font-size: 17px; letter-spacing: 0.08em; }
+        .nav-right { gap: 14px; }
+        .hero-tagline { letter-spacing: 0.12em; font-size: 0.72rem; line-height: 2.3; }
+        .hero-content { padding: 0 20px; max-width: 95vw; }
+        .gp-col h3 { font-size: 1.55rem; }
+    }
+    
+    @media (min-width: 901px) and (max-width: 1100px) {
+        .gp-grid { gap: 45px; }
+        .gp-col h3 { font-size: 1.7rem; }
+        .nav-links { gap: 25px; }
+        .nav-links a { font-size: 10px; letter-spacing: 0.15em; }
     }
   </style>
 </head>
 <body id="top">
 
   <div class="paper-overlay"></div>
+  <div class="custom-cursor" id="customCursor"><span data-lang="fr">Regarder</span><span data-lang="en">Watch</span></div>
 
   <div class="mobile-menu" id="mobileMenu">
       <div class="mobile-header">
@@ -292,7 +486,6 @@
           <a href="#portfolio" onclick="toggleMenu()">Portfolio</a>
           <a href="#faq" onclick="toggleMenu()">FAQ</a>
           <a onclick="toggleMenu(); openClientModal()"><span data-lang="fr">Espace Clients</span><span data-lang="en">Client Area</span></a>
-          
           <button class="btn-primary" onclick="toggleMenu(); openModal()">
               <span data-lang="fr">Réserver</span><span data-lang="en">Book Now</span>
           </button>
@@ -302,78 +495,113 @@
   <header>
     <nav class="nav">
       <div class="burger-toggle" onclick="toggleMenu()">
-          <div class="burger-line"></div>
-          <div class="burger-line"></div>
-          <div class="burger-line"></div>
+          <div class="burger-line"></div><div class="burger-line"></div><div class="burger-line"></div>
       </div>
-      <a href="#top" class="logo">TimelessHouse</a>
       <div class="nav-links">
         <a href="#about"><span data-lang="fr">Philosophie</span><span data-lang="en">Philosophy</span></a>
         <a href="#prestations"><span data-lang="fr">Prestations</span><span data-lang="en">Services</span></a>
         <a href="#portfolio">Portfolio</a>
         <a href="#faq">FAQ</a>
-        <a onclick="openClientModal()"><span data-lang="fr">Espace Clients</span><span data-lang="en">Client Area</span></a>
       </div>
+      <a href="#top" class="logo">TimelessHouse</a>
       <div class="nav-right">
-        <a href="https://www.instagram.com/_timelesshouse" target="_blank" rel="noopener noreferrer" aria-label="Suivez-nous sur Instagram" class="social-link">
+        <a onclick="openClientModal()" class="client-link"><span data-lang="fr">Espace Clients</span><span data-lang="en">Client Area</span></a>
+        <a href="https://www.instagram.com/_timelesshouse" target="_blank" rel="noopener noreferrer" class="social-link">
           <svg class="instagram-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2C14.717 2 15.056 2.01 16.122 2.06C17.187 2.11 17.912 2.277 18.55 2.525C19.21 2.779 19.766 3.123 20.322 3.678C20.8305 4.1779 21.224 4.78259 21.475 5.45C21.722 6.087 21.89 6.813 21.94 7.878C21.987 8.944 22 9.283 22 12C22 14.717 21.99 15.056 21.94 16.122C21.89 17.187 21.722 17.912 21.475 18.55C21.2247 19.2178 20.8311 19.8226 20.322 20.322C19.822 20.8303 19.2173 21.2238 18.55 21.475C17.913 21.722 17.187 21.89 16.122 21.94C15.056 21.987 14.717 22 12 22C9.283 22 8.944 21.99 7.878 21.94C6.813 21.89 6.088 21.722 5.45 21.475C4.78233 21.2245 4.17753 20.8309 3.678 20.322C3.16941 19.8222 2.77593 19.2175 2.525 18.55C2.277 17.913 2.11 17.187 2.06 16.122C2.013 15.056 2 14.717 2 12C2 9.283 2.01 8.944 2.06 7.878C2.11 6.812 2.277 6.088 2.525 5.45C2.77524 4.78218 3.1688 4.17732 3.678 3.678C4.17767 3.16923 4.78243 2.77573 5.45 2.525C6.088 2.277 6.812 2.11 7.878 2.06C8.944 2.013 9.283 2 12 2ZM12 7C10.6739 7 9.40215 7.52678 8.46447 8.46447C7.52678 9.40215 7 10.6739 7 12C7 13.3261 7.52678 14.5979 8.46447 15.5355C9.40215 16.4732 10.6739 17 12 17C13.3261 17 14.5979 16.4732 15.5355 15.5355C16.4732 14.5979 17 13.3261 17 12C17 10.6739 16.4732 9.40215 15.5355 8.46447C14.5979 7.52678 13.3261 7 12 7ZM18.5 6.75C18.5 6.41848 18.3683 6.10054 18.1339 5.86612C17.8995 5.6317 17.5815 5.5 17.25 5.5C16.9185 5.5 16.6005 5.6317 16.3661 5.86612C16.1317 6.10054 16 6.41848 16 6.75C16 7.08152 16.1317 7.39946 16.3661 7.63388C16.6005 7.8683 16.9185 8 17.25 8C17.5815 8 17.8995 7.8683 18.1339 7.63388C18.3683 7.39946 18.5 7.08152 18.5 6.75ZM12 9C12.7956 9 13.5587 9.31607 14.1213 9.87868C14.6839 10.4413 15 11.2044 15 12C15 12.7956 14.6839 13.5587 14.1213 14.1213C13.5587 14.6839 12.7956 15 12 15C11.2044 15 10.4413 14.6839 9.87868 14.1213C9.31607 13.5587 9 12.7956 9 12C9 11.2044 9.31607 10.4413 9.87868 9.87868C10.4413 9.31607 11.2044 9 12 9Z" fill="currentColor"/>
           </svg>
         </a>
-        <button class="lang-switch" onclick="toggleLanguage()" aria-label="Changer de langue">EN/FR</button>
-        <button class="btn-primary" onclick="openModal()">
-            <span data-lang="fr">Réserver</span><span data-lang="en">Book Now</span>
-        </button>
+        <button class="lang-switch" onclick="toggleLanguage()">EN/FR</button>
+        <button class="btn-primary" onclick="openModal()"><span data-lang="fr">Réserver</span><span data-lang="en">Book Now</span></button>
       </div>
     </nav>
   </header>
 
   <main>
     <section class="hero reveal">
+        <div class="hero-media">
+            <img src="Vignette_Eunice&_Josue.jpg" alt="Mariage cinématique" class="hero-bg-img" fetchpriority="high" loading="eager">
+            <video muted loop playsinline preload="metadata" poster="Vignette_Eunice&_Josue.jpg" onloadeddata="this.classList.add('loaded'); this.play().catch(()=>{});">
+                <source src="https://streamable.com/l/clh7jh/mp4-high.mp4" type="video/mp4" />
+            </video>
+        </div>
         <div class="hero-content">
-            <h1>
-                <span data-lang="fr">Votre histoire,<br><i>notre expertise</i>.</span>
-                <span data-lang="en">Your story,<br><i>our expertise</i>.</span>
-            </h1>
-            <p class="hero-subtitle">
-                <span data-lang="fr">TimelessHouse. Films de mariage & Photographie Fine Art. Une approche organique pour des couples modernes.</span>
-                <span data-lang="en">TimelessHouse. Wedding Films & Fine Art Photography. An organic approach for modern couples.</span>
+            <p class="hero-tagline">
+                <span data-lang="fr">Transformer votre journée en une <i>histoire</i> que vous revivrez à jamais.</span>
+                <span data-lang="en">Turning your day into a <i>story</i> you'll relive forever.</span>
             </p>
-            <div class="hero-actions">
-                <button class="btn-outline" onclick="document.getElementById('portfolio').scrollIntoView()">
+            <div class="hero-cta">
+                <a href="#portfolio" class="hero-btn" onclick="document.getElementById('portfolio').scrollIntoView({behavior:'smooth'}); return false;">
                     <span data-lang="fr">Voir le Portfolio</span><span data-lang="en">View Portfolio</span>
-                </button>
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-left:10px;">
+                        <path d="M1 7H13M13 7L7 1M13 7L7 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                    </svg>
+                </a>
             </div>
         </div>
-        <div class="hero-visual">
-            <div class="circle-deco"></div>
-            <div class="video-frame">
-                <img src="Vignette_Eunice&_Josue.jpg" alt="Couple" class="bg-image">
-                <video class="bg-video" autoplay muted loop playsinline preload="auto">
-                    <source src="https://streamable.com/l/clh7jh/mp4-high.mp4" type="video/mp4" />
-                </video>
+        <div class="hero-scroll"><span data-lang="fr">Découvrir</span><span data-lang="en">Scroll</span></div>
+    </section>
+
+    <section id="about" class="guiding-principles reveal">
+        <div class="inner">
+            <div class="gp-header">
+                <span class="gp-kicker"><span data-lang="fr">Nos Principes</span><span data-lang="en">Guiding Principles</span></span>
+            </div>
+            <div class="gp-grid">
+                <div class="gp-col">
+                    <h3>
+                        <span data-lang="fr"><span class="bold">Raconter</span> avec <span class="accent-teal">Intention</span></span>
+                        <span data-lang="en"><span class="bold">Storytelling</span> with <span class="accent-teal">Purpose</span></span>
+                    </h3>
+                    <p>
+                        <span data-lang="fr">Nous pensons que chaque histoire de couple est unique et mérite d'être racontée avec authenticité. À travers nos films de mariage, nous tissons des récits sensibles qui célèbrent votre amour — en capturant non seulement les moments, mais aussi les émotions, les liens et l'essence de votre relation. Votre histoire est notre inspiration, et nous lui donnons vie avec intention.</span>
+                        <span data-lang="en">We believe every couple's journey is unique and deserves to be told authentically. Through our wedding films, we craft heartfelt narratives that celebrate your love story—capturing not just the moments, but the emotions, connections, and essence of your relationship. Your story is our inspiration, and we bring it to life with purpose.</span>
+                    </p>
+                </div>
+                <div class="gp-col">
+                    <h3>
+                        <span data-lang="fr"><span class="accent-gold">Qualité</span> avant <span class="accent-teal">Quantité</span></span>
+                        <span data-lang="en"><span class="accent-gold">Quality</span> over <span class="accent-teal">Quantity</span></span>
+                    </h3>
+                    <p>
+                        <span data-lang="fr">Nous adoptons une philosophie du « moins mais mieux », en choisissant volontairement un nombre limité de mariages afin que chaque couple bénéficie de toute notre attention créative. Cela nous permet de nous connecter profondément à votre histoire, de soigner chaque détail, et de livrer un film qui reflète véritablement l'essence de votre amour. Un mariage n'est pas un simple événement — c'est une histoire unique que nous préservons avec soin et excellence.</span>
+                        <span data-lang="en">We embrace a "less is more" philosophy, intentionally taking on fewer weddings to ensure each couple receives our full creative attention. This allows us to deeply connect with your story, focus on every detail, and deliver a film that truly reflects the essence of your love. Your wedding is more than an event—it's a one-of-a-kind story, and we're dedicated to preserving it with care and excellence.</span>
+                    </p>
+                </div>
+                <div class="gp-col">
+                    <h3>
+                        <span data-lang="fr">Conçu pour <span class="underline">VOUS</span></span>
+                        <span data-lang="en">Crafted for <span class="underline">YOU</span></span>
+                    </h3>
+                    <p>
+                        <span data-lang="fr">Les plus beaux films de mariage naissent d'une vraie rencontre avec nos couples. En comprenant vos personnalités, vos passions et votre histoire d'amour, nous nous assurons que votre film vous ressemble vraiment. Votre mariage est bien plus qu'un événement — c'est la célébration de votre chemin, capturée avec authenticité et cœur.</span>
+                        <span data-lang="en">We believe the best wedding films come from truly exploring our couples' interests. By understanding your unique personalities, passions, and love story, we ensure your film reflects who you are. Your wedding is more than an event—it's a celebration of your journey, captured with authenticity and heart.</span>
+                    </p>
+                </div>
             </div>
         </div>
     </section>
 
-    <section id="about" class="philosophy reveal">
+    <section id="about-team" class="philosophy reveal">
         <div class="grid-2">
             <div class="img-block">
-                <img src="Vignette_Eunice&_Josue.jpg" alt="Couple" class="bg-image">
-                <video class="bg-video" autoplay muted loop playsinline preload="auto">
+                <img src="Vignette_Eunice&_Josue.jpg" alt="L'équipe TimelessHouse au travail" class="bg-image">
+                <video class="bg-video" autoplay muted loop playsinline preload="metadata" poster="Vignette_Eunice&_Josue.jpg">
                     <source src="https://streamable.com/l/clh7jh/mp4-high.mp4" type="video/mp4" />
                 </video>
             </div>
             <div class="text-block">
-                <span class="kicker"><span data-lang="fr">Approche</span><span data-lang="en">Approach</span></span>
-                <h2 class="title-lg">
-                    <span data-lang="fr">Votre histoire, notre expertise.</span>
-                    <span data-lang="en">Your story, our expertise.</span>
-                </h2>
+                <span class="kicker"><span data-lang="fr">L'Équipe</span><span data-lang="en">The Team</span></span>
+                <h2 class="title-lg"><span data-lang="fr">Derrière la caméra, <i>des artisans passionnés</i>.</span><span data-lang="en">Behind the camera, <i>passionate artisans</i>.</span></h2>
                 <p>
-                    <span data-lang="fr">Nous sommes une équipe passionnée qui croit aux images qui respirent. Pas de poses figées ou de sourires forcés. Nous cherchons la douceur d'un regard, le mouvement d'une robe, la lumière qui caresse un visage. Chaque mariage est une histoire unique que nous racontons avec authenticité et poésie.</span>
-                    <span data-lang="en">We are a passionate team that believes in images that breathe. No stiff poses or forced smiles. We seek the softness of a glance, the movement of a dress, the light caressing a face. Every wedding is a unique story we tell with authenticity and poetry.</span>
+                    <span data-lang="fr">TimelessHouse, c'est un collectif de vidéastes et photographes réunis par une même conviction : votre mariage mérite d'être raconté comme un film. Nous cherchons la douceur d'un regard, le mouvement d'une robe, la lumière qui caresse un visage. Chaque détail compte, parce que chaque histoire est unique.</span>
+                    <span data-lang="en">TimelessHouse is a collective of videographers and photographers united by one conviction: your wedding deserves to be told like a film. We seek the softness of a glance, the movement of a dress, the light caressing a face. Every detail matters, because every story is unique.</span>
                 </p>
+                <div style="margin-top: 35px;">
+                    <button class="btn-outline" onclick="document.getElementById('portfolio').scrollIntoView({behavior:'smooth'})">
+                        <span data-lang="fr">Voir nos films</span><span data-lang="en">Watch our films</span>
+                    </button>
+                </div>
             </div>
         </div>
     </section>
@@ -385,22 +613,16 @@
         </div>
 
         <div class="prestations-toggle">
-            <button class="toggle-btn active" onclick="switchPricing('packages')" id="btnPackages">
-                <span data-lang="fr">Collections</span><span data-lang="en">Collections</span>
-            </button>
-            <button class="toggle-btn" onclick="switchPricing('alacarte')" id="btnAlacarte">
-                <span data-lang="fr">À la Carte</span><span data-lang="en">À la Carte</span>
-            </button>
+            <button class="toggle-btn active" onclick="switchPricing('packages')" id="btnPackages"><span data-lang="fr">Collections</span><span data-lang="en">Collections</span></button>
+            <button class="toggle-btn" onclick="switchPricing('alacarte')" id="btnAlacarte"><span data-lang="fr">À la Carte</span><span data-lang="en">À la Carte</span></button>
         </div>
 
         <div class="prestations-content active" id="packages">
             <div class="pricing-grid">
-                
                 <div class="pricing-card">
                     <h3 class="serif"><span data-lang="fr">Essentiel</span><span data-lang="en">Essential</span></h3>
                     <p class="price" style="font-size: 1.2rem; margin-bottom: 10px; line-height: 1.4;">
-                        <span data-lang="fr">Pour les mariages intimistes</span>
-                        <span data-lang="en">For intimate weddings</span>
+                        <span data-lang="fr">Pour les mariages intimistes</span><span data-lang="en">For intimate weddings</span>
                     </p>
                     <ul>
                         <li><span data-lang="fr">Vidéo Émotion (2-3 min)</span><span data-lang="en">Emotion Video (2-3 min)</span></li>
@@ -408,16 +630,13 @@
                         <li><span data-lang="fr">Couverture 4h</span><span data-lang="en">4h coverage</span></li>
                         <li><span data-lang="fr">Galerie en ligne privée</span><span data-lang="en">Private online gallery</span></li>
                     </ul>
-                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Demander un devis</span><span data-lang="en">Request a Quote</span>
-                    </button>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;"><span data-lang="fr">Demander un devis</span><span data-lang="en">Request a Quote</span></button>
                 </div>
 
                 <div class="pricing-card" style="border: 2px solid var(--accent);">
                     <h3 class="serif"><span data-lang="fr">Signature</span><span data-lang="en">Signature</span></h3>
                     <p class="price" style="font-size: 1.2rem; margin-bottom: 10px; line-height: 1.4;">
-                        <span data-lang="fr">L'expérience complète</span>
-                        <span data-lang="en">The complete experience</span>
+                        <span data-lang="fr">L'expérience complète</span><span data-lang="en">The complete experience</span>
                     </p>
                     <ul>
                         <li><span data-lang="fr">Vidéo Souvenir (8-12 min)</span><span data-lang="en">Memory Video (8-12 min)</span></li>
@@ -426,16 +645,13 @@
                         <li><span data-lang="fr">Session engagement incluse</span><span data-lang="en">Engagement session included</span></li>
                         <li><span data-lang="fr">Galerie en ligne + clé USB</span><span data-lang="en">Online gallery + USB key</span></li>
                     </ul>
-                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Demander un devis</span><span data-lang="en">Request a Quote</span>
-                    </button>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;"><span data-lang="fr">Demander un devis</span><span data-lang="en">Request a Quote</span></button>
                 </div>
 
                 <div class="pricing-card">
                     <h3 class="serif"><span data-lang="fr">Prestige</span><span data-lang="en">Prestige</span></h3>
                     <p class="price" style="font-size: 1.2rem; margin-bottom: 10px; line-height: 1.4;">
-                        <span data-lang="fr">L'héritage ultime</span>
-                        <span data-lang="en">The ultimate legacy</span>
+                        <span data-lang="fr">L'héritage ultime</span><span data-lang="en">The ultimate legacy</span>
                     </p>
                     <ul>
                         <li><span data-lang="fr">Vidéo Éternité (20-60 min)</span><span data-lang="en">Eternity Video (20-60 min)</span></li>
@@ -444,9 +660,7 @@
                         <li><span data-lang="fr">Session engagement + Day After</span><span data-lang="en">Engagement + Day After session</span></li>
                         <li><span data-lang="fr">Album photo premium 30x30cm</span><span data-lang="en">Premium photo album 30x30cm</span></li>
                     </ul>
-                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Demander un devis</span><span data-lang="en">Request a Quote</span>
-                    </button>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;"><span data-lang="fr">Demander un devis</span><span data-lang="en">Request a Quote</span></button>
                 </div>
             </div>
         </div>
@@ -461,9 +675,7 @@
                         <li><span data-lang="fr">Livraison rapide sous 3 semaines</span><span data-lang="en">Fast delivery in 3 weeks</span></li>
                         <li><span data-lang="fr">Musique et étalonnage pro</span><span data-lang="en">Music and pro color grading</span></li>
                     </ul>
-                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Contacter</span><span data-lang="en">Contact</span>
-                    </button>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;"><span data-lang="fr">Contacter</span><span data-lang="en">Contact</span></button>
                 </div>
 
                 <div class="pricing-card">
@@ -474,9 +686,7 @@
                         <li><span data-lang="fr">Toute la journée capturée</span><span data-lang="en">Full day captured</span></li>
                         <li><span data-lang="fr">Livraison sous 6 semaines</span><span data-lang="en">Delivery in 6 weeks</span></li>
                     </ul>
-                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Contacter</span><span data-lang="en">Contact</span>
-                    </button>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;"><span data-lang="fr">Contacter</span><span data-lang="en">Contact</span></button>
                 </div>
                 
                 <div class="pricing-card">
@@ -487,9 +697,7 @@
                         <li><span data-lang="fr">Chaque moment préservé</span><span data-lang="en">Every moment preserved</span></li>
                         <li><span data-lang="fr">Livraison sous 8 semaines</span><span data-lang="en">Delivery in 8 weeks</span></li>
                     </ul>
-                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Contacter</span><span data-lang="en">Contact</span>
-                    </button>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;"><span data-lang="fr">Contacter</span><span data-lang="en">Contact</span></button>
                 </div>
 
                 <div class="pricing-card">
@@ -500,9 +708,7 @@
                         <li><span data-lang="fr">150 photos retouchées</span><span data-lang="en">150 edited photos</span></li>
                         <li><span data-lang="fr">Galerie en ligne privée</span><span data-lang="en">Private online gallery</span></li>
                     </ul>
-                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Contacter</span><span data-lang="en">Contact</span>
-                    </button>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;"><span data-lang="fr">Contacter</span><span data-lang="en">Contact</span></button>
                 </div>
 
                 <div class="pricing-card">
@@ -513,9 +719,7 @@
                         <li><span data-lang="fr">300 photos retouchées</span><span data-lang="en">300 edited photos</span></li>
                         <li><span data-lang="fr">Clé USB + galerie en ligne</span><span data-lang="en">USB key + online gallery</span></li>
                     </ul>
-                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Contacter</span><span data-lang="en">Contact</span>
-                    </button>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;"><span data-lang="fr">Contacter</span><span data-lang="en">Contact</span></button>
                 </div>
 
                 <div class="pricing-card">
@@ -526,55 +730,152 @@
                         <li><span data-lang="fr">50 photos retouchées</span><span data-lang="en">50 edited photos</span></li>
                         <li><span data-lang="fr">Idéal pour save-the-date</span><span data-lang="en">Perfect for save-the-date</span></li>
                     </ul>
-                    <button class="btn-primary" onclick="openModal()" style="width: 100%;">
-                        <span data-lang="fr">Contacter</span><span data-lang="en">Contact</span>
-                    </button>
+                    <button class="btn-primary" onclick="openModal()" style="width: 100%;"><span data-lang="fr">Contacter</span><span data-lang="en">Contact</span></button>
                 </div>
             </div>
         </div>
     </section>
 
-    <section id="portfolio" class="section reveal">
-        <div class="section-header">
-            <span class="kicker"><span data-lang="fr">Journal</span><span data-lang="en">Journal</span></span>
-            <h2 class="title-lg"><span data-lang="fr">Histoires d'Amour</span><span data-lang="en">Love Stories</span></h2>
+    <section id="portfolio" class="portfolio-section reveal">
+        <div class="portfolio-header">
+            <span class="kicker" style="color:var(--accent-soft);">
+                <span data-lang="fr">Journal</span><span data-lang="en">Journal</span>
+            </span>
+            <h2 class="title-lg" style="color:var(--cine-cream);">
+                <span data-lang="fr">Histoires d'Amour</span><span data-lang="en">Love Stories</span>
+            </h2>
         </div>
+
         <div class="gallery-grid">
-            <div class="gallery-item" onclick="openVideoModal('https://streamable.com/l/5p6n3h/mp4.mp4')">
+
+            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_1.mp4')">
                 <div class="gallery-img-wrap">
-                    <img src="OrnelaLuka.png" alt="Head Spa Treatment" loading="lazy">
-                    <div class="play-indicator">▶</div>
+                    <img src="VOTRE_GIF_1.gif" alt="Mariage 1" loading="lazy">
                 </div>
+                <span class="gallery-venue">Lieu de la vidéo 1</span>
                 <div class="gallery-info">
-                    <h3 class="gallery-title"><span data-lang="fr">Domaine de Montblin</span><span data-lang="en">Domaine de Montblin</span></h3>
-                    <span class="gallery-meta">Ornella & Luka</span>
+                    <div class="gallery-play-icon">
+                        <svg viewBox="0 0 16 16"><polygon points="4,2 14,8 4,14"/></svg>
+                    </div>
+                    <h3 class="gallery-title">Noms des Mariés 1</h3>
+                    <span class="gallery-meta">Lieu 1 · Année</span>
+                </div>
+            </div>
+            
+            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_2.mp4')">
+                <div class="gallery-img-wrap">
+                    <img src="VOTRE_GIF_2.gif" alt="Mariage 2" loading="lazy">
+                </div>
+                <span class="gallery-venue">Lieu de la vidéo 2</span>
+                <div class="gallery-info">
+                    <div class="gallery-play-icon">
+                        <svg viewBox="0 0 16 16"><polygon points="4,2 14,8 4,14"/></svg>
+                    </div>
+                    <h3 class="gallery-title">Noms des Mariés 2</h3>
+                    <span class="gallery-meta">Lieu 2 · Année</span>
                 </div>
             </div>
 
-            <div class="gallery-item" onclick="openVideoModal('https://streamable.com/l/eal7y8/mp4-high.mp4')">
+            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_3.mp4')">
                 <div class="gallery-img-wrap">
-                    <img src="StessyJunior.png" alt="Relaxation Spa" loading="lazy">
-                    <div class="play-indicator">▶</div>
+                    <img src="VOTRE_GIF_3.gif" alt="Mariage 3" loading="lazy">
                 </div>
+                <span class="gallery-venue">Lieu de la vidéo 3</span>
                 <div class="gallery-info">
-                    <h3 class="gallery-title"><span data-lang="fr">L'Orangerie</span><span data-lang="en">L'Orangerie</span></h3>
-                    <span class="gallery-meta">Stessy & Junior</span>
+                    <div class="gallery-play-icon">
+                        <svg viewBox="0 0 16 16"><polygon points="4,2 14,8 4,14"/></svg>
+                    </div>
+                    <h3 class="gallery-title">Noms des Mariés 3</h3>
+                    <span class="gallery-meta">Lieu 3 · Année</span>
                 </div>
             </div>
 
-            <div class="gallery-item" onclick="openVideoModal('https://streamable.com/l/u4qyjv/mp4.mp4')">
+            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_4.mp4')">
                 <div class="gallery-img-wrap">
-                    <img src="ThelanaManoah.png" alt="Rinsing Process" loading="lazy">
-                    <div class="play-indicator">▶</div>
+                    <img src="VOTRE_GIF_4.gif" alt="Mariage 4" loading="lazy">
                 </div>
+                <span class="gallery-venue">Lieu de la vidéo 4</span>
                 <div class="gallery-info">
-                    <h3 class="gallery-title"><span data-lang="fr">Domaine d'Orléans</span><span data-lang="en">Domaine d'Orléans</span></h3>
-                    <span class="gallery-meta">Thelana & Manoah</span>
+                    <div class="gallery-play-icon">
+                        <svg viewBox="0 0 16 16"><polygon points="4,2 14,8 4,14"/></svg>
+                    </div>
+                    <h3 class="gallery-title">Noms des Mariés 4</h3>
+                    <span class="gallery-meta">Lieu 4 · Année</span>
                 </div>
             </div>
+
+            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_5.mp4')">
+                <div class="gallery-img-wrap">
+                    <img src="VOTRE_GIF_5.gif" alt="Mariage 5" loading="lazy">
+                </div>
+                <span class="gallery-venue">Lieu de la vidéo 5</span>
+                <div class="gallery-info">
+                    <div class="gallery-play-icon">
+                        <svg viewBox="0 0 16 16"><polygon points="4,2 14,8 4,14"/></svg>
+                    </div>
+                    <h3 class="gallery-title">Noms des Mariés 5</h3>
+                    <span class="gallery-meta">Lieu 5 · Année</span>
+                </div>
+            </div>
+
+            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_6.mp4')">
+                <div class="gallery-img-wrap">
+                    <img src="VOTRE_GIF_6.gif" alt="Mariage 6" loading="lazy">
+                </div>
+                <span class="gallery-venue">Lieu de la vidéo 6</span>
+                <div class="gallery-info">
+                    <div class="gallery-play-icon">
+                        <svg viewBox="0 0 16 16"><polygon points="4,2 14,8 4,14"/></svg>
+                    </div>
+                    <h3 class="gallery-title">Noms des Mariés 6</h3>
+                    <span class="gallery-meta">Lieu 6 · Année</span>
+                </div>
+            </div>
+
+            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_7.mp4')">
+                <div class="gallery-img-wrap">
+                    <img src="VOTRE_GIF_7.gif" alt="Mariage 7" loading="lazy">
+                </div>
+                <span class="gallery-venue">Lieu de la vidéo 7</span>
+                <div class="gallery-info">
+                    <div class="gallery-play-icon">
+                        <svg viewBox="0 0 16 16"><polygon points="4,2 14,8 4,14"/></svg>
+                    </div>
+                    <h3 class="gallery-title">Noms des Mariés 7</h3>
+                    <span class="gallery-meta">Lieu 7 · Année</span>
+                </div>
+            </div>
+
+            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_8.mp4')">
+                <div class="gallery-img-wrap">
+                    <img src="VOTRE_GIF_8.gif" alt="Mariage 8" loading="lazy">
+                </div>
+                <span class="gallery-venue">Lieu de la vidéo 8</span>
+                <div class="gallery-info">
+                    <div class="gallery-play-icon">
+                        <svg viewBox="0 0 16 16"><polygon points="4,2 14,8 4,14"/></svg>
+                    </div>
+                    <h3 class="gallery-title">Noms des Mariés 8</h3>
+                    <span class="gallery-meta">Lieu 8 · Année</span>
+                </div>
+            </div>
+
+            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_9.mp4')">
+                <div class="gallery-img-wrap">
+                    <img src="VOTRE_GIF_9.gif" alt="Mariage 9" loading="lazy">
+                </div>
+                <span class="gallery-venue">Lieu de la vidéo 9</span>
+                <div class="gallery-info">
+                    <div class="gallery-play-icon">
+                        <svg viewBox="0 0 16 16"><polygon points="4,2 14,8 4,14"/></svg>
+                    </div>
+                    <h3 class="gallery-title">Noms des Mariés 9</h3>
+                    <span class="gallery-meta">Lieu 9 · Année</span>
+                </div>
+            </div>
+
         </div>
     </section>
-
     <section id="kind-words" class="section reveal" style="background-color: var(--bg-alt);">
         <div class="section-header">
             <span class="kicker"><span data-lang="fr">Témoignages</span><span data-lang="en">Testimonials</span></span>
@@ -585,24 +886,21 @@
                 <div class="testimonial-slide">
                     <div class="quote-icon">"</div>
                     <p class="quote-text">
-                        <span data-lang="fr">OMG !! J'aime trop ! Incroyable.</span>
-                        <span data-lang="en">OMG!! I love it so much! Incredible.</span>
+                        <span data-lang="fr">OMG !! J'aime trop ! Incroyable.</span><span data-lang="en">OMG!! I love it so much! Incredible.</span>
                     </p>
                     <div class="quote-author">Eunice & Josué</div>
                 </div>
                 <div class="testimonial-slide">
                     <div class="quote-icon">"</div>
                     <p class="quote-text">
-                        <span data-lang="fr">Vraiment vous nous avez respecté, excellent travail, merci merci merci.</span>
-                        <span data-lang="en">You really came through for us, excellent job, thank you so, so much.</span>
+                        <span data-lang="fr">Vraiment vous nous avez respecté, excellent travail, merci merci merci.</span><span data-lang="en">You really came through for us, excellent job, thank you so, so much.</span>
                     </p>
                     <div class="quote-author">Stessy & Junior</div>
                 </div>
                 <div class="testimonial-slide">
                     <div class="quote-icon">"</div>
                     <p class="quote-text">
-                        <span data-lang="fr">Je n'arrête pas de la regarder, vraiment merci</span>
-                        <span data-lang="en">I can't take my eyes off it, really, thank you.</span>
+                        <span data-lang="fr">Je n'arrête pas de la regarder, vraiment merci</span><span data-lang="en">I can't take my eyes off it, really, thank you.</span>
                     </p>
                     <div class="quote-author">Thomas & Morgane</div>
                 </div>
@@ -624,84 +922,72 @@
             <div class="faq-item">
                 <button class="faq-question" onclick="toggleFaq(this)">
                     <span>
-                        <span data-lang="fr">Quand devons-nous réserver vos services ?</span>
-                        <span data-lang="en">When should we book your services?</span>
+                        <span data-lang="fr">Quand devons-nous réserver vos services ?</span><span data-lang="en">When should we book your services?</span>
                     </span>
                     <span class="faq-icon">+</span>
                 </button>
                 <div class="faq-answer">
-                    <span data-lang="fr">Idéalement 8 à 12 mois avant votre mariage, surtout pour les dates de haute saison (mai à septembre). Nous prenons un nombre limité de mariages par an pour garantir une qualité optimale.</span>
-                    <span data-lang="en">Ideally 8 to 12 months before your wedding, especially for peak season dates (May to September). We take a limited number of weddings per year to ensure optimal quality.</span>
+                    <span data-lang="fr">Idéalement 8 à 12 mois avant votre mariage, surtout pour les dates de haute saison (mai à septembre). Nous prenons un nombre limité de mariages par an pour garantir une qualité optimale.</span><span data-lang="en">Ideally 8 to 12 months before your wedding, especially for peak season dates (May to September). We take a limited number of weddings per year to ensure optimal quality.</span>
                 </div>
             </div>
 
             <div class="faq-item">
                 <button class="faq-question" onclick="toggleFaq(this)">
                     <span>
-                        <span data-lang="fr">Couvrez-vous les mariages partout en France ?</span>
-                        <span data-lang="en">Do you cover weddings throughout France?</span>
+                        <span data-lang="fr">Couvrez-vous les mariages partout en France ?</span><span data-lang="en">Do you cover weddings throughout France?</span>
                     </span>
                     <span class="faq-icon">+</span>
                 </button>
                 <div class="faq-answer">
-                    <span data-lang="fr">Oui ! Nous sommes basés en Île-de-France mais nous nous déplaçons dans toute la France et même à l'international. Les frais de déplacement sont inclus pour la région parisienne, et calculés au cas par cas pour les autres destinations.</span>
-                    <span data-lang="en">Yes! We are based in Île-de-France but we travel throughout France and even internationally. Travel costs are included for the Paris region, and calculated case by case for other destinations.</span>
+                    <span data-lang="fr">Oui ! Nous sommes basés en Île-de-France mais nous nous déplaçons dans toute la France et même à l'international. Les frais de déplacement sont inclus pour la région parisienne, et calculés au cas par cas pour les autres destinations.</span><span data-lang="en">Yes! We are based in Île-de-France but we travel throughout France and even internationally. Travel costs are included for the Paris region, and calculated case by case for other destinations.</span>
                 </div>
             </div>
 
             <div class="faq-item">
                 <button class="faq-question" onclick="toggleFaq(this)">
                     <span>
-                        <span data-lang="fr">Quel est votre délai de livraison ?</span>
-                        <span data-lang="en">What is your delivery time?</span>
+                        <span data-lang="fr">Quel est votre délai de livraison ?</span><span data-lang="en">What is your delivery time?</span>
                     </span>
                     <span class="faq-icon">+</span>
                 </button>
                 <div class="faq-answer">
-                    <span data-lang="fr">Les photos sont livrées sous 4 à 6 semaines. La vidéo Émotion sous 3 semaines, la vidéo Souvenir sous 6 semaines, et la vidéo Éternité sous 8 semaines. Nous privilégions la qualité sur la vitesse !</span>
-                    <span data-lang="en">Photos are delivered within 4 to 6 weeks. Emotion video within 3 weeks, Memory video within 6 weeks, and Eternity video within 8 weeks. We prioritize quality over speed!</span>
+                    <span data-lang="fr">Les photos sont livrées sous 4 à 6 semaines. La vidéo Émotion sous 3 semaines, la vidéo Souvenir sous 6 semaines, et la vidéo Éternité sous 8 semaines. Nous privilégions la qualité sur la vitesse !</span><span data-lang="en">Photos are delivered within 4 to 6 weeks. Emotion video within 3 weeks, Memory video within 6 weeks, and Eternity video within 8 weeks. We prioritize quality over speed!</span>
                 </div>
             </div>
 
             <div class="faq-item">
                 <button class="faq-question" onclick="toggleFaq(this)">
                     <span>
-                        <span data-lang="fr">Proposez-vous un deuxième photographe/vidéaste ?</span>
-                        <span data-lang="en">Do you offer a second photographer/videographer?</span>
+                        <span data-lang="fr">Proposez-vous un deuxième photographe/vidéaste ?</span><span data-lang="en">Do you offer a second photographer/videographer?</span>
                     </span>
                     <span class="faq-icon">+</span>
                 </button>
                 <div class="faq-answer">
-                    <span data-lang="fr">Absolument ! Pour les mariages de plus de 100 invités ou avec des préparatifs séparés, nous recommandons un deuxième photographe (supplément de 600€) pour ne rien manquer de votre journée.</span>
-                    <span data-lang="en">Absolutely! For weddings with more than 100 guests or with separate preparations, we recommend a second photographer (supplement of 600€) to not miss anything from your day.</span>
+                    <span data-lang="fr">Absolument ! Pour les mariages de plus de 100 invités ou avec des préparatifs séparés, nous recommandons un deuxième photographe (supplément de 600€) pour ne rien manquer de votre journée.</span><span data-lang="en">Absolutely! For weddings with more than 100 guests or with separate preparations, we recommend a second photographer (supplement of 600€) to not miss anything from your day.</span>
                 </div>
             </div>
 
             <div class="faq-item">
                 <button class="faq-question" onclick="toggleFaq(this)">
                     <span>
-                        <span data-lang="fr">Peut-on personnaliser les formules ?</span>
-                        <span data-lang="en">Can we customize packages?</span>
+                        <span data-lang="fr">Peut-on personnaliser les formules ?</span><span data-lang="en">Can we customize packages?</span>
                     </span>
                     <span class="faq-icon">+</span>
                 </button>
                 <div class="faq-answer">
-                    <span data-lang="fr">Oui ! Nos formules sont modulables. Vous pouvez combiner photo et vidéo selon vos besoins, ajouter une session Day After, un album photo, ou toute autre prestation. Contactez-nous pour un devis sur mesure.</span>
-                    <span data-lang="en">Yes! Our packages are flexible. You can combine photo and video according to your needs, add a Day After session, a photo album, or any other service. Contact us for a custom quote.</span>
+                    <span data-lang="fr">Oui ! Nos formules sont modulables. Vous pouvez combiner photo et vidéo selon vos besoins, ajouter une session Day After, un album photo, ou toute autre prestation. Contactez-nous pour un devis sur mesure.</span><span data-lang="en">Yes! Our packages are flexible. You can combine photo and video according to your needs, add a Day After session, a photo album, or any other service. Contact us for a custom quote.</span>
                 </div>
             </div>
 
             <div class="faq-item">
                 <button class="faq-question" onclick="toggleFaq(this)">
                     <span>
-                        <span data-lang="fr">Quel est votre style photographique ?</span>
-                        <span data-lang="en">What is your photographic style?</span>
+                        <span data-lang="fr">Quel est votre style photographique ?</span><span data-lang="en">What is your photographic style?</span>
                     </span>
                     <span class="faq-icon">+</span>
                 </button>
                 <div class="faq-answer">
-                    <span data-lang="fr">Notre style est un mélange de documentaire et de fine art. Nous capturons les moments spontanés avec une approche artistique, en privilégiant la lumière naturelle et les émotions authentiques. Pas de poses rigides, juste vous, naturellement.</span>
-                    <span data-lang="en">Our style is a blend of documentary and fine art. We capture spontaneous moments with an artistic approach, favoring natural light and authentic emotions. No rigid poses, just you, naturally.</span>
+                    <span data-lang="fr">Notre style est un mélange de documentaire et de fine art. Nous capturons les moments spontanés avec une approche artistique, en privilégiant la lumière naturelle et les émotions authentiques. Pas de poses rigides, juste vous, naturellement.</span><span data-lang="en">Our style is a blend of documentary and fine art. We capture spontaneous moments with an artistic approach, favoring natural light and authentic emotions. No rigid poses, just you, naturally.</span>
                 </div>
             </div>
         </div>
@@ -852,7 +1138,7 @@
 
   <footer>
     <div class="footer-social">
-        <a href="https://www.instagram.com/_timelesshouse" target="_blank" rel="noopener noreferrer" aria-label="Suivez-nous sur Instagram" class="social-link">
+        <a href="https://www.instagram.com/_timelesshouse" target="_blank" rel="noopener noreferrer" class="social-link">
             <svg class="instagram-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 32px; height: 32px;">
               <path d="M12 2C14.717 2 15.056 2.01 16.122 2.06C17.187 2.11 17.912 2.277 18.55 2.525C19.21 2.779 19.766 3.123 20.322 3.678C20.8305 4.1779 21.224 4.78259 21.475 5.45C21.722 6.087 21.89 6.813 21.94 7.878C21.987 8.944 22 9.283 22 12C22 14.717 21.99 15.056 21.94 16.122C21.89 17.187 21.722 17.912 21.475 18.55C21.2247 19.2178 20.8311 19.8226 20.322 20.322C19.822 20.8303 19.2173 21.2238 18.55 21.475C17.913 21.722 17.187 21.89 16.122 21.94C15.056 21.987 14.717 22 12 22C9.283 22 8.944 21.99 7.878 21.94C6.813 21.89 6.088 21.722 5.45 21.475C4.78233 21.2245 4.17753 20.8309 3.678 20.322C3.16941 19.8222 2.77593 19.2175 2.525 18.55C2.277 17.913 2.11 17.187 2.06 16.122C2.013 15.056 2 14.717 2 12C2 9.283 2.01 8.944 2.06 7.878C2.11 6.812 2.277 6.088 2.525 5.45C2.77524 4.78218 3.1688 4.17732 3.678 3.678C4.17767 3.16923 4.78243 2.77573 5.45 2.525C6.088 2.277 6.812 2.11 7.878 2.06C8.944 2.013 9.283 2 12 2ZM12 7C10.6739 7 9.40215 7.52678 8.46447 8.46447C7.52678 9.40215 7 10.6739 7 12C7 13.3261 7.52678 14.5979 8.46447 15.5355C9.40215 16.4732 10.6739 17 12 17C13.3261 17 14.5979 16.4732 15.5355 15.5355C16.4732 14.5979 17 13.3261 17 12C17 10.6739 16.4732 9.40215 15.5355 8.46447C14.5979 7.52678 13.3261 7 12 7ZM18.5 6.75C18.5 6.41848 18.3683 6.10054 18.1339 5.86612C17.8995 5.6317 17.5815 5.5 17.25 5.5C16.9185 5.5 16.6005 5.6317 16.3661 5.86612C16.1317 6.10054 16 6.41848 16 6.75C16 7.08152 16.1317 7.39946 16.3661 7.63388C16.6005 7.8683 16.9185 8 17.25 8C17.5815 8 17.8995 7.8683 18.1339 7.63388C18.3683 7.39946 18.5 7.08152 18.5 6.75ZM12 9C12.7956 9 13.5587 9.31607 14.1213 9.87868C14.6839 10.4413 15 11.2044 15 12C15 12.7956 14.6839 13.5587 14.1213 14.1213C13.5587 14.6839 12.7956 15 12 15C11.2044 15 10.4413 14.6839 9.87868 14.1213C9.31607 13.5587 9 12.7956 9 12C9 11.2044 9.31607 10.4413 9.87868 9.87868C10.4413 9.31607 11.2044 9 12 9Z" fill="currentColor"/>
           </svg>
@@ -860,8 +1146,7 @@
     </div>
     <p>
         &copy; 2025 TimelessHouse. <br>
-        <span data-lang="fr">Votre histoire, notre expertise.</span>
-        <span data-lang="en">Your story, our expertise.</span>
+        <span data-lang="fr">Votre histoire, notre expertise.</span><span data-lang="en">Your story, our expertise.</span>
     </p>
     <p style="margin-top: 10px; font-size: 11px;">
         <a href="mailto:timelessfilms.house@gmail.com" style="color: var(--accent); transition: opacity 0.3s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">timelessfilms.house@gmail.com</a>
@@ -889,152 +1174,77 @@
         "precieuse-ronny": "precieuse-ronny.html",
         "ezla-davy": "photo-ezla-davy.html",
         "keysia-jason": "video-keyzia-jason.html",
-        // "julie-thomas": "photo-julie-thomas.html",
+        // "julie-thomas": "photo-julie-thomas.html",   // exemple de ligne à ajouter pour un nouveau client
     };
     /* ============================================================
        🚫  NE RIEN MODIFIER EN-DESSOUS DE CETTE LIGNE
        ============================================================ */
 
-    function toggleMenu() {
-        document.getElementById('mobileMenu').classList.toggle('open');
-    }
+    function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
+    function openModal() { document.getElementById('contactModal').classList.add('active'); document.body.style.overflow = 'hidden'; }
+    function closeModal() { document.getElementById('contactModal').classList.remove('active'); document.body.style.overflow = ''; }
+    function closeModalOnOverlay(e) { if(e.target.classList.contains('modal-overlay')) closeModal(); }
+    function openClientModal() { document.getElementById('clientModal').classList.add('active'); document.body.style.overflow = 'hidden'; }
+    function closeClientModal() { document.getElementById('clientModal').classList.remove('active'); document.body.style.overflow = ''; document.getElementById('clientError').style.display = 'none'; }
+    function closeClientModalOnOverlay(e) { if(e.target.classList.contains('modal-overlay')) closeClientModal(); }
 
-    function openModal() {
-        document.getElementById('contactModal').classList.add('active');
-        document.body.style.overflow = 'hidden';
-    }
-    function closeModal() {
-        document.getElementById('contactModal').classList.remove('active');
-        document.body.style.overflow = '';
-    }
-    function closeModalOnOverlay(e) {
-        if(e.target.classList.contains('modal-overlay')) closeModal();
-    }
-
-    /* === NOUVEAU : LOGIQUE ESPACE CLIENT === */
-    function openClientModal() {
-        document.getElementById('clientModal').classList.add('active');
-        document.body.style.overflow = 'hidden';
-    }
-    function closeClientModal() {
-        document.getElementById('clientModal').classList.remove('active');
-        document.body.style.overflow = '';
-        document.getElementById('clientError').style.display = 'none';
-    }
-    function closeClientModalOnOverlay(e) {
-        if(e.target.classList.contains('modal-overlay')) closeClientModal();
-    }
-    /* === LOGIQUE ESPACE CLIENT SÉCURISÉE === */
     const codesValides = CODES_CLIENTS;
-
     function checkClientCode() {
         let rawCode = document.getElementById('clientCode').value;
-        
-        const code = rawCode
-            .toLowerCase()
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-            .replace(/&/g, ' ')
-            .trim()
-            .replace(/[^a-z0-9]/g, '-')
-            .replace(/-+/g, '-');
-
+        const code = rawCode.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/&/g, ' ').trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
         if (codesValides.hasOwnProperty(code)) {
-            // --- NOUVEAUTÉ ICI : ON DONNE LE JETON D'ACCÈS ---
             sessionStorage.setItem('access_granted', code); 
-            // -------------------------------------------------
-            
             window.location.href = codesValides[code];
         } else {
             document.getElementById('clientError').style.display = 'block';
         }
     }
-    function handleClientEnter(e) {
-        if(e.key === 'Enter') checkClientCode();
-    }
-    /* ======================================= */
-
-    function toggleLanguage() {
-      document.body.classList.toggle('en-mode');
-    }
-
+    function handleClientEnter(e) { if(e.key === 'Enter') checkClientCode(); }
+    function toggleLanguage() { document.body.classList.toggle('en-mode'); }
     function switchPricing(type) {
         document.querySelectorAll('.prestations-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.toggle-btn').forEach(el => el.classList.remove('active'));
-        
         document.getElementById(type).classList.add('active');
         document.getElementById('btn' + type.charAt(0).toUpperCase() + type.slice(1)).classList.add('active');
     }
 
     let currentSlide = 0;
     const totalSlides = 3;
-    
     function goToSlide(index) {
         currentSlide = index;
         const wrapper = document.getElementById('testimonialsWrapper');
         wrapper.style.transform = `translateX(-${currentSlide * 100}%)`;
-        
-        document.querySelectorAll('.carousel-dot').forEach((dot, i) => {
-            dot.classList.toggle('active', i === currentSlide);
-        });
+        document.querySelectorAll('.carousel-dot').forEach((dot, i) => { dot.classList.toggle('active', i === currentSlide); });
     }
-
-    setInterval(() => {
-        currentSlide = (currentSlide + 1) % totalSlides;
-        goToSlide(currentSlide);
-    }, 6000);
+    setInterval(() => { currentSlide = (currentSlide + 1) % totalSlides; goToSlide(currentSlide); }, 6000);
 
     function toggleFaq(button) {
         const answer = button.nextElementSibling;
         const isActive = button.classList.contains('active');
-        
         document.querySelectorAll('.faq-question').forEach(q => q.classList.remove('active'));
         document.querySelectorAll('.faq-answer').forEach(a => a.classList.remove('active'));
-        
-        if (!isActive) {
-            button.classList.add('active');
-            answer.classList.add('active');
-        }
+        if (!isActive) { button.classList.add('active'); answer.classList.add('active'); }
     }
 
     const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            entry.target.classList.add('active');
-        }
-      });
+      entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('active'); } });
     }, { threshold: 0.1 });
-    
     document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
             e.preventDefault();
             const targetId = this.getAttribute('href');
-
             const mobileMenu = document.getElementById('mobileMenu');
-            if (mobileMenu.classList.contains('open')) {
-                toggleMenu();
-            }
-
-            if(targetId === '#' || targetId === '#top') {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                return;
-            }
-            
+            if (mobileMenu.classList.contains('open')) { toggleMenu(); }
+            if(targetId === '#' || targetId === '#top') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
             const targetElement = document.querySelector(targetId);
-            if (targetElement) {
-                targetElement.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                });
-            }
+            if (targetElement) { targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
         });
     });
 
-    // VIDEO MODAL LOGIC
     const videoModal = document.getElementById('videoModal');
     const videoPlayer = document.getElementById('mainVideoPlayer');
-
     function openVideoModal(videoUrl) {
         if(!videoUrl) return;
         videoPlayer.src = videoUrl;
@@ -1042,7 +1252,6 @@
         document.body.style.overflow = 'hidden';
         videoPlayer.play();
     }
-
     function closeVideoModal() {
         videoModal.classList.remove('active');
         document.body.style.overflow = '';
@@ -1050,42 +1259,82 @@
         videoPlayer.currentTime = 0;
         videoPlayer.src = ""; 
     }
+    function closeVideoModalOnOverlay(e) { if(e.target.classList.contains('video-overlay')) closeVideoModal(); }
 
-    function closeVideoModalOnOverlay(e) {
-        if(e.target.classList.contains('video-overlay')) {
-            closeVideoModal();
-        }
-    }
-
-   // --- SCRIPT DE CHARGEMENT (Vidéo + Auto-ouverture Modal) ---
     document.addEventListener('DOMContentLoaded', function() {
-        
-        // 1. GESTION DES VIDÉOS DE FOND (Code existant)
+        var heroSection = document.querySelector('.hero');
+        var body = document.body;
+        function updateHeroMode() {
+            if (!heroSection) return;
+            var heroHeight = heroSection.offsetHeight;
+            if (window.scrollY < heroHeight - 80) { body.classList.add('hero-mode'); } else { body.classList.remove('hero-mode'); }
+        }
+        updateHeroMode();
+        window.addEventListener('scroll', updateHeroMode, { passive: true });
+        window.addEventListener('resize', updateHeroMode);
+
         var backgroundVideos = document.querySelectorAll('.bg-video');
-        backgroundVideos.forEach(function(video) {
-            var playPromise = video.play();
-            if (playPromise !== undefined) {
-                playPromise.then(function() {
-                    video.classList.add('video-playing');
-                    var container = video.parentElement;
-                    var imageArrierePlan = container.querySelector('.bg-image');
-                    if (imageArrierePlan) {
-                        imageArrierePlan.classList.add('hidden');
+        var videoObserver = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                var video = entry.target;
+                if (entry.isIntersecting) {
+                    if (!video.dataset.loaded) { video.load(); video.dataset.loaded = "true"; }
+                    var playPromise = video.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(function() {
+                            video.classList.add('video-playing');
+                            var container = video.parentElement;
+                            var imageArrierePlan = container.querySelector('.bg-image');
+                            if (imageArrierePlan) { imageArrierePlan.classList.add('hidden'); }
+                        }).catch(function() {});
                     }
-                }).catch(function(error) {
-                    console.log("Autoplay bloqué, affichage image fixe.");
+                } else { if (!video.paused) { video.pause(); } }
+            });
+        }, { rootMargin: "200px 0px", threshold: 0.1 });
+        backgroundVideos.forEach(function(video) { videoObserver.observe(video); });
+
+        var heroVideo = document.querySelector('.hero-media video');
+        if (heroVideo) {
+            var heroObserver = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting) { heroVideo.play().catch(function() {}); } 
+                    else { if (!heroVideo.paused) heroVideo.pause(); }
                 });
+            }, { threshold: 0.1 });
+            heroObserver.observe(heroVideo);
+        }
+
+        var customCursor = document.getElementById('customCursor');
+        var galleryItems = document.querySelectorAll('.gallery-item');
+        if (customCursor && galleryItems.length && window.matchMedia('(hover: hover)').matches) {
+            var cursorX = 0, cursorY = 0, targetX = 0, targetY = 0;
+            var cursorVisible = false;
+            function animateCursor() {
+                cursorX += (targetX - cursorX) * 0.18; cursorY += (targetY - cursorY) * 0.18;
+                customCursor.style.left = cursorX + 'px'; customCursor.style.top = cursorY + 'px';
+                requestAnimationFrame(animateCursor);
+            }
+            animateCursor();
+            galleryItems.forEach(function(item) {
+                item.addEventListener('mouseenter', function(e) {
+                    targetX = cursorX = e.clientX; targetY = cursorY = e.clientY;
+                    customCursor.classList.add('visible'); cursorVisible = true;
+                });
+                item.addEventListener('mousemove', function(e) { targetX = e.clientX; targetY = e.clientY; });
+                item.addEventListener('mouseleave', function() { customCursor.classList.remove('visible'); cursorVisible = false; });
+            });
+        }
+        if(window.location.hash === '#clients') { setTimeout(function() { openClientModal(); }, 500); }
+
+        /* === CACHER AUTOMATIQUEMENT LES VIDÉOS VIDES === */
+        const galleryItemsList = document.querySelectorAll('.gallery-item');
+        galleryItemsList.forEach(item => {
+            const img = item.querySelector('img');
+            // Si l'image n'a pas de source, ou si elle contient encore le texte générique "VOTRE_GIF"
+            if (!img || !img.getAttribute('src') || img.getAttribute('src').includes('VOTRE_GIF')) {
+                item.style.display = 'none'; // On cache la case entière
             }
         });
-
-        // 2. OUVERTURE AUTOMATIQUE ESPACE CLIENT (Nouveau !)
-        // Si le lien contient "#clients", on ouvre le modal
-        if(window.location.hash === '#clients') {
-            // Petit délai de 0.5s pour laisser le site charger visuellement avant d'ouvrir
-            setTimeout(function() {
-                openClientModal();
-            }, 500);
-        }
     });
 </script>
 </body>

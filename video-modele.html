@@ -29,20 +29,19 @@
       dateISO: "2025-09-20",                 
 
       // ───── LIENS VIDÉO (LECTEUR DIRECT) ─────
-      // Laissez le lien 4K vide ("") si vous ne l'avez pas, le bouton 4K disparaîtra.
+      // Laissez TOUS les liens d'une catégorie vides ("") pour afficher l'écran "SOON".
       
       teaserUrls: {
-        "1080p": "https://streamable.com/l/9j8j9q/mp4.mp4",
-        "4K": "https://streamable.com/l/9j8j9q/mp4-high.mp4" 
+        "1080p": "",
+        "4K": "" 
       },
 
       filmUrls: {
-        "1080p": "LIEN STREAMABLE FILM COMPLET 1080P",
+        "1080p": "", // Laissé vide pour tester l'écran "SOON"
         "4K": "" 
       },
 
       // ───── LIENS DE TÉLÉCHARGEMENT DIRECTS (BACKBLAZE) ─────
-      // Collez ici l'URL complète récupérée sur Cyberduck
       teaserDownloadUrl: "https://f003.backblazeb2.com/file/Timelesshouse-org/Wed/Teaser_Keysia%26Jason.mp4",
       filmDownloadUrl:   "VOTRE_LIEN_BACKBLAZE_FILM",
 
@@ -252,6 +251,23 @@
     .video-slide.active { opacity: 1; visibility: visible; }
     .video-slide video { width: 100%; height: 100%; display: block; background: #000; outline: none; border: none; }
 
+    /* ECRAN SOON */
+    .coming-soon {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #050505; /* Légère nuance par rapport au noir pur */
+      color: var(--text-muted);
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-size: 2.5rem;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      z-index: 5;
+    }
+
     /* CONTROLES DE QUALITÉ (Boutons 1080p / 4K) */
     .quality-controls {
       position: absolute;
@@ -405,6 +421,7 @@
       }
       .quality-controls { top: 12px; right: 12px; padding: 2px; }
       .quality-btn { padding: 4px 8px; font-size: 9px; }
+      .coming-soon { font-size: 1.8rem; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -463,15 +480,15 @@
         <div class="video-stage">
           
           <div class="video-slide active" data-slide="teaser" role="tabpanel">
-            <div class="quality-controls" id="qualityControlsTeaser" style="display: none;">
-              </div>
+            <div class="quality-controls" id="qualityControlsTeaser" style="display: none;"></div>
             <video id="videoTeaser" controls playsinline preload="metadata"></video>
+            <div class="coming-soon" id="soonTeaser" style="display: none;">SOON</div>
           </div>
           
           <div class="video-slide" data-slide="full" role="tabpanel">
-            <div class="quality-controls" id="qualityControlsFilm" style="display: none;">
-              </div>
+            <div class="quality-controls" id="qualityControlsFilm" style="display: none;"></div>
             <video id="videoFilm" controls playsinline preload="metadata"></video>
+            <div class="coming-soon" id="soonFilm" style="display: none;">SOON</div>
           </div>
 
         </div>
@@ -545,15 +562,28 @@
     // ============================================
     // GESTION DU CHANGEMENT DE QUALITÉ VIDÉO
     // ============================================
-    function setupVideoQuality(videoId, controlsId, urls) {
+    function setupVideoQuality(videoId, controlsId, soonId, urls) {
       const video = document.getElementById(videoId);
       const controls = document.getElementById(controlsId);
+      const soonText = document.getElementById(soonId);
       
-      // S'il n'y a aucune URL fournie, on arrête
-      if (!urls["1080p"] && !urls["4K"]) return;
+      const has1080p = urls["1080p"] && urls["1080p"].trim() !== "";
+      const has4K = urls["4K"] && urls["4K"].trim() !== "";
+
+      // S'il n'y a aucune URL fournie, on masque le lecteur et on affiche SOON
+      if (!has1080p && !has4K) {
+        video.style.display = "none";
+        controls.style.display = "none";
+        soonText.style.display = "flex";
+        return;
+      }
+
+      // S'il y a une vidéo, on s'assure que SOON est masqué et le lecteur visible
+      soonText.style.display = "none";
+      video.style.display = "block";
 
       // S'il y a les deux qualités, on affiche le sélecteur
-      if (urls["1080p"] && urls["4K"]) {
+      if (has1080p && has4K) {
         controls.style.display = "flex";
         
         // On crée les boutons
@@ -631,8 +661,8 @@
       }
 
       // INITIALISATION DES LECTEURS ET DE LA QUALITÉ
-      setupVideoQuality("videoTeaser", "qualityControlsTeaser", c.teaserUrls);
-      setupVideoQuality("videoFilm", "qualityControlsFilm", c.filmUrls);
+      setupVideoQuality("videoTeaser", "qualityControlsTeaser", "soonTeaser", c.teaserUrls);
+      setupVideoQuality("videoFilm", "qualityControlsFilm", "soonFilm", c.filmUrls);
 
       // Liens de téléchargement directs
       if (document.getElementById('downloadTeaser')) document.getElementById('downloadTeaser').href = c.teaserDownloadUrl;

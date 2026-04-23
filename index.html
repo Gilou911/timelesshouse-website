@@ -39,7 +39,7 @@
     body.en-mode [data-lang="fr"] { display: none; }
     body.en-mode [data-lang="en"] { display: inline; }
 
-    /* === VIDÉO DE FOND + PREVIEW AU HOVER === */
+    /* === VIDÉO DE FOND + PREVIEW === */
     .bg-video-wrap {
       position: fixed; inset: 0; z-index: 0;
       overflow: hidden; background: var(--cine-dark);
@@ -110,12 +110,34 @@
       justify-self: end;
       display: flex; align-items: center; gap: 22px;
     }
-    .lang-switch {
+    .client-link, .lang-switch {
       font-size: 11px; font-weight: 600;
       letter-spacing: 0.15em; color: var(--cine-cream);
-      opacity: 0.85; transition: opacity 0.3s, color 0.3s;
+      opacity: 0.85; transition: opacity 0.3s, color 0.3s, background 0.3s, border-color 0.3s;
+      text-transform: uppercase; cursor: pointer;
     }
-    .lang-switch:hover { opacity: 1; color: var(--accent-soft); }
+    .client-link:hover, .lang-switch:hover { opacity: 1; color: var(--accent-soft); }
+
+    /* Bouton Espace Clients enrichi (icône clé + pill) */
+    .client-link {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 14px;
+      border: 1px solid rgba(245, 236, 223, 0.25);
+      border-radius: 999px;
+    }
+    .client-link svg {
+      width: 12px; height: 12px;
+      stroke: currentColor; fill: none;
+      stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+      transition: transform 0.3s ease;
+    }
+    .client-link:hover {
+      border-color: var(--accent-soft);
+    }
+    .client-link:hover svg {
+      transform: rotate(-15deg);
+    }
+    
     .social-link {
       display: inline-flex; padding: 6px;
       transition: transform 0.3s;
@@ -204,37 +226,6 @@
       opacity: 1; letter-spacing: 0.35em;
     }
 
-    /* === STATS (bandeau du bas) === */
-    .stats {
-      display: flex; flex-wrap: wrap;
-      justify-content: center; align-items: center;
-      gap: 12px 48px;
-      margin-top: 70px;
-      padding: 0 20px;
-      opacity: 0;
-      animation: fadeUp 1.4s ease 1s forwards;
-    }
-    .stat-item {
-      position: relative;
-      font-size: 10px; font-weight: 500;
-      text-transform: uppercase; letter-spacing: 0.3em;
-      color: var(--cine-cream-soft);
-      opacity: 0.7;
-    }
-    .stat-item:not(:last-child)::after {
-      content: "·";
-      position: absolute; right: -28px; top: 50%;
-      transform: translateY(-50%);
-      color: var(--accent-soft); opacity: 0.6;
-      font-size: 16px;
-    }
-    .stat-value {
-      font-family: "Cormorant Garamond", serif;
-      font-size: 14px; font-weight: 600;
-      color: var(--cine-cream); letter-spacing: 0.1em;
-      margin-right: 6px;
-    }
-
     /* Hint bas */
     .bottom-hint {
       text-align: center;
@@ -244,86 +235,104 @@
       padding: 28px 0 4px;
     }
 
+    /* === MODALE ESPACE CLIENTS === */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(26, 20, 16, 0.85); backdrop-filter: blur(8px);
+      display: none; justify-content: center; align-items: center; z-index: 2000;
+      opacity: 0; transition: opacity 0.4s ease;
+    }
+    .modal-overlay.active { display: flex; opacity: 1; }
+    .modal-content {
+      background: var(--cine-dark-solid); border: 1px solid rgba(245, 236, 223, 0.1);
+      border-radius: 4px; padding: 50px 40px; max-width: 400px; width: 90%;
+      position: relative; text-align: center; color: var(--cine-cream);
+      box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+      transform: translateY(20px); transition: transform 0.4s ease;
+    }
+    .modal-overlay.active .modal-content { transform: translateY(0); }
+    .modal-close {
+      position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer;
+      color: var(--cine-cream-soft); transition: color 0.3s;
+    }
+    .modal-close:hover { color: var(--accent-soft); }
+    
+    .kicker-modal {
+      display: block; font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.3em; color: var(--accent-soft); margin-bottom: 10px;
+    }
+    .title-modal {
+      font-family: "Cormorant Garamond", serif; font-size: 2.2rem;
+      font-weight: 400; margin-bottom: 15px;
+    }
+    .input-group { margin-bottom: 25px; }
+    .input-group input {
+      width: 100%; padding: 15px; border: 1px solid rgba(245, 236, 223, 0.2);
+      background: rgba(0,0,0,0.3); color: var(--cine-cream);
+      font-family: "Montserrat", sans-serif; font-size: 14px; transition: 0.3s;
+      border-radius: 2px; text-align: center; letter-spacing: 0.2em; text-transform: uppercase;
+    }
+    .input-group input:focus { outline: none; border-color: var(--accent-soft); background: rgba(0,0,0,0.5); }
+    .input-group input::placeholder { color: rgba(245, 236, 223, 0.3); }
+    
+    .btn-primary {
+      padding: 14px 26px; border-radius: 2px; background-color: var(--accent);
+      color: white; border: none; font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.2em; font-weight: 600; cursor: pointer;
+      transition: all 0.3s ease; width: 100%;
+    }
+    .btn-primary:hover { background-color: #9a7555; transform: translateY(-2px); }
+
     /* === BOUTON CONTACT FLOTTANT === */
     .floating-contact {
-      position: fixed;
-      bottom: 30px; right: 30px;
-      z-index: 50;
-      display: inline-flex; align-items: center;
-      gap: 10px;
+      position: fixed; bottom: 30px; right: 30px; z-index: 50;
+      display: inline-flex; align-items: center; gap: 10px;
       padding: 12px 18px 12px 14px;
       background: rgba(26, 20, 16, 0.55);
-      border: 1px solid rgba(245, 236, 223, 0.2);
-      border-radius: 999px;
-      color: var(--cine-cream);
-      font-size: 10px; font-weight: 500;
+      border: 1px solid rgba(245, 236, 223, 0.2); border-radius: 999px;
+      color: var(--cine-cream); font-size: 10px; font-weight: 500;
       text-transform: uppercase; letter-spacing: 0.3em;
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
       transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-      opacity: 0;
-      animation: fadeUp 1s ease 1.4s forwards;
+      opacity: 0; animation: fadeUp 1s ease 1.4s forwards;
     }
     .floating-contact:hover {
-      background: var(--accent-soft);
-      color: var(--cine-dark-solid);
-      border-color: var(--accent-soft);
-      transform: translateY(-3px);
-      padding-right: 22px;
-      letter-spacing: 0.35em;
+      background: var(--accent-soft); color: var(--cine-dark-solid);
+      border-color: var(--accent-soft); transform: translateY(-3px);
+      padding-right: 22px; letter-spacing: 0.35em;
     }
-    .floating-contact svg {
-      width: 14px; height: 14px;
-      stroke: currentColor; fill: none;
-      stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
-      transition: transform 0.4s ease;
-    }
+    .floating-contact svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.4s ease; }
     .floating-contact:hover svg { transform: translateX(-2px); }
 
     /* === TRANSITION DE PAGE === */
     .page-transition {
-      position: fixed; inset: 0; z-index: 99999;
-      background: var(--cine-dark);
-      opacity: 1;
-      pointer-events: none;
-      transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+      position: fixed; inset: 0; z-index: 99999; background: var(--cine-dark);
+      opacity: 1; pointer-events: none; transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1);
       display: flex; align-items: center; justify-content: center;
     }
-    body.loaded .page-transition {
-      opacity: 0;
-    }
-    .page-transition.exiting {
-      opacity: 1 !important;
-      pointer-events: all;
-    }
+    body.loaded .page-transition { opacity: 0; }
+    .page-transition.exiting { opacity: 1 !important; pointer-events: all; }
     .page-transition-mark {
-      font-family: "Cormorant Garamond", serif;
-      color: var(--accent-soft);
-      font-size: 14px; letter-spacing: 0.4em;
-      text-transform: uppercase;
-      opacity: 0;
-      transition: opacity 0.5s ease;
+      font-family: "Cormorant Garamond", serif; color: var(--accent-soft);
+      font-size: 14px; letter-spacing: 0.4em; text-transform: uppercase;
+      opacity: 0; transition: opacity 0.5s ease;
     }
-    .page-transition.exiting .page-transition-mark {
-      opacity: 0.9;
-    }
+    .page-transition.exiting .page-transition-mark { opacity: 0.9; }
 
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
     /* === RESPONSIVE === */
     @media (max-width: 900px) {
       .page { padding: 22px 24px; }
       .logo { font-size: 18px; letter-spacing: 0.12em; }
-      .top-right { gap: 16px; }
+      .top-right { gap: 12px; }
+      .client-link { padding: 7px 10px; gap: 6px; }
+      .client-link span { display: none; } /* Cache le texte long sur mobile */
+      .client-link::after { content: "CLIENTS"; font-size: 10px; }
       .themes { gap: 10px 40px; }
       .brand-kicker { letter-spacing: 0.35em; font-size: 0.75rem; margin-bottom: 25px; }
       .theme-subtitle { font-size: 9px; letter-spacing: 0.22em; margin-top: 10px; }
       .main-content { padding: 40px 12px 30px; }
-      .stats { gap: 10px 36px; margin-top: 50px; }
-      .stat-item:not(:last-child)::after { right: -22px; }
       .floating-contact { bottom: 20px; right: 20px; padding: 10px 16px 10px 12px; font-size: 9px; }
       .floating-contact .contact-text { display: none; }
       .floating-contact:hover { padding-right: 16px; }
@@ -331,42 +340,46 @@
     @media (max-width: 600px) {
       .themes { gap: 24px; flex-direction: column; }
       .theme-label { font-size: 2.4rem; }
-      .stats { gap: 8px; flex-direction: column; }
-      .stat-item:not(:last-child)::after { display: none; }
     }
     @media (max-width: 400px) {
-      .top-bar { grid-template-columns: auto 1fr auto; }
-      .logo { font-size: 16px; }
+      /* Sur très petits écrans, on garde uniquement l'icône clé */
+      .client-link::after { display: none; }
+      .client-link { padding: 7px 8px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- === VIDÉO DE FOND === -->
   <div class="bg-video-wrap">
     <img class="bg-poster" src="Vignette_Eunice&_Josue.jpg" alt="" aria-hidden="true">
 
-    <!-- Vidéo "showreel" par défaut -->
     <video class="bg-video" autoplay muted loop playsinline preload="metadata"
            poster="Vignette_Eunice&_Josue.jpg"
            onloadeddata="this.classList.add('loaded')">
       <source src="https://streamable.com/l/clh7jh/mp4-high.mp4" type="video/mp4" />
     </video>
 
-    <!-- Vidéo de preview (chargée dynamiquement au hover) -->
     <video class="bg-video-preview" muted loop playsinline preload="none"></video>
   </div>
   <div class="bg-overlay"></div>
 
   <div class="page">
 
-    <!-- === TOP BAR === -->
     <header class="top-bar">
       <div class="top-left"></div>
 
       <a href="index.html" class="logo" aria-label="TimelessHouse — Accueil">TimelessHouse</a>
 
       <div class="top-right">
+        <a onclick="openClientModal(event)" class="client-link" role="button" tabindex="0">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="8" cy="15" r="4"/>
+              <path d="M10.85 12.15L19 4"/>
+              <path d="M18 5l2 2"/>
+              <path d="M15 8l2 2"/>
+            </svg>
+            <span data-lang="fr">Espace Clients</span><span data-lang="en">Client Area</span>
+        </a>
         <a href="https://www.instagram.com/_timelesshouse" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="social-link">
           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2C14.717 2 15.056 2.01 16.122 2.06C17.187 2.11 17.912 2.277 18.55 2.525C19.21 2.779 19.766 3.123 20.322 3.678C20.8305 4.1779 21.224 4.78259 21.475 5.45C21.722 6.087 21.89 6.813 21.94 7.878C21.987 8.944 22 9.283 22 12C22 14.717 21.99 15.056 21.94 16.122C21.89 17.187 21.722 17.912 21.475 18.55C21.2247 19.2178 20.8311 19.8226 20.322 20.322C19.822 20.8303 19.2173 21.2238 18.55 21.475C17.913 21.722 17.187 21.89 16.122 21.94C15.056 21.987 14.717 22 12 22C9.283 22 8.944 21.99 7.878 21.94C6.813 21.89 6.088 21.722 5.45 21.475C4.78233 21.2245 4.17753 20.8309 3.678 20.322C3.16941 19.8222 2.77593 19.2175 2.525 18.55C2.277 17.913 2.11 17.187 2.06 16.122C2.013 15.056 2 14.717 2 12C2 9.283 2.01 8.944 2.06 7.878C2.11 6.812 2.277 6.088 2.525 5.45C2.77524 4.78218 3.1688 4.17732 3.678 3.678C4.17767 3.16923 4.78243 2.77573 5.45 2.525C6.088 2.277 6.812 2.11 7.878 2.06C8.944 2.013 9.283 2 12 2ZM12 7C10.6739 7 9.40215 7.52678 8.46447 8.46447C7.52678 9.40215 7 10.6739 7 12C7 13.3261 7.52678 14.5979 8.46447 15.5355C9.40215 16.4732 10.6739 17 12 17C13.3261 17 14.5979 16.4732 15.5355 15.5355C16.4732 14.5979 17 13.3261 17 12C17 10.6739 16.4732 9.40215 15.5355 8.46447C14.5979 7.52678 13.3261 7 12 7ZM18.5 6.75C18.5 6.41848 18.3683 6.10054 18.1339 5.86612C17.8995 5.6317 17.5815 5.5 17.25 5.5C16.9185 5.5 16.6005 5.6317 16.3661 5.86612C16.1317 6.10054 16 6.41848 16 6.75C16 7.08152 16.1317 7.39946 16.3661 7.63388C16.6005 7.8683 16.9185 8 17.25 8C17.5815 8 17.8995 7.8683 18.1339 7.63388C18.3683 7.39946 18.5 7.08152 18.5 6.75ZM12 9C12.7956 9 13.5587 9.31607 14.1213 9.87868C14.6839 10.4413 15 11.2044 15 12C15 12.7956 14.6839 13.5587 14.1213 14.1213C13.5587 14.6839 12.7956 15 12 15C11.2044 15 10.4413 14.6839 9.87868 14.1213C9.31607 13.5587 9 12.7956 9 12C9 11.2044 9.31607 10.4413 9.87868 9.87868C10.4413 9.31607 11.2044 9 12 9Z"/>
@@ -376,7 +389,6 @@
       </div>
     </header>
 
-    <!-- === CONTENU CENTRAL === -->
     <main class="main-content">
       <span class="brand-kicker">
         <span data-lang="fr">Choisissez un univers</span>
@@ -385,8 +397,6 @@
 
       <nav id="themesNav" class="themes"
            data-empty="Aucun univers publié pour le moment."></nav>
-
-      <div id="statsRow" class="stats"></div>
     </main>
 
     <div class="bottom-hint">
@@ -396,7 +406,33 @@
 
   </div>
 
-  <!-- === BOUTON CONTACT FLOTTANT === -->
+  <div class="modal-overlay" id="clientModal" onclick="closeClientModalOnOverlay(event)">
+      <div class="modal-content">
+          <span class="modal-close" onclick="closeClientModal()">✕</span>
+          
+          <span class="kicker-modal"><span data-lang="fr">Espace Privé</span><span data-lang="en">Private Area</span></span>
+          <h2 class="title-modal"><span data-lang="fr">Accès Mariés</span><span data-lang="en">Client Access</span></h2>
+          
+          <p style="margin-bottom: 25px; font-size: 13px; color: var(--cine-cream-soft);">
+              <span data-lang="fr">Entrez votre code d'accès personnel.</span>
+              <span data-lang="en">Enter your personal access code.</span>
+          </p>
+          
+          <div class="input-group">
+              <input type="password" id="clientCode" placeholder="VOTRE CODE" onkeypress="handleClientEnter(event)">
+          </div>
+          
+          <button onclick="checkClientCode()" class="btn-primary">
+              <span data-lang="fr">Accéder aux films</span><span data-lang="en">View Films</span>
+          </button>
+          
+          <p id="clientError" style="color: #ff6b6b; font-size: 12px; margin-top: 15px; display: none;">
+              <span data-lang="fr">Code incorrect. Veuillez réessayer.</span>
+              <span data-lang="en">Incorrect code. Please try again.</span>
+          </p>
+      </div>
+  </div>
+
   <a class="floating-contact" id="floatingContact" aria-label="Contact">
     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
       <path d="M4 7l8 5 8-5"/>
@@ -406,7 +442,6 @@
     <span class="contact-text" data-lang="en">Contact</span>
   </a>
 
-  <!-- === OVERLAY DE TRANSITION === -->
   <div class="page-transition" id="pageTransition">
     <span class="page-transition-mark">TIMELESSHOUSE</span>
   </div>
@@ -414,13 +449,6 @@
   <script>
     /* ============================================================
        🎬  CONFIGURATION DES THÈMES / UNIVERS
-       ============================================================
-       ▸ Pour afficher un thème  : remplissez le champ `url`.
-       ▸ Pour masquer un thème   : laissez `url: null`.
-       ▸ Pour une preview vidéo  : remplissez `preview` (URL .mp4).
-       ▸ Sans `preview`, le fond par défaut reste au hover.
-       ▸ Pour ajouter un thème   : copiez un bloc, remplissez-le.
-       ▸ L'ordre = l'ordre d'affichage.
        ============================================================ */
     const THEMES = [
       {
@@ -458,30 +486,92 @@
         url:      null,
         preview:  null
       }
-
-      /* === EXEMPLE — ajouter un nouveau thème : ===
-      ,{
-        id:       'musique',
-        label:    { fr: 'Musique',       en: 'Music' },
-        subtitle: { fr: 'Clips & concerts', en: 'Music videos & concerts' },
-        url:      'musique.html',
-        preview:  'https://.../clip.mp4'
-      }
-      */
     ];
 
     /* ============================================================
-       📊  STATS (bandeau bas)
+       🔐  ESPACE CLIENTS  —  GESTION CENTRALISÉE
        ============================================================
-       ▸ Modifiez / ajoutez / retirez librement.
-       ▸ `value` est la partie mise en valeur (serif).
-       ▸ Laissez `value: ""` pour afficher uniquement le label.
+
+       📍 OÙ EST-CE UTILISÉ ?
+       ─────────────────────
+       Chaque sous-page du site (mariage.html, commercial.html, etc.)
+       contient un lien « Espace Clients » qui pointe vers :
+
+           index.html#clients
+
+       Quand le client arrive ici, la modale s'ouvre automatiquement,
+       il saisit son code, et il est redirigé vers sa page privée.
+       
+       ▸ Vous ne gérez les codes QU'À UN SEUL ENDROIT : ici même.
+
+
+       📝 AJOUTER UN NOUVEAU CLIENT — EN 3 ÉTAPES
+       ───────────────────────────────────────────
+       Étape 1  Choisissez un CODE secret (ex : "julie-thomas")
+       Étape 2  Créez le fichier HTML privé  (ex : "photo-julie-thomas.html")
+       Étape 3  Ajoutez UNE SEULE LIGNE dans la liste ci-dessous :
+
+           "julie-thomas": "photo-julie-thomas.html",
+
+       ✅ C'est tout. Le client peut maintenant saisir son code.
+
+
+       📋 RÈGLES POUR LE CODE SECRET
+       ──────────────────────────────
+       ✓ Uniquement : minuscules (a-z), chiffres (0-9) et tirets (-)
+       ✗ Pas d'accents, pas d'espaces, pas de majuscules
+       
+       ▸ Bonne nouvelle : le système nettoie automatiquement ce que
+         le client tape. S'il tape "Julie & Thomas", "JULIE-THOMAS"
+         ou "julie thomas", tout sera reconnu comme "julie-thomas".
+
+
+       💡 EXEMPLES PRÊTS À COPIER
+       ───────────────────────────
+           "marie-lucas":        "mariage-marie-lucas.html",
+           "sophie-arthur-2025": "film-sophie-arthur.html",
+           "client-premium-12":  "galerie/premium-12.html",
+
+
+       ⚠️  N'OUBLIEZ PAS
+       ────────────────
+       ▸ Virgule (,) à la fin de chaque ligne
+       ▸ Guillemets (") autour du code ET du fichier
+       ▸ Les deux points (:) entre les deux
        ============================================================ */
-  /*  const STATS = [
-      { value: '120+',  label: { fr: 'Mariages',      en: 'Weddings' } },
-      { value: '6',     label: { fr: "Ans d'expérience", en: 'Years of experience' } },
-      { value: '15',    label: { fr: 'Pays',          en: 'Countries' } }
-    ];*/
+    const CODES_CLIENTS = {
+        "precieuse-ronny":  "precieuse-ronny.html",
+        "ezla-davy":        "photo-ezla-davy.html",
+        "keysia-jason":     "video-keyzia-jason.html",
+        // "marie-lucas":  "mariage-marie-lucas.html",  ← exemple désactivé
+    };
+
+    function openClientModal(e) {
+      if(e) e.preventDefault();
+      document.getElementById('clientModal').classList.add('active');
+    }
+    function closeClientModal() {
+      document.getElementById('clientModal').classList.remove('active');
+      document.getElementById('clientError').style.display = 'none';
+      document.getElementById('clientCode').value = '';
+    }
+    function closeClientModalOnOverlay(e) {
+      if(e.target.classList.contains('modal-overlay')) closeClientModal();
+    }
+
+    function checkClientCode() {
+        let rawCode = document.getElementById('clientCode').value;
+        // On nettoie le code tapé par le client pour éviter les erreurs bêtes
+        const code = rawCode.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/&/g, ' ').trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+        
+        if (CODES_CLIENTS.hasOwnProperty(code)) {
+            sessionStorage.setItem('access_granted', code); 
+            window.location.href = CODES_CLIENTS[code];
+        } else {
+            document.getElementById('clientError').style.display = 'block';
+        }
+    }
+    function handleClientEnter(e) { if(e.key === 'Enter') checkClientCode(); }
 
     /* ============================================================
        ✉️  CONTACT
@@ -489,7 +579,7 @@
     const CONTACT_EMAIL = 'service@timelesshouse.org';
 
     /* ============================================================
-       ⚙️  MOTEUR (ne pas modifier sauf si vous savez ce que vous faites)
+       ⚙️  MOTEUR GLOBAL
        ============================================================ */
     const isLinked = (t) => typeof t.url === 'string' && t.url.trim() !== '';
     const currentLang = () => document.body.classList.contains('en-mode') ? 'en' : 'fr';
@@ -510,20 +600,10 @@
       attachThemeHandlers();
     }
 
-    function renderStats() {
-      const row  = document.getElementById('statsRow');
-      const lang = currentLang();
-      if (!STATS.length) { row.innerHTML = ''; return; }
-      row.innerHTML = STATS.map(s => `
-        <span class="stat-item">
-          ${s.value ? `<span class="stat-value">${s.value}</span>` : ''}${s.label[lang]}
-        </span>
-      `).join('');
-    }
-
-    /* --- PREVIEW VIDEO AU HOVER --- */
+    /* --- PREVIEW VIDEO AU HOVER/TAP --- */
     const previewEl = document.querySelector('.bg-video-preview');
     let previewTimeout = null;
+    let activeMobilePreview = null;
 
     function showPreview(url) {
       if (!url) return;
@@ -555,20 +635,30 @@
     }
 
     function attachThemeHandlers() {
+      const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
       document.querySelectorAll('.theme-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          navigateWithFade(btn.dataset.url);
-        });
-        btn.addEventListener('mouseenter', () => showPreview(btn.dataset.preview));
-        btn.addEventListener('mouseleave', hidePreview);
+        if (isTouch) {
+          btn.addEventListener('click', (e) => {
+            if (!btn.dataset.preview) {
+              e.preventDefault(); navigateWithFade(btn.dataset.url); return;
+            }
+            if (activeMobilePreview === btn) {
+              e.preventDefault(); navigateWithFade(btn.dataset.url);
+            } else {
+              e.preventDefault(); activeMobilePreview = btn; showPreview(btn.dataset.preview);
+            }
+          });
+        } else {
+          btn.addEventListener('click', (e) => { e.preventDefault(); navigateWithFade(btn.dataset.url); });
+          btn.addEventListener('mouseenter', () => showPreview(btn.dataset.preview));
+          btn.addEventListener('mouseleave', () => { hidePreview(); activeMobilePreview = null; });
+        }
       });
     }
 
     function toggleLanguage() {
       document.body.classList.toggle('en-mode');
       renderThemes();
-      renderStats();
     }
 
     function setupContact() {
@@ -578,15 +668,19 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       renderThemes();
-      renderStats();
       setupContact();
       const v = document.querySelector('.bg-video');
       if (v) v.play().catch(() => {});
+
+      // Ouvre automatiquement l'espace client si on vient d'une autre page via le lien
+      if(window.location.hash === '#clients') {
+        setTimeout(() => { openClientModal(); }, 300);
+        // Nettoie l'URL pour ne pas laisser le #clients visible
+        history.replaceState(null, null, ' ');
+      }
     });
 
-    window.addEventListener('load', () => {
-      document.body.classList.add('loaded');
-    });
+    window.addEventListener('load', () => { document.body.classList.add('loaded'); });
     setTimeout(() => document.body.classList.add('loaded'), 2000);
   </script>
 </body>

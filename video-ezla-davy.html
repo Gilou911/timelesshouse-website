@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Votre film de mariage – TimelessHouse Private Collection" />
+  <meta name="theme-color" content="#0a0a0a" />
+
+  <meta property="og:title" content="TimelessHouse — Votre Film de Mariage" />
+  <meta property="og:description" content="Votre film de mariage. Une collection privée." />
+  <meta property="og:type" content="video.other" />
+
+  <title>TimelessHouse — Votre Film de Mariage</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Montserrat:wght@300;400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <script>
+    const WEDDING_CONFIG = {
+
+      // ───── INFOS DU COUPLE ─────
+      couple: "Ezla & Davy",              
+      date: "08 Novembre 2025",                  
+      lieu: "Château de la Rousselière",                  
+      dateISO: "2025-11-08",                 
+
+      // ───── LIENS VIDÉO (LECTEUR DIRECT) ─────
+      // Laissez TOUS les liens d'une catégorie vides ("") pour afficher l'écran "SOON".
+      
+      teaserUrls: {
+        "1080p": "",
+        "4K": "" 
+      },
+
+      filmUrls: {
+        "1080p": "", // Laissé vide pour tester l'écran "SOON"
+        "4K": "" 
+      },
+
+      // ───── LIENS DE TÉLÉCHARGEMENT DIRECTS (BACKBLAZE) ─────
+      teaserDownloadUrl: "",
+      filmDownloadUrl:   "VOTRE_LIEN_BACKBLAZE_FILM",
+
+      // ───── LIENS INTERNES ─────
+      photosUrl: "",        
+      accueilUrl: "index.html",              
+
+      // ───── VIDÉO AFFICHÉE PAR DÉFAUT ─────
+      defaultVideo: "teaser"
+    };
+  </script>
+  <style>
+    :root {
+      --bg-dark: #0a0a0a;
+      --bg-deeper: #050505;
+      --text-light: #f4f0eb;
+      --text-muted: #8a8578;
+      --accent: #b08968;
+      --accent-soft: rgba(176, 137, 104, 0.15);
+      --border-subtle: rgba(244, 240, 235, 0.08);
+      --ease-cinema: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: "Montserrat", sans-serif;
+      font-weight: 300;
+      background-color: var(--bg-dark);
+      color: var(--text-light);
+      padding-bottom: 100px;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* LOADER */
+    .cinema-loader {
+      position: fixed; inset: 0;
+      background: var(--bg-deeper);
+      z-index: 9999;
+      display: flex; align-items: center; justify-content: center; flex-direction: column;
+      transition: opacity 1.2s var(--ease-cinema), visibility 1.2s var(--ease-cinema);
+    }
+    .cinema-loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .cinema-loader::before, .cinema-loader::after {
+      content: ""; position: fixed; left: 0; right: 0; height: 50vh;
+      background: #000; z-index: 10000; pointer-events: none;
+      transition: transform 1.4s var(--ease-cinema);
+    }
+    .cinema-loader::before { top: 0; }
+    .cinema-loader::after { bottom: 0; }
+    .cinema-loader.reveal::before { transform: translateY(-100%); }
+    .cinema-loader.reveal::after { transform: translateY(100%); }
+    .loader-content { text-align: center; animation: fadeInLoader 1.4s var(--ease-cinema) 0.2s both; }
+    .loader-mark {
+      font-family: "Cormorant Garamond", serif; font-style: italic;
+      font-size: 2rem; color: var(--accent); letter-spacing: 0.05em; margin-bottom: 24px;
+    }
+    .loader-line {
+      width: 1px; height: 0; background: var(--accent); margin: 0 auto;
+      animation: lineGrow 1.6s var(--ease-cinema) 0.6s forwards;
+    }
+    @keyframes lineGrow { to { height: 60px; } }
+    @keyframes fadeInLoader {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* GRAIN */
+    .film-grain {
+      position: fixed; inset: 0; pointer-events: none; z-index: 1;
+      opacity: 0.04; mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    }
+
+    .ambient-glow {
+      position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 600px;
+      background: radial-gradient(ellipse at center, var(--accent-soft) 0%, transparent 60%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* HEADER */
+    header { text-align: center; padding: 90px 20px 50px; position: relative; z-index: 2; }
+    .logo {
+      font-family: "Cormorant Garamond", serif; font-size: 0.85rem; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.35em; text-decoration: none;
+      display: inline-block; margin-bottom: 40px;
+      transition: color 0.4s var(--ease-cinema);
+      opacity: 0; animation: revealUp 1s var(--ease-cinema) 0.3s forwards;
+    }
+    .logo:hover { color: var(--accent); }
+    h1 {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(2.5rem, 7vw, 4.5rem);
+      font-weight: 300; font-style: italic;
+      margin: 0 0 20px 0; line-height: 1; letter-spacing: 0.01em;
+      opacity: 0; animation: revealUp 1.2s var(--ease-cinema) 0.5s forwards;
+    }
+    .date {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.4em;
+      color: var(--accent); margin-bottom: 40px; display: block;
+      opacity: 0; animation: revealUp 1s var(--ease-cinema) 0.7s forwards;
+    }
+    .divider {
+      display: flex; align-items: center; justify-content: center;
+      gap: 16px; margin: 0 auto 40px;
+      opacity: 0; animation: revealUp 1s var(--ease-cinema) 0.8s forwards;
+    }
+    .divider::before, .divider::after {
+      content: ""; width: 40px; height: 1px; background: var(--accent); opacity: 0.4;
+    }
+    .divider-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+    .nav-btn {
+      display: inline-block; padding: 12px 32px;
+      border: 1px solid var(--accent); color: var(--accent); background: transparent;
+      text-decoration: none; text-transform: uppercase; letter-spacing: 0.25em;
+      font-size: 10px; border-radius: 1px;
+      transition: all 0.4s var(--ease-cinema); cursor: pointer;
+      opacity: 0; animation: revealUp 1s var(--ease-cinema) 0.9s forwards;
+      position: relative; overflow: hidden;
+    }
+    .nav-btn::before {
+      content: ""; position: absolute; inset: 0;
+      background: var(--accent); transform: translateY(100%);
+      transition: transform 0.4s var(--ease-cinema); z-index: -1;
+    }
+    .nav-btn:hover { color: var(--bg-dark); }
+    .nav-btn:hover::before { transform: translateY(0); }
+    @keyframes revealUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* SÉLECTEUR VIDÉO */
+    .video-selector {
+      max-width: 1200px; margin: 0 auto 30px; padding: 0 20px;
+      display: flex; justify-content: center;
+      position: relative; z-index: 2;
+      opacity: 0; animation: revealUp 1s var(--ease-cinema) 1s forwards;
+    }
+    .selector-track {
+      display: inline-flex; position: relative;
+      background: rgba(244, 240, 235, 0.03);
+      border: 1px solid var(--border-subtle);
+      border-radius: 2px; padding: 4px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .selector-indicator {
+      position: absolute; top: 4px; bottom: 4px;
+      width: calc(50% - 4px);
+      background: var(--accent); border-radius: 1px;
+      transition: transform 0.6s var(--ease-cinema);
+      z-index: 1;
+    }
+    .selector-track[data-active="full"] .selector-indicator { transform: translateX(100%); }
+    .selector-track[data-active="teaser"] .selector-indicator { transform: translateX(0); }
+    .selector-btn {
+      position: relative; z-index: 2;
+      background: transparent; border: none;
+      color: var(--text-muted);
+      padding: 12px 32px;
+      font-family: "Montserrat", sans-serif;
+      font-size: 10px; font-weight: 400;
+      text-transform: uppercase; letter-spacing: 0.3em;
+      cursor: pointer;
+      transition: color 0.6s var(--ease-cinema);
+      min-width: 160px;
+    }
+    .selector-btn.active { color: var(--bg-dark); font-weight: 500; }
+
+    /* LECTEUR ET SÉLECTEUR DE QUALITÉ */
+    .cinema-container {
+      max-width: 1200px; margin: 0 auto 40px; padding: 0 20px;
+      position: relative; z-index: 2;
+      opacity: 0; animation: fadeInVideo 1.4s var(--ease-cinema) 1.1s forwards;
+    }
+    @keyframes fadeInVideo {
+      from { opacity: 0; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .video-wrapper {
+      position: relative; padding-bottom: 56.25%; height: 0;
+      background: #000;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.7), 0 0 0 1px var(--border-subtle), 0 0 120px rgba(176,137,104,0.08);
+      border-radius: 2px; overflow: hidden;
+    }
+    .video-wrapper::before, .video-wrapper::after {
+      content: ""; position: absolute;
+      width: 20px; height: 20px;
+      border: 1px solid var(--accent); opacity: 0.5;
+      z-index: 3; pointer-events: none;
+      transition: opacity 0.4s;
+    }
+    .video-wrapper::before { top: 12px; left: 12px; border-right: none; border-bottom: none; }
+    .video-wrapper::after { bottom: 12px; right: 12px; border-left: none; border-top: none; }
+    .video-wrapper:hover::before, .video-wrapper:hover::after { opacity: 0; }
+
+    .video-stage { position: absolute; inset: 0; }
+    .video-slide {
+      position: absolute; inset: 0;
+      opacity: 0; visibility: hidden;
+      transition: opacity 0.8s var(--ease-cinema), visibility 0.8s var(--ease-cinema);
+    }
+    .video-slide.active { opacity: 1; visibility: visible; }
+    .video-slide video { width: 100%; height: 100%; display: block; background: #000; outline: none; border: none; }
+
+    /* ECRAN SOON */
+    .coming-soon {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #050505; /* Légère nuance par rapport au noir pur */
+      color: var(--text-muted);
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-size: 2.5rem;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      z-index: 5;
+    }
+
+    /* CONTROLES DE QUALITÉ (Boutons 1080p / 4K) */
+    .quality-controls {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 10;
+      display: flex;
+      gap: 4px;
+      background: rgba(10, 10, 10, 0.75);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      padding: 4px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+      transition: opacity 0.3s ease;
+    }
+    .quality-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: "Montserrat", sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      padding: 6px 10px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.3s var(--ease-cinema);
+      letter-spacing: 0.1em;
+    }
+    .quality-btn:hover { color: var(--text-light); }
+    .quality-btn.active {
+      background: var(--accent);
+      color: var(--bg-dark);
+    }
+
+    .transition-veil {
+      position: absolute; inset: 0; background: #000;
+      opacity: 0; pointer-events: none; z-index: 4;
+      transition: opacity 0.4s var(--ease-cinema);
+    }
+    .transition-veil.active { opacity: 1; }
+
+    .now-playing {
+      max-width: 1200px; margin: 0 auto 80px; padding: 0 20px;
+      text-align: center;
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.4em;
+      color: var(--text-muted);
+      position: relative; z-index: 2;
+      min-height: 14px;
+      transition: opacity 0.4s var(--ease-cinema);
+    }
+    .now-playing.fading { opacity: 0; }
+    .now-playing span { color: var(--accent); }
+
+    /* TÉLÉCHARGEMENT */
+    .download-section {
+      max-width: 640px; margin: 0 auto; text-align: center;
+      padding: 0 20px; position: relative; z-index: 2;
+    }
+    .section-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.4em;
+      color: var(--accent); margin-bottom: 16px; display: block;
+    }
+    .download-title {
+      font-family: "Cormorant Garamond", serif; font-size: 2.4rem;
+      font-weight: 300; font-style: italic; margin-bottom: 16px;
+    }
+    .download-desc {
+      color: var(--text-muted); font-size: 13px;
+      margin-bottom: 48px; line-height: 1.8; letter-spacing: 0.02em;
+    }
+    .btn-download {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; padding: 20px 28px; margin-bottom: 16px;
+      background: transparent; border: 1px solid var(--border-subtle);
+      color: var(--text-light); text-decoration: none;
+      text-transform: uppercase; letter-spacing: 0.25em;
+      font-size: 11px; font-weight: 400;
+      transition: all 0.4s var(--ease-cinema);
+      position: relative; overflow: hidden;
+    }
+    .btn-download .arrow { transition: transform 0.4s var(--ease-cinema); display: inline-block; }
+    .btn-download:hover {
+      border-color: var(--accent); color: var(--accent);
+      background: rgba(176, 137, 104, 0.04);
+    }
+    .btn-download:hover .arrow { transform: translateX(6px); }
+    .btn-download.primary {
+      background: var(--accent); border-color: var(--accent);
+      color: var(--bg-dark); font-weight: 500;
+    }
+    .btn-download.primary:hover {
+      background: #9a7555; border-color: #9a7555; color: var(--bg-dark);
+    }
+
+    /* PARTAGE */
+    .share-section {
+      max-width: 640px; margin: 60px auto 0; text-align: center;
+      padding: 0 20px; position: relative; z-index: 2;
+    }
+    .share-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.4em;
+      color: var(--text-muted); margin-bottom: 24px; display: block;
+    }
+    .share-buttons { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+    .share-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 48px; height: 48px;
+      border: 1px solid var(--border-subtle); background: transparent;
+      color: var(--text-muted); cursor: pointer;
+      transition: all 0.4s var(--ease-cinema);
+      border-radius: 50%; text-decoration: none;
+    }
+    .share-btn:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
+    .share-btn svg { width: 18px; height: 18px; }
+
+    .toast {
+      position: fixed; bottom: 40px; left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--accent); color: var(--bg-dark);
+      padding: 14px 28px;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.25em; font-weight: 500;
+      border-radius: 2px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      opacity: 0; pointer-events: none;
+      transition: all 0.5s var(--ease-cinema); z-index: 100;
+    }
+    .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* FOOTER */
+    footer {
+      text-align: center; margin-top: 120px;
+      font-size: 9px; color: #3a3a3a;
+      letter-spacing: 0.35em; text-transform: uppercase;
+      position: relative; z-index: 2;
+    }
+    footer::before {
+      content: ""; display: block;
+      width: 40px; height: 1px;
+      background: var(--border-subtle); margin: 0 auto 24px;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      header { padding: 70px 20px 30px; }
+      .download-title { font-size: 1.8rem; }
+      .btn-download { padding: 18px 20px; font-size: 10px; }
+      .video-wrapper::before, .video-wrapper::after { width: 14px; height: 14px; }
+      .selector-btn {
+        padding: 10px 20px; min-width: 120px;
+        font-size: 9px; letter-spacing: 0.25em;
+      }
+      .quality-controls { top: 12px; right: 12px; padding: 2px; }
+      .quality-btn { padding: 4px 8px; font-size: 9px; }
+      .coming-soon { font-size: 1.8rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    a:focus-visible, button:focus-visible {
+      outline: 2px solid var(--accent); outline-offset: 4px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="cinema-loader" id="loader" aria-hidden="true">
+    <div class="loader-content">
+      <div class="loader-mark">TimelessHouse</div>
+      <div class="loader-line"></div>
+    </div>
+  </div>
+
+  <div class="film-grain" aria-hidden="true"></div>
+
+  <header>
+    <div class="ambient-glow" aria-hidden="true"></div>
+    <a href="#" class="logo" id="logoLink">TimelessHouse</a>
+    <h1 id="coupleTitle">—</h1>
+    <time class="date" id="dateLieu">—</time>
+
+    <div class="divider" aria-hidden="true">
+      <span class="divider-dot"></span>
+    </div>
+
+    <a href="#" class="nav-btn" id="photosLink">Voir la Galerie Photos</a>
+  </header>
+
+  <main>
+    <div class="video-selector" role="tablist" aria-label="Choix de la vidéo">
+      <div class="selector-track" data-active="teaser">
+        <div class="selector-indicator" aria-hidden="true"></div>
+        <button class="selector-btn active" role="tab" aria-selected="true" data-target="teaser">
+          Teaser
+        </button>
+        <button class="selector-btn" role="tab" aria-selected="false" data-target="full">
+          Film Complet
+        </button>
+      </div>
+    </div>
+
+    <section class="cinema-container" aria-label="Lecteur vidéo">
+      <div class="video-wrapper">
+        <div class="video-stage">
+          
+          <div class="video-slide active" data-slide="teaser" role="tabpanel">
+            <div class="quality-controls" id="qualityControlsTeaser" style="display: none;"></div>
+            <video id="videoTeaser" controls playsinline preload="metadata"></video>
+            <div class="coming-soon" id="soonTeaser" style="display: none;">SOON</div>
+          </div>
+          
+          <div class="video-slide" data-slide="full" role="tabpanel">
+            <div class="quality-controls" id="qualityControlsFilm" style="display: none;"></div>
+            <video id="videoFilm" controls playsinline preload="metadata"></video>
+            <div class="coming-soon" id="soonFilm" style="display: none;">SOON</div>
+          </div>
+
+        </div>
+        <div class="transition-veil" id="veil" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <div class="now-playing" id="nowPlaying">
+      En cours — <span>Teaser</span>
+    </div>
+
+    <section class="download-section" aria-labelledby="download-title">
+      <span class="section-label">Archives</span>
+      <h2 class="download-title" id="download-title">Téléchargements</h2>
+      <p class="download-desc">
+        Disponibles en haute définition pendant 6 mois.<br />
+        Nous vous conseillons de télécharger les fichiers sur un ordinateur.
+      </p>
+
+      <a href="#" id="downloadTeaser" class="btn-download" target="_blank" rel="noopener noreferrer">
+        <span>Teaser (4K)</span>
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
+
+      <a href="#" id="downloadFilm" class="btn-download primary" target="_blank" rel="noopener noreferrer">
+        <span>Film Complet (4K)</span>
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
+    </section>
+
+    <section class="share-section" aria-labelledby="share-label">
+      <span class="share-label" id="share-label">Partager ce moment</span>
+      <div class="share-buttons">
+        <button class="share-btn" data-share="native" aria-label="Partager">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="18" cy="5" r="3"/>
+            <circle cx="6" cy="12" r="3"/>
+            <circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+        </button>
+        <button class="share-btn" data-share="copy" aria-label="Copier le lien">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+        </button>
+        <a class="share-btn" data-share="whatsapp" aria-label="Partager sur WhatsApp" href="#" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15s-.77.97-.94 1.17c-.17.2-.35.22-.65.07-.3-.15-1.25-.46-2.38-1.47-.88-.78-1.47-1.75-1.64-2.05-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51H8.3c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.2 5.08 4.48.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35zM12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2z"/>
+          </svg>
+        </a>
+        <a class="share-btn" data-share="email" aria-label="Partager par email" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    &copy; 2025 TimelessHouse — Private Collection
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">Lien copié</div>
+
+  <script>
+    // ============================================
+    // GESTION DU CHANGEMENT DE QUALITÉ VIDÉO
+    // ============================================
+    function setupVideoQuality(videoId, controlsId, soonId, urls) {
+      const video = document.getElementById(videoId);
+      const controls = document.getElementById(controlsId);
+      const soonText = document.getElementById(soonId);
+      
+      const has1080p = urls["1080p"] && urls["1080p"].trim() !== "";
+      const has4K = urls["4K"] && urls["4K"].trim() !== "";
+
+      // S'il n'y a aucune URL fournie, on masque le lecteur et on affiche SOON
+      if (!has1080p && !has4K) {
+        video.style.display = "none";
+        controls.style.display = "none";
+        soonText.style.display = "flex";
+        return;
+      }
+
+      // S'il y a une vidéo, on s'assure que SOON est masqué et le lecteur visible
+      soonText.style.display = "none";
+      video.style.display = "block";
+
+      // S'il y a les deux qualités, on affiche le sélecteur
+      if (has1080p && has4K) {
+        controls.style.display = "flex";
+        
+        // On crée les boutons
+        const btn1080 = document.createElement("button");
+        btn1080.className = "quality-btn active";
+        btn1080.textContent = "1080p";
+        
+        const btn4K = document.createElement("button");
+        btn4K.className = "quality-btn";
+        btn4K.textContent = "4K";
+
+        // Logique de changement de qualité
+        const switchQuality = (targetRes, clickedBtn, otherBtn) => {
+          if (clickedBtn.classList.contains("active")) return; // Déjà actif
+          
+          // Sauvegarde de l'état actuel de la vidéo
+          const currentTime = video.currentTime;
+          const isPaused = video.paused;
+
+          // Changement UI
+          clickedBtn.classList.add("active");
+          otherBtn.classList.remove("active");
+
+          // Changement source vidéo
+          video.src = urls[targetRes];
+          video.load();
+          video.currentTime = currentTime; // On remet au même endroit
+          
+          if (!isPaused) {
+            video.play().catch(() => {}); // Reprend la lecture sans erreur si bloqué
+          }
+        };
+
+        btn1080.onclick = () => switchQuality("1080p", btn1080, btn4K);
+        btn4K.onclick = () => switchQuality("4K", btn4K, btn1080);
+
+        controls.appendChild(btn1080);
+        controls.appendChild(btn4K);
+      }
+
+      // Par défaut, on charge toujours la 1080p pour que ça charge vite (ou la 4K s'il n'y a que ça)
+      video.src = urls["1080p"] || urls["4K"];
+    }
+
+    // ============================================
+    // INJECTION DE LA CONFIGURATION DANS LA PAGE
+    // ============================================
+    (function applyConfig() {
+      const c = WEDDING_CONFIG;
+
+      // Titre & meta
+      document.title = c.couple + ' — TimelessHouse';
+      document.querySelector('meta[property="og:title"]').setAttribute('content', c.couple + ' — TimelessHouse');
+
+      // Header
+      if (document.getElementById('coupleTitle')) document.getElementById('coupleTitle').textContent = c.couple;
+      if (document.getElementById('dateLieu')) {
+        let lieuDateStr = c.date;
+        if (c.lieu) lieuDateStr += ' • ' + c.lieu;
+        document.getElementById('dateLieu').textContent = lieuDateStr;
+        document.getElementById('dateLieu').setAttribute('datetime', c.dateISO);
+      }
+
+      // Liens internes
+      if (document.getElementById('logoLink')) document.getElementById('logoLink').href = c.accueilUrl;
+
+      // BOUTON GALERIE PHOTOS
+      const photosBtn = document.getElementById('photosLink');
+      if (photosBtn) {
+        if (c.photosUrl && c.photosUrl.trim() !== "") {
+          photosBtn.href = c.photosUrl;
+        } else {
+          photosBtn.style.display = 'none';
+        }
+      }
+
+      // INITIALISATION DES LECTEURS ET DE LA QUALITÉ
+      setupVideoQuality("videoTeaser", "qualityControlsTeaser", "soonTeaser", c.teaserUrls);
+      setupVideoQuality("videoFilm", "qualityControlsFilm", "soonFilm", c.filmUrls);
+
+      // Liens de téléchargement directs
+      if (document.getElementById('downloadTeaser')) document.getElementById('downloadTeaser').href = c.teaserDownloadUrl;
+      if (document.getElementById('downloadFilm')) document.getElementById('downloadFilm').href = c.filmDownloadUrl;
+    })();
+
+    // ============================================
+    // LOADER
+    // ============================================
+    window.addEventListener('load', () => {
+      const loader = document.getElementById('loader');
+      if(loader) {
+        setTimeout(() => loader.classList.add('reveal'), 1800);
+        setTimeout(() => loader.classList.add('hidden'), 3200);
+      }
+    });
+
+    // ============================================
+    // SÉLECTEUR VIDÉO (Teaser vs Film Complet)
+    // ============================================
+    const selectorTrack = document.querySelector('.selector-track');
+    const selectorBtns = document.querySelectorAll('.selector-btn');
+    const slides = document.querySelectorAll('.video-slide');
+    const veil = document.getElementById('veil');
+    const nowPlaying = document.getElementById('nowPlaying');
+
+    const labels = { teaser: 'Teaser', full: 'Film Complet' };
+
+    let currentTarget = WEDDING_CONFIG.defaultVideo || 'teaser';
+    let isAnimating = false;
+
+    // Applique la vidéo par défaut
+    if (currentTarget === 'full' && selectorTrack) {
+      selectorTrack.dataset.active = 'full';
+      selectorBtns.forEach(btn => {
+        const isActive = btn.dataset.target === 'full';
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive);
+      });
+      slides.forEach(slide => {
+        slide.classList.toggle('active', slide.dataset.slide === 'full');
+      });
+      if(nowPlaying) nowPlaying.innerHTML = 'En cours — <span>' + labels.full + '</span>';
+    }
+
+    function switchVideo(target) {
+      if (target === currentTarget || isAnimating) return;
+      isAnimating = true;
+
+      // On met en pause la vidéo actuelle
+      const currentVideo = document.querySelector(`.video-slide[data-slide="${currentTarget}"] video`);
+      if (currentVideo) currentVideo.pause();
+
+      selectorTrack.dataset.active = target;
+      selectorBtns.forEach(btn => {
+        const isActive = btn.dataset.target === target;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive);
+      });
+
+      veil.classList.add('active');
+      nowPlaying.classList.add('fading');
+
+      setTimeout(() => {
+        slides.forEach(slide => {
+          slide.classList.toggle('active', slide.dataset.slide === target);
+        });
+        nowPlaying.innerHTML = 'En cours — <span>' + labels[target] + '</span>';
+      }, 400);
+
+      setTimeout(() => {
+        veil.classList.remove('active');
+        nowPlaying.classList.remove('fading');
+        currentTarget = target;
+        isAnimating = false;
+      }, 800);
+    }
+
+    selectorBtns.forEach(btn => {
+      btn.addEventListener('click', () => switchVideo(btn.dataset.target));
+    });
+
+    // ============================================
+    // PARTAGE
+    // ============================================
+    const pageUrl = window.location.href;
+    const pageTitle = document.title;
+    const shareText = 'Découvrez le film de mariage de ' + WEDDING_CONFIG.couple;
+    const toast = document.getElementById('toast');
+
+    function showToast(message) {
+      if(!toast) return;
+      toast.textContent = message;
+      toast.classList.add('visible');
+      setTimeout(() => toast.classList.remove('visible'), 2400);
+    }
+
+    const nativeBtn = document.querySelector('[data-share="native"]');
+    if (nativeBtn) {
+      if (navigator.share) {
+        nativeBtn.addEventListener('click', async () => {
+          try {
+            await navigator.share({ title: pageTitle, text: shareText, url: pageUrl });
+          } catch (err) {}
+        });
+      } else {
+        nativeBtn.addEventListener('click', () => copyLink());
+      }
+    }
+
+    function copyLink() {
+      navigator.clipboard.writeText(pageUrl).then(
+        () => showToast('Lien copié'),
+        () => showToast('Impossible de copier')
+      );
+    }
+    
+    const copyBtn = document.querySelector('[data-share="copy"]');
+    if(copyBtn) copyBtn.addEventListener('click', copyLink);
+
+    const waBtn = document.querySelector('[data-share="whatsapp"]');
+    if(waBtn) waBtn.href = 'https://wa.me/?text=' + encodeURIComponent(shareText + ' — ' + pageUrl);
+
+    const emailBtn = document.querySelector('[data-share="email"]');
+    if(emailBtn) emailBtn.href = 'mailto:?subject=' + encodeURIComponent(pageTitle) + '&body=' + encodeURIComponent(shareText + '\n\n' + pageUrl);
+  </script>
+
+</body>
+</html>

@@ -145,7 +145,7 @@
     .client-link:hover svg {
       transform: rotate(-15deg);
     }
-    
+
     .social-link {
       display: inline-flex; padding: 6px;
       transition: transform 0.3s;
@@ -193,13 +193,24 @@
     .theme-btn {
       display: inline-flex; flex-direction: column;
       align-items: center; text-align: center;
-      padding: 12px 18px;
+      padding: 22px 36px;
       color: var(--cine-cream);
       cursor: pointer;
-      transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
       position: relative;
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+                  background 0.4s ease, border-color 0.4s ease,
+                  box-shadow 0.4s ease;
     }
-    .theme-btn:hover { transform: translateY(-4px); }
+    .theme-btn:hover {
+      transform: translateY(-4px);
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
 
     .theme-label {
       font-family: "Cormorant Garamond", serif;
@@ -264,7 +275,7 @@
       color: var(--cine-cream-soft); transition: color 0.3s;
     }
     .modal-close:hover { color: var(--accent-soft); }
-    
+
     .kicker-modal {
       display: block; font-size: 11px; text-transform: uppercase;
       letter-spacing: 0.3em; color: var(--accent-soft); margin-bottom: 10px;
@@ -282,7 +293,7 @@
     }
     .input-group input:focus { outline: none; border-color: var(--accent-soft); background: rgba(0,0,0,0.5); }
     .input-group input::placeholder { color: rgba(245, 236, 223, 0.3); }
-    
+
     .btn-primary {
       padding: 14px 26px; border-radius: 2px; background-color: var(--accent);
       color: white; border: none; font-size: 11px; text-transform: uppercase;
@@ -338,6 +349,7 @@
       .client-link span { display: none; } /* Cache le texte long sur mobile */
       .client-link::after { content: "CLIENTS"; font-size: 10px; }
       .themes { gap: 10px 40px; }
+      .theme-btn { padding: 18px 28px; }
       .brand-kicker { letter-spacing: 0.35em; font-size: 0.75rem; margin-bottom: 25px; }
       .theme-subtitle { font-size: 9px; letter-spacing: 0.22em; margin-top: 10px; }
       .main-content { padding: 40px 12px 30px; }
@@ -347,6 +359,7 @@
     }
     @media (max-width: 600px) {
       .themes { gap: 24px; flex-direction: column; }
+      .theme-btn { padding: 16px 24px; width: 85%; }
       .theme-label { font-size: 2.4rem; }
     }
     @media (max-width: 400px) {
@@ -359,12 +372,12 @@
 <body>
 
   <div class="bg-video-wrap">
-    
+
     <img src="Vignette_Eunice&_Josue.jpg" alt="Portrait cinematique mariage" class="bg-poster" fetchpriority="high" loading="eager">
 
     <video autoplay muted loop playsinline preload="auto" disableremoteplayback
            poster="Vignette_Eunice&_Josue.jpg"
-           class="bg-video" 
+           class="bg-video"
            onplaying="this.classList.add('is-playing')">
         <source src="https://streamable.com/l/9eoymb/mp4-high.mp4" type="video/mp4" />
     </video>
@@ -419,23 +432,23 @@
   <div class="modal-overlay" id="clientModal" onclick="closeClientModalOnOverlay(event)">
       <div class="modal-content">
           <span class="modal-close" onclick="closeClientModal()">✕</span>
-          
+
           <span class="kicker-modal"><span data-lang="fr">Espace Privé</span><span data-lang="en">Private Area</span></span>
           <h2 class="title-modal"><span data-lang="fr">Espace Clients</span><span data-lang="en">Client Area</span></h2>
-          
+
           <p style="margin-bottom: 25px; font-size: 13px; color: var(--cine-cream-soft);">
               <span data-lang="fr">Entrez votre code d'accès personnel.</span>
               <span data-lang="en">Enter your personal access code.</span>
           </p>
-          
+
           <div class="input-group">
               <input type="password" id="clientCode" placeholder="VOTRE CODE" onkeypress="handleClientEnter(event)">
           </div>
-          
+
           <button onclick="checkClientCode()" class="btn-primary">
               <span data-lang="fr">Accéder à mon espace</span><span data-lang="en">Access my Space</span>
           </button>
-          
+
           <p id="clientError" style="color: #ff6b6b; font-size: 12px; margin-top: 15px; display: none;">
               <span data-lang="fr">Code incorrect. Veuillez réessayer.</span>
               <span data-lang="en">Incorrect code. Please try again.</span>
@@ -462,15 +475,15 @@
   <script>
     /* ============================================================
        💡 ASTUCE CLOUDINARY POUR L'IMAGE DE CHARGEMENT (POSTER) :
-       Pour afficher une image en attendant que la vidéo de prévisualisation charge, 
+       Pour afficher une image en attendant que la vidéo de prévisualisation charge,
        nous utilisons l'attribut HTML natif `poster` sur la balise vidéo.
-       
-       MÉTHODE CLOUDINARY : 
-       Si votre vidéo est hébergée sur Cloudinary, vous pouvez obtenir 
-       l'image de couverture automatiquement en changeant simplement 
+
+       MÉTHODE CLOUDINARY :
+       Si votre vidéo est hébergée sur Cloudinary, vous pouvez obtenir
+       l'image de couverture automatiquement en changeant simplement
        l'extension .mp4 en .jpg dans l'URL.
        Exemple: .../upload/v123/video.mp4 -> .../upload/v123/video.jpg
-       
+
        Ajoutez vos URL d'images dans la propriété `poster:` ci-dessous.
        ============================================================ */
     const THEMES = [
@@ -561,10 +574,10 @@
     function checkClientCode() {
         let rawCode = document.getElementById('clientCode').value;
         // On nettoie le code tapé par le client pour éviter les erreurs bêtes
-        const code = rawCode.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/&/g, ' ').trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-        
+        const code = rawCode.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/&/g, ' ').trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+
         if (CODES_CLIENTS.hasOwnProperty(code)) {
-            sessionStorage.setItem('access_granted', code); 
+            sessionStorage.setItem('access_granted', code);
             window.location.href = CODES_CLIENTS[code];
         } else {
             document.getElementById('clientError').style.display = 'block';
@@ -612,7 +625,7 @@
           // On assigne le poster Cloudinary avant de charger la vidéo
           if (posterUrl) previewEl.poster = posterUrl;
           else previewEl.removeAttribute('poster');
-          
+
           previewEl.src = url;
           previewEl.load();
         }

@@ -1,0 +1,2510 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <title>TimelessHouse – Vidéo Immobilière | Agences · Airbnb · Hôtels</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Vidéo immobilière cinématographique pour agences, hôtes Airbnb, hôteliers et gestionnaires. Format réseaux sociaux. Valorisez vos biens et augmentez vos conversions." />
+  <meta name="keywords" content="vidéo immobilier, vidéaste agence immobilière, vidéo Airbnb, vidéo hôtel, reels immobilier, film immobilier Paris" />
+  <meta property="og:title" content="TimelessHouse — Vidéo Immobilière Cinématographique" />
+  <meta property="og:description" content="Pour agences, Airbnb, hôtels. Films verticaux format réseaux sociaux." />
+  <meta property="og:type" content="website" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@200;300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ════════════════════════════════════════════════
+       PALETTE — Architecturale · Or & Ardoise
+    ════════════════════════════════════════════════ */
+    :root {
+      --bg:           #0a0c0f;
+      --bg-2:         #0f1217;
+      --bg-3:         #14181f;
+      --bg-card:      #181c23;
+      --bg-card-2:    #1e2330;
+      --pearl:        #ede9e3;
+      --pearl-dim:    #a09b94;
+      --pearl-faint:  #6f6a64;
+      --pearl-ghost:  rgba(237,233,227,0.06);
+      --gold:         #c8a46a;
+      --gold-soft:    #dfc08e;
+      --gold-deep:    #b08a4f;
+      --gold-dim:     rgba(200,164,106,0.12);
+      --gold-line:    rgba(200,164,106,0.25);
+      --gold-glow:    rgba(200,164,106,0.4);
+      --slate:        #2a3545;
+      --error:        #d97070;
+      --success:      #7da876;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: "Outfit", sans-serif;
+      font-weight: 300;
+      background: var(--bg);
+      color: var(--pearl);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    a { text-decoration: none; color: inherit; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+    img { max-width: 100%; display: block; }
+
+    /* Selection */
+    ::selection { background: var(--gold); color: var(--bg); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--bg-card); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--gold-deep); }
+
+    /* ════════════════════════════════════════════════
+       SCROLL PROGRESS BAR
+    ════════════════════════════════════════════════ */
+    .scroll-progress {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 2px; z-index: 500; pointer-events: none;
+      background: rgba(237,233,227,0.04);
+    }
+    .scroll-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--gold-deep) 0%, var(--gold) 50%, var(--gold-soft) 100%);
+      width: 0%; transition: width 0.1s ease-out;
+      box-shadow: 0 0 8px var(--gold-glow);
+    }
+
+    /* ════════════════════════════════════════════════
+       PAGE TRANSITION
+    ════════════════════════════════════════════════ */
+    #pageTransition {
+      position: fixed; inset: 0; z-index: 99999;
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none; opacity: 1;
+      transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #pageTransition.hidden { opacity: 0; }
+    #pageTransition.exiting { opacity: 1 !important; pointer-events: all; }
+    .pt-mark {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 13px; letter-spacing: 0.5em; text-transform: uppercase;
+      color: var(--gold); opacity: 0; transition: opacity 0.5s;
+    }
+    #pageTransition.exiting .pt-mark { opacity: 1; }
+
+    /* ════════════════════════════════════════════════
+       HEADER
+    ════════════════════════════════════════════════ */
+    .site-header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center; gap: 20px;
+      padding: 30px 48px;
+      transition: background 0.5s ease, padding 0.4s ease, border-color 0.5s;
+      border-bottom: 1px solid transparent;
+    }
+    .site-header.scrolled {
+      background: rgba(10, 12, 15, 0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      padding: 16px 48px;
+      border-bottom-color: rgba(200, 164, 106, 0.08);
+    }
+
+    .header-left  { justify-self: start; }
+    .header-right { justify-self: end; display: flex; align-items: center; gap: 14px; }
+
+    .back-link {
+      display: inline-flex; align-items: center; gap: 9px;
+      font-size: 10px; font-weight: 300; letter-spacing: 0.3em;
+      text-transform: uppercase; color: var(--pearl-dim);
+      transition: color 0.3s, gap 0.3s;
+    }
+    .back-link svg {
+      width: 15px; height: 15px; stroke: currentColor; fill: none;
+      stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+      transition: transform 0.3s;
+    }
+    .back-link:hover { color: var(--gold-soft); gap: 13px; }
+    .back-link:hover svg { transform: translateX(-3px); }
+
+    .logo {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 19px; font-weight: 600;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--pearl); justify-self: center; white-space: nowrap;
+      transition: letter-spacing 0.4s, color 0.3s;
+    }
+    .logo:hover { letter-spacing: 0.27em; color: var(--gold-soft); }
+
+    /* Nav desktop */
+    .nav-pills {
+      display: flex; gap: 4px;
+      padding: 4px;
+      background: rgba(10,12,15,0.5);
+      border: 1px solid rgba(237,233,227,0.06);
+      border-radius: 999px;
+      backdrop-filter: blur(8px);
+    }
+    .nav-pill {
+      padding: 8px 14px;
+      font-size: 9.5px; font-weight: 400; letter-spacing: 0.22em;
+      text-transform: uppercase; color: var(--pearl-dim);
+      border-radius: 999px;
+      transition: all 0.3s;
+    }
+    .nav-pill:hover { color: var(--pearl); }
+    .nav-pill.active { background: var(--gold-dim); color: var(--gold-soft); }
+
+    .client-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 16px;
+      border: 1px solid var(--gold-line);
+      border-radius: 999px;
+      font-size: 10px; font-weight: 400; letter-spacing: 0.2em;
+      text-transform: uppercase; color: var(--pearl-dim);
+      transition: all 0.35s ease;
+    }
+    .client-btn svg {
+      width: 11px; height: 11px; stroke: currentColor; fill: none;
+      stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+      transition: transform 0.35s;
+    }
+    .client-btn:hover {
+      border-color: var(--gold);
+      color: var(--gold-soft);
+      background: var(--gold-dim);
+    }
+    .client-btn:hover svg { transform: rotate(-15deg); }
+
+    /* ════════════════════════════════════════════════
+       HERO
+    ════════════════════════════════════════════════ */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex; align-items: flex-end;
+      overflow: hidden;
+      padding-top: 80px;
+    }
+
+    .hero-bg {
+      position: absolute; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse at 70% 40%, #1e2a38 0%, transparent 55%),
+        radial-gradient(ellipse at 20% 80%, #1a1208 0%, transparent 50%),
+        linear-gradient(135deg, #0a0c0f 0%, #111821 100%);
+    }
+    .hero-bg video, .hero-bg img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%; object-fit: cover;
+      opacity: 0.42;
+    }
+    .hero-bg::after {
+      content: "";
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(200,164,106,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(200,164,106,0.04) 1px, transparent 1px);
+      background-size: 80px 80px;
+      mask-image: radial-gradient(ellipse at center, transparent 40%, black 100%);
+    }
+
+    .hero-overlay {
+      position: absolute; inset: 0; z-index: 1;
+      background:
+        linear-gradient(to right, rgba(10,12,15,0.92) 0%, rgba(10,12,15,0.4) 60%, rgba(10,12,15,0.15) 100%),
+        linear-gradient(to top, rgba(10,12,15,1) 0%, rgba(10,12,15,0.4) 30%, rgba(10,12,15,0) 60%);
+    }
+
+    .hero-grain {
+      position: absolute; inset: 0; z-index: 2; pointer-events: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+      mix-blend-mode: overlay;
+    }
+
+    .hero-content {
+      position: relative; z-index: 3;
+      padding: 60px 60px 100px;
+      max-width: 1100px;
+    }
+
+    .hero-tag {
+      display: flex; align-items: center; gap: 16px;
+      font-size: 9px; font-weight: 400; letter-spacing: 0.55em;
+      text-transform: uppercase; color: var(--gold);
+      margin-bottom: 30px;
+      opacity: 0; animation: fadeUp 1s 0.4s ease forwards;
+    }
+    .hero-tag::before {
+      content: ""; width: 36px; height: 1px;
+      background: var(--gold); flex-shrink: 0;
+    }
+
+    .hero-title {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(3.5rem, 8vw, 8.5rem);
+      font-weight: 300; line-height: 0.92;
+      letter-spacing: -0.01em;
+      opacity: 0; animation: fadeUp 1.2s 0.6s cubic-bezier(0.2,0.8,0.2,1) forwards;
+    }
+    .hero-title em {
+      font-style: italic; color: var(--gold-soft);
+    }
+
+    .hero-sub {
+      margin-top: 32px; max-width: 480px;
+      font-size: 14px; font-weight: 300; letter-spacing: 0.02em;
+      color: var(--pearl-dim); line-height: 1.8;
+      opacity: 0; animation: fadeUp 1.2s 0.85s ease forwards;
+    }
+
+    /* Chips clientèle */
+    .hero-chips {
+      margin-top: 36px;
+      display: flex; flex-wrap: wrap; gap: 10px;
+      opacity: 0; animation: fadeUp 1s 1.0s ease forwards;
+    }
+    .chip {
+      padding: 7px 14px;
+      border: 1px solid rgba(237,233,227,0.12);
+      border-radius: 999px;
+      font-size: 10px; font-weight: 400; letter-spacing: 0.2em;
+      text-transform: uppercase; color: var(--pearl-dim);
+      background: rgba(237,233,227,0.02);
+      transition: border-color 0.3s, color 0.3s, background 0.3s;
+    }
+    .chip:hover {
+      border-color: var(--gold-line);
+      color: var(--gold-soft);
+      background: var(--gold-dim);
+    }
+    .chip svg {
+      width: 12px; height: 12px; stroke: currentColor; fill: none;
+      stroke-width: 1.6; vertical-align: -2px; margin-right: 6px;
+    }
+
+    .hero-cta {
+      margin-top: 48px; display: inline-flex; align-items: center; gap: 18px;
+      flex-wrap: wrap;
+      opacity: 0; animation: fadeUp 1s 1.15s ease forwards;
+    }
+
+    .btn-cta {
+      display: inline-flex; align-items: center; gap: 12px;
+      padding: 16px 32px;
+      background: var(--gold); color: var(--bg);
+      font-size: 11px; font-weight: 500; letter-spacing: 0.25em;
+      text-transform: uppercase; border-radius: 2px;
+      transition: all 0.35s ease; cursor: pointer;
+      position: relative; overflow: hidden;
+    }
+    .btn-cta::before {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transform: translateX(-100%); transition: transform 0.6s;
+    }
+    .btn-cta:hover::before { transform: translateX(100%); }
+    .btn-cta svg {
+      width: 13px; height: 13px; stroke: currentColor; fill: none;
+      stroke-width: 2; transition: transform 0.35s; position: relative;
+    }
+    .btn-cta:hover { background: var(--gold-soft); transform: translateY(-2px); box-shadow: 0 12px 30px rgba(200,164,106,0.25); }
+    .btn-cta:hover svg { transform: translateX(4px); }
+
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 9px;
+      padding: 16px 0;
+      font-size: 10px; font-weight: 400; letter-spacing: 0.3em;
+      text-transform: uppercase; color: var(--pearl-dim);
+      transition: color 0.3s, gap 0.3s;
+    }
+    .btn-ghost svg {
+      width: 14px; height: 14px; stroke: currentColor; fill: none;
+      stroke-width: 1.5;
+    }
+    .btn-ghost:hover { color: var(--pearl); gap: 12px; }
+
+    /* Scroll indicator */
+    .hero-scroll {
+      position: absolute; bottom: 32px; right: 48px; z-index: 3;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      opacity: 0; animation: fadeIn 1s 1.8s ease forwards;
+    }
+    .scroll-label {
+      font-size: 8px; letter-spacing: 0.45em; text-transform: uppercase;
+      color: var(--pearl-dim); writing-mode: vertical-rl;
+    }
+    .scroll-bar {
+      width: 1px; height: 54px;
+      background: rgba(237,233,227,0.12); position: relative; overflow: hidden;
+    }
+    .scroll-bar::after {
+      content: ""; position: absolute; top: 0; left: 0; right: 0;
+      height: 28px; background: var(--gold);
+      animation: scrollPulse 2s cubic-bezier(0.6,0,0.4,1) infinite;
+    }
+    @keyframes scrollPulse {
+      0%   { transform: translateY(-28px); opacity: 0; }
+      20%  { opacity: 1; }
+      80%  { opacity: 1; }
+      100% { transform: translateY(54px); opacity: 0; }
+    }
+
+    /* ════════════════════════════════════════════════
+       MARQUEE (TRUST BAND)
+    ════════════════════════════════════════════════ */
+    .trust-marquee {
+      background: var(--bg-2);
+      border-top: 1px solid rgba(200,164,106,0.08);
+      border-bottom: 1px solid rgba(200,164,106,0.08);
+      overflow: hidden;
+      padding: 28px 0;
+      position: relative;
+    }
+    .trust-marquee::before, .trust-marquee::after {
+      content: ""; position: absolute; top: 0; bottom: 0; width: 120px; z-index: 2;
+      pointer-events: none;
+    }
+    .trust-marquee::before { left: 0; background: linear-gradient(90deg, var(--bg-2), transparent); }
+    .trust-marquee::after  { right: 0; background: linear-gradient(-90deg, var(--bg-2), transparent); }
+
+    .marquee-track {
+      display: flex; gap: 60px; width: max-content;
+      animation: marquee 38s linear infinite;
+    }
+    .marquee-item {
+      display: inline-flex; align-items: center; gap: 14px;
+      font-family: "Cormorant Garamond", serif;
+      font-size: 22px; font-weight: 400; font-style: italic;
+      color: var(--pearl-dim); white-space: nowrap;
+      letter-spacing: 0.02em;
+    }
+    .marquee-item .dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--gold);
+    }
+    @keyframes marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* ════════════════════════════════════════════════
+       SECTION COMMUNE
+    ════════════════════════════════════════════════ */
+    .section {
+      padding: 120px 60px;
+      position: relative;
+    }
+    .section-narrow { max-width: 1280px; margin: 0 auto; }
+
+    .eyebrow {
+      display: flex; align-items: center; gap: 14px;
+      font-size: 9px; letter-spacing: 0.55em; text-transform: uppercase;
+      color: var(--gold); margin-bottom: 18px;
+    }
+    .eyebrow::before { content: ""; width: 30px; height: 1px; background: var(--gold); }
+
+    .h2 {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(2.2rem, 4.2vw, 3.8rem);
+      font-weight: 300; line-height: 1.05;
+      letter-spacing: -0.005em;
+    }
+    .h2 em { font-style: italic; color: var(--gold-soft); }
+
+    .lead {
+      margin-top: 22px; font-size: 14px; font-weight: 300;
+      color: var(--pearl-dim); max-width: 480px; line-height: 1.85;
+    }
+
+    /* ════════════════════════════════════════════════
+       SECTION "POURQUOI LA VIDÉO"
+    ════════════════════════════════════════════════ */
+    .why {
+      padding: 110px 60px;
+      background: var(--bg);
+      border-bottom: 1px solid rgba(200,164,106,0.05);
+    }
+    .why-inner { max-width: 1280px; margin: 0 auto; }
+    .why-header { text-align: center; max-width: 700px; margin: 0 auto 80px; }
+    .why-header .eyebrow { justify-content: center; }
+    .why-header .eyebrow::before { display: none; }
+    .why-header .lead { margin: 22px auto 0; }
+
+    .why-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+      border-top: 1px solid rgba(200,164,106,0.1);
+      border-bottom: 1px solid rgba(200,164,106,0.1);
+    }
+    .why-card {
+      padding: 52px 36px;
+      text-align: center;
+      position: relative;
+      transition: background 0.5s;
+    }
+    .why-card:not(:last-child)::after {
+      content: ""; position: absolute; right: 0; top: 18%; bottom: 18%;
+      width: 1px; background: rgba(200,164,106,0.1);
+    }
+    .why-card:hover { background: rgba(200,164,106,0.02); }
+
+    .why-icon {
+      width: 56px; height: 56px; margin: 0 auto 24px;
+      border: 1px solid var(--gold-line); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.4s, transform 0.4s;
+    }
+    .why-card:hover .why-icon {
+      background: var(--gold-dim);
+      transform: scale(1.08);
+    }
+    .why-icon svg {
+      width: 22px; height: 22px; stroke: var(--gold); fill: none;
+      stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .why-number {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(2.6rem, 4.5vw, 3.8rem); font-weight: 300;
+      color: var(--gold-soft); line-height: 1;
+      margin-bottom: 14px;
+    }
+    .why-number sup {
+      font-size: 0.5em; vertical-align: super;
+      color: var(--pearl-dim);
+    }
+    .why-label {
+      font-size: 13px; font-weight: 400; letter-spacing: 0.04em;
+      color: var(--pearl); margin-bottom: 8px; line-height: 1.4;
+    }
+    .why-source {
+      font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--pearl-faint);
+    }
+
+    /* ════════════════════════════════════════════════
+       SECTION SERVICES / OFFRES
+    ════════════════════════════════════════════════ */
+    .services {
+      background: var(--bg-2);
+      padding: 130px 60px;
+      position: relative; overflow: hidden;
+    }
+    .services::before {
+      content: ""; position: absolute;
+      top: -300px; left: -300px;
+      width: 800px; height: 800px;
+      border: 1px solid rgba(200,164,106,0.04); border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .services-inner { max-width: 1280px; margin: 0 auto; position: relative; z-index: 1; }
+
+    .services-header {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 60px;
+      align-items: end; margin-bottom: 70px;
+    }
+
+    .services-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+    }
+
+    .service-card {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid rgba(237,233,227,0.06);
+      border-radius: 6px;
+      padding: 44px 32px 36px;
+      transition: transform 0.5s cubic-bezier(0.2,0.8,0.2,1),
+                  border-color 0.4s,
+                  box-shadow 0.5s;
+      display: flex; flex-direction: column;
+    }
+    .service-card:hover {
+      transform: translateY(-8px);
+      border-color: var(--gold-line);
+      box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+    }
+
+    .service-card.featured {
+      border-color: var(--gold-line);
+      background: linear-gradient(160deg, var(--bg-card) 0%, rgba(200,164,106,0.03) 100%);
+    }
+    .service-card.featured::before {
+      content: "Le plus choisi";
+      position: absolute; top: -12px; left: 32px;
+      padding: 4px 12px;
+      background: var(--gold); color: var(--bg);
+      font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
+      font-weight: 600; border-radius: 2px;
+    }
+
+    .service-name {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.9rem; font-weight: 400;
+      margin-bottom: 4px;
+    }
+    .service-tag {
+      font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase;
+      color: var(--gold); margin-bottom: 24px; display: block;
+    }
+
+    .service-desc {
+      font-size: 13px; color: var(--pearl-dim); line-height: 1.7;
+      margin-bottom: 28px; min-height: 50px;
+    }
+
+    .service-features {
+      list-style: none; padding: 0;
+      margin: 0 0 32px;
+      border-top: 1px solid rgba(237,233,227,0.06);
+      padding-top: 24px;
+      display: flex; flex-direction: column; gap: 12px;
+      flex: 1;
+    }
+    .service-features li {
+      display: flex; align-items: flex-start; gap: 12px;
+      font-size: 12.5px; font-weight: 300; color: var(--pearl);
+      line-height: 1.55;
+    }
+    .service-features svg {
+      width: 13px; height: 13px; stroke: var(--gold); fill: none;
+      stroke-width: 2; flex-shrink: 0; margin-top: 4px;
+    }
+
+    .service-ideal {
+      font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase;
+      color: var(--pearl-faint); margin-bottom: 16px;
+      padding-top: 20px; border-top: 1px solid rgba(237,233,227,0.06);
+    }
+    .service-ideal strong { color: var(--gold-soft); font-weight: 500; }
+
+    .service-cta {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 13px 22px;
+      border: 1px solid var(--gold-line); border-radius: 2px;
+      font-size: 10px; font-weight: 400; letter-spacing: 0.25em;
+      text-transform: uppercase; color: var(--pearl);
+      transition: all 0.3s; align-self: flex-start;
+      cursor: pointer;
+    }
+    .service-cta svg {
+      width: 12px; height: 12px; stroke: currentColor; fill: none;
+      stroke-width: 1.8; transition: transform 0.3s;
+    }
+    .service-cta:hover {
+      background: var(--gold); color: var(--bg);
+      border-color: var(--gold);
+    }
+    .service-cta:hover svg { transform: translateX(4px); }
+
+    .service-card.featured .service-cta {
+      background: var(--gold); color: var(--bg); border-color: var(--gold);
+    }
+    .service-card.featured .service-cta:hover {
+      background: var(--gold-soft); border-color: var(--gold-soft);
+    }
+
+    /* ════════════════════════════════════════════════
+       SECTION RÉALISATIONS / REELS
+    ════════════════════════════════════════════════ */
+    .section-reels {
+      padding: 120px 0 90px;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .reels-header {
+      padding: 0 60px;
+      display: flex; justify-content: space-between; align-items: flex-end;
+      gap: 40px; flex-wrap: wrap;
+      margin-bottom: 36px;
+    }
+    .reels-header-left { max-width: 540px; }
+
+    .reels-header-right {
+      flex-shrink: 0; padding-bottom: 4px;
+    }
+    .scroll-nav {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .scroll-nav-btn {
+      width: 42px; height: 42px;
+      border: 1px solid var(--gold-line); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--pearl-dim); transition: all 0.3s; cursor: pointer;
+    }
+    .scroll-nav-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+    .scroll-nav-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
+    .scroll-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* Filtres */
+    .reels-filters {
+      padding: 0 60px;
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .filter-btn {
+      padding: 9px 18px;
+      border: 1px solid rgba(237,233,227,0.1);
+      border-radius: 999px;
+      font-size: 10px; font-weight: 400; letter-spacing: 0.22em;
+      text-transform: uppercase; color: var(--pearl-dim);
+      transition: all 0.3s;
+    }
+    .filter-btn:hover { color: var(--pearl); border-color: rgba(237,233,227,0.25); }
+    .filter-btn.active {
+      background: var(--gold); color: var(--bg);
+      border-color: var(--gold); font-weight: 500;
+    }
+
+    .reels-wrap {
+      overflow-x: auto; overflow-y: visible;
+      padding: 16px 60px 48px;
+      scrollbar-width: none;
+      cursor: grab;
+      scroll-snap-type: x mandatory;
+    }
+    .reels-wrap::-webkit-scrollbar { display: none; }
+    .reels-wrap.grabbing { cursor: grabbing; }
+
+    .reels-track {
+      display: flex; gap: 22px;
+      width: max-content;
+    }
+
+    .reel-card {
+      position: relative;
+      width: 252px; flex-shrink: 0;
+      aspect-ratio: 9 / 16;
+      border-radius: 14px; overflow: hidden;
+      background: var(--bg-card);
+      border: 1px solid rgba(237,233,227,0.06);
+      scroll-snap-align: start;
+      transition: transform 0.45s cubic-bezier(0.2,0.8,0.2,1),
+                  box-shadow 0.45s,
+                  border-color 0.4s,
+                  opacity 0.4s;
+      cursor: pointer;
+    }
+    .reel-card:hover {
+      transform: translateY(-10px) scale(1.02);
+      box-shadow: 0 30px 70px rgba(0,0,0,0.55),
+                  0 0 0 1px rgba(200,164,106,0.28);
+      border-color: rgba(200,164,106,0.22);
+    }
+    .reel-card.hidden-card {
+      display: none;
+    }
+
+    .reel-video {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%; object-fit: cover;
+      display: block; z-index: 1;
+    }
+
+    .reel-bg { position: absolute; inset: 0; z-index: 0; }
+    .reel-bg-1 { background: linear-gradient(160deg, #1c2535 0%, #0d1520 100%); }
+    .reel-bg-2 { background: linear-gradient(160deg, #1f2018 0%, #0f100a 100%); }
+    .reel-bg-3 { background: linear-gradient(160deg, #1e1c2a 0%, #10101a 100%); }
+    .reel-bg-4 { background: linear-gradient(160deg, #1a2228 0%, #0c1316 100%); }
+    .reel-bg-5 { background: linear-gradient(160deg, #221d14 0%, #110e07 100%); }
+    .reel-bg-6 { background: linear-gradient(160deg, #1a2520 0%, #0b1310 100%); }
+
+    .reel-decor { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
+    .reel-decor::before {
+      content: ""; position: absolute;
+      bottom: -40px; right: -40px;
+      width: 200px; height: 200px;
+      border: 1px solid var(--gold-line); border-radius: 50%;
+    }
+    .reel-decor::after {
+      content: ""; position: absolute;
+      bottom: -80px; right: -80px;
+      width: 300px; height: 300px;
+      border: 1px solid rgba(200,164,106,0.08); border-radius: 50%;
+    }
+
+    .reel-play {
+      position: absolute; z-index: 3;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 56px; height: 56px;
+      border: 1px solid rgba(200,164,106,0.4); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(10,12,15,0.4);
+      backdrop-filter: blur(6px);
+      transition: background 0.35s, transform 0.35s, border-color 0.35s, opacity 0.3s;
+    }
+    .reel-play svg { width: 18px; height: 18px; fill: var(--gold); margin-left: 3px; }
+    .reel-card:hover .reel-play {
+      background: rgba(200,164,106,0.2);
+      border-color: var(--gold);
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+
+    .reel-badge {
+      position: absolute; top: 14px; left: 14px; z-index: 4;
+      padding: 5px 12px;
+      background: rgba(10,12,15,0.7);
+      border: 1px solid var(--gold-line); border-radius: 999px;
+      font-size: 8px; letter-spacing: 0.35em; text-transform: uppercase;
+      color: var(--gold);
+      backdrop-filter: blur(8px);
+    }
+
+    .reel-info {
+      position: absolute; bottom: 0; left: 0; right: 0; z-index: 4;
+      padding: 50px 16px 18px;
+      background: linear-gradient(to top,
+        rgba(10,12,15,0.97) 0%,
+        rgba(10,12,15,0.85) 30%,
+        rgba(10,12,15,0.4) 70%,
+        transparent 100%);
+    }
+    .reel-location {
+      font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
+      color: var(--pearl-dim); margin-bottom: 5px; display: block;
+    }
+    .reel-name {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.15rem; font-weight: 400; line-height: 1.2;
+      color: var(--pearl);
+    }
+
+    .drag-hint {
+      padding: 0 60px;
+      display: flex; align-items: center; gap: 10px;
+      font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase;
+      color: var(--pearl-dim); opacity: 0.45;
+    }
+    .drag-hint svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+
+    /* ════════════════════════════════════════════════
+       SECTION PROCESS
+    ════════════════════════════════════════════════ */
+    .process {
+      padding: 130px 60px;
+      background: var(--bg-2);
+      position: relative;
+    }
+    .process-inner { max-width: 1280px; margin: 0 auto; }
+    .process-header { text-align: center; max-width: 700px; margin: 0 auto 80px; }
+    .process-header .eyebrow { justify-content: center; }
+    .process-header .eyebrow::before { display: none; }
+    .process-header .lead { margin: 22px auto 0; }
+
+    .process-timeline {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+      position: relative;
+    }
+    .process-timeline::before {
+      content: ""; position: absolute;
+      top: 32px; left: 12.5%; right: 12.5%;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%, var(--gold-line) 10%, var(--gold-line) 90%, transparent 100%);
+    }
+
+    .process-step {
+      position: relative;
+      text-align: center;
+      padding: 0 18px;
+    }
+
+    .process-num {
+      width: 64px; height: 64px;
+      margin: 0 auto 28px;
+      border: 1px solid var(--gold-line); border-radius: 50%;
+      background: var(--bg-2);
+      display: flex; align-items: center; justify-content: center;
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.5rem; font-weight: 400;
+      color: var(--gold-soft);
+      position: relative; z-index: 1;
+      transition: background 0.4s, transform 0.4s, border-color 0.4s;
+    }
+    .process-step:hover .process-num {
+      background: var(--gold); color: var(--bg);
+      border-color: var(--gold);
+      transform: scale(1.05);
+    }
+    .process-num svg {
+      width: 22px; height: 22px; stroke: currentColor; fill: none;
+      stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .process-title {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.4rem; font-weight: 400;
+      margin-bottom: 8px; color: var(--pearl);
+    }
+    .process-time {
+      font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase;
+      color: var(--gold); margin-bottom: 16px;
+      display: inline-block;
+      padding: 3px 10px;
+      border: 1px solid var(--gold-line);
+      border-radius: 999px;
+    }
+    .process-desc {
+      font-size: 12.5px; color: var(--pearl-dim); line-height: 1.7;
+      margin-top: 10px;
+    }
+
+    /* ════════════════════════════════════════════════
+       SECTION TÉMOIGNAGES
+    ════════════════════════════════════════════════ */
+    .testimonials {
+      padding: 130px 60px;
+      background: var(--bg);
+      position: relative; overflow: hidden;
+    }
+    .testimonials-inner { max-width: 1280px; margin: 0 auto; }
+
+    .testimonials-header { text-align: center; max-width: 700px; margin: 0 auto 70px; }
+    .testimonials-header .eyebrow { justify-content: center; }
+    .testimonials-header .eyebrow::before { display: none; }
+
+    .testimonials-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+    }
+
+    .testimonial {
+      position: relative;
+      padding: 44px 32px 32px;
+      background: var(--bg-card);
+      border: 1px solid rgba(237,233,227,0.06);
+      border-radius: 6px;
+      transition: transform 0.4s, border-color 0.4s, box-shadow 0.4s;
+    }
+    .testimonial:hover {
+      transform: translateY(-6px);
+      border-color: var(--gold-line);
+      box-shadow: 0 24px 50px rgba(0,0,0,0.35);
+    }
+
+    .testimonial-quote {
+      position: absolute; top: -8px; left: 28px;
+      font-family: "Cormorant Garamond", serif;
+      font-size: 5rem; line-height: 1;
+      color: var(--gold);
+      font-style: italic;
+    }
+
+    .testimonial-stars {
+      display: flex; gap: 3px;
+      margin-bottom: 20px;
+    }
+    .testimonial-stars svg {
+      width: 14px; height: 14px;
+      fill: var(--gold); stroke: none;
+    }
+
+    .testimonial-text {
+      font-size: 14px; font-weight: 300; line-height: 1.75;
+      color: var(--pearl);
+      margin-bottom: 28px;
+      font-style: italic;
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.15rem;
+    }
+
+    .testimonial-author {
+      display: flex; align-items: center; gap: 14px;
+      padding-top: 22px;
+      border-top: 1px solid rgba(237,233,227,0.06);
+    }
+    .testimonial-avatar {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold-deep) 0%, var(--gold-soft) 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.2rem; font-weight: 500;
+      color: var(--bg);
+      flex-shrink: 0;
+    }
+    .testimonial-info { display: flex; flex-direction: column; gap: 2px; }
+    .testimonial-name {
+      font-size: 13px; font-weight: 500; color: var(--pearl);
+      letter-spacing: 0.02em;
+    }
+    .testimonial-role {
+      font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--pearl-dim);
+    }
+
+    /* ════════════════════════════════════════════════
+       SECTION FAQ
+    ════════════════════════════════════════════════ */
+    .faq {
+      padding: 130px 60px;
+      background: var(--bg-2);
+    }
+    .faq-inner {
+      max-width: 980px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr 1.5fr;
+      gap: 80px;
+      align-items: start;
+    }
+    .faq-side .lead { margin-top: 22px; }
+
+    .faq-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .faq-item {
+      border-bottom: 1px solid rgba(237,233,227,0.08);
+      transition: border-color 0.3s;
+    }
+    .faq-item:hover { border-bottom-color: var(--gold-line); }
+
+    .faq-question {
+      width: 100%;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 22px 0;
+      text-align: left;
+      font-family: "Outfit", sans-serif;
+      font-size: 14.5px; font-weight: 400;
+      color: var(--pearl);
+      transition: color 0.3s;
+      cursor: pointer;
+    }
+    .faq-question:hover { color: var(--gold-soft); }
+    .faq-toggle {
+      width: 28px; height: 28px;
+      border: 1px solid var(--gold-line); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: transform 0.4s, background 0.3s, border-color 0.3s;
+    }
+    .faq-toggle svg {
+      width: 12px; height: 12px; stroke: var(--gold); fill: none;
+      stroke-width: 2;
+    }
+    .faq-item.open .faq-toggle {
+      transform: rotate(45deg);
+      background: var(--gold);
+      border-color: var(--gold);
+    }
+    .faq-item.open .faq-toggle svg { stroke: var(--bg); }
+
+    .faq-answer {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.5s cubic-bezier(0.2,0.8,0.2,1);
+    }
+    .faq-answer-inner {
+      padding: 0 0 24px;
+      font-size: 13.5px; font-weight: 300; color: var(--pearl-dim);
+      line-height: 1.85; max-width: 90%;
+    }
+    .faq-item.open .faq-answer { max-height: 360px; }
+
+    /* ════════════════════════════════════════════════
+       SECTION CTA FINALE
+    ════════════════════════════════════════════════ */
+    .final-cta {
+      padding: 140px 60px;
+      background: linear-gradient(135deg, var(--bg) 0%, var(--bg-3) 50%, var(--bg) 100%);
+      position: relative; overflow: hidden;
+      text-align: center;
+    }
+    .final-cta::before, .final-cta::after {
+      content: ""; position: absolute;
+      width: 500px; height: 500px;
+      border: 1px solid rgba(200,164,106,0.06);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .final-cta::before { top: -250px; left: -150px; }
+    .final-cta::after  { bottom: -250px; right: -150px; }
+
+    .final-cta-inner {
+      position: relative; z-index: 1;
+      max-width: 800px; margin: 0 auto;
+    }
+    .final-cta-title {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(2.2rem, 5vw, 4rem);
+      font-weight: 300; line-height: 1.1;
+      margin-bottom: 24px;
+    }
+    .final-cta-title em { font-style: italic; color: var(--gold-soft); }
+    .final-cta-sub {
+      font-size: 14px; color: var(--pearl-dim); line-height: 1.8;
+      margin-bottom: 44px; max-width: 540px; margin-left: auto; margin-right: auto;
+    }
+    .final-cta-row {
+      display: inline-flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+    }
+
+    /* ════════════════════════════════════════════════
+       SECTION CONTACT
+    ════════════════════════════════════════════════ */
+    .section-contact {
+      background: var(--bg-2);
+      padding: 110px 60px 100px;
+      position: relative; overflow: hidden;
+      border-top: 1px solid rgba(200,164,106,0.06);
+    }
+
+    .contact-deco { position: absolute; pointer-events: none; }
+    .contact-deco-1 { top: -200px; right: -200px; width: 600px; height: 600px; border: 1px solid rgba(200,164,106,0.05); border-radius: 50%; }
+    .contact-deco-2 { top: -100px; right: -100px; width: 400px; height: 400px; border: 1px solid rgba(200,164,106,0.07); border-radius: 50%; }
+    .contact-deco-3 { bottom: -250px; left: -200px; width: 700px; height: 700px; border: 1px solid rgba(200,164,106,0.04); border-radius: 50%; }
+
+    .contact-inner {
+      max-width: 1160px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr 1.15fr;
+      gap: 90px; position: relative; z-index: 1;
+      align-items: start;
+    }
+
+    .contact-heading {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(2rem, 3.5vw, 3.2rem);
+      font-weight: 300; line-height: 1.1; margin-top: 20px;
+    }
+    .contact-heading em { font-style: italic; color: var(--gold-soft); }
+
+    .contact-body {
+      margin-top: 24px; font-size: 13.5px; font-weight: 300;
+      color: var(--pearl-dim); line-height: 1.85; max-width: 360px;
+    }
+
+    .contact-details {
+      margin-top: 44px; display: flex; flex-direction: column; gap: 18px;
+    }
+    .contact-row {
+      display: flex; align-items: center; gap: 16px;
+    }
+    .contact-row-icon {
+      width: 38px; height: 38px; flex-shrink: 0;
+      border: 1px solid var(--gold-line); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .contact-row-icon svg {
+      width: 14px; height: 14px; stroke: var(--gold); fill: none;
+      stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+    }
+    .contact-row-text {
+      font-size: 12.5px; font-weight: 300; letter-spacing: 0.05em; color: var(--pearl-dim);
+    }
+    .contact-row-text a { transition: color 0.3s; }
+    .contact-row-text a:hover { color: var(--gold-soft); }
+
+    .contact-social {
+      margin-top: 36px;
+      display: flex; gap: 12px;
+    }
+    .social-icon {
+      width: 38px; height: 38px;
+      border: 1px solid rgba(237,233,227,0.1); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.3s;
+    }
+    .social-icon svg { width: 15px; height: 15px; fill: var(--pearl-dim); transition: fill 0.3s; }
+    .social-icon:hover { border-color: var(--gold); background: var(--gold-dim); }
+    .social-icon:hover svg { fill: var(--gold-soft); }
+
+    .contact-form { display: flex; flex-direction: column; gap: 18px; }
+
+    .form-row-2 {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 9px; }
+    .field label {
+      font-size: 9px; letter-spacing: 0.45em; text-transform: uppercase;
+      color: var(--gold); font-weight: 400;
+    }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 13px 16px;
+      background: var(--pearl-ghost);
+      border: 1px solid rgba(237,233,227,0.1);
+      border-radius: 3px;
+      color: var(--pearl); font-family: "Outfit", sans-serif;
+      font-size: 13px; font-weight: 300; outline: none;
+      transition: border-color 0.3s, background 0.3s;
+      -webkit-appearance: none; appearance: none;
+    }
+    .field input::placeholder, .field textarea::placeholder { color: rgba(237,233,227,0.2); }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      border-color: rgba(200,164,106,0.45);
+      background: rgba(200,164,106,0.04);
+    }
+    .field textarea { resize: vertical; min-height: 130px; }
+    .field select {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23a09b94' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+    .field select option { background: var(--bg-2); }
+
+    .form-note {
+      font-size: 11px; font-weight: 300; color: var(--pearl-dim);
+      letter-spacing: 0.03em; opacity: 0.65;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .form-note svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.5; flex-shrink: 0; }
+
+    .btn-send {
+      display: inline-flex; align-items: center; gap: 12px;
+      padding: 17px 36px; align-self: flex-start;
+      background: var(--gold); color: var(--bg);
+      font-family: "Outfit", sans-serif; font-size: 11px;
+      font-weight: 500; letter-spacing: 0.3em; text-transform: uppercase;
+      border-radius: 2px; border: none; cursor: pointer;
+      transition: all 0.35s ease;
+      position: relative; overflow: hidden;
+    }
+    .btn-send::before {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transform: translateX(-100%); transition: transform 0.6s;
+    }
+    .btn-send:hover::before { transform: translateX(100%); }
+    .btn-send svg {
+      width: 14px; height: 14px; stroke: currentColor; fill: none;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+      transition: transform 0.35s; position: relative;
+    }
+    .btn-send:hover { background: var(--gold-soft); transform: translateY(-2px); box-shadow: 0 12px 30px rgba(200,164,106,0.25); }
+    .btn-send:hover svg { transform: translateX(5px); }
+
+    /* ════════════════════════════════════════════════
+       FLOATING CONTACT
+    ════════════════════════════════════════════════ */
+    .floating-contact {
+      position: fixed; bottom: 28px; right: 28px; z-index: 150;
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 13px 20px 13px 16px;
+      background: var(--gold); color: var(--bg);
+      border-radius: 999px;
+      font-size: 10px; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.25em;
+      box-shadow: 0 12px 30px rgba(200,164,106,0.35);
+      transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+      opacity: 0; transform: translateY(20px); pointer-events: none;
+    }
+    .floating-contact.visible { opacity: 1; transform: translateY(0); pointer-events: all; }
+    .floating-contact:hover {
+      background: var(--gold-soft); transform: translateY(-4px);
+      box-shadow: 0 18px 40px rgba(200,164,106,0.45);
+    }
+    .floating-contact svg {
+      width: 14px; height: 14px; stroke: currentColor; fill: none;
+      stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* ════════════════════════════════════════════════
+       FOOTER
+    ════════════════════════════════════════════════ */
+    .site-footer {
+      background: var(--bg);
+      border-top: 1px solid rgba(200,164,106,0.08);
+      padding: 60px 60px 40px;
+    }
+    .footer-top {
+      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 60px;
+      margin-bottom: 50px;
+      padding-bottom: 50px;
+      border-bottom: 1px solid rgba(237,233,227,0.06);
+    }
+    .footer-brand {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 22px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--pearl); display: block; margin-bottom: 16px;
+    }
+    .footer-tagline {
+      font-size: 12.5px; color: var(--pearl-dim); line-height: 1.75;
+      max-width: 320px;
+    }
+    .footer-col-title {
+      font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase;
+      color: var(--gold); margin-bottom: 18px;
+    }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-col a, .footer-col button {
+      font-size: 12px; color: var(--pearl-dim); transition: color 0.3s;
+      letter-spacing: 0.02em; text-align: left;
+    }
+    .footer-col a:hover, .footer-col button:hover { color: var(--gold-soft); }
+
+    .footer-bottom {
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-copy {
+      font-size: 10px; color: var(--pearl-faint); letter-spacing: 0.15em;
+    }
+    .footer-legal {
+      display: flex; gap: 24px;
+    }
+    .footer-legal a {
+      font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--pearl-faint); transition: color 0.3s;
+    }
+    .footer-legal a:hover { color: var(--gold-soft); }
+
+    /* ════════════════════════════════════════════════
+       MODALE ESPACE CLIENTS
+    ════════════════════════════════════════════════ */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 3000;
+      background: rgba(10,12,15,0.88);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      display: none; justify-content: center; align-items: center;
+      opacity: 0; transition: opacity 0.4s;
+    }
+    .modal-overlay.active { display: flex; opacity: 1; }
+
+    .modal-box {
+      background: var(--bg-2);
+      border: 1px solid rgba(200,164,106,0.15);
+      border-radius: 6px; padding: 52px 46px;
+      max-width: 430px; width: 90%;
+      position: relative; text-align: center;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(200,164,106,0.05);
+      transform: translateY(28px); transition: transform 0.45s cubic-bezier(0.2,0.8,0.2,1);
+    }
+    .modal-overlay.active .modal-box { transform: translateY(0); }
+
+    .modal-close {
+      position: absolute; top: 18px; right: 22px;
+      width: 28px; height: 28px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--pearl-dim); font-size: 18px; line-height: 1;
+      transition: color 0.3s;
+    }
+    .modal-close:hover { color: var(--gold-soft); }
+
+    .modal-icon {
+      width: 52px; height: 52px; margin: 0 auto 24px;
+      border: 1px solid var(--gold-line); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-icon svg {
+      width: 20px; height: 20px; stroke: var(--gold); fill: none;
+      stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .modal-tag {
+      font-size: 9px; letter-spacing: 0.5em; text-transform: uppercase;
+      color: var(--gold); margin-bottom: 10px; display: block;
+    }
+    .modal-title {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 2.1rem; font-weight: 300; margin-bottom: 10px;
+    }
+    .modal-desc {
+      font-size: 12px; font-weight: 300; color: var(--pearl-dim);
+      line-height: 1.75; margin-bottom: 30px;
+    }
+
+    .modal-input {
+      width: 100%; padding: 15px;
+      background: var(--pearl-ghost);
+      border: 1px solid rgba(237,233,227,0.1); border-radius: 3px;
+      color: var(--pearl); font-family: "Outfit", sans-serif;
+      font-size: 14px; letter-spacing: 0.3em;
+      text-align: center; text-transform: uppercase; outline: none;
+      margin-bottom: 14px;
+      transition: border-color 0.3s;
+    }
+    .modal-input:focus { border-color: rgba(200,164,106,0.4); }
+    .modal-input::placeholder { color: rgba(237,233,227,0.2); font-size: 11px; }
+
+    .modal-btn {
+      width: 100%; padding: 15px;
+      background: var(--gold); color: var(--bg);
+      font-family: "Outfit", sans-serif; font-size: 11px;
+      font-weight: 500; letter-spacing: 0.3em; text-transform: uppercase;
+      border: none; border-radius: 2px; cursor: pointer;
+      transition: background 0.3s, transform 0.3s;
+    }
+    .modal-btn:hover { background: var(--gold-soft); transform: translateY(-2px); }
+
+    .modal-error {
+      color: var(--error); font-size: 11px; letter-spacing: 0.05em;
+      margin-top: 14px; display: none;
+    }
+
+    /* ════════════════════════════════════════════════
+       ANIMATIONS
+    ════════════════════════════════════════════════ */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(26px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    .reveal {
+      opacity: 0; transform: translateY(34px);
+      transition: opacity 0.85s cubic-bezier(0.2,0.8,0.2,1),
+                  transform 0.85s cubic-bezier(0.2,0.8,0.2,1);
+    }
+    .reveal.delay-1 { transition-delay: 0.1s; }
+    .reveal.delay-2 { transition-delay: 0.22s; }
+    .reveal.delay-3 { transition-delay: 0.34s; }
+    .reveal.delay-4 { transition-delay: 0.46s; }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    /* ════════════════════════════════════════════════
+       RESPONSIVE
+    ════════════════════════════════════════════════ */
+    @media (max-width: 1100px) {
+      .nav-pills { display: none; }
+      .footer-top { grid-template-columns: 1.5fr 1fr 1fr; }
+      .footer-col:last-child { display: none; }
+    }
+
+    @media (max-width: 960px) {
+      .site-header { padding: 22px 28px; grid-template-columns: auto 1fr auto; }
+      .site-header.scrolled { padding: 14px 28px; }
+      .hero-content { padding: 50px 28px 80px; }
+      .section, .why, .services, .process, .testimonials, .faq, .final-cta { padding: 90px 28px; }
+      .section-contact { padding: 80px 28px 80px; }
+      .why-grid { grid-template-columns: 1fr; }
+      .why-card:not(:last-child)::after { display: none; }
+      .why-card:not(:last-child) { border-bottom: 1px solid rgba(200,164,106,0.1); }
+      .services-header { grid-template-columns: 1fr; gap: 30px; }
+      .services-grid { grid-template-columns: 1fr; gap: 16px; }
+      .reels-header { padding: 0 28px; flex-direction: column; align-items: flex-start; gap: 24px; }
+      .reels-filters { padding: 0 28px; }
+      .reels-wrap { padding: 16px 28px 36px; }
+      .drag-hint { padding: 0 28px; }
+      .process-timeline { grid-template-columns: 1fr 1fr; gap: 50px 0; }
+      .process-timeline::before { display: none; }
+      .testimonials-grid { grid-template-columns: 1fr; }
+      .faq-inner { grid-template-columns: 1fr; gap: 40px; }
+      .contact-inner { grid-template-columns: 1fr; gap: 56px; }
+      .form-row-2 { grid-template-columns: 1fr; }
+      .footer-top { grid-template-columns: 1fr 1fr; gap: 36px; padding-bottom: 36px; margin-bottom: 30px; }
+      .site-footer { padding: 40px 28px 30px; }
+      .hero-scroll { display: none; }
+    }
+
+    @media (max-width: 620px) {
+      .hero-title { font-size: 3.2rem; }
+      .reel-card { width: 210px; }
+      .modal-box { padding: 38px 24px; }
+      .client-btn span { display: none; }
+      .client-btn { padding: 9px 12px; }
+      .footer-top { grid-template-columns: 1fr; }
+      .footer-bottom { flex-direction: column; align-items: flex-start; }
+      .process-timeline { grid-template-columns: 1fr; }
+      .floating-contact { bottom: 20px; right: 20px; padding: 12px 18px 12px 14px; }
+      .floating-contact span { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── PROGRESS BAR ── -->
+  <div class="scroll-progress"><div class="scroll-progress-bar" id="progressBar"></div></div>
+
+  <!-- ── PAGE TRANSITION ── -->
+  <div id="pageTransition"><span class="pt-mark">TIMELESSHOUSE</span></div>
+
+
+  <!-- ════════════════════════════════
+       HEADER
+  ════════════════════════════════ -->
+  <header class="site-header" id="siteHeader">
+    <div class="header-left">
+      <a href="index.html" class="back-link" id="backHome">
+        <svg viewBox="0 0 24 24"><path d="M19 12H5M5 12l7-7M5 12l7 7"/></svg>
+        <span>Accueil</span>
+      </a>
+    </div>
+
+    <a href="index.html" class="logo" id="logoLink">TimelessHouse</a>
+
+    <div class="header-right">
+      <nav class="nav-pills">
+        <a href="#services" class="nav-pill">Offres</a>
+        <a href="#reels" class="nav-pill">Réalisations</a>
+        <a href="#process" class="nav-pill">Process</a>
+        <a href="#contact" class="nav-pill">Contact</a>
+      </nav>
+      <button class="client-btn" onclick="openModal()">
+        <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15L19 4"/><path d="M18 5l2 2"/><path d="M15 8l2 2"/></svg>
+        <span>Espace Clients</span>
+      </button>
+    </div>
+  </header>
+
+
+  <!-- ════════════════════════════════
+       HERO
+  ════════════════════════════════ -->
+  <section class="hero">
+    <div class="hero-bg">
+      <!-- 🎬 Remplacez par votre vidéo hero immobilier -->
+      <video autoplay muted loop playsinline preload="metadata">
+        <source src="" type="video/mp4" />
+      </video>
+    </div>
+    <div class="hero-overlay"></div>
+    <div class="hero-grain"></div>
+
+    <div class="hero-content">
+      <p class="hero-tag">Vidéo immobilière · Format réseaux sociaux</p>
+
+      <h1 class="hero-title">
+        Vendre, louer,<br>
+        séduire — par<br>
+        l'<em>image</em>.
+      </h1>
+
+      <p class="hero-sub">
+        Films cinématographiques au format vertical pour valoriser vos biens, augmenter vos conversions et faire briller votre identité de marque sur les réseaux.
+      </p>
+
+      <div class="hero-chips">
+        <span class="chip">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V9l9-7 9 7v12"/><path d="M9 21V12h6v9"/></svg>
+          Agences immobilières
+        </span>
+        <span class="chip">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3"/></svg>
+          Hôtes Airbnb
+        </span>
+        <span class="chip">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="1"/><path d="M3 10h18M8 14h2M14 14h2M8 17h2M14 17h2"/></svg>
+          Hôtels & résidences
+        </span>
+        <span class="chip">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          Gestionnaires de location
+        </span>
+        <span class="chip">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Promoteurs
+        </span>
+      </div>
+
+      <div class="hero-cta">
+        <a href="#services" class="btn-cta">
+          Voir les offres
+          <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a href="#reels" class="btn-ghost">
+          <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Découvrir les extraits
+        </a>
+      </div>
+    </div>
+
+    <div class="hero-scroll">
+      <span class="scroll-label">Défiler</span>
+      <div class="scroll-bar"></div>
+    </div>
+  </section>
+
+
+  <!-- ════════════════════════════════
+       MARQUEE — TYPES DE CLIENTS
+  ════════════════════════════════ -->
+  <div class="trust-marquee">
+    <div class="marquee-track">
+      <span class="marquee-item">Agences immobilières<span class="dot"></span></span>
+      <span class="marquee-item">Hôtes Airbnb<span class="dot"></span></span>
+      <span class="marquee-item">Conciergeries<span class="dot"></span></span>
+      <span class="marquee-item">Hôtels boutique<span class="dot"></span></span>
+      <span class="marquee-item">Promoteurs immobiliers<span class="dot"></span></span>
+      <span class="marquee-item">Gestionnaires de patrimoine<span class="dot"></span></span>
+      <span class="marquee-item">Résidences de tourisme<span class="dot"></span></span>
+      <span class="marquee-item">Chasseurs immobiliers<span class="dot"></span></span>
+      <!-- Duplication pour boucle infinie -->
+      <span class="marquee-item">Agences immobilières<span class="dot"></span></span>
+      <span class="marquee-item">Hôtes Airbnb<span class="dot"></span></span>
+      <span class="marquee-item">Conciergeries<span class="dot"></span></span>
+      <span class="marquee-item">Hôtels boutique<span class="dot"></span></span>
+      <span class="marquee-item">Promoteurs immobiliers<span class="dot"></span></span>
+      <span class="marquee-item">Gestionnaires de patrimoine<span class="dot"></span></span>
+      <span class="marquee-item">Résidences de tourisme<span class="dot"></span></span>
+      <span class="marquee-item">Chasseurs immobiliers<span class="dot"></span></span>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════
+       POURQUOI LA VIDÉO ?
+  ════════════════════════════════ -->
+  <section class="why">
+    <div class="why-inner">
+      <div class="why-header reveal">
+        <div class="eyebrow">L'impact en chiffres</div>
+        <h2 class="h2">Pourquoi la <em>vidéo</em><br>change tout.</h2>
+        <p class="lead">À l'ère des réseaux sociaux et des plateformes de location, la vidéo cinématographique n'est plus un luxe — c'est l'avantage concurrentiel qui fait la différence.</p>
+      </div>
+
+      <div class="why-grid">
+        <div class="why-card reveal delay-1">
+          <div class="why-icon">
+            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div class="why-number">×4<sup></sup></div>
+          <div class="why-label">d'engagement vs photos seules sur les réseaux sociaux</div>
+          <div class="why-source">Source — Hubspot 2024</div>
+        </div>
+
+        <div class="why-card reveal delay-2">
+          <div class="why-icon">
+            <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><polyline points="3 12 8 7 13 12 21 4"/></svg>
+          </div>
+          <div class="why-number">+73<sup>%</sup></div>
+          <div class="why-label">de réservations supplémentaires pour les annonces avec vidéo</div>
+          <div class="why-source">Source — Airbnb Insights</div>
+        </div>
+
+        <div class="why-card reveal delay-3">
+          <div class="why-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="why-number">−40<sup>%</sup></div>
+          <div class="why-label">de durée moyenne avant location ou vente</div>
+          <div class="why-source">Source — NAR Real Estate</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ════════════════════════════════
+       SERVICES / OFFRES
+  ════════════════════════════════ -->
+  <section class="services" id="services">
+    <div class="services-inner">
+
+      <div class="services-header">
+        <div class="reveal">
+          <div class="eyebrow">Nos formules</div>
+          <h2 class="h2">Une offre pour<br>chaque <em>projet</em>.</h2>
+        </div>
+        <p class="lead reveal delay-1">
+          Trois formules pensées pour répondre aux besoins spécifiques des agences, hôtes Airbnb et hôteliers. Des forfaits clairs, des livrables concrets, et la possibilité de personnaliser sur demande.
+        </p>
+      </div>
+
+      <div class="services-grid">
+
+        <!-- ESSENTIEL -->
+        <div class="service-card reveal delay-1">
+          <span class="service-tag">Formule 01</span>
+          <h3 class="service-name">Essentiel</h3>
+          <p class="service-desc">Un reel cinématographique vertical pour mettre en lumière votre bien sur les réseaux sociaux.</p>
+
+          <ul class="service-features">
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> 1 vidéo verticale (60s)</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Format 9:16 — Réseaux sociaux</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Demi-journée de tournage</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Étalonnage cinéma</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Livraison sous 72h</li>
+          </ul>
+
+          <div class="service-ideal">Idéal pour <strong>hôtes Airbnb</strong> & <strong>locations courtes durées</strong></div>
+
+          <a href="#contact" class="service-cta">
+            Demander un devis
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+
+        <!-- SIGNATURE -->
+        <div class="service-card featured reveal delay-2">
+          <span class="service-tag">Formule 02</span>
+          <h3 class="service-name">Signature</h3>
+          <p class="service-desc">Un pack complet vidéo & photo pour valoriser un bien sur tous les supports — réseaux, site, portail.</p>
+
+          <ul class="service-features">
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> 1 reel vertical (60s) + 1 film horizontal (90s)</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> 10 photos haute définition</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Journée complète de tournage</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Voix-off ou musique sur mesure</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Livraison sous 5 jours</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Cession de droits commerciaux</li>
+          </ul>
+
+          <div class="service-ideal">Idéal pour <strong>agences</strong> & <strong>biens haut de gamme</strong></div>
+
+          <a href="#contact" class="service-cta">
+            Demander un devis
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+
+        <!-- PRESTIGE -->
+        <div class="service-card reveal delay-3">
+          <span class="service-tag">Formule 03</span>
+          <h3 class="service-name">Prestige</h3>
+          <p class="service-desc">L'expérience complète pour les biens d'exception, les hôtels et les projets éditoriaux ambitieux.</p>
+
+          <ul class="service-features">
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Films multi-formats (vertical, horizontal, carré)</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Prises de vue au drone</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> 25 photos retouchées</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Story-board & repérage préalable</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Tournage 1 à 2 jours</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Livraison sous 10 jours</li>
+            <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Suivi & conseil diffusion</li>
+          </ul>
+
+          <div class="service-ideal">Idéal pour <strong>hôtels</strong>, <strong>promoteurs</strong> & <strong>biens d'exception</strong></div>
+
+          <a href="#contact" class="service-cta">
+            Demander un devis
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ════════════════════════════════
+       RÉALISATIONS / REELS
+  ════════════════════════════════ -->
+  <section class="section-reels" id="reels">
+
+    <div class="reels-header">
+      <div class="reels-header-left reveal">
+        <div class="eyebrow">Nos réalisations</div>
+        <h2 class="h2">Extraits<br><em>immobiliers</em></h2>
+        <p class="lead">Films verticaux récents pour des agences, hôtes Airbnb et hôteliers. Cliquez sur une vignette pour visionner.</p>
+      </div>
+
+      <div class="reels-header-right reveal delay-2">
+        <div class="scroll-nav">
+          <button class="scroll-nav-btn" id="prevBtn" aria-label="Précédent">
+            <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <button class="scroll-nav-btn" id="nextBtn" aria-label="Suivant">
+            <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtres par type de client -->
+    <div class="reels-filters reveal delay-2">
+      <button class="filter-btn active" data-filter="all">Tous</button>
+      <button class="filter-btn" data-filter="agence">Agences</button>
+      <button class="filter-btn" data-filter="airbnb">Airbnb</button>
+      <button class="filter-btn" data-filter="hotel">Hôtels</button>
+      <button class="filter-btn" data-filter="prestige">Prestige</button>
+    </div>
+
+    <div class="reels-wrap" id="reelsWrap">
+      <div class="reels-track" id="reelsTrack">
+
+        <!-- ┌──────────────────────────────────────
+             │ 🎬 CARTES VIDÉOS
+             │ data-category : "agence" | "airbnb" | "hotel" | "prestige"
+             │ Mettez votre src vidéo dans <source>
+             └────────────────────────────────────── -->
+
+        <div class="reel-card" data-category="agence">
+          <div class="reel-bg reel-bg-1"></div>
+          <div class="reel-decor"></div>
+          <video class="reel-video" muted loop playsinline preload="none">
+            <source src="" type="video/mp4" />
+          </video>
+          <div class="reel-play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          <span class="reel-badge">Agence</span>
+          <div class="reel-info">
+            <span class="reel-location">Paris 8e</span>
+            <span class="reel-name">Haussmannien d'exception</span>
+          </div>
+        </div>
+
+        <div class="reel-card" data-category="airbnb">
+          <div class="reel-bg reel-bg-2"></div>
+          <div class="reel-decor"></div>
+          <video class="reel-video" muted loop playsinline preload="none">
+            <source src="" type="video/mp4" />
+          </video>
+          <div class="reel-play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          <span class="reel-badge">Airbnb</span>
+          <div class="reel-info">
+            <span class="reel-location">Montmartre</span>
+            <span class="reel-name">Studio cosy & lumineux</span>
+          </div>
+        </div>
+
+        <div class="reel-card" data-category="prestige">
+          <div class="reel-bg reel-bg-3"></div>
+          <div class="reel-decor"></div>
+          <video class="reel-video" muted loop playsinline preload="none">
+            <source src="" type="video/mp4" />
+          </video>
+          <div class="reel-play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          <span class="reel-badge">Prestige</span>
+          <div class="reel-info">
+            <span class="reel-location">Boulogne-Billancourt</span>
+            <span class="reel-name">Penthouse vue Seine</span>
+          </div>
+        </div>
+
+        <div class="reel-card" data-category="hotel">
+          <div class="reel-bg reel-bg-4"></div>
+          <div class="reel-decor"></div>
+          <video class="reel-video" muted loop playsinline preload="none">
+            <source src="" type="video/mp4" />
+          </video>
+          <div class="reel-play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          <span class="reel-badge">Hôtel</span>
+          <div class="reel-info">
+            <span class="reel-location">Le Marais</span>
+            <span class="reel-name">Boutique-hôtel design</span>
+          </div>
+        </div>
+
+        <div class="reel-card" data-category="prestige">
+          <div class="reel-bg reel-bg-5"></div>
+          <div class="reel-decor"></div>
+          <video class="reel-video" muted loop playsinline preload="none">
+            <source src="" type="video/mp4" />
+          </video>
+          <div class="reel-play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          <span class="reel-badge">Domaine</span>
+          <div class="reel-info">
+            <span class="reel-location">Versailles</span>
+            <span class="reel-name">Propriété de prestige</span>
+          </div>
+        </div>
+
+        <div class="reel-card" data-category="agence">
+          <div class="reel-bg reel-bg-6"></div>
+          <div class="reel-decor"></div>
+          <video class="reel-video" muted loop playsinline preload="none">
+            <source src="" type="video/mp4" />
+          </video>
+          <div class="reel-play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          <span class="reel-badge">Agence</span>
+          <div class="reel-info">
+            <span class="reel-location">Saint-Germain-en-Laye</span>
+            <span class="reel-name">Duplex contemporain</span>
+          </div>
+        </div>
+
+        <div class="reel-card" data-category="airbnb">
+          <div class="reel-bg reel-bg-1"></div>
+          <div class="reel-decor"></div>
+          <video class="reel-video" muted loop playsinline preload="none">
+            <source src="" type="video/mp4" />
+          </video>
+          <div class="reel-play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          <span class="reel-badge">Airbnb</span>
+          <div class="reel-info">
+            <span class="reel-location">Paris 11e</span>
+            <span class="reel-name">Loft atypique</span>
+          </div>
+        </div>
+
+        <div class="reel-card" data-category="hotel">
+          <div class="reel-bg reel-bg-3"></div>
+          <div class="reel-decor"></div>
+          <video class="reel-video" muted loop playsinline preload="none">
+            <source src="" type="video/mp4" />
+          </video>
+          <div class="reel-play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          <span class="reel-badge">Résidence</span>
+          <div class="reel-info">
+            <span class="reel-location">Côte d'Azur</span>
+            <span class="reel-name">Résidence de tourisme</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <p class="drag-hint">
+      <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      Glissez pour explorer
+    </p>
+
+  </section>
+
+
+  <!-- ════════════════════════════════
+       PROCESS
+  ════════════════════════════════ -->
+  <section class="process" id="process">
+    <div class="process-inner">
+      <div class="process-header reveal">
+        <div class="eyebrow">Notre méthode</div>
+        <h2 class="h2">Un process<br><em>limpide</em>, en 4 étapes.</h2>
+        <p class="lead">De la première prise de contact à la livraison de vos vidéos, chaque étape est claire, encadrée et conçue pour vous offrir une expérience fluide.</p>
+      </div>
+
+      <div class="process-timeline">
+
+        <div class="process-step reveal delay-1">
+          <div class="process-num">01</div>
+          <h3 class="process-title">Brief</h3>
+          <span class="process-time">Jour 1</span>
+          <p class="process-desc">Échange visio ou téléphone pour cerner vos objectifs, puis devis personnalisé sous 24h.</p>
+        </div>
+
+        <div class="process-step reveal delay-2">
+          <div class="process-num">02</div>
+          <h3 class="process-title">Tournage</h3>
+          <span class="process-time">Jour 2-3</span>
+          <p class="process-desc">Captation sur site avec matériel pro. Demi-journée à journée selon la formule choisie.</p>
+        </div>
+
+        <div class="process-step reveal delay-3">
+          <div class="process-num">03</div>
+          <h3 class="process-title">Montage</h3>
+          <span class="process-time">Jour 4-7</span>
+          <p class="process-desc">Étalonnage cinéma, sélection musicale, montage rythmé. Une révision incluse.</p>
+        </div>
+
+        <div class="process-step reveal delay-4">
+          <div class="process-num">04</div>
+          <h3 class="process-title">Livraison</h3>
+          <span class="process-time">Jour 7-10</span>
+          <p class="process-desc">Fichiers HD livrés via lien sécurisé, multi-formats prêts à publier sur tous vos supports.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ════════════════════════════════
+       TÉMOIGNAGES
+  ════════════════════════════════ -->
+  <section class="testimonials">
+    <div class="testimonials-inner">
+
+      <div class="testimonials-header reveal">
+        <div class="eyebrow">Ils nous ont fait confiance</div>
+        <h2 class="h2">Ce que disent<br>nos <em>clients</em>.</h2>
+      </div>
+
+      <div class="testimonials-grid">
+
+        <!-- 💬 Remplacez par vos vrais témoignages -->
+        <div class="testimonial reveal delay-1">
+          <span class="testimonial-quote">"</span>
+          <div class="testimonial-stars">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <p class="testimonial-text">Travail d'orfèvre. Nos biens hauts de gamme partent désormais en moins de trois semaines — la vidéo fait toute la différence sur les réseaux.</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">M</div>
+            <div class="testimonial-info">
+              <span class="testimonial-name">Marie L.</span>
+              <span class="testimonial-role">Agence immobilière · Paris</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial reveal delay-2">
+          <span class="testimonial-quote">"</span>
+          <div class="testimonial-stars">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <p class="testimonial-text">Mon taux de réservation a doublé en deux mois. Les vidéos sont sublimes et parfaites pour Instagram comme pour mon annonce Airbnb.</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">T</div>
+            <div class="testimonial-info">
+              <span class="testimonial-name">Thomas R.</span>
+              <span class="testimonial-role">Hôte Airbnb · Montmartre</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial reveal delay-3">
+          <span class="testimonial-quote">"</span>
+          <div class="testimonial-stars">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <p class="testimonial-text">Un vrai œil de cinéaste. La vidéo de notre boutique-hôtel a généré plus d'engagement Instagram que toutes nos campagnes payantes réunies.</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">S</div>
+            <div class="testimonial-info">
+              <span class="testimonial-name">Sophie V.</span>
+              <span class="testimonial-role">Directrice · Hôtel boutique Paris</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ════════════════════════════════
+       FAQ
+  ════════════════════════════════ -->
+  <section class="faq">
+    <div class="faq-inner">
+
+      <div class="faq-side reveal">
+        <div class="eyebrow">Questions fréquentes</div>
+        <h2 class="h2">Tout ce que<br>vous voulez <em>savoir</em>.</h2>
+        <p class="lead">Vous ne trouvez pas la réponse à votre question ? Contactez-nous directement, nous répondons sous 24h.</p>
+      </div>
+
+      <div class="faq-list reveal delay-2">
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>Quel est le délai de livraison habituel ?</span>
+            <span class="faq-toggle"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+          </button>
+          <div class="faq-answer"><div class="faq-answer-inner">
+            Le délai dépend de la formule choisie : 72h pour la formule Essentiel, 5 jours ouvrés pour Signature, et 10 jours pour Prestige. En cas d'urgence (mise en ligne rapide d'un bien), nous proposons une option express avec un supplément.
+          </div></div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>Combien coûte un tournage ?</span>
+            <span class="faq-toggle"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+          </button>
+          <div class="faq-answer"><div class="faq-answer-inner">
+            Chaque projet est unique. Le tarif dépend de la formule, du nombre de biens, de la localisation et des prestations annexes (drone, voix-off, photos). Contactez-nous pour un devis personnalisé sous 24h — sans engagement.
+          </div></div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>Dans quels formats les vidéos sont-elles livrées ?</span>
+            <span class="faq-toggle"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+          </button>
+          <div class="faq-answer"><div class="faq-answer-inner">
+            Toutes nos vidéos sont livrées en HD ou 4K, optimisées pour vos canaux : 9:16 pour Instagram Reels, TikTok et Stories, 1:1 pour le feed, 16:9 pour YouTube et votre site. Vous recevez tous les formats nécessaires en une seule livraison.
+          </div></div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>Vous déplacez-vous en région ?</span>
+            <span class="faq-toggle"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+          </button>
+          <div class="faq-answer"><div class="faq-answer-inner">
+            Nous sommes basés en Île-de-France et nous nous déplaçons partout en France selon les projets. Les frais de déplacement sont inclus dans un rayon de 50 km autour de Paris. Au-delà, ils sont chiffrés transparentement dans le devis.
+          </div></div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>À qui appartiennent les droits sur les vidéos ?</span>
+            <span class="faq-toggle"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+          </button>
+          <div class="faq-answer"><div class="faq-answer-inner">
+            Vous obtenez une cession de droits d'usage commercial sur tous vos canaux (réseaux sociaux, site, publicités, portails immobiliers). Les droits d'auteur et de signature restent à TimelessHouse, qui peut utiliser des extraits dans son portfolio sauf demande contraire.
+          </div></div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>Travaillez-vous avec les agences en récurrence ?</span>
+            <span class="faq-toggle"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+          </button>
+          <div class="faq-answer"><div class="faq-answer-inner">
+            Oui — nous proposons des contrats mensuels ou trimestriels avec des tarifs préférentiels pour les agences, conciergeries et gestionnaires souhaitant filmer plusieurs biens régulièrement. Demandez-nous une proposition sur mesure.
+          </div></div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ════════════════════════════════
+       CTA FINALE
+  ════════════════════════════════ -->
+  <section class="final-cta">
+    <div class="final-cta-inner reveal">
+      <div class="eyebrow" style="justify-content:center;">
+        <span style="display:inline-block;width:30px;height:1px;background:var(--gold);margin-right:14px;"></span>
+        Prêt à passer à l'action ?
+      </div>
+      <h2 class="final-cta-title">
+        Faites de vos biens<br>
+        des films <em>cinématographiques</em>.
+      </h2>
+      <p class="final-cta-sub">
+        Que vous soyez agent immobilier, hôte Airbnb, hôtelier ou gestionnaire — discutons de votre projet. Devis gratuit sous 24h.
+      </p>
+      <div class="final-cta-row">
+        <a href="#contact" class="btn-cta">
+          Réserver un appel
+          <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a href="mailto:service@timelesshouse.org" class="btn-ghost">
+          <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Envoyer un email
+        </a>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ════════════════════════════════
+       CONTACT
+  ════════════════════════════════ -->
+  <section class="section-contact" id="contact">
+    <div class="contact-deco contact-deco-1"></div>
+    <div class="contact-deco contact-deco-2"></div>
+    <div class="contact-deco contact-deco-3"></div>
+
+    <div class="contact-inner">
+
+      <div class="contact-left reveal">
+        <div class="eyebrow">Formulaire de contact</div>
+        <h2 class="contact-heading">Parlons de<br>votre <em>projet</em></h2>
+        <p class="contact-body">
+          Décrivez-nous votre projet en quelques lignes. Nous revenons vers vous sous 24h avec une proposition adaptée et sans engagement.
+        </p>
+
+        <div class="contact-details">
+          <div class="contact-row">
+            <div class="contact-row-icon">
+              <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <div class="contact-row-text">
+              <a href="mailto:service@timelesshouse.org">service@timelesshouse.org</a>
+            </div>
+          </div>
+          <div class="contact-row">
+            <div class="contact-row-icon">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="contact-row-text">Réponse garantie sous 24h</div>
+          </div>
+          <div class="contact-row">
+            <div class="contact-row-icon">
+              <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div class="contact-row-text">Île-de-France & déplacements France entière</div>
+          </div>
+        </div>
+
+        <div class="contact-social">
+          <a href="https://www.instagram.com/_timelesshouse" target="_blank" rel="noopener noreferrer" class="social-icon" aria-label="Instagram">
+            <svg viewBox="0 0 24 24"><path d="M12 2C14.717 2 15.056 2.01 16.122 2.06C17.187 2.11 17.912 2.277 18.55 2.525C19.21 2.779 19.766 3.123 20.322 3.678C20.8305 4.1779 21.224 4.78259 21.475 5.45C21.722 6.087 21.89 6.813 21.94 7.878C21.987 8.944 22 9.283 22 12C22 14.717 21.99 15.056 21.94 16.122C21.89 17.187 21.722 17.912 21.475 18.55C21.2247 19.2178 20.8311 19.8226 20.322 20.322C19.822 20.8303 19.2173 21.2238 18.55 21.475C17.913 21.722 17.187 21.89 16.122 21.94C15.056 21.987 14.717 22 12 22C9.283 22 8.944 21.99 7.878 21.94C6.813 21.89 6.088 21.722 5.45 21.475C4.78233 21.2245 4.17753 20.8309 3.678 20.322C3.16941 19.8222 2.77593 19.2175 2.525 18.55C2.277 17.913 2.11 17.187 2.06 16.122C2.013 15.056 2 14.717 2 12C2 9.283 2.01 8.944 2.06 7.878C2.11 6.812 2.277 6.088 2.525 5.45C2.77524 4.78218 3.1688 4.17732 3.678 3.678C4.17767 3.16923 4.78243 2.77573 5.45 2.525C6.088 2.277 6.812 2.11 7.878 2.06C8.944 2.013 9.283 2 12 2ZM12 7C10.6739 7 9.40215 7.52678 8.46447 8.46447C7.52678 9.40215 7 10.6739 7 12C7 13.3261 7.52678 14.5979 8.46447 15.5355C9.40215 16.4732 10.6739 17 12 17C13.3261 17 14.5979 16.4732 15.5355 15.5355C16.4732 14.5979 17 13.3261 17 12C17 10.6739 16.4732 9.40215 15.5355 8.46447C14.5979 7.52678 13.3261 7 12 7ZM18.5 6.75C18.5 6.41848 18.3683 6.10054 18.1339 5.86612C17.8995 5.6317 17.5815 5.5 17.25 5.5C16.9185 5.5 16.6005 5.6317 16.3661 5.86612C16.1317 6.10054 16 6.41848 16 6.75C16 7.08152 16.1317 7.39946 16.3661 7.63388C16.6005 7.8683 16.9185 8 17.25 8C17.5815 8 17.8995 7.8683 18.1339 7.63388C18.3683 7.39946 18.5 7.08152 18.5 6.75ZM12 9C12.7956 9 13.5587 9.31607 14.1213 9.87868C14.6839 10.4413 15 11.2044 15 12C15 12.7956 14.6839 13.5587 14.1213 14.1213C13.5587 14.6839 12.7956 15 12 15C11.2044 15 10.4413 14.6839 9.87868 14.1213C9.31607 13.5587 9 12.7956 9 12C9 11.2044 9.31607 10.4413 9.87868 9.87868C10.4413 9.31607 11.2044 9 12 9Z"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="contact-right reveal delay-2">
+        <div class="contact-form">
+
+          <div class="form-row-2">
+            <div class="field">
+              <label>Prénom *</label>
+              <input type="text" id="cfPrenom" placeholder="Jean" autocomplete="given-name">
+            </div>
+            <div class="field">
+              <label>Nom *</label>
+              <input type="text" id="cfNom" placeholder="Dupont" autocomplete="family-name">
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="field">
+              <label>Email *</label>
+              <input type="email" id="cfEmail" placeholder="jean@email.com" autocomplete="email">
+            </div>
+            <div class="field">
+              <label>Téléphone</label>
+              <input type="tel" id="cfPhone" placeholder="06 XX XX XX XX" autocomplete="tel">
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="field">
+              <label>Vous êtes *</label>
+              <select id="cfProfil">
+                <option value="">— Sélectionner —</option>
+                <option>Agence immobilière</option>
+                <option>Hôte Airbnb</option>
+                <option>Hôtel / Boutique-hôtel</option>
+                <option>Gestionnaire de location</option>
+                <option>Conciergerie</option>
+                <option>Promoteur immobilier</option>
+                <option>Particulier</option>
+                <option>Autre</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Formule envisagée</label>
+              <select id="cfFormule">
+                <option value="">— À définir —</option>
+                <option>Essentiel</option>
+                <option>Signature</option>
+                <option>Prestige</option>
+                <option>Sur mesure</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="field">
+              <label>Localisation du bien</label>
+              <input type="text" id="cfVille" placeholder="Paris, Lyon, Bordeaux…">
+            </div>
+            <div class="field">
+              <label>Délai souhaité</label>
+              <select id="cfDelai">
+                <option value="">— À définir —</option>
+                <option>Urgent (sous 7 jours)</option>
+                <option>Sous 2 semaines</option>
+                <option>Sous 1 mois</option>
+                <option>Pas de contrainte</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Décrivez votre projet *</label>
+            <textarea id="cfMessage" placeholder="Type de bien, surface, ambiance souhaitée, supports de diffusion…"></textarea>
+          </div>
+
+          <p class="form-note">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Aucune donnée n'est conservée. Le formulaire ouvre votre client mail pré-rempli.
+          </p>
+
+          <button class="btn-send" onclick="sendForm()">
+            Envoyer la demande
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ════════════════════════════════
+       FOOTER
+  ════════════════════════════════ -->
+  <footer class="site-footer">
+    <div class="footer-top">
+      <div class="footer-col">
+        <span class="footer-brand">TimelessHouse</span>
+        <p class="footer-tagline">Studio de vidéo immobilière cinématographique. Pour agences, hôtes Airbnb, hôteliers et gestionnaires soucieux de l'image.</p>
+      </div>
+      <div class="footer-col">
+        <h4 class="footer-col-title">Navigation</h4>
+        <ul>
+          <li><a href="#services">Offres</a></li>
+          <li><a href="#reels">Réalisations</a></li>
+          <li><a href="#process">Process</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4 class="footer-col-title">Univers</h4>
+        <ul>
+          <li><a href="index.html" id="footerHome">Accueil</a></li>
+          <li><a href="mariage.html">Mariage</a></li>
+          <li><button onclick="openModal()">Espace Clients</button></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4 class="footer-col-title">Contact</h4>
+        <ul>
+          <li><a href="mailto:service@timelesshouse.org">service@timelesshouse.org</a></li>
+          <li><a href="https://www.instagram.com/_timelesshouse" target="_blank" rel="noopener noreferrer">Instagram</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span class="footer-copy">© 2025 TimelessHouse · Tous droits réservés</span>
+      <div class="footer-legal">
+        <a href="#">Mentions légales</a>
+        <a href="#">CGV</a>
+      </div>
+    </div>
+  </footer>
+
+
+  <!-- ════════════════════════════════
+       FLOATING CONTACT
+  ════════════════════════════════ -->
+  <a href="#contact" class="floating-contact" id="floatingContact">
+    <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+    <span>Discuter d'un projet</span>
+  </a>
+
+
+  <!-- ════════════════════════════════
+       MODALE ESPACE CLIENTS
+  ════════════════════════════════ -->
+  <div class="modal-overlay" id="clientModal" onclick="closeOnOverlay(event)">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeModal()" aria-label="Fermer">✕</button>
+
+      <div class="modal-icon">
+        <svg viewBox="0 0 24 24">
+          <circle cx="8" cy="15" r="4"/>
+          <path d="M10.85 12.15L19 4"/>
+          <path d="M18 5l2 2"/>
+          <path d="M15 8l2 2"/>
+        </svg>
+      </div>
+
+      <span class="modal-tag">Espace Privé</span>
+      <h2 class="modal-title">Accès Client</h2>
+      <p class="modal-desc">Entrez le code d'accès personnel<br>qui vous a été communiqué.</p>
+
+      <input
+        type="password"
+        class="modal-input"
+        id="clientCode"
+        placeholder="VOTRE CODE"
+        onkeydown="if(event.key==='Enter') checkCode()"
+        autocomplete="off"
+      >
+
+      <button class="modal-btn" onclick="checkCode()">Accéder à mon espace</button>
+
+      <p class="modal-error" id="modalError">Code incorrect — veuillez réessayer.</p>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════
+       SCRIPTS
+  ════════════════════════════════ -->
+  <!-- 🔐 Codes clients — fichier maître partagé par toutes les pages -->
+  <script src="clients-data.js"></script>
+
+  <script>
+    /* ════════════════════════════════════════════════════════════
+       🔐  ESPACE CLIENTS — UNIVERS IMMOBILIER
+       ════════════════════════════════════════════════════════════
+
+       📁 OÙ MODIFIER LES CODES ?
+       ──────────────────────────
+       Tous les codes du site sont gérés DANS UN SEUL FICHIER :
+
+           👉 clients-data.js  (à la racine du site)
+
+       Ouvre-le, trouve la section "immobilier" et ajoute/retire les
+       clients comme tu veux. Aucune autre édition n'est nécessaire.
+
+
+       ⚠️  SÉCURITÉ PAR UNIVERS — INCHANGÉE
+       ─────────────────────────────────────
+       Cette page (immobilier.html) lit UNIQUEMENT la section
+       "immobilier" du fichier partagé. Les codes des autres univers
+       (mariage, voyage…) seront REFUSÉS ici. C'est voulu.
+
+       Sur la page d'accueil (index.html), tous les codes fonctionnent.
+       ════════════════════════════════════════════════════════════ */
+
+    // On lit uniquement les codes de l'univers "immobilier" depuis le fichier partagé
+    const CODES_IMMO = (window.CODES_PAR_UNIVERS || {}).immobilier || {};
+
+    const CONTACT_EMAIL = 'service@timelesshouse.org';
+
+    /* ── PAGE TRANSITION ── */
+    window.addEventListener('load', () => {
+      setTimeout(() => { document.getElementById('pageTransition').classList.add('hidden'); }, 300);
+    });
+    setTimeout(() => { document.getElementById('pageTransition').classList.add('hidden'); }, 2500);
+
+    function navigateWithFade(url) {
+      const pt = document.getElementById('pageTransition');
+      pt.classList.remove('hidden');
+      pt.classList.add('exiting');
+      setTimeout(() => { window.location.href = url; }, 700);
+    }
+    document.getElementById('backHome').addEventListener('click', (e) => { e.preventDefault(); navigateWithFade('index.html'); });
+    document.getElementById('logoLink').addEventListener('click', (e) => { e.preventDefault(); navigateWithFade('index.html'); });
+    document.getElementById('footerHome').addEventListener('click', (e) => { e.preventDefault(); navigateWithFade('index.html'); });
+
+    /* Smooth scroll pour ancres internes */
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', (e) => {
+        const target = document.querySelector(a.getAttribute('href'));
+        if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth' }); }
+      });
+    });
+
+    /* ── HEADER SCROLL + PROGRESS BAR + FLOATING CTA ── */
+    const header = document.getElementById('siteHeader');
+    const progressBar = document.getElementById('progressBar');
+    const floatingCTA = document.getElementById('floatingContact');
+
+    function onScroll() {
+      const sy = window.scrollY;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      const pct = max > 0 ? (sy / max) * 100 : 0;
+      progressBar.style.width = pct + '%';
+      header.classList.toggle('scrolled', sy > 70);
+      floatingCTA.classList.toggle('visible', sy > 800);
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    /* ── SCROLL REVEAL ── */
+    const revealObs = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
+
+    /* ── DRAG SCROLL CAROUSEL ── */
+    const wrap = document.getElementById('reelsWrap');
+    let isDragging = false, dragStartX = 0, dragScrollLeft = 0;
+    wrap.addEventListener('mousedown', (e) => {
+      isDragging = true; wrap.classList.add('grabbing');
+      dragStartX = e.pageX - wrap.offsetLeft;
+      dragScrollLeft = wrap.scrollLeft;
+    });
+    ['mouseleave', 'mouseup'].forEach(ev =>
+      wrap.addEventListener(ev, () => { isDragging = false; wrap.classList.remove('grabbing'); })
+    );
+    wrap.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const x = e.pageX - wrap.offsetLeft;
+      wrap.scrollLeft = dragScrollLeft - (x - dragStartX) * 1.4;
+    });
+
+    const CARD_W = 274;
+    document.getElementById('prevBtn').addEventListener('click', () => wrap.scrollBy({ left: -CARD_W, behavior: 'smooth' }));
+    document.getElementById('nextBtn').addEventListener('click', () => wrap.scrollBy({ left: CARD_W, behavior: 'smooth' }));
+
+    /* ── FILTRES REELS ── */
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const cat = btn.dataset.filter;
+        document.querySelectorAll('.reel-card').forEach(card => {
+          if (cat === 'all' || card.dataset.category === cat) {
+            card.classList.remove('hidden-card');
+          } else {
+            card.classList.add('hidden-card');
+          }
+        });
+        wrap.scrollTo({ left: 0, behavior: 'smooth' });
+      });
+    });
+
+    /* ── HOVER PLAY VIDÉOS ── */
+    document.querySelectorAll('.reel-card').forEach(card => {
+      const video = card.querySelector('video');
+      const play  = card.querySelector('.reel-play');
+      const src   = video ? video.querySelector('source').getAttribute('src') : '';
+      if (src && src.trim() !== '') {
+        card.addEventListener('mouseenter', () => { video.play().catch(() => {}); if (play) play.style.opacity = '0'; });
+        card.addEventListener('mouseleave', () => { video.pause(); video.currentTime = 0; if (play) play.style.opacity = '1'; });
+      }
+    });
+
+    /* ── FAQ ACCORDION ── */
+    function toggleFaq(btn) {
+      const item = btn.closest('.faq-item');
+      const isOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(it => it.classList.remove('open'));
+      if (!isOpen) item.classList.add('open');
+    }
+
+    /* ── MODALE ── */
+    function openModal() {
+      document.getElementById('clientModal').classList.add('active');
+      setTimeout(() => { document.getElementById('clientCode').focus(); }, 200);
+    }
+    function closeModal() {
+      document.getElementById('clientModal').classList.remove('active');
+      document.getElementById('modalError').style.display = 'none';
+      document.getElementById('clientCode').value = '';
+    }
+    function closeOnOverlay(e) { if (e.target === document.getElementById('clientModal')) closeModal(); }
+
+    function checkCode() {
+      const raw = document.getElementById('clientCode').value;
+      const code = raw.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/&/g, ' ').trim()
+        .replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+      if (CODES_IMMO.hasOwnProperty(code)) {
+        sessionStorage.setItem('access_granted', code);
+        window.location.href = CODES_IMMO[code];
+      } else {
+        const err = document.getElementById('modalError');
+        err.style.display = 'block';
+        document.getElementById('clientCode').style.borderColor = 'rgba(217,112,112,0.5)';
+        setTimeout(() => { document.getElementById('clientCode').style.borderColor = ''; }, 1500);
+      }
+    }
+    if (window.location.hash === '#clients') {
+      setTimeout(openModal, 350);
+      history.replaceState(null, null, ' ');
+    }
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+    /* ── FORMULAIRE CONTACT ── */
+    function sendForm() {
+      const v = id => document.getElementById(id).value.trim();
+      const prenom = v('cfPrenom'), nom = v('cfNom'), email = v('cfEmail'), phone = v('cfPhone');
+      const profil = v('cfProfil'), formule = v('cfFormule'), ville = v('cfVille'), delai = v('cfDelai');
+      const message = v('cfMessage');
+
+      if (!prenom || !nom || !email || !profil || !message) {
+        alert('Merci de remplir tous les champs marqués d\'un astérisque (*).');
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        alert('Adresse email invalide.');
+        return;
+      }
+
+      const subject = encodeURIComponent(`Demande Immobilier — ${profil} — ${prenom} ${nom}`);
+      const body = encodeURIComponent(
+        `Prénom : ${prenom}\n` +
+        `Nom    : ${nom}\n` +
+        `Email  : ${email}\n` +
+        `Tél.   : ${phone || '—'}\n\n` +
+        `Profil    : ${profil}\n` +
+        `Formule   : ${formule || 'À définir'}\n` +
+        `Localisation : ${ville || '—'}\n` +
+        `Délai     : ${delai || 'Non précisé'}\n\n` +
+        `── Message ──\n${message}`
+      );
+      window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+    }
+  </script>
+
+</body>
+</html>

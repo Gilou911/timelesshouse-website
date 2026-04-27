@@ -10,6 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
+  <link rel="preload" as="image" href="Vignette_Eunice&_Josue.jpg" fetchpriority="high" />
+
   <style>
     :root {
       --cine-dark: #1a1410;
@@ -40,6 +42,12 @@
     body.en-mode [data-lang="en"] { display: inline; }
 
     /* === VIDÉO DE FOND + PREVIEW === */
+    video::-webkit-media-controls { display: none !important; }
+    video::-webkit-media-controls-enclosure { display: none !important; }
+    video::-webkit-media-controls-overlay-play-button { display: none !important; }
+    video::-webkit-media-controls-start-playback-button { display: none !important; }
+    video { pointer-events: none !important; }
+
     .bg-video-wrap {
       position: fixed; inset: 0; z-index: 0;
       overflow: hidden; background: var(--cine-dark);
@@ -351,16 +359,18 @@
 <body>
 
   <div class="bg-video-wrap">
-    <img class="bg-poster" src="Vignette_Eunice&_Josue.jpg" alt="" aria-hidden="true">
+    
+    <img src="Vignette_Eunice&_Josue.jpg" alt="Portrait cinematique mariage" class="bg-poster" fetchpriority="high" loading="eager">
 
-    <video class="bg-video" autoplay muted loop playsinline preload="metadata"
+    <video autoplay muted loop playsinline preload="auto" disableremoteplayback
            poster="Vignette_Eunice&_Josue.jpg"
-           onloadeddata="this.classList.add('loaded')">
-      <source src="https://streamable.com/l/clh7jh/mp4-high.mp4" type="video/mp4" />
+           class="bg-video" 
+           onplaying="this.classList.add('is-playing')">
+        <source src="https://streamable.com/l/9eoymb/mp4-high.mp4" type="video/mp4" />
     </video>
-
-    <video class="bg-video-preview" muted loop playsinline preload="none"></video>
+  <video class="bg-video-preview" muted loop playsinline preload="none"></video>
   </div>
+
   <div class="bg-overlay"></div>
 
   <div class="page">
@@ -382,7 +392,7 @@
         </a>
         <a href="https://www.instagram.com/_timelesshouse" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="social-link">
           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C14.717 2 15.056 2.01 16.122 2.06C17.187 2.11 17.912 2.277 18.55 2.525C19.21 2.779 19.766 3.123 20.322 3.678C20.8305 4.1779 21.224 4.78259 21.475 5.45C21.722 6.087 21.89 6.813 21.94 7.878C21.987 8.944 22 9.283 22 12C22 14.717 21.99 15.056 21.94 16.122C21.89 17.187 21.722 17.912 21.475 18.55C21.2247 19.2178 20.8311 19.8226 20.322 20.322C19.822 20.8303 19.2173 21.2238 18.55 21.475C17.913 21.722 17.187 21.89 16.122 21.94C15.056 21.987 14.717 22 12 22C9.283 22 8.944 21.99 7.878 21.94C6.813 21.89 6.088 21.722 5.45 21.475C4.78233 21.2245 4.17753 20.8309 3.678 20.322C3.16941 19.8222 2.77593 19.2175 2.525 18.55C2.277 17.913 2.11 17.187 2.06 16.122C2.013 15.056 2 14.717 2 12C2 9.283 2.01 8.944 2.06 7.878C2.11 6.812 2.277 6.088 2.525 5.45C2.77524 4.78218 3.1688 4.17732 3.678 3.678C4.17767 3.16923 4.78243 2.77573 5.45 2.525C6.088 2.277 6.812 2.11 7.878 2.06C8.944 2.013 9.283 2 12 2ZM12 7C10.6739 7 9.40215 7.52678 8.46447 8.46447C7.52678 9.40215 7 10.6739 7 12C7 13.3261 7.52678 14.5979 8.46447 15.5355C9.40215 16.4732 10.6739 17 12 17C13.3261 17 14.5979 16.4732 15.5355 15.5355C16.4732 14.5979 17 13.3261 17 12C17 10.6739 16.4732 9.40215 15.5355 8.46447C14.5979 7.52678 13.3261 7 12 7ZM18.5 6.75C18.5 6.41848 18.3683 6.10054 18.1339 5.86612C17.8995 5.6317 17.5815 5.5 17.25 5.5C16.9185 5.5 16.6005 5.6317 16.3661 5.86612C16.1317 6.10054 16 6.41848 16 6.75C16 7.08152 16.1317 7.39946 16.3661 7.63388C16.6005 7.8683 16.9185 8 17.25 8C17.5815 8 17.8995 7.8683 18.1339 7.63388C18.3683 7.39946 18.5 7.08152 18.5 6.75ZM12 9C12.7956 9 13.5587 9.31607 14.1213 9.87868C14.6839 10.4413 15 11.2044 15 12C15 12.7956 14.6839 13.5587 14.1213 14.1213C13.5587 14.6839 12.7956 15 12 15C11.2044 15 10.4413 14.6839 9.87868 14.1213C9.31607 13.5587 9 12.7956 9 12C9 11.2044 9.31607 10.4413 9.87868 9.87868C10.4413 9.31607 11.2044 9 12 9Z"/>
+            <path d="M12 2C14.717 2 15.056 2.01 16.122 2.06C17.187 2.11 17.912 2.277 18.55 2.525C19.21 2.779 19.766 3.123 20.322 3.678C20.8305 4.1779 21.224 4.78259 21.475 5.45C21.722 6.087 21.89 6.813 21.94 7.878C21.987 8.944 22 9.283 22 12C22 14.717 21.99 15.056 21.94 16.122C21.89 17.187 21.722 17.912 21.475 18.55C21.2247 19.2178 20.8311 19.8226 20.322 20.322C19.822 20.8303 19.2173 21.2238 18.55 21.475C17.913 21.722 17.187 21.89 16.122 21.94C15.056 21.987 14.717 22 12 22C9.283 22 8.944 21.99 7.878 21.94C6.813 21.89 6.088 21.722 5.45 21.475C4.78233 21.2245 4.17753 20.8309 3.678 20.322C3.16941 19.8222 2.77593 19.2175 2.525 18.55C2.277 17.913 2.11 17.187 2.06 16.122C2.013 15.056 2 14.717 2 12C2 9.283 2.01 8.944 2.06 7.878C2.11 6.812 2.277 6.088 2.525 5.45C2.77524 4.78218 3.1688 4.17732 3.678 3.678C4.17767 3.16923 4.78243 2.77573 5.45 2.525C6.088 2.277 6.812 2.11 7.878 2.06C8.944 2.013 9.283 2 12 2ZM12 7C10.6739 7 9.40215 7.52678 8.46447 8.46447C7.52678 9.40215 7 10.6739 7 12C7 13.3261 7.52678 14.5979 8.46447 15.5355C9.40215 16.4732 10.6739 17 12 17C13.3261 17 14.5979 16.4732 15.5355 15.5355C16.4732 14.5979 17 13.3261 17 12C17 10.6739 16.4732 9.40215 15.5355 8.46447C14.5979 7.52678 13.3261 7 12 7ZM18.5 6.75C18.5 6.41848 18.3683 6.10054 18.1339 5.86612C17.8995 5.6317 17.5815 5.5 17.25 5.5C16.9185 5.5 16.6005 5.6317 16.3661 5.86612C16.1317 6.10054 16 6.41848 16 6.75C16 7.08152 16.1317 7.39946 16.3661 7.63388C16.6005 7.8683 16.9185 8 17.25 8C17.5815 8 17.8995 7.8683 18.1339 7.63388C18.3683 7.39946 18.5 7.08152 18.5 6.75ZM12 9C12.7956 9 13.5587 9.31607 14.1213 9.87868C14.6839 10.4413 15 11.2044 15 12C15 12.7956 14.6839 13.5587 14.1213 14.1213C13.5587 14.6839 12.7956 15 12 15C11.2044 15 10.4413 14.6839 9.87868 14.1213C9.31607 13.5587 9 12.7956 9 12C9 11.2044 9.31607 10.4413 9.87868 9.87868C10.4413 9.31607 11.2044 9 12 9Z" fill="currentColor"/>
           </svg>
         </a>
         <button class="lang-switch" onclick="toggleLanguage()" aria-label="Changer de langue">EN/FR</button>
@@ -411,7 +421,7 @@
           <span class="modal-close" onclick="closeClientModal()">✕</span>
           
           <span class="kicker-modal"><span data-lang="fr">Espace Privé</span><span data-lang="en">Private Area</span></span>
-          <h2 class="title-modal"><span data-lang="fr">Accès Mariés</span><span data-lang="en">Client Access</span></h2>
+          <h2 class="title-modal"><span data-lang="fr">Espace Clients</span><span data-lang="en">Client Area</span></h2>
           
           <p style="margin-bottom: 25px; font-size: 13px; color: var(--cine-cream-soft);">
               <span data-lang="fr">Entrez votre code d'accès personnel.</span>
@@ -423,7 +433,7 @@
           </div>
           
           <button onclick="checkClientCode()" class="btn-primary">
-              <span data-lang="fr">Accéder aux films</span><span data-lang="en">View Films</span>
+              <span data-lang="fr">Accéder à mon espace</span><span data-lang="en">Access my Space</span>
           </button>
           
           <p id="clientError" style="color: #ff6b6b; font-size: 12px; margin-top: 15px; display: none;">
@@ -446,9 +456,22 @@
     <span class="page-transition-mark">TIMELESSHOUSE</span>
   </div>
 
+  <!-- 🔐 Codes clients — fichier maître partagé par toutes les pages -->
+  <script src="clients-data.js"></script>
+
   <script>
     /* ============================================================
-       🎬  CONFIGURATION DES THÈMES / UNIVERS
+       💡 ASTUCE CLOUDINARY POUR L'IMAGE DE CHARGEMENT (POSTER) :
+       Pour afficher une image en attendant que la vidéo de prévisualisation charge, 
+       nous utilisons l'attribut HTML natif `poster` sur la balise vidéo.
+       
+       MÉTHODE CLOUDINARY : 
+       Si votre vidéo est hébergée sur Cloudinary, vous pouvez obtenir 
+       l'image de couverture automatiquement en changeant simplement 
+       l'extension .mp4 en .jpg dans l'URL.
+       Exemple: .../upload/v123/video.mp4 -> .../upload/v123/video.jpg
+       
+       Ajoutez vos URL d'images dans la propriété `poster:` ci-dessous.
        ============================================================ */
     const THEMES = [
       {
@@ -456,95 +479,71 @@
         label:    { fr: 'Mariage',       en: 'Wedding' },
         subtitle: { fr: 'Films de mariage', en: 'Wedding films' },
         url:      'mariage.html',
-        preview:  'https://streamable.com/l/5p6n3h/mp4.mp4'
+        preview:  'https://streamable.com/l/5p6n3h/mp4.mp4',
+        poster:   'https://res.cloudinary.com/dyfa4zztq/image/upload/v1776696671/Photos_ezla-davy/couple/05.jpg'
       },
       {
         id:       'court-metrage',
         label:    { fr: 'Court-Métrage', en: 'Short Film' },
         subtitle: { fr: 'Fiction & narratif', en: 'Fiction & narrative' },
         url:      null,
-        preview:  null
+        preview:  null,
+        poster:   null
       },
       {
         id:       'immobilier',
         label:    { fr: 'Immobilier',    en: 'Real Estate' },
         subtitle: { fr: 'Biens & architecture', en: 'Properties & architecture' },
         url:      null,
-        preview:  null
+        preview:  'https://streamable.com/l/fgirzm/mp4.mp4',
+        poster:   '' // Ajoutez l'URL Cloudinary .jpg ici
       },
       {
         id:       'commercial',
         label:    { fr: 'Commercial',    en: 'Commercial' },
         subtitle: { fr: 'Pubs & marques', en: 'Ads & brands' },
         url:      null,
-        preview:  null
+        preview:  null,
+        poster:   null
       },
       {
         id:       'voyage',
         label:    { fr: 'Voyage',        en: 'Travel' },
         subtitle: { fr: 'Carnets visuels', en: 'Visual journals' },
         url:      null,
-        preview:  null
+        preview:  null,
+        poster:   null
       }
     ];
 
-    /* ============================================================
-       🔐  ESPACE CLIENTS  —  GESTION CENTRALISÉE
-       ============================================================
+    /* ════════════════════════════════════════════════════════════
+       🔐  ESPACE CLIENTS — PAGE D'ACCUEIL (TOUS UNIVERS)
+       ════════════════════════════════════════════════════════════
 
-       📍 OÙ EST-CE UTILISÉ ?
-       ─────────────────────
-       Chaque sous-page du site (mariage.html, commercial.html, etc.)
-       contient un lien « Espace Clients » qui pointe vers :
+       📁 OÙ MODIFIER LES CODES ?
+       ──────────────────────────
+       Tous les codes du site sont gérés DANS UN SEUL FICHIER :
 
-           index.html#clients
+           👉 clients-data.js  (à la racine du site)
 
-       Quand le client arrive ici, la modale s'ouvre automatiquement,
-       il saisit son code, et il est redirigé vers sa page privée.
-       
-       ▸ Vous ne gérez les codes QU'À UN SEUL ENDROIT : ici même.
+       Sur cette page d'accueil, on agrège TOUS les univers :
+       n'importe quel code valide (mariage, immobilier, futur voyage…)
+       fonctionne ici.
 
+       Sur chaque sous-page (mariage.html, immobilier.html…), seuls
+       les codes de l'univers concerné fonctionnent. Sécurisé.
+       ════════════════════════════════════════════════════════════ */
 
-       📝 AJOUTER UN NOUVEAU CLIENT — EN 3 ÉTAPES
-       ───────────────────────────────────────────
-       Étape 1  Choisissez un CODE secret (ex : "julie-thomas")
-       Étape 2  Créez le fichier HTML privé  (ex : "photo-julie-thomas.html")
-       Étape 3  Ajoutez UNE SEULE LIGNE dans la liste ci-dessous :
+    // On lit la liste maîtresse depuis le fichier partagé
+    const CODES_PAR_UNIVERS = window.CODES_PAR_UNIVERS || {};
 
-           "julie-thomas": "photo-julie-thomas.html",
-
-       ✅ C'est tout. Le client peut maintenant saisir son code.
-
-
-       📋 RÈGLES POUR LE CODE SECRET
-       ──────────────────────────────
-       ✓ Uniquement : minuscules (a-z), chiffres (0-9) et tirets (-)
-       ✗ Pas d'accents, pas d'espaces, pas de majuscules
-       
-       ▸ Bonne nouvelle : le système nettoie automatiquement ce que
-         le client tape. S'il tape "Julie & Thomas", "JULIE-THOMAS"
-         ou "julie thomas", tout sera reconnu comme "julie-thomas".
-
-
-       💡 EXEMPLES PRÊTS À COPIER
-       ───────────────────────────
-           "marie-lucas":        "mariage-marie-lucas.html",
-           "sophie-arthur-2025": "film-sophie-arthur.html",
-           "client-premium-12":  "galerie/premium-12.html",
-
-
-       ⚠️  N'OUBLIEZ PAS
-       ────────────────
-       ▸ Virgule (,) à la fin de chaque ligne
-       ▸ Guillemets (") autour du code ET du fichier
-       ▸ Les deux points (:) entre les deux
-       ============================================================ */
-    const CODES_CLIENTS = {
-        "precieuse-ronny":  "precieuse-ronny.html",
-        "ezla-davy":        "photo-ezla-davy.html",
-        "keysia-jason":     "video-keyzia-jason.html",
-        // "marie-lucas":  "mariage-marie-lucas.html",  ← exemple désactivé
-    };
+    /* ⚙️  AGRÉGATION AUTOMATIQUE — NE PAS MODIFIER
+       Fusionne tous les univers ci-dessus en une seule liste,
+       pour que la page d'accueil accepte n'importe quel code. */
+    const CODES_CLIENTS = Object.values(CODES_PAR_UNIVERS).reduce(
+        (tous, univers) => Object.assign(tous, univers),
+        {}
+    );
 
     function openClientModal(e) {
       if(e) e.preventDefault();
@@ -591,7 +590,7 @@
 
       nav.innerHTML = items.map(t => `
         <a class="theme-btn" href="${t.url}" data-id="${t.id}"
-           data-url="${t.url}" data-preview="${t.preview || ''}">
+           data-url="${t.url}" data-preview="${t.preview || ''}" data-poster="${t.poster || ''}">
           <span class="theme-label">${t.label[lang]}</span>
           <span class="theme-subtitle">${t.subtitle[lang]}</span>
         </a>
@@ -605,11 +604,15 @@
     let previewTimeout = null;
     let activeMobilePreview = null;
 
-    function showPreview(url) {
+    function showPreview(url, posterUrl) {
       if (!url) return;
       clearTimeout(previewTimeout);
       previewTimeout = setTimeout(() => {
         if (previewEl.src !== url) {
+          // On assigne le poster Cloudinary avant de charger la vidéo
+          if (posterUrl) previewEl.poster = posterUrl;
+          else previewEl.removeAttribute('poster');
+          
           previewEl.src = url;
           previewEl.load();
         }
@@ -645,12 +648,12 @@
             if (activeMobilePreview === btn) {
               e.preventDefault(); navigateWithFade(btn.dataset.url);
             } else {
-              e.preventDefault(); activeMobilePreview = btn; showPreview(btn.dataset.preview);
+              e.preventDefault(); activeMobilePreview = btn; showPreview(btn.dataset.preview, btn.dataset.poster);
             }
           });
         } else {
           btn.addEventListener('click', (e) => { e.preventDefault(); navigateWithFade(btn.dataset.url); });
-          btn.addEventListener('mouseenter', () => showPreview(btn.dataset.preview));
+          btn.addEventListener('mouseenter', () => showPreview(btn.dataset.preview, btn.dataset.poster));
           btn.addEventListener('mouseleave', () => { hidePreview(); activeMobilePreview = null; });
         }
       });

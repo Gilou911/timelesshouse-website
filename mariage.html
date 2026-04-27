@@ -5,7 +5,7 @@
   <title>TimelessHouse – Films de Mariage & Photographie Fine Art</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="TimelessHouse - Équipe de photographes et vidéastes de mariage. Films cinématiques et photographie fine art pour couples modernes. Votre histoire, notre expertise." />
-  
+
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://timelesshouse.org" />
   <meta property="og:title" content="TimelessHouse – Films de Mariage & Photographie Fine Art" />
@@ -13,18 +13,18 @@
   <meta property="og:image" content="https://timelesshouse.org/096803038746876cfaa9e6af3e57a06a.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  
+
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="TimelessHouse – Films de Mariage" />
   <meta name="twitter:description" content="Votre histoire, notre expertise" />
   <meta name="twitter:image" content="https://timelesshouse.org/096803038746876cfaa9e6af3e57a06a.jpg" />
-  
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
   <link rel="preload" as="image" href="Vignette_Eunice&_Josue.jpg" fetchpriority="high" />
-  
+
   <style>
     :root {
       /* Palette pastel claire (sections lumineuses) */
@@ -57,12 +57,12 @@
     html { scroll-behavior: smooth; scroll-padding-top: var(--header-height); }
     *{box-sizing:border-box;margin:0;padding:0}
     body {
-      font-family: "Montserrat", sans-serif; background-color: var(--bg); 
+      font-family: "Montserrat", sans-serif; background-color: var(--bg);
       color: var(--text-main); line-height: 1.7; -webkit-font-smoothing: antialiased;
       margin: 0; padding: 0; width: 100%; max-width: 100vw; overflow-x: hidden;
       display: flex; flex-direction: column; align-items: center;
     }
-    header, main, footer, .nav, .section, .hero, .mobile-menu { 
+    header, main, footer, .nav, .section, .hero, .mobile-menu {
         width: 100%; max-width: 100vw; box-sizing: border-box;
     }
     .paper-overlay {
@@ -94,16 +94,16 @@
     }
     .nav {
       max-width: var(--max-width); margin: 0 auto; height: 100%; padding: 0 30px;
-      display: grid; 
+      display: grid;
       grid-template-columns: 1fr auto 1fr;
-      align-items: center; 
+      align-items: center;
       position: relative;
       gap: 20px;
     }
     .nav-links { display: flex; gap: 35px; justify-self: start; }
-    .logo { 
-      font-family: "Cormorant Garamond", serif; font-size: 24px; font-weight: 600; 
-      color: var(--text-main); letter-spacing: 0.12em; text-transform: uppercase; 
+    .logo {
+      font-family: "Cormorant Garamond", serif; font-size: 24px; font-weight: 600;
+      color: var(--text-main); letter-spacing: 0.12em; text-transform: uppercase;
       cursor: pointer; z-index: 102; justify-self: center; white-space: nowrap;
       transition: color 0.3s ease, letter-spacing 0.3s ease;
     }
@@ -125,21 +125,21 @@
 
     @media (max-width: 1100px) { .nav-right .client-link { display: none; } }
     .lang-switch {
-      background: none; border: none; cursor: pointer; font-size: 11px; 
+      background: none; border: none; cursor: pointer; font-size: 11px;
       font-weight: 600; letter-spacing: 0.1em; color: var(--text-muted);
       transition: color 0.3s ease;
     }
     .lang-switch:hover { color: var(--accent); }
     .btn-primary {
-      padding: 11px 26px; border-radius: 2px; background-color: var(--accent); 
-      color: white; border: 1px solid var(--accent); font-size: 11px; text-transform: uppercase; 
-      letter-spacing: 0.2em; font-weight: 500; cursor: pointer; 
+      padding: 11px 26px; border-radius: 2px; background-color: var(--accent);
+      color: white; border: 1px solid var(--accent); font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.2em; font-weight: 500; cursor: pointer;
       box-shadow: var(--shadow-soft); transition: all 0.3s ease;
     }
     .btn-primary:hover { background-color: #9a7555; border-color: #9a7555; transform: translateY(-2px); }
     .btn-outline {
-        padding: 11px 29px; border-radius: 2px; border: 1px solid var(--accent); 
-        color: var(--accent); background: transparent; font-size: 11px; 
+        padding: 11px 29px; border-radius: 2px; border: 1px solid var(--accent);
+        color: var(--accent); background: transparent; font-size: 11px;
         text-transform: uppercase; letter-spacing: 0.2em; font-weight: 500;
         cursor: pointer; transition: all 0.3s;
     }
@@ -147,26 +147,26 @@
 
     .burger-toggle { display: none; flex-direction: column; gap: 6px; cursor: pointer; z-index: 102; padding: 10px; }
     .burger-line { width: 25px; height: 2px; background: var(--text-main); transition: 0.3s; }
-    
+
     .mobile-menu {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100vh; 
+        position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
         background: rgba(253, 251, 247, 0.98);
         backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
         display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
         padding-top: 0; transform: translateY(-100%);
-        transition: transform 0.5s cubic-bezier(0.77, 0, 0.175, 1); 
+        transition: transform 0.5s cubic-bezier(0.77, 0, 0.175, 1);
         z-index: 1500;
     }
     .mobile-menu.open { transform: translateY(0); }
     .mobile-header {
-        width: 100%; height: var(--header-height); display: flex; 
+        width: 100%; height: var(--header-height); display: flex;
         justify-content: space-between; align-items: center; padding: 0 30px;
         border-bottom: 1px solid rgba(0,0,0,0.03); margin-bottom: 40px;
     }
     .close-btn { font-size: 30px; cursor: pointer; color: var(--text-main); line-height: 1; padding: 10px; }
     .mobile-links-container { display: flex; flex-direction: column; gap: 30px; align-items: center; }
     .mobile-menu a { font-family: "Cormorant Garamond", serif; font-size: 2rem; color: var(--text-main); cursor: pointer; }
-    
+
     .instagram-icon { width: 24px; height: 24px; transition: all 0.3s ease; fill: var(--text-main); }
     .instagram-icon:hover { fill: var(--accent); transform: scale(1.1); }
     .social-link { display: inline-flex; align-items: center; justify-content: center; padding: 8px; border-radius: 50%; transition: all 0.3s ease; }
@@ -174,7 +174,7 @@
 
     /* === HERO CINÉMATIQUE PLEINE LARGEUR === */
     .hero {
-      position: relative; width: 100%; max-width: 100%; 
+      position: relative; width: 100%; max-width: 100%;
       min-height: calc(100vh - var(--header-height));
       margin: calc(-1 * var(--header-height)) 0 0; padding: 0;
       display: flex; align-items: center; justify-content: center;
@@ -182,11 +182,18 @@
     }
     .hero-media { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
     .hero-media img, .hero-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .hero-media video { position: absolute; top: 0; left: 0; opacity: 0; transition: opacity 1s ease; }
-    .hero-media video.loaded { opacity: 1; }
+ .hero-media video { 
+      position: absolute; top: 0; left: 0; 
+      opacity: 0; visibility: hidden; /* La cape d'invisibilité */
+      transition: opacity 1s ease, visibility 1s; 
+      pointer-events: none !important; /* Empêche les clics */
+    }
+    .hero-media video.is-playing { 
+      opacity: 1; visibility: visible; 
+    }
     .hero-media::after {
       content: ""; position: absolute; inset: 0; z-index: 2;
-      background: 
+      background:
         linear-gradient(to bottom, rgba(43, 34, 27, 0.45) 0%, rgba(43, 34, 27, 0.15) 35%, rgba(43, 34, 27, 0.25) 70%, rgba(43, 34, 27, 0.65) 100%),
         radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.25) 100%);
       pointer-events: none;
@@ -269,20 +276,21 @@
     /* === GESTION VIDEO/IMAGE === */
     .video-frame, .img-block { border-radius: 200px 200px 0 0; overflow: hidden; box-shadow: var(--shadow-soft); border: 8px solid white; position: relative; z-index: 2; }
     .video-frame { aspect-ratio: 3/4; }
-    .img-block { border-radius: 2px; border: none; aspect-ratio: 16/9; } 
+    .img-block { border-radius: 2px; border: none; aspect-ratio: 16/9; }
     .bg-image { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; transition: opacity 0.5s ease; opacity: 1; }
     .bg-image.hidden { opacity: 0; }
     .bg-video { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 2; opacity: 0; transition: opacity 0.5s ease; pointer-events: none; }
     .video-playing { opacity: 1; }
     video::-webkit-media-controls { display: none !important; }
     video::-webkit-media-controls-start-playback-button { display: none !important; }
+    video::-webkit-media-controls-overlay-play-button { display: none !important; -webkit-appearance: none !important; }
 
     .circle-deco { position: absolute; top: -30px; right: -30px; width: 150px; height: 150px; border-radius: 50%; background: var(--bg-alt); z-index: 1; }
     .section { padding: 100px 24px; max-width: var(--max-width); margin: 0 auto; }
     .section-header { text-align: center; margin-bottom: 60px; }
     .kicker { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3em; color: var(--accent); margin-bottom: 15px; }
     .title-lg { font-size: 2.5rem; color: var(--text-main); margin-bottom: 20px; }
-    
+
     .prestations-toggle { display: flex; justify-content: center; gap: 20px; margin-bottom: 50px; }
     .toggle-btn { padding: 12px 30px; border-radius: 2px; background: transparent; border: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 500; color: var(--text-muted); cursor: pointer; transition: all 0.3s; }
     .toggle-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
@@ -296,7 +304,7 @@
     .pricing-card ul { list-style: none; margin: 25px 0; text-align: left; flex-grow: 1; }
     .pricing-card li { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
     .pricing-card li:last-child { border: none; }
-    
+
     /* === PORTFOLIO SECTION WRAPPER === */
     .portfolio-section { width: 100%; background: #0f0d0b; padding: 90px 0 0; }
     .portfolio-header { text-align: center; padding: 0 24px; margin-bottom: 50px; }
@@ -307,8 +315,8 @@
       display: flex;
       flex-wrap: wrap;
       justify-content: center; /* Centre les vidéos s'il en manque sur la dernière ligne */
-      gap: 16px; 
-      padding: 0 24px 60px; 
+      gap: 16px;
+      padding: 0 24px 60px;
       max-width: var(--max-width);
       margin: 0 auto;
     }
@@ -319,7 +327,7 @@
       position: relative;
       cursor: none;
       overflow: hidden;
-      border-radius: 12px; 
+      border-radius: 12px;
       background: #0f0d0b;
     }
 
@@ -333,10 +341,43 @@
 
     .gallery-img-wrap img {
       width: 100%; height: 100%; object-fit: cover; display: block;
-      transition: transform 1s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.6s ease;
+      transition: transform 1s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.6s ease, opacity 0.5s ease;
       filter: brightness(0.88) saturate(1.1);
     }
     .gallery-item:hover .gallery-img-wrap img { transform: scale(1.06); filter: brightness(0.65) saturate(1.15); }
+
+    /* === EXTRAIT VIDÉO EN BOUCLE (preview) === */
+    .gallery-preview {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+      opacity: 0;
+      transition: opacity 0.55s ease;
+      pointer-events: none;
+      z-index: 2;
+      background: #0f0d0b;
+    }
+    .gallery-item.preview-active .gallery-preview { opacity: 1; }
+    .gallery-item.preview-active .gallery-img-wrap img { opacity: 0; }
+
+    /* Petit indicateur "TAPER ENCORE" sur mobile une fois la preview lancée */
+    .gallery-tap-hint {
+      position: absolute;
+      top: 12px; right: 12px;
+      background: rgba(15, 10, 6, 0.7);
+      color: var(--cine-cream);
+      font-size: 9px; text-transform: uppercase; letter-spacing: 0.2em;
+      padding: 6px 10px; border-radius: 999px;
+      backdrop-filter: blur(4px);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+      z-index: 5;
+      font-weight: 600;
+    }
+    .gallery-item.preview-active .gallery-tap-hint { opacity: 1; }
 
     /* Overlay info au survol */
     .gallery-info {
@@ -345,14 +386,18 @@
       background: linear-gradient(to top, rgba(15, 10, 6, 0.88) 0%, rgba(15, 10, 6, 0.4) 45%, transparent 75%);
       opacity: 0; transform: translateY(6px); transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
       pointer-events: none;
+      z-index: 3;
     }
     .gallery-item:hover .gallery-info { opacity: 1; transform: translateY(0); }
+    .gallery-item.preview-active .gallery-info { opacity: 1; transform: translateY(0); }
 
     .gallery-venue {
       position: absolute; bottom: 16px; left: 20px; font-size: 10px; text-transform: uppercase;
       letter-spacing: 0.3em; color: var(--accent-soft); font-weight: 500; opacity: 0.85; transition: opacity 0.4s ease;
+      z-index: 4;
     }
     .gallery-item:hover .gallery-venue { opacity: 0; }
+    .gallery-item.preview-active .gallery-venue { opacity: 0; }
 
     .gallery-title { font-family: "Cormorant Garamond", serif; font-size: 1.5rem; font-weight: 400; color: #f5ecdf; margin-bottom: 6px; line-height: 1.2; }
     .gallery-meta { font-size: 9px; text-transform: uppercase; letter-spacing: 0.3em; color: var(--accent-soft); font-weight: 500; }
@@ -374,7 +419,7 @@
     }
     .custom-cursor.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
     @media (hover: none), (max-width: 900px) { .custom-cursor { display: none !important; } .gallery-item { cursor: pointer; } }
-    
+
     .philosophy { background: var(--bg-alt); padding: 120px 24px; position: relative; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; max-width: var(--max-width); margin: 0 auto; }
     .testimonials-carousel { position: relative; max-width: 800px; margin: 0 auto; overflow: hidden; }
@@ -394,7 +439,7 @@
     .faq-question.active .faq-icon { transform: rotate(45deg); }
     .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; padding: 0 20px; color: var(--text-muted); line-height: 1.8; }
     .faq-answer.active { max-height: 500px; padding: 0 20px 25px 20px; }
-    
+
     /* MODALS GENERAL */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); display: none; justify-content: center; align-items: center; z-index: 2000; }
     .modal-overlay.active { display: flex; }
@@ -404,7 +449,7 @@
     .input-group label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 8px; }
     input, textarea, select { width: 100%; padding: 14px; border: 1px solid var(--border); background: #faf9f6; font-family: inherit; font-size: 14px; color: var(--text-main); transition: 0.3s; border-radius: 2px; }
     input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
-    
+
     /* VIDEO OVERLAY */
     .video-overlay { z-index: 3000; background: rgba(0,0,0,0.9); }
     .video-modal-content { background: transparent; box-shadow: none; padding: 0; width: 90%; max-width: 1000px; position: relative; }
@@ -412,7 +457,7 @@
     .video-wrapper video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
     .video-close { color: white; top: -40px; right: 0; font-size: 40px; opacity: 0.8; cursor: pointer; }
     .video-close:hover { opacity: 1; color: var(--accent); }
-    
+
     .reveal { opacity: 0; transform: translateY(20px); transition: all 1s cubic-bezier(0.2, 0.8, 0.2, 1); }
     .reveal.active { opacity: 1; transform: translateY(0); }
     footer { padding: 60px 24px; text-align: center; border-top: 1px solid var(--border); margin-top: 100px; color: var(--text-muted); font-size: 12px; }
@@ -443,14 +488,14 @@
         .portfolio-section { padding: 60px 0 0; }
         .gallery-info { opacity: 1; transform: none; }
         .gallery-img-wrap img { filter: brightness(0.7) saturate(1.1); }
-        
+
         .section, .philosophy { padding: 60px 20px; }
         .grid-2, .form-row, .pricing-grid { grid-template-columns: 1fr; gap: 40px; }
         .modal-content { padding: 30px 20px; }
         .quote-text { font-size: 1.4rem; }
         .prestations-toggle { flex-direction: column; align-items: center; }
     }
-    
+
     @media (max-width: 480px) {
         .nav { padding: 0 16px; }
         .logo { font-size: 17px; letter-spacing: 0.08em; }
@@ -459,7 +504,7 @@
         .hero-content { padding: 0 20px; max-width: 95vw; }
         .gp-col h3 { font-size: 1.55rem; }
     }
-    
+
     @media (min-width: 901px) and (max-width: 1100px) {
         .gp-grid { gap: 45px; }
         .gp-col h3 { font-size: 1.7rem; }
@@ -520,7 +565,7 @@
           <a href="#prestations" onclick="toggleMenu()"><span data-lang="fr">Prestations</span><span data-lang="en">Services</span></a>
           <a href="#portfolio" onclick="toggleMenu()">Portfolio</a>
           <a href="#faq" onclick="toggleMenu()">FAQ</a>
-          <a href="index.html#clients" onclick="toggleMenu()"><span data-lang="fr">Espace Clients</span><span data-lang="en">Client Area</span></a>
+          <a href="#" onclick="event.preventDefault(); toggleMenu(); openClientModal();"><span data-lang="fr">Espace Clients</span><span data-lang="en">Client Area</span></a>
           <button class="btn-primary" onclick="toggleMenu(); openModal()">
               <span data-lang="fr">Réserver</span><span data-lang="en">Book Now</span>
           </button>
@@ -540,7 +585,7 @@
       </div>
       <a href="index.html" class="logo" onclick="return navigateHome(event)">TimelessHouse</a>
       <div class="nav-right">
-        <a href="index.html#clients" class="client-link"><span data-lang="fr">Espace Clients</span><span data-lang="en">Client Area</span></a>
+        <a href="#" onclick="event.preventDefault(); openClientModal();" class="client-link"><span data-lang="fr">Espace Clients</span><span data-lang="en">Client Area</span></a>
         <a href="https://www.instagram.com/_timelesshouse" target="_blank" rel="noopener noreferrer" class="social-link">
           <svg class="instagram-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2C14.717 2 15.056 2.01 16.122 2.06C17.187 2.11 17.912 2.277 18.55 2.525C19.21 2.779 19.766 3.123 20.322 3.678C20.8305 4.1779 21.224 4.78259 21.475 5.45C21.722 6.087 21.89 6.813 21.94 7.878C21.987 8.944 22 9.283 22 12C22 14.717 21.99 15.056 21.94 16.122C21.89 17.187 21.722 17.912 21.475 18.55C21.2247 19.2178 20.8311 19.8226 20.322 20.322C19.822 20.8303 19.2173 21.2238 18.55 21.475C17.913 21.722 17.187 21.89 16.122 21.94C15.056 21.987 14.717 22 12 22C9.283 22 8.944 21.99 7.878 21.94C6.813 21.89 6.088 21.722 5.45 21.475C4.78233 21.2245 4.17753 20.8309 3.678 20.322C3.16941 19.8222 2.77593 19.2175 2.525 18.55C2.277 17.913 2.11 17.187 2.06 16.122C2.013 15.056 2 14.717 2 12C2 9.283 2.01 8.944 2.06 7.878C2.11 6.812 2.277 6.088 2.525 5.45C2.77524 4.78218 3.1688 4.17732 3.678 3.678C4.17767 3.16923 4.78243 2.77573 5.45 2.525C6.088 2.277 6.812 2.11 7.878 2.06C8.944 2.013 9.283 2 12 2ZM12 7C10.6739 7 9.40215 7.52678 8.46447 8.46447C7.52678 9.40215 7 10.6739 7 12C7 13.3261 7.52678 14.5979 8.46447 15.5355C9.40215 16.4732 10.6739 17 12 17C13.3261 17 14.5979 16.4732 15.5355 15.5355C16.4732 14.5979 17 13.3261 17 12C17 10.6739 16.4732 9.40215 15.5355 8.46447C14.5979 7.52678 13.3261 7 12 7ZM18.5 6.75C18.5 6.41848 18.3683 6.10054 18.1339 5.86612C17.8995 5.6317 17.5815 5.5 17.25 5.5C16.9185 5.5 16.6005 5.6317 16.3661 5.86612C16.1317 6.10054 16 6.41848 16 6.75C16 7.08152 16.1317 7.39946 16.3661 7.63388C16.6005 7.8683 16.9185 8 17.25 8C17.5815 8 17.8995 7.8683 18.1339 7.63388C18.3683 7.39946 18.5 7.08152 18.5 6.75ZM12 9C12.7956 9 13.5587 9.31607 14.1213 9.87868C14.6839 10.4413 15 11.2044 15 12C15 12.7956 14.6839 13.5587 14.1213 14.1213C13.5587 14.6839 12.7956 15 12 15C11.2044 15 10.4413 14.6839 9.87868 14.1213C9.31607 13.5587 9 12.7956 9 12C9 11.2044 9.31607 10.4413 9.87868 9.87868C10.4413 9.31607 11.2044 9 12 9Z" fill="currentColor"/>
@@ -556,7 +601,9 @@
     <section class="hero reveal">
         <div class="hero-media">
             <img src="Vignette_Eunice&_Josue.jpg" alt="Mariage cinématique" class="hero-bg-img" fetchpriority="high" loading="eager">
-            <video muted loop playsinline preload="metadata" poster="Vignette_Eunice&_Josue.jpg" onloadeddata="this.classList.add('loaded'); this.play().catch(()=>{});">
+            <video muted loop playsinline preload="metadata" 
+            poster="Vignette_Eunice&_Josue.jpg" 
+            onloadeddata="this.classList.add('loaded'); this.play().catch(()=>{});">
                 <source src="https://streamable.com/l/clh7jh/mp4-high.mp4" type="video/mp4" />
             </video>
         </div>
@@ -723,7 +770,7 @@
                     </ul>
                     <button class="btn-primary" onclick="openModal()" style="width: 100%;"><span data-lang="fr">Contacter</span><span data-lang="en">Contact</span></button>
                 </div>
-                
+
                 <div class="pricing-card">
                     <h3 class="serif"><span data-lang="fr">Vidéo Éternité</span><span data-lang="en">Eternity Video</span></h3>
                     <p class="price" style="font-size: 1.2rem;"><span data-lang="fr">Sur Devis</span><span data-lang="en">Custom Quote</span></p>
@@ -771,6 +818,116 @@
         </div>
     </section>
 
+    <!-- ============================================================
+         🎬  SECTION PORTFOLIO — MODE D'EMPLOI COMPLET
+         ============================================================
+
+         Chaque vignette de mariage est un bloc <div class="gallery-item">.
+         Pour chaque vignette il faut renseigner 3 choses :
+
+           1) L'IMAGE FIXE / GIF d'aperçu
+              → balise <img src="..."> dans .gallery-img-wrap
+              → c'est ce qui s'affiche AVANT le survol (état au repos).
+              → idéalement une image .jpg/.webp (1280x720) ou un .gif court
+                et léger (< 2 Mo). Format paysage 16/9.
+
+           2) L'EXTRAIT VIDÉO COURT (preview au survol / 1er tap)
+              → attribut data-preview="..." sur .gallery-item
+              → fichier .mp4 de 5 à 15 SECONDES, BIEN COMPRESSÉ
+                (pas plus de 1-2 Mo idéalement, sans audio).
+              → ne se charge QUE quand quelqu'un survole/tape la vignette.
+              → c'est ce qui économise la bande passante : on ne charge
+                jamais la grosse vidéo de mariage juste pour l'aperçu.
+
+           3) LA VIDÉO COMPLÈTE (popup au clic / 2e tap)
+              → attribut data-video="..." sur .gallery-item
+              → c'est le film complet du mariage, en bonne qualité.
+              → ne se charge que si le visiteur clique (ouverture du popup).
+
+         ────────────────────────────────────────────────────────────
+         ✏️  ÉTAPES POUR AJOUTER / MODIFIER UN MARIAGE
+         ────────────────────────────────────────────────────────────
+           a. Préparer 3 fichiers et les uploader (sur votre serveur,
+              Streamable, Vimeo en lien direct, S3, OVH, etc.) :
+                - aperçu.jpg (ou .gif)        → image de repos
+                - extrait_court.mp4 (5-15s)   → preview au survol
+                - film_complet.mp4            → vidéo du popup
+           b. Dans le HTML ci-dessous, repérer la vignette à modifier
+              (numérotée de 1 à 9).
+           c. Remplacer 3 lignes :
+                - data-preview="EXTRAIT_COURT_1.mp4" → URL de l'extrait
+                - data-video="LIEN_DE_VOTRE_VIDEO_1.mp4" → URL du film
+                - <img src="VOTRE_GIF_1.gif"> → URL de l'aperçu
+           d. Mettre à jour les textes (lieu, noms, année) dans :
+                - <span class="gallery-venue">…</span>
+                - <h3 class="gallery-title">…</h3>
+                - <span class="gallery-meta">…</span>
+
+         ────────────────────────────────────────────────────────────
+         🔧  GÉNÉRER UN EXTRAIT COURT AVEC FFMPEG (recommandé)
+         ────────────────────────────────────────────────────────────
+           Une seule commande dans un terminal, depuis le dossier
+           où se trouve la vidéo de mariage :
+
+             ffmpeg -i mariage_complet.mp4 \
+               -ss 00:00:12 -t 10 \
+               -an \
+               -vf "scale=720:-2" \
+               -movflags +faststart \
+               -crf 26 -preset veryfast \
+               extrait_court_1.mp4
+
+             ↳ -ss 00:00:12     : départ à la 12e seconde (à ajuster :
+                                   prenez un beau plan emblématique du film)
+             ↳ -t 10            : durée 10 secondes
+             ↳ -an              : sans son (preview muette de toute façon)
+             ↳ scale=720:-2     : largeur 720 px (preview affichée en petit,
+                                   pas besoin de full HD)
+             ↳ +faststart       : lecture web quasi-instantanée
+             ↳ -crf 26          : compression assez forte mais qualité OK
+                                   (montez à 28-30 si vous voulez encore
+                                   plus léger, descendez à 22-24 si vous
+                                   voulez un peu plus de qualité)
+
+           Résultat type : un fichier .mp4 d'environ 500 Ko - 1,5 Mo.
+
+         ────────────────────────────────────────────────────────────
+         🅱️  ALTERNATIVE SI VOUS NE VOULEZ PAS CRÉER D'EXTRAIT SÉPARÉ
+         ────────────────────────────────────────────────────────────
+           Vous pouvez boucler juste un segment de la vidéo complète,
+           via 2 attributs supplémentaires (en secondes) :
+
+             <div class="gallery-item"
+                  data-video="film_complet.mp4"
+                  data-preview-start="12"
+                  data-preview-end="22">
+
+           ⚠️ Attention : c'est plus simple à mettre en place mais
+              MOINS performant. Le navigateur va commencer à télécharger
+              la vidéo complète, juste pour la rebobiner sur ce segment.
+              À réserver aux vidéos relativement courtes ou à un usage
+              ponctuel.
+
+         ────────────────────────────────────────────────────────────
+         ❌  POUR DÉSACTIVER UNE VIGNETTE
+         ────────────────────────────────────────────────────────────
+           Laissez les valeurs placeholders (`VOTRE_GIF_X`,
+           `EXTRAIT_COURT_X`, `LIEN_DE_VOTRE_VIDEO_X`) ou supprimez
+           le bloc <div class="gallery-item">…</div> entier.
+           Les vignettes incomplètes sont automatiquement masquées
+           par le script (cf. fonction de nettoyage en bas du <script>).
+
+         ────────────────────────────────────────────────────────────
+         📱  COMPORTEMENT SUIVANT L'APPAREIL (rappel)
+         ────────────────────────────────────────────────────────────
+           - Bureau (souris) : survol = preview en boucle ;
+                                clic   = popup vidéo complète.
+           - Mobile (tactile): 1er tap = preview en boucle (badge
+                                "Toucher pour ouvrir" en haut à droite) ;
+                                2e tap  = popup vidéo complète.
+                                Tap en dehors = preview coupée.
+
+         ============================================================ -->
     <section id="portfolio" class="portfolio-section reveal">
         <div class="portfolio-header">
             <span class="kicker" style="color:var(--accent-soft);">
@@ -783,24 +940,50 @@
 
         <div class="gallery-grid">
 
-            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_1.mp4')">
+            <!-- ═══════════════ VIGNETTE 1 — exemple commenté ═══════════════
+                 Ci-dessous, la première vignette est ENTIÈREMENT commentée
+                 ligne par ligne pour servir de modèle. Les 8 suivantes ont
+                 le même format — il suffit de copier/remplacer.
+            -->
+            <!--
+              data-preview = URL de l'EXTRAIT COURT (5-15 sec, .mp4 léger, sans son).
+              data-video   = URL de la VIDÉO COMPLÈTE ouverte au clic / 2e tap.
+            -->
+            <div class="gallery-item"
+                 data-preview="EXTRAIT_COURT_1.mp4"
+                 data-video="LIEN_DE_VOTRE_VIDEO_1.mp4">
                 <div class="gallery-img-wrap">
+                    <!-- Image fixe / GIF de repos (visible AVANT le survol) -->
                     <img src="VOTRE_GIF_1.gif" alt="Mariage 1" loading="lazy">
                 </div>
+                <!-- Petit badge qui apparaît sur mobile, une fois la preview lancée
+                     (juste un indice visuel pour dire "tape encore pour ouvrir").
+                     Ne pas modifier sauf pour traduire le texte. -->
+                <span class="gallery-tap-hint" data-lang="fr">Toucher pour ouvrir</span>
+                <span class="gallery-tap-hint" data-lang="en">Tap to open</span>
+                <!-- Petit texte discret en bas-gauche sur l'image de repos -->
                 <span class="gallery-venue">Lieu de la vidéo 1</span>
+                <!-- Bloc d'infos qui apparaît au survol (et en permanence sur mobile) -->
                 <div class="gallery-info">
                     <div class="gallery-play-icon">
                         <svg viewBox="0 0 16 16"><polygon points="4,2 14,8 4,14"/></svg>
                     </div>
+                    <!-- Noms des mariés (titre principal de la vignette) -->
                     <h3 class="gallery-title">Noms des Mariés 1</h3>
+                    <!-- Lieu + année. Séparateur " · " (point médian, Alt+0183). -->
                     <span class="gallery-meta">Lieu 1 · Année</span>
                 </div>
             </div>
-            
-            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_2.mp4')">
+
+            <!-- ═══════════════ VIGNETTE 2 ═══════════════ -->
+            <div class="gallery-item"
+                 data-preview="EXTRAIT_COURT_2.mp4"
+                 data-video="https://streamable.com/l/5p6n3h/mp4.mp4">
                 <div class="gallery-img-wrap">
                     <img src="VOTRE_GIF_2.gif" alt="Mariage 2" loading="lazy">
                 </div>
+                <span class="gallery-tap-hint" data-lang="fr">Toucher pour ouvrir</span>
+                <span class="gallery-tap-hint" data-lang="en">Tap to open</span>
                 <span class="gallery-venue">Lieu de la vidéo 2</span>
                 <div class="gallery-info">
                     <div class="gallery-play-icon">
@@ -811,10 +994,15 @@
                 </div>
             </div>
 
-            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_3.mp4')">
+            <!-- ═══════════════ VIGNETTE 3 ═══════════════ -->
+            <div class="gallery-item"
+                 data-preview="EXTRAIT_COURT_3.mp4"
+                 data-video="LIEN_DE_VOTRE_VIDEO_3.mp4">
                 <div class="gallery-img-wrap">
                     <img src="VOTRE_GIF_3.gif" alt="Mariage 3" loading="lazy">
                 </div>
+                <span class="gallery-tap-hint" data-lang="fr">Toucher pour ouvrir</span>
+                <span class="gallery-tap-hint" data-lang="en">Tap to open</span>
                 <span class="gallery-venue">Lieu de la vidéo 3</span>
                 <div class="gallery-info">
                     <div class="gallery-play-icon">
@@ -825,10 +1013,15 @@
                 </div>
             </div>
 
-            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_4.mp4')">
+            <!-- ═══════════════ VIGNETTE 4 ═══════════════ -->
+            <div class="gallery-item"
+                 data-preview="EXTRAIT_COURT_4.mp4"
+                 data-video="LIEN_DE_VOTRE_VIDEO_4.mp4">
                 <div class="gallery-img-wrap">
                     <img src="VOTRE_GIF_4.gif" alt="Mariage 4" loading="lazy">
                 </div>
+                <span class="gallery-tap-hint" data-lang="fr">Toucher pour ouvrir</span>
+                <span class="gallery-tap-hint" data-lang="en">Tap to open</span>
                 <span class="gallery-venue">Lieu de la vidéo 4</span>
                 <div class="gallery-info">
                     <div class="gallery-play-icon">
@@ -839,10 +1032,15 @@
                 </div>
             </div>
 
-            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_5.mp4')">
+            <!-- ═══════════════ VIGNETTE 5 ═══════════════ -->
+            <div class="gallery-item"
+                 data-preview="EXTRAIT_COURT_5.mp4"
+                 data-video="LIEN_DE_VOTRE_VIDEO_5.mp4">
                 <div class="gallery-img-wrap">
                     <img src="VOTRE_GIF_5.gif" alt="Mariage 5" loading="lazy">
                 </div>
+                <span class="gallery-tap-hint" data-lang="fr">Toucher pour ouvrir</span>
+                <span class="gallery-tap-hint" data-lang="en">Tap to open</span>
                 <span class="gallery-venue">Lieu de la vidéo 5</span>
                 <div class="gallery-info">
                     <div class="gallery-play-icon">
@@ -853,10 +1051,15 @@
                 </div>
             </div>
 
-            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_6.mp4')">
+            <!-- ═══════════════ VIGNETTE 6 ═══════════════ -->
+            <div class="gallery-item"
+                 data-preview="EXTRAIT_COURT_6.mp4"
+                 data-video="LIEN_DE_VOTRE_VIDEO_6.mp4">
                 <div class="gallery-img-wrap">
                     <img src="VOTRE_GIF_6.gif" alt="Mariage 6" loading="lazy">
                 </div>
+                <span class="gallery-tap-hint" data-lang="fr">Toucher pour ouvrir</span>
+                <span class="gallery-tap-hint" data-lang="en">Tap to open</span>
                 <span class="gallery-venue">Lieu de la vidéo 6</span>
                 <div class="gallery-info">
                     <div class="gallery-play-icon">
@@ -867,10 +1070,15 @@
                 </div>
             </div>
 
-            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_7.mp4')">
+            <!-- ═══════════════ VIGNETTE 7 ═══════════════ -->
+            <div class="gallery-item"
+                 data-preview="EXTRAIT_COURT_7.mp4"
+                 data-video="LIEN_DE_VOTRE_VIDEO_7.mp4">
                 <div class="gallery-img-wrap">
                     <img src="VOTRE_GIF_7.gif" alt="Mariage 7" loading="lazy">
                 </div>
+                <span class="gallery-tap-hint" data-lang="fr">Toucher pour ouvrir</span>
+                <span class="gallery-tap-hint" data-lang="en">Tap to open</span>
                 <span class="gallery-venue">Lieu de la vidéo 7</span>
                 <div class="gallery-info">
                     <div class="gallery-play-icon">
@@ -881,10 +1089,15 @@
                 </div>
             </div>
 
-            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_8.mp4')">
+            <!-- ═══════════════ VIGNETTE 8 ═══════════════ -->
+            <div class="gallery-item"
+                 data-preview="EXTRAIT_COURT_8.mp4"
+                 data-video="LIEN_DE_VOTRE_VIDEO_8.mp4">
                 <div class="gallery-img-wrap">
                     <img src="VOTRE_GIF_8.gif" alt="Mariage 8" loading="lazy">
                 </div>
+                <span class="gallery-tap-hint" data-lang="fr">Toucher pour ouvrir</span>
+                <span class="gallery-tap-hint" data-lang="en">Tap to open</span>
                 <span class="gallery-venue">Lieu de la vidéo 8</span>
                 <div class="gallery-info">
                     <div class="gallery-play-icon">
@@ -895,10 +1108,15 @@
                 </div>
             </div>
 
-            <div class="gallery-item" onclick="openVideoModal('LIEN_DE_VOTRE_VIDEO_9.mp4')">
+            <!-- ═══════════════ VIGNETTE 9 ═══════════════ -->
+            <div class="gallery-item"
+                 data-preview="EXTRAIT_COURT_9.mp4"
+                 data-video="LIEN_DE_VOTRE_VIDEO_9.mp4">
                 <div class="gallery-img-wrap">
                     <img src="VOTRE_GIF_9.gif" alt="Mariage 9" loading="lazy">
                 </div>
+                <span class="gallery-tap-hint" data-lang="fr">Toucher pour ouvrir</span>
+                <span class="gallery-tap-hint" data-lang="en">Tap to open</span>
                 <span class="gallery-venue">Lieu de la vidéo 9</span>
                 <div class="gallery-info">
                     <div class="gallery-play-icon">
@@ -1036,7 +1254,7 @@
             <span class="kicker">Contact</span>
             <h2 class="title-lg"><span data-lang="fr">Parlons de votre journée</span><span data-lang="en">Let's talk about your day</span></h2>
         </div>
-        
+
         <form action="https://formspree.io/f/mnnrrvay" method="POST">
             <div class="input-group" style="margin-bottom: 20px;">
                 <label><span data-lang="fr">Je suis... *</span><span data-lang="en">I am a... *</span></label>
@@ -1127,7 +1345,7 @@
                 <label><span data-lang="fr">Message / Votre Histoire</span><span data-lang="en">Message / Your Story</span></label>
                 <textarea rows="5" name="message" placeholder="Racontez-nous votre histoire..." required></textarea>
             </div>
-            
+
             <button type="submit" class="btn-primary" style="width: 100%;">
                 <span data-lang="fr">Envoyer</span><span data-lang="en">Send Message</span>
             </button>
@@ -1147,13 +1365,65 @@
       </div>
   </div>
 
+  <!-- ════════════════════════════════════════════════════════════
+       MODALE ESPACE CLIENTS — ACCÈS MARIÉS
+       Cette modale n'accepte QUE les codes de l'univers mariage
+       (gérés dans CODES_MARIAGE — voir le bloc commenté en bas du JS)
+       ════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="clientModal" onclick="closeClientModalOnOverlay(event)">
+    <div class="modal-content" style="max-width: 440px; padding: 50px 40px; text-align: center;">
+        <span class="modal-close" onclick="closeClientModal()">✕</span>
+
+        <div style="display: inline-flex; align-items: center; justify-content: center;
+                    width: 56px; height: 56px; border-radius: 50%;
+                    background: var(--accent-light); margin-bottom: 22px;">
+          <svg viewBox="0 0 24 24" style="width: 22px; height: 22px; stroke: var(--accent); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;">
+            <circle cx="8" cy="15" r="4"/>
+            <path d="M10.85 12.15L19 4"/>
+            <path d="M18 5l2 2"/>
+            <path d="M15 8l2 2"/>
+          </svg>
+        </div>
+
+        <span style="display: block; font-size: 11px; text-transform: uppercase;
+                     letter-spacing: 0.3em; color: var(--accent); margin-bottom: 10px;">
+          <span data-lang="fr">Espace Privé</span><span data-lang="en">Private Area</span>
+        </span>
+        <h2 style="font-family: 'Cormorant Garamond', serif; font-size: 2.2rem;
+                   font-weight: 400; margin-bottom: 12px; color: var(--text-main);">
+          <span data-lang="fr">Accès Mariés</span><span data-lang="en">Wedding Access</span>
+        </h2>
+
+        <p style="margin-bottom: 25px; font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+            <span data-lang="fr">Entrez le code d'accès personnel<br>qui vous a été communiqué.</span>
+            <span data-lang="en">Enter the personal access code<br>that was sent to you.</span>
+        </p>
+
+        <div class="input-group" style="margin-bottom: 22px;">
+            <input type="password" id="clientCode" placeholder="VOTRE CODE"
+                   onkeypress="if(event.key==='Enter') checkClientCode()"
+                   style="text-align: center; letter-spacing: 0.2em; text-transform: uppercase;"
+                   autocomplete="off">
+        </div>
+
+        <button onclick="checkClientCode()" class="btn-primary" style="width: 100%;">
+            <span data-lang="fr">Accéder à mes films</span><span data-lang="en">View my Films</span>
+        </button>
+
+        <p id="clientError" style="color: #c44; font-size: 12px; margin-top: 18px; display: none;">
+            <span data-lang="fr">Code incorrect. Veuillez réessayer.</span>
+            <span data-lang="en">Incorrect code. Please try again.</span>
+        </p>
+    </div>
+  </div>
+
   <footer>
     <div class="footer-social">
         <a href="https://www.instagram.com/_timelesshouse" target="_blank" rel="noopener noreferrer" class="social-link">
             <svg class="instagram-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 32px; height: 32px;">
               <path d="M12 2C14.717 2 15.056 2.01 16.122 2.06C17.187 2.11 17.912 2.277 18.55 2.525C19.21 2.779 19.766 3.123 20.322 3.678C20.8305 4.1779 21.224 4.78259 21.475 5.45C21.722 6.087 21.89 6.813 21.94 7.878C21.987 8.944 22 9.283 22 12C22 14.717 21.99 15.056 21.94 16.122C21.89 17.187 21.722 17.912 21.475 18.55C21.2247 19.2178 20.8311 19.8226 20.322 20.322C19.822 20.8303 19.2173 21.2238 18.55 21.475C17.913 21.722 17.187 21.89 16.122 21.94C15.056 21.987 14.717 22 12 22C9.283 22 8.944 21.99 7.878 21.94C6.813 21.89 6.088 21.722 5.45 21.475C4.78233 21.2245 4.17753 20.8309 3.678 20.322C3.16941 19.8222 2.77593 19.2175 2.525 18.55C2.277 17.913 2.11 17.187 2.06 16.122C2.013 15.056 2 14.717 2 12C2 9.283 2.01 8.944 2.06 7.878C2.11 6.812 2.277 6.088 2.525 5.45C2.77524 4.78218 3.1688 4.17732 3.678 3.678C4.17767 3.16923 4.78243 2.77573 5.45 2.525C6.088 2.277 6.812 2.11 7.878 2.06C8.944 2.013 9.283 2 12 2ZM12 7C10.6739 7 9.40215 7.52678 8.46447 8.46447C7.52678 9.40215 7 10.6739 7 12C7 13.3261 7.52678 14.5979 8.46447 15.5355C9.40215 16.4732 10.6739 17 12 17C13.3261 17 14.5979 16.4732 15.5355 15.5355C16.4732 14.5979 17 13.3261 17 12C17 10.6739 16.4732 9.40215 15.5355 8.46447C14.5979 7.52678 13.3261 7 12 7ZM18.5 6.75C18.5 6.41848 18.3683 6.10054 18.1339 5.86612C17.8995 5.6317 17.5815 5.5 17.25 5.5C16.9185 5.5 16.6005 5.6317 16.3661 5.86612C16.1317 6.10054 16 6.41848 16 6.75C16 7.08152 16.1317 7.39946 16.3661 7.63388C16.6005 7.8683 16.9185 8 17.25 8C17.5815 8 17.8995 7.8683 18.1339 7.63388C18.3683 7.39946 18.5 7.08152 18.5 6.75ZM12 9C12.7956 9 13.5587 9.31607 14.1213 9.87868C14.6839 10.4413 15 11.2044 15 12C15 12.7956 14.6839 13.5587 14.1213 14.1213C13.5587 14.6839 12.7956 15 12 15C11.2044 15 10.4413 14.6839 9.87868 14.1213C9.31607 13.5587 9 12.7956 9 12C9 11.2044 9.31607 10.4413 9.87868 9.87868C10.4413 9.31607 11.2044 9 12 9Z" fill="currentColor"/>
-          </svg>
-        </a>
+            </svg>
+          </a>
     </div>
     <p>
         &copy; 2025 TimelessHouse. <br>
@@ -1163,6 +1433,9 @@
         <a href="mailto:timelessfilms.house@gmail.com" style="color: var(--accent); transition: opacity 0.3s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">timelessfilms.house@gmail.com</a>
     </p>
   </footer>
+
+  <!-- 🔐 Codes clients — fichier maître partagé par toutes les pages -->
+  <script src="clients-data.js"></script>
 
   <script>
     /* ============================================================
@@ -1196,6 +1469,75 @@
     function closeModal() { document.getElementById('contactModal').classList.remove('active'); document.body.style.overflow = ''; }
     function closeModalOnOverlay(e) { if(e.target.classList.contains('modal-overlay')) closeModal(); }
     function toggleLanguage() { document.body.classList.toggle('en-mode'); }
+
+    /* ════════════════════════════════════════════════════════════
+       🔐  ESPACE CLIENTS — UNIVERS MARIAGE
+       ════════════════════════════════════════════════════════════
+
+       📁 OÙ MODIFIER LES CODES ?
+       ──────────────────────────
+       Tous les codes du site sont gérés DANS UN SEUL FICHIER :
+
+           👉 clients-data.js  (à la racine du site)
+
+       Ouvre-le, trouve la section "mariage" et ajoute/retire les
+       couples comme tu veux. Aucune autre édition n'est nécessaire.
+
+
+       ⚠️  SÉCURITÉ PAR UNIVERS — INCHANGÉE
+       ─────────────────────────────────────
+       Cette page (mariage.html) lit UNIQUEMENT la section "mariage"
+       du fichier partagé. Les codes des autres univers (immobilier,
+       voyage…) seront REFUSÉS ici. C'est voulu.
+
+       Sur la page d'accueil (index.html), tous les codes fonctionnent.
+       ════════════════════════════════════════════════════════════ */
+
+    // On lit uniquement les codes de l'univers "mariage" depuis le fichier partagé
+    const CODES_MARIAGE = (window.CODES_PAR_UNIVERS || {}).mariage || {};
+
+    function openClientModal() {
+        document.getElementById('clientModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => { document.getElementById('clientCode').focus(); }, 200);
+    }
+    function closeClientModal() {
+        document.getElementById('clientModal').classList.remove('active');
+        document.body.style.overflow = '';
+        document.getElementById('clientError').style.display = 'none';
+        document.getElementById('clientCode').value = '';
+    }
+    function closeClientModalOnOverlay(e) {
+        if (e.target.classList.contains('modal-overlay')) closeClientModal();
+    }
+    function checkClientCode() {
+        const raw = document.getElementById('clientCode').value;
+        // Nettoyage automatique : minuscules, sans accents, espaces → tirets
+        const code = raw.toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .replace(/&/g, ' ').trim()
+            .replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+
+        if (CODES_MARIAGE.hasOwnProperty(code)) {
+            sessionStorage.setItem('access_granted', code);
+            window.location.href = CODES_MARIAGE[code];
+        } else {
+            document.getElementById('clientError').style.display = 'block';
+        }
+    }
+    // Si on arrive sur cette page avec #clients dans l'URL, on ouvre la modale
+    if (window.location.hash === '#clients') {
+        setTimeout(openClientModal, 350);
+        history.replaceState(null, null, ' ');
+    }
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeClientModal();
+            closeModal();
+        }
+    });
+    /* ════════════════════════════════════════════════════════════ */
+
     function switchPricing(type) {
         document.querySelectorAll('.prestations-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.toggle-btn').forEach(el => el.classList.remove('active'));
@@ -1252,7 +1594,7 @@
         document.body.style.overflow = '';
         videoPlayer.pause();
         videoPlayer.currentTime = 0;
-        videoPlayer.src = ""; 
+        videoPlayer.src = "";
     }
     function closeVideoModalOnOverlay(e) { if(e.target.classList.contains('video-overlay')) closeVideoModal(); }
 
@@ -1292,7 +1634,7 @@
         if (heroVideo) {
             var heroObserver = new IntersectionObserver(function(entries) {
                 entries.forEach(function(entry) {
-                    if (entry.isIntersecting) { heroVideo.play().catch(function() {}); } 
+                    if (entry.isIntersecting) { heroVideo.play().catch(function() {}); }
                     else { if (!heroVideo.paused) heroVideo.pause(); }
                 });
             }, { threshold: 0.1 });
@@ -1329,6 +1671,174 @@
                 item.style.display = 'none'; // On cache la case entière
             }
         });
+
+        /* ============================================================
+           🎥  PORTFOLIO : EXTRAIT VIDÉO EN BOUCLE (LÉGER)
+           ============================================================
+           Comportement :
+           - Bureau (souris)  : au survol, un EXTRAIT COURT démarre
+                                 en boucle (silencieux). Au départ
+                                 de la souris → retour à l'image.
+                                 Un clic ouvre la VIDÉO COMPLÈTE
+                                 dans le popup.
+           - Mobile (tactile) : 1er tap → l'EXTRAIT COURT démarre.
+                                 2e tap  → ouverture de la VIDÉO
+                                 COMPLÈTE dans le popup.
+
+           Sources lues sur la vignette :
+           - data-preview         : fichier .mp4 court à charger pour
+                                    la preview (recommandé : 5-15 sec,
+                                    bien compressé). Le plus léger.
+           - data-video           : fichier complet ouvert au clic.
+           - data-preview-start   : (optionnel) seconde de début si on
+                                    veut boucler un segment de la
+                                    vidéo complète au lieu d'un extrait.
+           - data-preview-end     : (optionnel) seconde de fin de la
+                                    boucle. À utiliser avec
+                                    data-preview-start.
+           ============================================================ */
+        const isHoverDevice = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        const previewItems = document.querySelectorAll('.gallery-item[data-video], .gallery-item[data-preview]');
+
+        function isPlaceholder(url) {
+            if (!url) return true;
+            return url.indexOf('LIEN_DE_VOTRE_VIDEO') !== -1
+                || url.indexOf('EXTRAIT_COURT') !== -1
+                || url.indexOf('VOTRE_') !== -1;
+        }
+
+        previewItems.forEach(function(item) {
+            // On évite les vignettes vides
+            if (item.style.display === 'none') return;
+
+            const fullUrl    = item.getAttribute('data-video');     // vidéo complète (popup)
+            const previewSrc = item.getAttribute('data-preview');   // extrait court (preview)
+            const startSec   = parseFloat(item.getAttribute('data-preview-start') || '0');
+            const endSec     = parseFloat(item.getAttribute('data-preview-end')   || '0');
+
+            // URL réellement utilisée pour le popup
+            const modalUrl = !isPlaceholder(fullUrl) ? fullUrl : (!isPlaceholder(previewSrc) ? previewSrc : '');
+
+            // URL réellement utilisée pour la preview au survol
+            // - en priorité : data-preview (petit fichier dédié)
+            // - sinon       : data-video, mais SEULEMENT si on a un segment
+            //                 (preview-start/end) — sans ça on évite de
+            //                 charger une longue vidéo juste pour le survol.
+            let previewUrl = '';
+            if (!isPlaceholder(previewSrc)) {
+                previewUrl = previewSrc;
+            } else if (!isPlaceholder(fullUrl) && (startSec > 0 || endSec > 0)) {
+                previewUrl = fullUrl;
+            }
+
+            // Si pas de preview du tout : on garde juste le comportement clic = popup
+            if (!previewUrl) {
+                if (modalUrl) {
+                    item.addEventListener('click', function() { openVideoModal(modalUrl); });
+                }
+                return;
+            }
+
+            // === Création de l'élément vidéo "preview" (boucle, silencieux, léger) ===
+            const wrap = item.querySelector('.gallery-img-wrap');
+            const previewVideo = document.createElement('video');
+            previewVideo.className = 'gallery-preview';
+            previewVideo.muted = true;
+            previewVideo.loop = (endSec <= 0); // si on boucle un segment, on gère la boucle à la main
+            previewVideo.playsInline = true;
+            previewVideo.setAttribute('playsinline', '');
+            previewVideo.setAttribute('webkit-playsinline', '');
+            previewVideo.setAttribute('muted', '');
+            previewVideo.preload = 'none';   // ne charge RIEN tant qu'on n'a pas survolé / tapé
+            previewVideo.src = previewUrl;
+            wrap.appendChild(previewVideo);
+
+            // Boucle d'un segment précis (start → end) si demandé via data-preview-start/end
+            if (startSec > 0 || endSec > 0) {
+                previewVideo.addEventListener('loadedmetadata', function() {
+                    try { previewVideo.currentTime = startSec; } catch(e) {}
+                });
+                previewVideo.addEventListener('timeupdate', function() {
+                    if (endSec > 0 && previewVideo.currentTime >= endSec) {
+                        try { previewVideo.currentTime = startSec; } catch(e) {}
+                    }
+                });
+            }
+
+            function startPreview() {
+                // On stoppe les autres previews actifs pour rester léger
+                document.querySelectorAll('.gallery-item.preview-active').forEach(function(other) {
+                    if (other !== item) {
+                        other.classList.remove('preview-active');
+                        const v = other.querySelector('.gallery-preview');
+                        if (v) { try { v.pause(); v.currentTime = 0; } catch(e){} }
+                    }
+                });
+                item.classList.add('preview-active');
+                try { previewVideo.currentTime = startSec || 0; } catch(e) {}
+                const p = previewVideo.play();
+                if (p && typeof p.catch === 'function') { p.catch(function(){}); }
+            }
+
+            function stopPreview() {
+                item.classList.remove('preview-active');
+                try {
+                    previewVideo.pause();
+                    previewVideo.currentTime = startSec || 0;
+                } catch(e) {}
+            }
+
+            if (isHoverDevice) {
+                // ===== BUREAU : hover = preview courte, click = vidéo complète =====
+                item.addEventListener('mouseenter', startPreview);
+                item.addEventListener('mouseleave', stopPreview);
+                item.addEventListener('click', function() {
+                    stopPreview();
+                    if (modalUrl) openVideoModal(modalUrl);
+                });
+            } else {
+                // ===== MOBILE / TACTILE : 1er tap = preview, 2e tap = vidéo complète =====
+                item.addEventListener('click', function(e) {
+                    if (!item.classList.contains('preview-active')) {
+                        startPreview();
+                    } else {
+                        stopPreview();
+                        if (modalUrl) openVideoModal(modalUrl);
+                    }
+                });
+            }
+        });
+
+        // Sur mobile, un tap en dehors d'une vignette stoppe la preview en cours
+        if (!isHoverDevice) {
+            document.addEventListener('click', function(e) {
+                const insideItem = e.target.closest('.gallery-item');
+                if (!insideItem) {
+                    document.querySelectorAll('.gallery-item.preview-active').forEach(function(it) {
+                        it.classList.remove('preview-active');
+                        const v = it.querySelector('.gallery-preview');
+                        if (v) { try { v.pause(); v.currentTime = 0; } catch(err) {} }
+                    });
+                }
+            });
+        }
+
+        // Quand on quitte la section portfolio (scroll), on coupe les previews
+        const portfolioSection = document.getElementById('portfolio');
+        if (portfolioSection) {
+            const portfolioObserver = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
+                    if (!entry.isIntersecting) {
+                        document.querySelectorAll('.gallery-item.preview-active').forEach(function(it) {
+                            it.classList.remove('preview-active');
+                            const v = it.querySelector('.gallery-preview');
+                            if (v) { try { v.pause(); } catch(err) {} }
+                        });
+                    }
+                });
+            }, { threshold: 0 });
+            portfolioObserver.observe(portfolioSection);
+        }
     });
 </script>
 </body>

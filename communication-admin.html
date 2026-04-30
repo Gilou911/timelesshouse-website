@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TimelessHouse — Admin</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+      "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+      "lucide-react": "https://esm.sh/lucide-react@0.439.0?deps=react@18.3.1"
+    }
+  }
+  </script>
+
+  <style>
+    body { margin: 0; background: #e8e9ec; font-family: 'Manrope', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(120,120,130,0.3); border-radius: 4px; }
+    input, textarea, select { font-family: inherit; }
+    input:focus, textarea:focus, select:focus { outline: none; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="supabase-config.js"></script>
+
+  <script type="text/babel" data-type="module" data-presets="react">
+    import React, { useState, useEffect, useMemo } from 'react';
+    import ReactDOM from 'react-dom/client';
+    import { createClient } from '@supabase/supabase-js';
+    import {
+      Home, Users, BarChart3, Settings, LogOut, Plus, Search, Edit3, Trash2,
+      X, Check, ArrowLeft, Image as ImageIcon, FileText, Calendar as CalendarIcon,
+      Save, Eye, EyeOff, AlertCircle, ChevronRight, Lock, Mail, ArrowUpRight,
+      Filter, Video, Camera, Clock, MapPin, TrendingUp, Sparkles, ExternalLink,
+      Loader2, MessageSquare, Bell, Send, CheckCircle2, RefreshCw, Link2
+    } from 'lucide-react';
+
+    const sb = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+    /* ════════════════════════════════════════════════════════════
+       🎨 STYLES NÉOMORPHIQUES (cohérents avec le dashboard client)
+       ════════════════════════════════════════════════════════════ */
+    const neu = {
+      base:      { backgroundColor: '#e8e9ec' },
+      raised:    { backgroundColor: '#f1f2f5', boxShadow: '10px 10px 24px rgba(166,171,189,0.45), -10px -10px 24px rgba(255,255,255,0.95)' },
+      raisedSm:  { backgroundColor: '#f1f2f5', boxShadow: '5px 5px 12px rgba(166,171,189,0.35), -5px -5px 12px rgba(255,255,255,0.9)' },
+      raisedXs:  { backgroundColor: '#f1f2f5', boxShadow: '3px 3px 7px rgba(166,171,189,0.3), -3px -3px 7px rgba(255,255,255,0.85)' },
+      pressed:   { backgroundColor: '#e8e9ec', boxShadow: 'inset 5px 5px 10px rgba(166,171,189,0.35), inset -5px -5px 10px rgba(255,255,255,0.9)' },
+      pressedSm: { backgroundColor: '#e8e9ec', boxShadow: 'inset 3px 3px 6px rgba(166,171,189,0.3), inset -3px -3px 6px rgba(255,255,255,0.85)' },
+      dark:      { backgroundColor: '#1a1a1d', boxShadow: '8px 8px 18px rgba(166,171,189,0.4), -3px -3px 8px rgba(255,255,255,0.6), inset 1px 1px 2px rgba(255,255,255,0.1)' },
+      darkSm:    { backgroundColor: '#1a1a1d', boxShadow: '4px 4px 10px rgba(166,171,189,0.4), -2px -2px 6px rgba(255,255,255,0.5)' },
+    };
+
+    const SERIF = { fontFamily: 'Instrument Serif, serif', fontWeight: 400 };
+
+    /* ════════════════════════════════════════════════════════════
+       🔧 ATOMS
+       ════════════════════════════════════════════════════════════ */
+    const Btn = ({ kind = 'soft', onClick, children, type = 'button', disabled, full, icon: Icon, className = '' }) => {
+      const styles = kind === 'dark' ? neu.dark : neu.raisedXs;
+      const text = kind === 'dark' ? 'text-white' : 'text-stone-800';
+      return (
+        <button
+          type={type}
+          onClick={onClick}
+          disabled={disabled}
+          style={styles}
+          className={`px-5 py-2.5 rounded-full text-[13px] font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50 ${text} ${full ? 'w-full' : ''} ${className}`}
+        >
+          {Icon && <Icon size={14} />}
+          {children}
+        </button>
+      );
+    };
+
+    const Field = ({ label, children }) => (
+      <div>
+        <label className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold block mb-2">{label}</label>
+        {children}
+      </div>
+    );
+
+    const Input = (props) => (
+      <input
+        {...props}
+        style={{ ...neu.pressedSm, ...(props.style || {}) }}
+        className={`w-full px-4 py-3 rounded-xl bg-transparent text-[14px] placeholder:text-stone-400 ${props.className || ''}`}
+      />
+    );
+
+    const Textarea = (props) => (
+      <textarea
+        {...props}
+        style={{ ...neu.pressedSm, ...(props.style || {}) }}
+        className={`w-full px-4 py-3 rounded-xl bg-transparent text-[13px] placeholder:text-stone-400 resize-y font-mono ${props.className || ''}`}
+      />
+    );
+
+    const Select = ({ value, onChange, children }) => (
+      <select value={value} onChange={onChange} style={neu.pressedSm} className="w-full px-4 py-3 rounded-xl bg-transparent text-[14px]">
+        {children}
+      </select>
+    );
+
+    const StatCard = ({ label, value, dark }) => (
+      <div style={dark ? neu.dark : neu.raisedSm} className={`rounded-3xl p-6 ${dark ? 'text-white' : 'text-stone-900'}`}>
+        <div className={`text-[13px] ${dark ? 'text-stone-400' : 'text-stone-500'} font-medium`}>{label}</div>
+        <div className="text-[32px] tracking-tight mt-2 leading-none" style={SERIF}>{value}</div>
+      </div>
+    );
+
+    const ApprovalBadge = ({ status }) => {
+      const cfg = {
+        pending:           { label: 'En attente',          bg: 'bg-amber-100',   text: 'text-amber-700',   icon: Clock },
+        approved:          { label: 'Approuvé',            bg: 'bg-emerald-100', text: 'text-emerald-700', icon: CheckCircle2 },
+        changes_requested: { label: 'Changements demandés', bg: 'bg-rose-100',   text: 'text-rose-700',    icon: AlertCircle },
+      }[status] || { label: status, bg: 'bg-stone-100', text: 'text-stone-600', icon: Clock };
+      const Icon = cfg.icon;
+      return (
+        <span className={`inline-flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider ${cfg.bg} ${cfg.text}`}>
+          <Icon size={10} /> {cfg.label}
+        </span>
+      );
+    };
+
+    const Modal = ({ title, kicker, onClose, children, size = 'md' }) => (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-stone-900/30 backdrop-blur-sm" onClick={onClose}>
+        <div
+          style={neu.raised}
+          className={`rounded-[32px] p-7 max-h-[90vh] overflow-y-auto w-full ${size === 'lg' ? 'max-w-2xl' : 'max-w-md'}`}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              {kicker && <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">{kicker}</div>}
+              <h2 className="text-[24px] tracking-tight mt-1 leading-tight" style={SERIF}>{title}</h2>
+            </div>
+            <button style={neu.raisedXs} onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center"><X size={15} /></button>
+          </div>
+          {children}
+        </div>
+      </div>
+    );
+
+    /* ════════════════════════════════════════════════════════════
+       🔐 LOGIN
+       ════════════════════════════════════════════════════════════ */
+    function LoginScreen({ onLogin }) {
+      const [email, setEmail] = useState('');
+      const [pwd, setPwd] = useState('');
+      const [showPwd, setShowPwd] = useState(false);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState('');
+
+      const submit = async (e) => {
+        e.preventDefault();
+        setLoading(true); setError('');
+        const { data, error: err } = await sb.auth.signInWithPassword({ email, password: pwd });
+        if (err) {
+          setError("Identifiants incorrects ou compte non trouvé.");
+          setLoading(false);
+        } else {
+          onLogin(data.user);
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex items-center justify-center p-6">
+          <div style={neu.raised} className="rounded-[32px] p-10 max-w-md w-full">
+            <div className="text-center mb-8">
+              <div style={neu.dark} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mx-auto mb-4">
+                <Lock size={20} />
+              </div>
+              <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Espace Agence</div>
+              <h1 className="text-[34px] tracking-tight mt-1 leading-none" style={SERIF}>Connexion admin</h1>
+              <p className="text-[13px] text-stone-500 mt-3">Gérez tous vos clients, médias, factures et tournages.</p>
+            </div>
+
+            <form onSubmit={submit} className="space-y-4">
+              <Field label="Email">
+                <div className="relative">
+                  <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+                  <Input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="vous@timelesshouse.org" style={{ paddingLeft: '42px' }} />
+                </div>
+              </Field>
+              <Field label="Mot de passe">
+                <div className="relative">
+                  <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+                  <Input type={showPwd ? 'text' : 'password'} required value={pwd} onChange={e => setPwd(e.target.value)} placeholder="••••••••" style={{ paddingLeft: '42px', paddingRight: '42px' }} />
+                  <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700">
+                    {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </Field>
+
+              {error && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]">
+                  <AlertCircle size={14} /> {error}
+                </div>
+              )}
+
+              <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Lock}>
+                {loading ? 'Connexion…' : 'Se connecter'}
+              </Btn>
+            </form>
+
+            <p className="text-[11px] text-stone-400 text-center mt-6">
+              Compte créé via Supabase → Authentication → Users.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       🏠 OVERVIEW
+       ════════════════════════════════════════════════════════════ */
+    function Overview({ clients, totalMedia, totalRevenue, upcomingShoots }) {
+      return (
+        <div className="space-y-5">
+          <div className="grid grid-cols-4 gap-5">
+            <StatCard dark label="Clients actifs" value={clients.filter(c => c.active).length} />
+            <StatCard label="Revenus totaux" value={`${totalRevenue.toLocaleString('fr-FR')} €`} />
+            <StatCard label="Médias livrés" value={totalMedia} />
+            <StatCard label="Tournages prévus" value={upcomingShoots} />
+          </div>
+
+          <div style={neu.dark} className="rounded-[28px] p-7 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-15" style={{ background: 'radial-gradient(circle, #ffffff 0%, transparent 70%)', transform: 'translate(30%, -50%)' }} />
+            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Bienvenue</div>
+            <h2 className="text-[28px] tracking-tight mt-1 leading-tight max-w-2xl" style={SERIF}>
+              Tout votre studio depuis un seul espace.
+            </h2>
+            <p className="text-[13px] text-stone-300 mt-3 max-w-xl">
+              Ajoutez de nouveaux clients, livrez des médias, créez des factures et planifiez vos tournages. Vos clients verront les changements instantanément.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       👥 CLIENTS LIST
+       ════════════════════════════════════════════════════════════ */
+    function ClientsList({ clients, onSelect, onCreate, refresh }) {
+      const [showNew, setShowNew] = useState(false);
+      const [search, setSearch] = useState('');
+
+      const filtered = useMemo(() =>
+        clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.code || '').includes(search.toLowerCase())),
+        [clients, search]
+      );
+
+      return (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <div style={neu.raisedXs} className="rounded-full flex items-center gap-2 px-4 py-2.5 w-72">
+              <Search size={15} className="text-stone-400" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Chercher un client…" className="bg-transparent outline-none text-[13px] flex-1 placeholder:text-stone-400" />
+            </div>
+            <Btn kind="dark" icon={Plus} onClick={() => setShowNew(true)}>Nouveau client</Btn>
+          </div>
+
+          <div className="grid grid-cols-3 gap-5">
+            {filtered.map(c => (
+              <button key={c.id} onClick={() => onSelect(c)} style={neu.raised} className="rounded-[24px] p-6 text-left group">
+                <div className="flex items-start justify-between">
+                  <div style={neu.darkSm} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-[18px] font-semibold">
+                    {c.initials || c.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold ${c.active ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200 text-stone-600'}`}>
+                    {c.active ? 'actif' : 'pause'}
+                  </span>
+                </div>
+                <h3 className="text-[20px] tracking-tight mt-4 leading-tight" style={SERIF}>{c.name}</h3>
+                <div className="text-[12px] text-stone-500 mt-0.5">{c.sector}</div>
+                <div className="flex items-center gap-2 mt-4 text-[11px] flex-wrap">
+                  <code style={neu.pressedSm} className="px-2.5 py-1 rounded-md font-mono">{c.code}</code>
+                  {c.analytics_enabled && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-violet-100 text-violet-700 font-semibold uppercase tracking-wider text-[9.5px]">
+                      <BarChart3 size={10} /> Analytics
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-end mt-3">
+                  <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition" />
+                </div>
+              </button>
+            ))}
+            <button onClick={() => setShowNew(true)} style={neu.pressed} className="rounded-[24px] p-6 flex flex-col items-center justify-center text-center min-h-[200px] hover:scale-[1.01] transition">
+              <div style={neu.dark} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-4">
+                <Plus size={20} />
+              </div>
+              <div className="text-[15px] font-semibold">Créer un espace</div>
+              <div className="text-[12px] text-stone-500 mt-1">Onboarder un nouveau client</div>
+            </button>
+          </div>
+
+          {showNew && <ClientForm onClose={() => setShowNew(false)} onSaved={(c) => { setShowNew(false); refresh(); onCreate && onCreate(c); }} />}
+        </div>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       📝 CLIENT FORM (création + édition identité)
+       ════════════════════════════════════════════════════════════ */
+    function ClientForm({ existing, onClose, onSaved }) {
+      const [form, setForm] = useState({
+        name:              existing?.name              || '',
+        code:              existing?.code              || '',
+        greeting:          existing?.greeting          || '',
+        initials:          existing?.initials          || '',
+        sector:            existing?.sector            || '',
+        client_email:      existing?.client_email      || '',
+        agency_name:       existing?.agency_name       || 'TimelessHouse',
+        active:            existing?.active ?? true,
+        analytics_enabled: existing?.analytics_enabled ?? false,
+      });
+      const [loading, setLoading] = useState(false);
+      const [err, setErr] = useState('');
+
+      const slugify = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+
+      const submit = async (e) => {
+        e.preventDefault();
+        setLoading(true); setErr('');
+        const payload = { ...form, code: slugify(form.code) };
+
+        let result;
+        if (existing) {
+          result = await sb.from('clients').update(payload).eq('id', existing.id).select().single();
+        } else {
+          result = await sb.from('clients').insert(payload).select().single();
+          // Créer aussi une ligne analytics vide
+          if (result.data) {
+            await sb.from('analytics').insert({ client_id: result.data.id });
+          }
+        }
+
+        if (result.error) {
+          setErr(result.error.message.includes('duplicate') ? 'Ce code est déjà utilisé.' : result.error.message);
+          setLoading(false);
+        } else {
+          onSaved(result.data);
+        }
+      };
+
+      return (
+        <Modal title={existing ? 'Modifier le client' : 'Nouvel espace client'} kicker={existing ? 'Édition' : 'Création'} onClose={onClose} size="lg">
+          <form onSubmit={submit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Nom de la marque">
+                <Input required value={form.name} onChange={e => setForm({...form, name: e.target.value, initials: form.initials || e.target.value.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2)})} placeholder="Maison Lumière" />
+              </Field>
+              <Field label="Code d'accès (sans espaces)">
+                <Input required value={form.code} onChange={e => setForm({...form, code: e.target.value})} placeholder="maison-lumiere" />
+              </Field>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="Prénom contact">
+                <Input value={form.greeting} onChange={e => setForm({...form, greeting: e.target.value})} placeholder="Camille" />
+              </Field>
+              <Field label="Initiales">
+                <Input value={form.initials} onChange={e => setForm({...form, initials: e.target.value.toUpperCase().slice(0,3)})} placeholder="ML" maxLength={3} />
+              </Field>
+              <Field label="Secteur">
+                <Input value={form.sector} onChange={e => setForm({...form, sector: e.target.value})} placeholder="Hôtellerie" />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Email du client (pour les notifications)">
+                <Input type="email" value={form.client_email} onChange={e => setForm({...form, client_email: e.target.value})} placeholder="contact@maison-lumiere.fr" />
+              </Field>
+              <Field label="Statut">
+                <Select value={form.active ? 'actif' : 'pause'} onChange={e => setForm({...form, active: e.target.value === 'actif'})}>
+                  <option value="actif">Actif (le client peut se connecter)</option>
+                  <option value="pause">En pause (l'accès est bloqué)</option>
+                </Select>
+              </Field>
+            </div>
+
+            <Field label="Options du client">
+              <button type="button" onClick={() => setForm({...form, analytics_enabled: !form.analytics_enabled})}
+                style={form.analytics_enabled ? neu.dark : neu.pressedSm}
+                className={`w-full px-5 py-4 rounded-2xl flex items-center justify-between transition ${form.analytics_enabled ? 'text-white' : 'text-stone-700'}`}>
+                <div className="flex items-center gap-3 text-left">
+                  <BarChart3 size={18} />
+                  <div>
+                    <div className="font-semibold text-[13.5px]">Analyses réseaux sociaux</div>
+                    <div className={`text-[11px] mt-0.5 ${form.analytics_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Option mensuelle — Affiche l'onglet "Analyses" pour ce client</div>
+                  </div>
+                </div>
+                <div className={`w-11 h-6 rounded-full p-0.5 transition ${form.analytics_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${form.analytics_enabled ? 'translate-x-5' : ''}`} />
+                </div>
+              </button>
+            </Field>
+
+            {err && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]"><AlertCircle size={14} /> {err}</div>}
+
+            <div className="flex gap-3 pt-2">
+              <Btn onClick={onClose} full>Annuler</Btn>
+              <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
+                {loading ? 'Enregistrement…' : (existing ? 'Mettre à jour' : "Créer l'espace")}
+              </Btn>
+            </div>
+          </form>
+        </Modal>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       👤 CLIENT DETAIL PAGE (avec onglets)
+       ════════════════════════════════════════════════════════════ */
+    function ClientDetail({ client, onBack, refresh }) {
+      const [tab, setTab] = useState('media');
+      const [editClient, setEditClient] = useState(false);
+      const [confirmDelete, setConfirmDelete] = useState(false);
+      const [sendingWelcome, setSendingWelcome] = useState(false);
+
+      const tabs = [
+        { id: 'media',     label: 'Médias',    icon: ImageIcon },
+        { id: 'invoices',  label: 'Factures',  icon: FileText },
+        { id: 'shoots',    label: 'Tournages', icon: CalendarIcon },
+        ...(client.analytics_enabled ? [{ id: 'analytics', label: 'Analyses', icon: BarChart3 }] : []),
+      ];
+
+      const deleteClient = async () => {
+        await sb.from('clients').delete().eq('id', client.id);
+        refresh();
+        onBack();
+      };
+
+      const sendWelcomeEmail = async () => {
+        if (!client.client_email) {
+          alert("Ajoutez d'abord l'email du client (Modifier → champ Email).");
+          return;
+        }
+        if (!confirm(`Envoyer l'email de bienvenue avec le code d'accès à ${client.client_email} ?`)) return;
+        setSendingWelcome(true);
+        try {
+          const url = `${window.SUPABASE_URL}/functions/v1/notify-client`;
+          const res = await fetch(url, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}` },
+            body:    JSON.stringify({ kind: 'welcome', client_id: client.id }),
+          });
+          if (res.ok) alert(`✓ Email de bienvenue envoyé à ${client.client_email}`);
+          else if (res.status === 404) alert("La fonction de notification n'est pas déployée.");
+          else alert(`Erreur : ${await res.text()}`);
+        } catch (e) { alert("Erreur réseau : " + e.message); }
+        setSendingWelcome(false);
+      };
+
+      return (
+        <div className="space-y-5">
+          {/* Header client */}
+          <div style={neu.raised} className="rounded-[28px] p-6 flex items-center gap-5 flex-wrap">
+            <button onClick={onBack} style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center"><ArrowLeft size={16} /></button>
+            <div style={neu.darkSm} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-[18px] font-semibold">{client.initials}</div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-[26px] tracking-tight leading-tight" style={SERIF}>{client.name}</h2>
+              <div className="flex items-center gap-3 mt-1 text-[12px] text-stone-500 flex-wrap">
+                <span>{client.sector}</span>
+                <span>·</span>
+                <code style={neu.pressedSm} className="px-2 py-0.5 rounded-md font-mono text-[11px]">{client.code}</code>
+                <span>·</span>
+                <span className={client.active ? 'text-emerald-600 font-semibold' : 'text-stone-400'}>{client.active ? 'Actif' : 'En pause'}</span>
+                {client.client_email && <><span>·</span><span className="text-stone-500">{client.client_email}</span></>}
+              </div>
+            </div>
+            {client.client_email && (
+              <Btn icon={sendingWelcome ? Loader2 : Send} onClick={sendWelcomeEmail} disabled={sendingWelcome}>
+                {sendingWelcome ? 'Envoi…' : 'Email de bienvenue'}
+              </Btn>
+            )}
+            <Btn icon={Edit3} onClick={() => setEditClient(true)}>Modifier</Btn>
+            <Btn icon={Trash2} onClick={() => setConfirmDelete(true)} className="text-rose-600">Supprimer</Btn>
+          </div>
+
+          {/* Tabs */}
+          <div style={neu.raisedXs} className="rounded-full p-1 flex items-center inline-flex">
+            {tabs.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={tab === t.id ? neu.dark : {}} className={`px-5 py-2.5 rounded-full text-[13px] font-medium flex items-center gap-2 ${tab === t.id ? 'text-white' : 'text-stone-500'}`}>
+                <t.icon size={14} /> {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
+          {tab === 'media' && <MediaTab clientId={client.id} client={client} />}
+          {tab === 'invoices' && <InvoicesTab clientId={client.id} />}
+          {tab === 'shoots' && <ShootsTab clientId={client.id} />}
+          {tab === 'analytics' && <AnalyticsTab clientId={client.id} />}
+
+          {editClient && <ClientForm existing={client} onClose={() => setEditClient(false)} onSaved={() => { setEditClient(false); refresh(); }} />}
+          {confirmDelete && (
+            <Modal title="Supprimer ce client ?" kicker="Confirmation" onClose={() => setConfirmDelete(false)}>
+              <p className="text-[13px] text-stone-600 mb-5">
+                Cette action est irréversible. Tous les médias, factures, tournages et analyses associés à <strong>{client.name}</strong> seront définitivement supprimés.
+              </p>
+              <div className="flex gap-3">
+                <Btn onClick={() => setConfirmDelete(false)} full>Annuler</Btn>
+                <Btn kind="dark" onClick={deleteClient} full icon={Trash2}>Confirmer la suppression</Btn>
+              </div>
+            </Modal>
+          )}
+        </div>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       📸 MEDIA TAB
+       ════════════════════════════════════════════════════════════ */
+    function MediaTab({ clientId, client }) {
+      const [items, setItems] = useState([]);
+      const [shoots, setShoots] = useState([]);
+      const [comments, setComments] = useState({});
+      const [editing, setEditing] = useState(null);
+      const [showForm, setShowForm] = useState(false);
+      const [openComments, setOpenComments] = useState(null); // media object pour la modale
+      const [loading, setLoading] = useState(true);
+      const [notifying, setNotifying] = useState(null);
+
+      const load = async () => {
+        setLoading(true);
+        const [m, s] = await Promise.all([
+          sb.from('media').select('*').eq('client_id', clientId).order('position'),
+          sb.from('shoots').select('*').eq('client_id', clientId).order('date_day'),
+        ]);
+        const mediaItems = m.data || [];
+        setItems(mediaItems);
+        setShoots(s.data || []);
+        // Comptage des commentaires par média
+        if (mediaItems.length) {
+          const ids = mediaItems.map(x => x.id);
+          const { data: c } = await sb.from('media_comments').select('id, media_id').in('media_id', ids);
+          const grouped = {};
+          (c || []).forEach(cm => { grouped[cm.media_id] = (grouped[cm.media_id] || 0) + 1; });
+          setComments(grouped);
+        }
+        setLoading(false);
+      };
+      useEffect(() => { load(); }, [clientId]);
+
+      const remove = async (id) => {
+        if (!confirm('Supprimer ce média ?')) return;
+        await sb.from('media').delete().eq('id', id);
+        load();
+      };
+
+      const setApproval = async (id, status) => {
+        await sb.rpc('update_media_approval', { p_media_id: id, p_status: status });
+        load();
+      };
+
+      const notifyClient = async (media) => {
+        if (!client?.client_email) {
+          alert("Ajoutez d'abord l'email du client (modifier le client → champ Email).");
+          return;
+        }
+        setNotifying(media.id);
+        try {
+          const url = `${window.SUPABASE_URL}/functions/v1/notify-client`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({ client_id: clientId, media_id: media.id, kind: 'new_media' }),
+          });
+          if (res.ok) {
+            alert(`✓ Email envoyé à ${client.client_email}`);
+          } else if (res.status === 404) {
+            alert("La fonction de notification n'est pas encore déployée.\n\nVoir ÉMAILS-SETUP.md pour activer les notifications par email (5 min).");
+          } else {
+            const txt = await res.text();
+            alert(`Erreur d'envoi : ${txt}`);
+          }
+        } catch (e) {
+          alert("Erreur réseau : " + e.message);
+        }
+        setNotifying(null);
+      };
+
+      const findShoot = (id) => shoots.find(s => s.id === id);
+
+      return (
+        <div style={neu.raised} className="rounded-[28px] p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Bibliothèque</div>
+              <h3 className="text-[22px] tracking-tight mt-1" style={SERIF}>Médias livrés ({items.length})</h3>
+            </div>
+            <Btn kind="dark" icon={Plus} onClick={() => { setEditing(null); setShowForm(true); }}>Ajouter un média</Btn>
+          </div>
+
+          {loading ? <div className="text-center py-12 text-stone-400">Chargement…</div> : (
+            <div className="space-y-2">
+              {items.map(m => {
+                const shoot = findShoot(m.shoot_id);
+                const cmtCount = comments[m.id] || 0;
+                return (
+                  <div key={m.id} style={neu.pressedSm} className="rounded-2xl p-3 flex items-center gap-3 flex-wrap">
+                    <div className="w-14 h-14 rounded-xl shrink-0" style={{ background: m.thumb_grad }}>
+                      {m.type === 'video' && <div className="w-full h-full flex items-center justify-center text-white"><Video size={18} /></div>}
+                      {m.type === 'photo' && <div className="w-full h-full flex items-center justify-center text-white"><Camera size={18} /></div>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="font-medium text-[13.5px] truncate">{m.title}</div>
+                        <ApprovalBadge status={m.approval_status || 'pending'} />
+                      </div>
+                      <div className="text-[11px] text-stone-500 mt-0.5">
+                        {m.date_label}{m.duration && ` · ${m.duration}`}{m.size_label && ` · ${m.size_label}`}{m.tag && ` · ${m.tag}`}
+                        {shoot && <span className="ml-1.5"><Link2 size={10} className="inline" /> {shoot.title}</span>}
+                      </div>
+                    </div>
+
+                    <button onClick={() => setOpenComments(m)} style={neu.raisedXs} className="px-3 h-9 rounded-full flex items-center gap-1.5 text-[12px]" title="Commentaires">
+                      <MessageSquare size={12} /> {cmtCount}
+                    </button>
+
+                    {client?.client_email && (
+                      <button onClick={() => notifyClient(m)} disabled={notifying === m.id} style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center disabled:opacity-50" title="Notifier le client par email">
+                        {notifying === m.id ? <Loader2 size={13} className="animate-spin" /> : <Bell size={13} />}
+                      </button>
+                    )}
+                    {m.url && <a href={m.url} target="_blank" rel="noopener noreferrer" style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center" title="Ouvrir dans un nouvel onglet"><ExternalLink size={13} /></a>}
+                    <button onClick={() => { setEditing(m); setShowForm(true); }} style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center" title="Modifier"><Edit3 size={13} /></button>
+                    <button onClick={() => remove(m.id)} style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center text-rose-500" title="Supprimer"><Trash2 size={13} /></button>
+                  </div>
+                );
+              })}
+              {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucun média. Cliquez sur "Ajouter un média" pour commencer.</div>}
+            </div>
+          )}
+
+          {showForm && <MediaForm clientId={clientId} shoots={shoots} existing={editing} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load(); }} />}
+          {openComments && <CommentsModal media={openComments} onClose={() => { setOpenComments(null); load(); }} onApprove={setApproval} />}
+        </div>
+      );
+    }
+
+    function CommentsModal({ media, onClose, onApprove }) {
+      const [comments, setComments] = useState([]);
+      const [newComment, setNewComment] = useState('');
+      const [posting, setPosting] = useState(false);
+      const [loading, setLoading] = useState(true);
+      const [status, setStatus] = useState(media.approval_status || 'pending');
+
+      const load = async () => {
+        setLoading(true);
+        const { data } = await sb.from('media_comments').select('*').eq('media_id', media.id).order('created_at');
+        setComments(data || []);
+        setLoading(false);
+      };
+      useEffect(() => { load(); }, [media.id]);
+
+      const post = async () => {
+        if (!newComment.trim()) return;
+        setPosting(true);
+        const { data: { user } } = await sb.auth.getUser();
+        const { error } = await sb.from('media_comments').insert({
+          media_id:    media.id,
+          author_name: user?.email?.split('@')[0] || 'Agence',
+          is_admin:    true,
+          comment:     newComment.trim(),
+        });
+        if (!error) { setNewComment(''); load(); }
+        else alert(error.message);
+        setPosting(false);
+      };
+
+      const removeComment = async (id) => {
+        if (!confirm('Supprimer ce commentaire ?')) return;
+        await sb.from('media_comments').delete().eq('id', id);
+        load();
+      };
+
+      const setApprovalStatus = async (s) => {
+        await onApprove(media.id, s);
+        setStatus(s);
+      };
+
+      const fmt = (iso) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+      return (
+        <Modal title={media.title} kicker="Validation & échanges" onClose={onClose} size="lg">
+          <div className="mb-5">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-2">Statut</div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <ApprovalBadge status={status} />
+              <button onClick={() => setApprovalStatus('approved')} disabled={status === 'approved'} className="text-[11px] px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50">Marquer approuvé</button>
+              <button onClick={() => setApprovalStatus('changes_requested')} disabled={status === 'changes_requested'} className="text-[11px] px-3 py-1 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100 disabled:opacity-50">Demander des changements</button>
+              <button onClick={() => setApprovalStatus('pending')} disabled={status === 'pending'} className="text-[11px] px-3 py-1 rounded-full bg-stone-100 text-stone-700 hover:bg-stone-200 disabled:opacity-50">En attente</button>
+            </div>
+          </div>
+
+          <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Commentaires ({comments.length})</div>
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 mb-4">
+            {loading && <div className="text-center py-8 text-stone-400">Chargement…</div>}
+            {!loading && comments.length === 0 && <div className="text-center py-8 text-[13px] text-stone-400">Aucun commentaire.</div>}
+            {comments.map(c => (
+              <div key={c.id} className={`flex flex-col ${c.is_admin ? 'items-end' : 'items-start'}`}>
+                <div className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl ${c.is_admin ? 'bg-stone-900 text-white rounded-tr-sm' : 'bg-stone-200 text-stone-800 rounded-tl-sm'}`}>
+                  <div className={`text-[10px] font-semibold mb-1 ${c.is_admin ? 'text-stone-400' : 'text-stone-500'}`}>{c.author_name}{c.is_admin ? ' · vous' : ' · client'}</div>
+                  <div className="text-[13px] whitespace-pre-wrap leading-snug">{c.comment}</div>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-stone-400 mt-1 px-1">
+                  <span>{fmt(c.created_at)}</span>
+                  <button onClick={() => removeComment(c.id)} className="text-rose-400 hover:text-rose-600">supprimer</button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-end gap-2">
+            <textarea value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); post(); } }}
+              placeholder="Répondre au client…" rows={2}
+              style={neu.pressedSm} className="flex-1 px-4 py-3 rounded-xl bg-transparent text-[13px] resize-none focus:outline-none" />
+            <button onClick={post} disabled={posting || !newComment.trim()} style={neu.dark} className="w-11 h-11 rounded-xl text-white flex items-center justify-center disabled:opacity-50">
+              {posting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+            </button>
+          </div>
+        </Modal>
+      );
+    }
+
+    function MediaForm({ clientId, shoots = [], existing, onClose, onSaved }) {
+      const [form, setForm] = useState({
+        type:       existing?.type       || 'photo',
+        title:      existing?.title      || '',
+        url:        existing?.url        || '',
+        thumb_url:  existing?.thumb_url  || '',
+        thumb_grad: existing?.thumb_grad || 'linear-gradient(135deg,#1a1a1d 0%,#3a3a3d 100%)',
+        date_label: existing?.date_label || '',
+        duration:   existing?.duration   || '',
+        size_label: existing?.size_label || '',
+        tag:        existing?.tag        || '',
+        position:   existing?.position   ?? 0,
+        shoot_id:   existing?.shoot_id   || '',
+      });
+      const [loading, setLoading] = useState(false);
+
+      const submit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        const payload = { ...form, client_id: clientId, position: parseInt(form.position) || 0, shoot_id: form.shoot_id || null };
+        const result = existing
+          ? await sb.from('media').update(payload).eq('id', existing.id)
+          : await sb.from('media').insert(payload);
+        if (!result.error) onSaved();
+        else { alert(result.error.message); setLoading(false); }
+      };
+
+      const gradients = [
+        'linear-gradient(135deg,#1a1a1d 0%,#3a3a3d 100%)',
+        'linear-gradient(135deg,#2d4a3e 0%,#5a7a6e 100%)',
+        'linear-gradient(135deg,#3a2a1a 0%,#6a5a4a 100%)',
+        'linear-gradient(135deg,#2a2a3d 0%,#5a5a7d 100%)',
+        'linear-gradient(135deg,#1a2a3a 0%,#4a6a8a 100%)',
+        'linear-gradient(135deg,#3a1a1a 0%,#6a3a3a 100%)',
+      ];
+
+      return (
+        <Modal title={existing ? 'Modifier le média' : 'Ajouter un média'} kicker={existing ? 'Édition' : 'Nouveau'} onClose={onClose} size="lg">
+          <form onSubmit={submit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Type">
+                <Select value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
+                  <option value="photo">📸 Photo</option>
+                  <option value="video">🎥 Vidéo</option>
+                </Select>
+              </Field>
+              <Field label="Tag (catégorie)">
+                <Input value={form.tag} onChange={e => setForm({...form, tag: e.target.value})} placeholder="Réseaux sociaux, Site web…" />
+              </Field>
+            </div>
+            <Field label="Titre">
+              <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Campagne printemps — Hero" />
+            </Field>
+            <Field label="URL du fichier (Cloudinary, Streamable, YouTube, Drive…)">
+              <Input value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://res.cloudinary.com/…" />
+            </Field>
+            <Field label="Tournage associé (optionnel — permet de grouper les médias chez le client)">
+              <Select value={form.shoot_id} onChange={e => setForm({...form, shoot_id: e.target.value})}>
+                <option value="">— Hors tournage —</option>
+                {shoots.map(s => (
+                  <option key={s.id} value={s.id}>{s.month_label} {s.date_day} · {s.title}</option>
+                ))}
+              </Select>
+            </Field>
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="Date">
+                <Input value={form.date_label} onChange={e => setForm({...form, date_label: e.target.value})} placeholder="12 Avr 2026" />
+              </Field>
+              {form.type === 'video' && (
+                <Field label="Durée">
+                  <Input value={form.duration} onChange={e => setForm({...form, duration: e.target.value})} placeholder="0:45" />
+                </Field>
+              )}
+              <Field label="Taille">
+                <Input value={form.size_label} onChange={e => setForm({...form, size_label: e.target.value})} placeholder="128 MB" />
+              </Field>
+              <Field label="Position (ordre)">
+                <Input type="number" value={form.position} onChange={e => setForm({...form, position: e.target.value})} />
+              </Field>
+            </div>
+
+            <Field label={form.type === 'video' ? "Vignette personnalisée (optionnel — si vide, la vidéo joue automatiquement en aperçu)" : "URL de la miniature (optionnel)"}>
+              <Input
+                value={form.thumb_url || ''}
+                onChange={e => setForm({...form, thumb_url: e.target.value})}
+                placeholder="https://… (laisser vide pour autoplay)"
+              />
+              {form.thumb_url && (
+                <div className="mt-3 flex items-center gap-3">
+                  <img src={form.thumb_url} alt="aperçu" className="h-20 rounded-lg object-cover ring-1 ring-stone-200" />
+                  <button type="button" onClick={() => setForm({...form, thumb_url: ''})} className="text-[12px] text-stone-500 hover:text-rose-600">
+                    Effacer
+                  </button>
+                </div>
+              )}
+            </Field>
+
+            <Field label="Couleur de fond (utilisée si la vignette n'est pas disponible)">
+              <div className="grid grid-cols-6 gap-2">
+                {gradients.map(g => (
+                  <button key={g} type="button" onClick={() => setForm({...form, thumb_grad: g})}
+                    className={`h-12 rounded-xl transition ${form.thumb_grad === g ? 'ring-2 ring-stone-900 ring-offset-2 ring-offset-stone-100' : ''}`}
+                    style={{ background: g }} />
+                ))}
+              </div>
+            </Field>
+            <div className="flex gap-3 pt-2">
+              <Btn onClick={onClose} full>Annuler</Btn>
+              <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
+                {loading ? 'Enregistrement…' : (existing ? 'Mettre à jour' : 'Ajouter')}
+              </Btn>
+            </div>
+          </form>
+        </Modal>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       💶 INVOICES TAB
+       ════════════════════════════════════════════════════════════ */
+    function InvoicesTab({ clientId }) {
+      const [items, setItems] = useState([]);
+      const [editing, setEditing] = useState(null);
+      const [showForm, setShowForm] = useState(false);
+      const [loading, setLoading] = useState(true);
+
+      const load = async () => {
+        setLoading(true);
+        const { data } = await sb.from('invoices').select('*').eq('client_id', clientId).order('created_at', { ascending: false });
+        setItems(data || []); setLoading(false);
+      };
+      useEffect(() => { load(); }, [clientId]);
+
+      const remove = async (id) => {
+        if (!confirm('Supprimer cette facture ?')) return;
+        await sb.from('invoices').delete().eq('id', id);
+        load();
+      };
+
+      const total = items.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
+      const paid = items.filter(i => i.status === 'payée').reduce((s, i) => s + parseFloat(i.amount || 0), 0);
+
+      return (
+        <div className="space-y-5">
+          <div className="grid grid-cols-3 gap-5">
+            <StatCard dark label="Total facturé" value={`${total.toLocaleString('fr-FR')} €`} />
+            <StatCard label="Réglé" value={`${paid.toLocaleString('fr-FR')} €`} />
+            <StatCard label="En attente" value={`${(total - paid).toLocaleString('fr-FR')} €`} />
+          </div>
+
+          <div style={neu.raised} className="rounded-[28px] p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-[22px] tracking-tight" style={SERIF}>Factures ({items.length})</h3>
+              <Btn kind="dark" icon={Plus} onClick={() => { setEditing(null); setShowForm(true); }}>Nouvelle facture</Btn>
+            </div>
+
+            {loading ? <div className="text-center py-12 text-stone-400">Chargement…</div> : (
+              <div className="space-y-2">
+                {items.map(inv => (
+                  <div key={inv.id} style={neu.pressedSm} className="grid grid-cols-12 gap-4 px-4 py-3.5 rounded-2xl items-center">
+                    <div className="col-span-2 font-mono text-[12.5px] font-medium">{inv.reference}</div>
+                    <div className="col-span-4 text-[12.5px] text-stone-700 truncate">{inv.description}</div>
+                    <div className="col-span-2 text-[12px] text-stone-500">{inv.date_label}</div>
+                    <div className="col-span-2 font-semibold text-[14px]" style={SERIF}>{parseFloat(inv.amount).toLocaleString('fr-FR')} €</div>
+                    <div className="col-span-1">
+                      <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
+                    </div>
+                    <div className="col-span-1 flex items-center justify-end gap-1.5">
+                      <button onClick={() => { setEditing(inv); setShowForm(true); }} className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900"><Edit3 size={13} /></button>
+                      <button onClick={() => remove(inv.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+                {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucune facture.</div>}
+              </div>
+            )}
+          </div>
+
+          {showForm && <InvoiceForm clientId={clientId} existing={editing} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load(); }} />}
+        </div>
+      );
+    }
+
+    function InvoiceForm({ clientId, existing, onClose, onSaved }) {
+      const [form, setForm] = useState({
+        reference:   existing?.reference   || '',
+        description: existing?.description || '',
+        amount:      existing?.amount      || '',
+        date_label:  existing?.date_label  || '',
+        due_date:    existing?.due_date    || '',
+        status:      existing?.status      || 'en attente',
+        pdf_url:     existing?.pdf_url     || '',
+      });
+      const [loading, setLoading] = useState(false);
+
+      const submit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        const payload = { ...form, client_id: clientId, amount: parseFloat(form.amount), due_date: form.due_date || null };
+        const result = existing
+          ? await sb.from('invoices').update(payload).eq('id', existing.id)
+          : await sb.from('invoices').insert(payload);
+        if (!result.error) onSaved();
+        else { alert(result.error.message); setLoading(false); }
+      };
+
+      return (
+        <Modal title={existing ? 'Modifier la facture' : 'Nouvelle facture'} kicker="Facture" onClose={onClose} size="lg">
+          <form onSubmit={submit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Référence">
+                <Input required value={form.reference} onChange={e => setForm({...form, reference: e.target.value})} placeholder="FAC-2026-042" />
+              </Field>
+              <Field label="Date d'émission (libellé)">
+                <Input value={form.date_label} onChange={e => setForm({...form, date_label: e.target.value})} placeholder="15 Avr 2026" />
+              </Field>
+            </div>
+            <Field label="Description">
+              <Input required value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Production vidéo — Campagne printemps" />
+            </Field>
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="Montant (€)">
+                <Input required type="number" step="0.01" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} placeholder="3200" />
+              </Field>
+              <Field label="Échéance (pour rappels auto)">
+                <Input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} />
+              </Field>
+              <Field label="Statut">
+                <Select value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
+                  <option value="en attente">En attente</option>
+                  <option value="payée">Payée</option>
+                </Select>
+              </Field>
+            </div>
+            <Field label="URL du PDF (optionnel)">
+              <Input value={form.pdf_url} onChange={e => setForm({...form, pdf_url: e.target.value})} placeholder="factures/fac-2026-042.pdf ou https://…" />
+            </Field>
+            <div className="flex gap-3 pt-2">
+              <Btn onClick={onClose} full>Annuler</Btn>
+              <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
+                {loading ? 'Enregistrement…' : (existing ? 'Mettre à jour' : 'Ajouter')}
+              </Btn>
+            </div>
+          </form>
+        </Modal>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       🎬 SHOOTS TAB
+       ════════════════════════════════════════════════════════════ */
+    function ShootsTab({ clientId }) {
+      const [items, setItems] = useState([]);
+      const [editing, setEditing] = useState(null);
+      const [showForm, setShowForm] = useState(false);
+      const [loading, setLoading] = useState(true);
+
+      const load = async () => {
+        setLoading(true);
+        const { data } = await sb.from('shoots').select('*').eq('client_id', clientId).order('year').order('date_day');
+        setItems(data || []); setLoading(false);
+      };
+      useEffect(() => { load(); }, [clientId]);
+
+      const remove = async (id) => {
+        if (!confirm('Supprimer ce tournage ?')) return;
+        await sb.from('shoots').delete().eq('id', id);
+        load();
+      };
+
+      return (
+        <div style={neu.raised} className="rounded-[28px] p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Planning</div>
+              <h3 className="text-[22px] tracking-tight mt-1" style={SERIF}>Tournages programmés ({items.length})</h3>
+            </div>
+            <Btn kind="dark" icon={Plus} onClick={() => { setEditing(null); setShowForm(true); }}>Nouveau tournage</Btn>
+          </div>
+
+          {loading ? <div className="text-center py-12 text-stone-400">Chargement…</div> : (
+            <div className="space-y-2.5">
+              {items.map(s => (
+                <div key={s.id} style={neu.pressedSm} className="rounded-2xl p-4 flex items-center gap-4">
+                  <div style={s.type === 'video' ? neu.dark : neu.raisedXs} className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0 ${s.type === 'video' ? 'text-white' : 'text-stone-700'}`}>
+                    <div className="text-[9px] uppercase tracking-wider opacity-60">{s.month_label}</div>
+                    <div className="text-[18px] leading-none font-semibold" style={SERIF}>{s.date_day}</div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5">
+                      <div className="font-medium text-[14px]">{s.title}</div>
+                      <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-md font-semibold ${s.type === 'video' ? 'bg-stone-900 text-white' : 'bg-stone-300 text-stone-700'}`}>{s.type}</span>
+                    </div>
+                    <div className="flex items-center gap-4 mt-1.5 text-[11px] text-stone-500">
+                      {s.time_label && <span className="flex items-center gap-1"><Clock size={11} /> {s.time_label}</span>}
+                      {s.location && <span className="flex items-center gap-1"><MapPin size={11} /> {s.location}</span>}
+                    </div>
+                  </div>
+                  <button onClick={() => { setEditing(s); setShowForm(true); }} style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center"><Edit3 size={13} /></button>
+                  <button onClick={() => remove(s.id)} style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center text-rose-500"><Trash2 size={13} /></button>
+                </div>
+              ))}
+              {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucun tournage programmé.</div>}
+            </div>
+          )}
+
+          {showForm && <ShootForm clientId={clientId} existing={editing} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load(); }} />}
+        </div>
+      );
+    }
+
+    function ShootForm({ clientId, existing, onClose, onSaved }) {
+      const [form, setForm] = useState({
+        title:       existing?.title       || '',
+        type:        existing?.type        || 'photo',
+        date_day:    existing?.date_day    || '',
+        month_label: existing?.month_label || 'Avr',
+        year:        existing?.year        || 2026,
+        time_label:  existing?.time_label  || '',
+        location:    existing?.location    || '',
+        notes:       existing?.notes       || '',
+      });
+      const [loading, setLoading] = useState(false);
+
+      const submit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        const payload = { ...form, client_id: clientId, date_day: parseInt(form.date_day), year: parseInt(form.year) };
+        const result = existing
+          ? await sb.from('shoots').update(payload).eq('id', existing.id)
+          : await sb.from('shoots').insert(payload);
+        if (!result.error) onSaved();
+        else { alert(result.error.message); setLoading(false); }
+      };
+
+      const months = ['Jan', 'Fév', 'Mars', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
+
+      return (
+        <Modal title={existing ? 'Modifier le tournage' : 'Nouveau tournage'} kicker="Planning" onClose={onClose} size="lg">
+          <form onSubmit={submit} className="space-y-4">
+            <Field label="Titre du tournage">
+              <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Shooting éditorial — Maison Lumière" />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Type">
+                <Select value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
+                  <option value="photo">📸 Photo</option>
+                  <option value="video">🎥 Vidéo</option>
+                </Select>
+              </Field>
+              <Field label="Horaire">
+                <Input value={form.time_label} onChange={e => setForm({...form, time_label: e.target.value})} placeholder="09:00 — 16:00" />
+              </Field>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="Jour">
+                <Input required type="number" min="1" max="31" value={form.date_day} onChange={e => setForm({...form, date_day: e.target.value})} />
+              </Field>
+              <Field label="Mois">
+                <Select value={form.month_label} onChange={e => setForm({...form, month_label: e.target.value})}>
+                  {months.map(m => <option key={m} value={m}>{m}</option>)}
+                </Select>
+              </Field>
+              <Field label="Année">
+                <Input type="number" value={form.year} onChange={e => setForm({...form, year: e.target.value})} />
+              </Field>
+            </div>
+            <Field label="Lieu">
+              <Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} placeholder="Studio Bastille, Paris 11" />
+            </Field>
+            <Field label="Notes (optionnel, visibles uniquement par vous)">
+              <Textarea rows={3} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Équipe : 4 personnes. Pré-prod le 3 avril." />
+            </Field>
+            <div className="flex gap-3 pt-2">
+              <Btn onClick={onClose} full>Annuler</Btn>
+              <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
+                {loading ? 'Enregistrement…' : (existing ? 'Mettre à jour' : 'Programmer')}
+              </Btn>
+            </div>
+          </form>
+        </Modal>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       📊 ANALYTICS TAB
+       ════════════════════════════════════════════════════════════ */
+    function AnalyticsTab({ clientId }) {
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [saving, setSaving] = useState(false);
+      const [savedAt, setSavedAt] = useState(null);
+
+      const load = async () => {
+        setLoading(true);
+        const { data: d } = await sb.from('analytics').select('*').eq('client_id', clientId).maybeSingle();
+        if (d) setData(d);
+        else {
+          // Pas de ligne analytics encore : on en crée une vide
+          const { data: created } = await sb.from('analytics').insert({ client_id: clientId }).select().single();
+          setData(created);
+        }
+        setLoading(false);
+      };
+      useEffect(() => { load(); }, [clientId]);
+
+      const save = async () => {
+        setSaving(true);
+        const { client_id, ...payload } = data;
+        // Parse JSON fields
+        try {
+          if (typeof payload.platforms === 'string') payload.platforms = JSON.parse(payload.platforms || '[]');
+          if (typeof payload.demographics === 'string') payload.demographics = JSON.parse(payload.demographics || '[]');
+          if (typeof payload.follower_growth === 'string') payload.follower_growth = JSON.parse(payload.follower_growth || '[]');
+          if (typeof payload.engagement_by_day === 'string') payload.engagement_by_day = JSON.parse(payload.engagement_by_day || '[]');
+          if (typeof payload.ai_summary === 'string') payload.ai_summary = payload.ai_summary ? JSON.parse(payload.ai_summary) : null;
+        } catch (e) {
+          alert("Erreur de format JSON : " + e.message);
+          setSaving(false);
+          return;
+        }
+        payload.updated_at = new Date().toISOString();
+
+        const { error } = await sb.from('analytics').update(payload).eq('client_id', clientId);
+        if (error) { alert(error.message); }
+        else {
+          setSavedAt(new Date());
+          load();
+        }
+        setSaving(false);
+      };
+
+      const upd = (k, v) => setData({ ...data, [k]: v });
+
+      if (loading || !data) return <div style={neu.raised} className="rounded-[28px] p-12 text-center text-stone-400">Chargement…</div>;
+
+      return (
+        <div className="space-y-5">
+          {/* KPIs simples */}
+          <div style={neu.raised} className="rounded-[28px] p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">KPIs principaux</div>
+                <h3 className="text-[22px] tracking-tight mt-1" style={SERIF}>Indicateurs clés</h3>
+              </div>
+              <Btn kind="dark" icon={saving ? Loader2 : Save} onClick={save} disabled={saving}>
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </Btn>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+              {[
+                ['total_followers', 'Abonnés totaux', '48 320'],
+                ['followers_delta', 'Évolution abonnés', '+5,2%'],
+                ['engagement', 'Engagement', '4,8%'],
+                ['engagement_delta', 'Évolution engagement', '+0,6 pts'],
+                ['reach', 'Reach', '284 K'],
+                ['reach_delta', 'Évolution reach', '+12,4%'],
+                ['clicks', 'Clics sortants', '1 247'],
+                ['clicks_delta', 'Évolution clics', '-2,1%'],
+                ['spent_delta', 'Évolution dépensé', '+8,4%'],
+                ['media_delta', 'Évolution médias', '+12 ce mois'],
+              ].map(([key, label, ph]) => (
+                <Field key={key} label={label}>
+                  <Input value={data[key] || ''} onChange={e => upd(key, e.target.value)} placeholder={ph} />
+                </Field>
+              ))}
+            </div>
+          </div>
+
+          {/* Plateformes - JSON éditable */}
+          <div style={neu.raised} className="rounded-[28px] p-6">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Plateformes (JSON)</div>
+            <h3 className="text-[18px] tracking-tight mt-1 mb-3" style={SERIF}>Réseaux sociaux du client</h3>
+            <p className="text-[12px] text-stone-500 mb-3">
+              Format : un tableau d'objets <code className="bg-stone-200 px-1.5 py-0.5 rounded text-[11px]">{`{name, followers, followersRaw, delta, engagement}`}</code>
+            </p>
+            <Textarea rows={6} value={typeof data.platforms === 'string' ? data.platforms : JSON.stringify(data.platforms, null, 2)} onChange={e => upd('platforms', e.target.value)} />
+          </div>
+
+          {/* Démographie */}
+          <div style={neu.raised} className="rounded-[28px] p-6">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Démographie (JSON)</div>
+            <h3 className="text-[18px] tracking-tight mt-1 mb-3" style={SERIF}>Répartition par âge</h3>
+            <p className="text-[12px] text-stone-500 mb-3">
+              Format : <code className="bg-stone-200 px-1.5 py-0.5 rounded text-[11px]">{`[{name: "25-34 ans", v: 42}, ...]`}</code> (les "v" sont en %)
+            </p>
+            <Textarea rows={5} value={typeof data.demographics === 'string' ? data.demographics : JSON.stringify(data.demographics, null, 2)} onChange={e => upd('demographics', e.target.value)} />
+          </div>
+
+          {/* Follower growth */}
+          <div style={neu.raised} className="rounded-[28px] p-6">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Croissance abonnés (JSON)</div>
+            <h3 className="text-[18px] tracking-tight mt-1 mb-3" style={SERIF}>Série temporelle abonnés</h3>
+            <p className="text-[12px] text-stone-500 mb-3">
+              Format : <code className="bg-stone-200 px-1.5 py-0.5 rounded text-[11px]">{`[{week: "S1", value: 12400}, ...]`}</code>
+            </p>
+            <Textarea rows={5} value={typeof data.follower_growth === 'string' ? data.follower_growth : JSON.stringify(data.follower_growth, null, 2)} onChange={e => upd('follower_growth', e.target.value)} />
+          </div>
+
+          {/* Engagement by day */}
+          <div style={neu.raised} className="rounded-[28px] p-6">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Engagement par jour (JSON)</div>
+            <h3 className="text-[18px] tracking-tight mt-1 mb-3" style={SERIF}>Interactions par jour de la semaine</h3>
+            <p className="text-[12px] text-stone-500 mb-3">
+              Format : <code className="bg-stone-200 px-1.5 py-0.5 rounded text-[11px]">{`[{day: "Lun", insta: 2400, fb: 1200, tt: 3200}, ...]`}</code>
+            </p>
+            <Textarea rows={6} value={typeof data.engagement_by_day === 'string' ? data.engagement_by_day : JSON.stringify(data.engagement_by_day, null, 2)} onChange={e => upd('engagement_by_day', e.target.value)} />
+          </div>
+
+          {/* AI summary */}
+          <div style={neu.raised} className="rounded-[28px] p-6">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Synthèse IA (JSON)</div>
+            <h3 className="text-[18px] tracking-tight mt-1 mb-3" style={SERIF}>Texte affiché en bas du dashboard</h3>
+            <p className="text-[12px] text-stone-500 mb-3">
+              Format : <code className="bg-stone-200 px-1.5 py-0.5 rounded text-[11px]">{`{headline: "...", body: "..."}`}</code> ou null
+            </p>
+            <Textarea rows={5} value={typeof data.ai_summary === 'string' ? data.ai_summary : JSON.stringify(data.ai_summary, null, 2)} onChange={e => upd('ai_summary', e.target.value)} />
+          </div>
+
+          <div className="flex items-center justify-between p-4 rounded-2xl" style={neu.dark}>
+            <div className="text-white">
+              <div className="text-[12px] text-stone-400">Pensez à enregistrer après chaque modification</div>
+              {savedAt && <div className="text-[11px] text-emerald-400 mt-0.5">✓ Enregistré à {savedAt.toLocaleTimeString('fr-FR')}</div>}
+            </div>
+            <Btn kind="dark" icon={saving ? Loader2 : Save} onClick={save} disabled={saving} className="!bg-white !text-stone-900">
+              {saving ? 'Enregistrement…' : 'Enregistrer toutes les analyses'}
+            </Btn>
+          </div>
+        </div>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       🌳 ROOT APP
+       ════════════════════════════════════════════════════════════ */
+    function App() {
+      const [user, setUser] = useState(undefined); // undefined = checking, null = logged out, object = logged in
+      const [section, setSection] = useState('clients');
+      const [selectedClient, setSelectedClient] = useState(null);
+      const [clients, setClients] = useState([]);
+      const [overviewData, setOverviewData] = useState({ totalMedia: 0, totalRevenue: 0, upcomingShoots: 0 });
+
+      // Vérification session au mount
+      useEffect(() => {
+        sb.auth.getSession().then(({ data }) => {
+          setUser(data.session?.user || null);
+        });
+        const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+          setUser(session?.user || null);
+        });
+        return () => sub.subscription.unsubscribe();
+      }, []);
+
+      const loadClients = async () => {
+        const { data } = await sb.from('clients').select('*').order('created_at', { ascending: false });
+        setClients(data || []);
+      };
+
+      const loadOverview = async () => {
+        const [m, i, s] = await Promise.all([
+          sb.from('media').select('id', { count: 'exact', head: true }),
+          sb.from('invoices').select('amount'),
+          sb.from('shoots').select('id', { count: 'exact', head: true }),
+        ]);
+        const totalRevenue = (i.data || []).reduce((a, b) => a + parseFloat(b.amount || 0), 0);
+        setOverviewData({
+          totalMedia: m.count || 0,
+          totalRevenue,
+          upcomingShoots: s.count || 0,
+        });
+      };
+
+      useEffect(() => {
+        if (user) {
+          loadClients();
+          loadOverview();
+        }
+      }, [user]);
+
+      const logout = async () => { await sb.auth.signOut(); };
+
+      if (user === undefined) {
+        return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-stone-400" size={28} /></div>;
+      }
+
+      if (!user) return <LoginScreen onLogin={setUser} />;
+
+      const titles = {
+        overview: { t: `Bonjour`, s: 'Vue d\'ensemble de votre studio.' },
+        clients:  { t: 'Mes clients', s: 'Tous les espaces que vous avez créés.' },
+      };
+
+      return (
+        <div className="min-h-screen w-full" style={neu.base}>
+          <div className="flex gap-5 p-5 min-h-screen">
+            {/* Sidebar */}
+            <aside style={neu.raised} className="w-[230px] h-[calc(100vh-40px)] sticky top-5 flex flex-col rounded-[32px] p-5">
+              <div className="px-2 pt-2 pb-6">
+                <div className="text-[26px] tracking-tight leading-none" style={{ ...SERIF, fontStyle: 'italic' }}>
+                  TimelessHouse<span className="text-stone-400">.</span>
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 mt-1.5 font-medium">Espace agence</div>
+              </div>
+
+              <nav className="flex flex-col gap-1.5">
+                {[
+                  { id: 'overview', icon: Home, label: 'Vue d\'ensemble' },
+                  { id: 'clients', icon: Users, label: 'Clients' },
+                ].map(n => (
+                  <button key={n.id} onClick={() => { setSection(n.id); setSelectedClient(null); }} style={section === n.id && !selectedClient ? neu.pressedSm : {}} className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-left transition ${section === n.id && !selectedClient ? 'text-stone-900' : 'text-stone-500 hover:text-stone-800'}`}>
+                    <n.icon size={18} /> <span className="text-[14px] font-medium">{n.label}</span>
+                  </button>
+                ))}
+              </nav>
+
+              <div style={neu.dark} className="rounded-3xl p-5 text-white mt-6">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold">Connecté</div>
+                <div className="text-[12.5px] mt-1.5 truncate">{user.email}</div>
+              </div>
+
+              <div className="mt-auto pt-4 space-y-1">
+                <a href="communication.html" className="w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-stone-500 hover:text-stone-800 transition">
+                  <Eye size={18} /> <span className="text-[14px] font-medium">Espace client</span>
+                </a>
+                <button onClick={logout} className="w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-stone-500 hover:text-stone-800 transition">
+                  <LogOut size={18} /> <span className="text-[14px] font-medium">Déconnexion</span>
+                </button>
+              </div>
+            </aside>
+
+            {/* Main */}
+            <main className="flex-1 min-w-0">
+              {!selectedClient && (
+                <div className="flex items-center justify-between mb-7">
+                  <div>
+                    <h1 className="text-[34px] tracking-tight leading-[1.05]" style={SERIF}>{titles[section].t}</h1>
+                    <div className="text-[13px] text-stone-500 mt-1">{titles[section].s}</div>
+                  </div>
+                </div>
+              )}
+
+              {selectedClient ? (
+                <ClientDetail client={selectedClient} onBack={() => setSelectedClient(null)} refresh={() => { loadClients(); loadOverview(); }} />
+              ) : section === 'overview' ? (
+                <Overview clients={clients} {...overviewData} />
+              ) : (
+                <ClientsList clients={clients} onSelect={setSelectedClient} refresh={loadClients} />
+              )}
+            </main>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

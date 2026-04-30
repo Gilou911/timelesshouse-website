@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Maison Lumière — Tableau de bord</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+      "recharts": "https://esm.sh/recharts@2.12.7?deps=react@18.3.1,react-dom@18.3.1",
+      "lucide-react": "https://esm.sh/lucide-react@0.439.0?deps=react@18.3.1"
+    }
+  }
+  </script>
+  <style>
+    body { margin: 0; background: #e8e9ec; font-family: 'Manrope', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(120,120,130,0.3); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       📊  DONNÉES CLIENT — MAISON LUMIÈRE
+       ════════════════════════════════════════════════════════════
+       C'est ICI que tu modifies les données affichées dans le
+       tableau de bord. Tout le reste (logique, design) est dans
+       le fichier partagé `communication-app.jsx`.
+
+       ⚠️ Le champ `code` doit correspondre EXACTEMENT à la clé
+       déclarée dans clients-data.js → section "communication".
+       Si quelqu'un arrive sans avoir saisi le bon code, il sera
+       automatiquement redirigé vers communication.html.
+
+       📝 STRUCTURE :
+         ▸ name, initials, sector, code  → identité du client
+         ▸ media[]    → photos & vidéos (tu héberges sur Cloudinary
+                        ou autre, et tu mets l'URL dans `url`)
+         ▸ invoices[] → factures (lien PDF dans `url`)
+         ▸ shoots[]   → tournages prévus
+         ▸ analytics  → KPIs réseaux sociaux + IA résumé
+         ▸ storage    → état du stockage du client
+       ════════════════════════════════════════════════════════════ -->
+  <script>
+    window.CLIENT_DATA = {
+      // ── Identité ────────────────────────────────────────────
+      name:       "Maison Lumière",
+      greeting:   "Camille",                  // Prénom du contact principal
+      initials:   "ML",
+      sector:     "Hôtellerie de luxe",
+      code:       "maison-lumiere",           // ⚠️ doit matcher clients-data.js
+      agencyName: "TimelessHouse",
+
+      // ── Stockage ────────────────────────────────────────────
+      storage: { used: "12,4 GB", total: "15 GB", percent: 84 },
+
+      // ── Médias livrés ───────────────────────────────────────
+      // type: "photo" ou "video"
+      // thumb: dégradé CSS OU 'url("https://...")' pour vraie image
+      // url: lien direct vers le fichier (Cloudinary, Drive, etc.)
+      media: [
+        { id: 1, type: "video", title: "Campagne printemps — Hero", date: "12 Avr 2026", duration: "0:45", size: "128 MB", tag: "Réseaux sociaux", url: "https://res.cloudinary.com/EXEMPLE/video.mp4", thumb: "linear-gradient(135deg,#1a1a1d 0%,#3a3a3d 100%)" },
+        { id: 2, type: "photo", title: "Lookbook capsule SS26",     date: "10 Avr 2026", size: "24 MB",                  tag: "Site web",         url: "https://res.cloudinary.com/EXEMPLE/photo.jpg", thumb: "linear-gradient(135deg,#2d4a3e 0%,#5a7a6e 100%)" },
+        { id: 3, type: "photo", title: "Portrait fondatrice",        date: "08 Avr 2026", size: "18 MB",                  tag: "Presse",           url: "#", thumb: "linear-gradient(135deg,#3a2a1a 0%,#6a5a4a 100%)" },
+        { id: 4, type: "video", title: "Interview client — édit court", date: "05 Avr 2026", duration: "1:20", size: "210 MB", tag: "YouTube",      url: "#", thumb: "linear-gradient(135deg,#1a1a1d 0%,#4a4a4d 100%)" },
+        { id: 5, type: "photo", title: "Packshot collection",        date: "02 Avr 2026", size: "32 MB",                  tag: "E-commerce",       url: "#", thumb: "linear-gradient(135deg,#4a3a2a 0%,#7a6a5a 100%)" },
+        { id: 6, type: "video", title: "Reel coulisses tournage",    date: "28 Mars 2026", duration: "0:30", size: "85 MB", tag: "Instagram",      url: "#", thumb: "linear-gradient(135deg,#2a2a3d 0%,#5a5a7d 100%)" },
+        { id: 7, type: "photo", title: "Architecture — façade",      date: "25 Mars 2026", size: "28 MB",                  tag: "Site web",        url: "#", thumb: "linear-gradient(135deg,#1a2a3a 0%,#4a6a8a 100%)" },
+        { id: 8, type: "video", title: "Spot 30s — diffusion TV",    date: "20 Mars 2026", duration: "0:30", size: "420 MB", tag: "Publicité",     url: "#", thumb: "linear-gradient(135deg,#3a1a1a 0%,#6a3a3a 100%)" },
+      ],
+
+      // ── Factures ────────────────────────────────────────────
+      // status: "payée" ou "en attente"
+      // url: lien vers le PDF
+      invoices: [
+        { id: "FAC-2026-042", date: "15 Avr 2026", amount: 3200, status: "payée",      desc: "Production vidéo — Campagne printemps", url: "factures/fac-2026-042.pdf" },
+        { id: "FAC-2026-038", date: "02 Avr 2026", amount: 1850, status: "payée",      desc: "Shooting photo lookbook",                url: "factures/fac-2026-038.pdf" },
+        { id: "FAC-2026-035", date: "20 Mars 2026", amount: 2400, status: "en attente", desc: "Stratégie réseaux sociaux — Mars",      url: "factures/fac-2026-035.pdf" },
+        { id: "FAC-2026-029", date: "08 Mars 2026", amount: 980,  status: "payée",      desc: "Retouches photo & livraison",            url: "factures/fac-2026-029.pdf" },
+        { id: "FAC-2026-024", date: "22 Févr 2026", amount: 4200, status: "payée",      desc: "Production vidéo institutionnelle",     url: "factures/fac-2026-024.pdf" },
+        { id: "FAC-2026-018", date: "10 Févr 2026", amount: 1500, status: "payée",      desc: "Community management — Janvier",         url: "factures/fac-2026-018.pdf" },
+      ],
+
+      // ── Tournages prévus ────────────────────────────────────
+      // date = jour du mois (1-31) ; type: "photo" ou "video"
+      shoots: [
+        { id: 1, date: 4,  month: "Avr", title: "Shooting éditorial — Maison Lumière",   time: "09:00 — 16:00", location: "Studio Bastille, Paris 11", type: "photo" },
+        { id: 2, date: 15, month: "Avr", title: "Interview fondateur — Maison Lumière", time: "14:00 — 17:00", location: "Bureau client",              type: "video" },
+        { id: 3, date: 23, month: "Avr", title: "Campagne extérieure — Maison Lumière", time: "07:00 — 13:00", location: "Versailles",                 type: "photo" },
+      ],
+
+      // ── Analyses réseaux sociaux ────────────────────────────
+      analytics: {
+        kpis: {
+          totalFollowers:    "48 320",
+          followersDelta:    "+5,2%",
+          engagement:        "4,8%",
+          engagementDelta:   "+0,6 pts",
+          reach:             "284 K",
+          reachDelta:        "+12,4%",
+          clicks:            "1 247",
+          clicksDelta:       "-2,1%",
+          spentDelta:        "+8,4%",
+          mediaDelta:        "+12 ce mois",
+        },
+        platforms: [
+          { name: "Instagram", followers: "24,3K", followersRaw: 24300, delta: "+8,2%",  engagement: "5,4%" },
+          { name: "Facebook",  followers: "12,1K", followersRaw: 12100, delta: "+1,8%",  engagement: "2,1%" },
+          { name: "TikTok",    followers: "8,9K",  followersRaw: 8900,  delta: "+24,7%", engagement: "8,9%" },
+          { name: "YouTube",   followers: "3,1K",  followersRaw: 3100,  delta: "+4,1%",  engagement: "3,2%" },
+        ],
+        followerGrowth: [
+          { week: "S1", value: 12400 }, { week: "S2", value: 12780 }, { week: "S3", value: 13150 },
+          { week: "S4", value: 13420 }, { week: "S5", value: 14100 }, { week: "S6", value: 14680 },
+          { week: "S7", value: 15200 }, { week: "S8", value: 15890 },
+        ],
+        engagementByDay: [
+          { day: "Lun", insta: 2400, fb: 1200, tt: 3200 },
+          { day: "Mar", insta: 3100, fb: 1400, tt: 4100 },
+          { day: "Mer", insta: 2800, fb: 1100, tt: 3800 },
+          { day: "Jeu", insta: 3900, fb: 1600, tt: 5200 },
+          { day: "Ven", insta: 4500, fb: 1900, tt: 6100 },
+          { day: "Sam", insta: 5200, fb: 2200, tt: 7400 },
+          { day: "Dim", insta: 4800, fb: 2000, tt: 6800 },
+        ],
+        demographics: [
+          { name: "25-34 ans", v: 42 },
+          { name: "18-24 ans", v: 28 },
+          { name: "35-44 ans", v: 18 },
+          { name: "45+ ans",   v: 12 },
+        ],
+        aiSummary: {
+          headline: "Vos contenus vidéos performent 3,2× mieux que les photos sur TikTok cette semaine.",
+          body:     "Les reels de coulisses publiés mercredi et samedi génèrent l'essentiel de la croissance. Recommandation : augmenter la fréquence à 3 vidéos / semaine et tester un format interview court le jeudi.",
+        },
+      },
+    };
+  </script>
+
+  <!-- 🚀 Charge le portail React partagé (ne pas modifier) -->
+  <script type="text/babel" data-type="module" data-presets="react" src="communication-app.jsx"></script>
+</body>
+</html>

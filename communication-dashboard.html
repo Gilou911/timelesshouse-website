@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tableau de bord — TimelessHouse</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- JSZip pour les téléchargements en .zip -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+      "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+      "recharts": "https://esm.sh/recharts@2.12.7?deps=react@18.3.1,react-dom@18.3.1",
+      "lucide-react": "https://esm.sh/lucide-react@0.439.0?deps=react@18.3.1"
+    }
+  }
+  </script>
+
+  <style>
+    body { margin: 0; background: #e8e9ec; font-family: 'Manrope', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(120,120,130,0.3); border-radius: 4px; }
+    .loading-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #e8e9ec; z-index: 9999; transition: opacity 0.5s ease; }
+    .loading-screen.hide { opacity: 0; pointer-events: none; }
+    .loading-spinner { width: 38px; height: 38px; border: 2.5px solid #d1d5db; border-top-color: #1a1a1d; border-radius: 50%; animation: spin 0.9s linear infinite; margin-bottom: 18px; }
+    .loading-text { font-family: 'Instrument Serif', serif; font-size: 22px; color: #1a1a1d; letter-spacing: -0.01em; }
+    .loading-sub { font-size: 12px; color: #6b7280; margin-top: 4px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Chargement de votre espace</div>
+    <div class="loading-sub">Connexion sécurisée…</div>
+  </div>
+
+  <div id="root"></div>
+
+  <script src="supabase-config.js"></script>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const code = sessionStorage.getItem('access_granted');
+    if (!code) { window.location.href = 'communication.html'; throw new Error('No access'); }
+
+    const sb = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+    const { data: client, error: cErr } = await sb
+      .from('clients').select('*').eq('code', code).eq('active', true).maybeSingle();
+
+    if (cErr || !client) {
+      sessionStorage.removeItem('access_granted');
+      window.location.href = 'communication.html';
+      throw new Error('Client not found');
+    }
+
+    const [mediaRes, invoicesRes, shootsRes, analyticsRes] = await Promise.all([
+      sb.from('media').select('*').eq('client_id', client.id).order('position'),
+      sb.from('invoices').select('*').eq('client_id', client.id).order('created_at', { ascending: false }),
+      sb.from('shoots').select('*').eq('client_id', client.id).order('year').order('date_day'),
+      sb.from('analytics').select('*').eq('client_id', client.id).maybeSingle(),
+    ]);
+
+    const mediaIds = (mediaRes.data || []).map(m => m.id);
+    const { data: allComments } = mediaIds.length
+      ? await sb.from('media_comments').select('*').in('media_id', mediaIds).order('created_at')
+      : { data: [] };
+
+    // Exposé global pour que l'app React puisse rappeler Supabase (commentaires, approbations)
+    window.__SUPABASE = sb;
+    window.__CLIENT = client;
+
+    window.CLIENT_DATA = {
+      name:       client.name,
+      greeting:   client.greeting || (client.name || '').split(' ')[0],
+      initials:   client.initials || '',
+      sector:     client.sector || '',
+      code:       client.code,
+      agencyName: client.agency_name || 'TimelessHouse',
+      analyticsEnabled: client.analytics_enabled === true,
+      media: (mediaRes.data || []).map(m => ({
+        id:              m.id,
+        type:            m.type,
+        title:           m.title,
+        url:             m.url || '',
+        date:            m.date_label || '',
+        duration:        m.duration,
+        size:            m.size_label,
+        tag:             m.tag,
+        thumb:           m.thumb_grad || 'linear-gradient(135deg,#1a1a1d 0%,#3a3a3d 100%)',
+        thumb_url:       m.thumb_url,
+        shoot_id:        m.shoot_id,
+        approval_status: m.approval_status || 'pending',
+      })),
+      invoices: (invoicesRes.data || []).map(i => ({
+        id: i.reference, date: i.date_label || '', amount: parseFloat(i.amount || 0),
+        status: i.status, desc: i.description || '', url: i.pdf_url,
+      })),
+      shoots: (shootsRes.data || []).map(s => ({
+        id: s.id, title: s.title, type: s.type, date: s.date_day,
+        month: s.month_label || 'Avr', time: s.time_label || '', location: s.location || '',
+      })),
+      comments: allComments || [],
+      analytics: analyticsRes.data ? {
+        kpis: {
+          totalFollowers:  analyticsRes.data.total_followers,  followersDelta:  analyticsRes.data.followers_delta,
+          engagement:      analyticsRes.data.engagement,       engagementDelta: analyticsRes.data.engagement_delta,
+          reach:           analyticsRes.data.reach,            reachDelta:      analyticsRes.data.reach_delta,
+          clicks:          analyticsRes.data.clicks,           clicksDelta:     analyticsRes.data.clicks_delta,
+          spentDelta:      analyticsRes.data.spent_delta,      mediaDelta:      analyticsRes.data.media_delta,
+        },
+        platforms:       analyticsRes.data.platforms        || [],
+        demographics:    analyticsRes.data.demographics     || [],
+        followerGrowth:  analyticsRes.data.follower_growth  || [],
+        engagementByDay: analyticsRes.data.engagement_by_day || [],
+        aiSummary:       analyticsRes.data.ai_summary,
+      } : {},
+    };
+
+    document.getElementById('loadingScreen').classList.add('hide');
+    setTimeout(() => document.getElementById('loadingScreen').remove(), 500);
+
+    const script = document.createElement('script');
+    script.type = 'text/babel';
+    script.dataset.type = 'module';
+    script.dataset.presets = 'react';
+    script.src = 'communication-app.jsx';
+    document.body.appendChild(script);
+    if (window.Babel && window.Babel.transformScriptTags) window.Babel.transformScriptTags();
+  </script>
+</body>
+</html>

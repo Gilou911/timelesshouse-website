@@ -30,6 +30,8 @@
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(120,120,130,0.3); border-radius: 4px; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .loading-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #e8e9ec; z-index: 9999; transition: opacity 0.5s ease; }
     .loading-screen.hide { opacity: 0; pointer-events: none; }
     .loading-spinner { width: 38px; height: 38px; border: 2.5px solid #d1d5db; border-top-color: #1a1a1d; border-radius: 50%; animation: spin 0.9s linear infinite; margin-bottom: 18px; }

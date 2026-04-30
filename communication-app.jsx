@@ -229,11 +229,11 @@ const NavItem = ({ icon: Icon, label, active, onClick }) => (
 );
 
 const StatCard = ({ label, value, delta, deltaUp, dark }) => (
-  <div style={dark ? neu.dark : neu.raisedSm} className={`rounded-3xl p-6 ${dark ? 'text-white' : 'text-stone-900'}`}>
-    <div className={`text-[13px] ${dark ? 'text-stone-400' : 'text-stone-500'} font-medium`}>{label}</div>
-    <div className="text-[32px] tracking-tight mt-2 leading-none" style={SERIF}>{value}</div>
+  <div style={dark ? neu.dark : neu.raisedSm} className={`rounded-2xl lg:rounded-3xl p-4 lg:p-6 ${dark ? 'text-white' : 'text-stone-900'}`}>
+    <div className={`text-[11px] lg:text-[13px] ${dark ? 'text-stone-400' : 'text-stone-500'} font-medium`}>{label}</div>
+    <div className="text-[24px] lg:text-[32px] tracking-tight mt-1.5 lg:mt-2 leading-none" style={SERIF}>{value}</div>
     {delta && (
-      <div className="flex items-center gap-1.5 mt-3 text-[12px]">
+      <div className="flex items-center gap-1.5 mt-2 lg:mt-3 text-[11px] lg:text-[12px]">
         <span className={deltaUp ? 'text-emerald-500 font-semibold' : 'text-rose-400 font-semibold'}>{delta}</span>
       </div>
     )}
@@ -255,7 +255,7 @@ const ApprovalBadge = ({ status, size = 'sm' }) => {
 };
 
 // ────────────────────────────────────────────────────────────
-// SIDEBAR (sans bloc stockage)
+// SIDEBAR (desktop) + BOTTOM NAV (mobile)
 // ────────────────────────────────────────────────────────────
 const Sidebar = ({ section, setSection, onLogout }) => {
   const nav = [
@@ -267,7 +267,7 @@ const Sidebar = ({ section, setSection, onLogout }) => {
   ];
 
   return (
-    <aside style={neu.raised} className="w-[230px] h-[calc(100vh-40px)] sticky top-5 flex flex-col rounded-[32px] p-5">
+    <aside style={neu.raised} className="hidden lg:flex w-[230px] h-[calc(100vh-40px)] sticky top-5 flex-col rounded-[32px] p-5 shrink-0">
       <div className="px-2 pt-2 pb-6">
         <div className="text-[26px] tracking-tight leading-none" style={{ ...SERIF, fontStyle: 'italic' }}>
           {CLIENT.agencyName}<span className="text-stone-400">.</span>
@@ -292,21 +292,62 @@ const Sidebar = ({ section, setSection, onLogout }) => {
   );
 };
 
+const MobileHeader = ({ onLogout }) => (
+  <header className="lg:hidden flex items-center justify-between px-5 py-4 sticky top-0 z-30" style={{ backgroundColor: '#e8e9ec' }}>
+    <div>
+      <div className="text-[20px] tracking-tight leading-none" style={{ ...SERIF, fontStyle: 'italic' }}>
+        {CLIENT.agencyName}<span className="text-stone-400">.</span>
+      </div>
+      <div className="text-[9px] uppercase tracking-[0.18em] text-stone-400 mt-0.5 font-medium">Espace client</div>
+    </div>
+    <button onClick={onLogout} style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center text-stone-600">
+      <LogOut size={15} />
+    </button>
+  </header>
+);
+
+const BottomNav = ({ section, setSection }) => {
+  const nav = [
+    { id: 'dashboard', icon: Home, label: 'Accueil' },
+    { id: 'media',     icon: ImageIcon, label: 'Médias' },
+    { id: 'invoices',  icon: FileText, label: 'Factures' },
+    ...(CLIENT.analyticsEnabled ? [{ id: 'analytics', icon: BarChart3, label: 'Analyses' }] : []),
+    { id: 'calendar',  icon: CalendarIcon, label: 'Calendrier' },
+  ];
+  return (
+    <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-30 rounded-3xl px-2 py-2 flex items-center justify-around" style={neu.raised}>
+      {nav.map(n => {
+        const Icon = n.icon;
+        const active = section === n.id;
+        return (
+          <button key={n.id} onClick={() => setSection(n.id)}
+            style={active ? neu.darkSm : {}}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-2xl transition ${active ? 'text-white' : 'text-stone-500'}`}>
+            <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
+            <span className="text-[9px] font-semibold tracking-tight">{n.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+};
+
 // ────────────────────────────────────────────────────────────
 // TOPBAR
 // ────────────────────────────────────────────────────────────
 const TopBar = ({ title, subtitle }) => (
-  <div className="flex items-center justify-between mb-7">
-    <div>
-      <h1 className="text-[34px] tracking-tight leading-[1.05]" style={SERIF}>{title}</h1>
-      {subtitle && <div className="text-[13px] text-stone-500 mt-1">{subtitle}</div>}
+  <div className="flex items-start lg:items-center justify-between mb-5 lg:mb-7 gap-3">
+    <div className="min-w-0 flex-1">
+      <h1 className="text-[26px] lg:text-[34px] tracking-tight leading-[1.05]" style={SERIF}>{title}</h1>
+      {subtitle && <div className="text-[12px] lg:text-[13px] text-stone-500 mt-1 hidden sm:block">{subtitle}</div>}
     </div>
-    <div className="flex items-center gap-3">
+    <div className="hidden lg:flex items-center gap-3">
       <div style={neu.raisedXs} className="rounded-full pl-2 pr-4 py-1.5 flex items-center gap-2.5">
         <div style={neu.darkSm} className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-semibold">{CLIENT.initials}</div>
         <span className="text-[13px] font-medium">{CLIENT.name}</span>
       </div>
     </div>
+    <div style={neu.darkSm} className="lg:hidden w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0">{CLIENT.initials}</div>
   </div>
 );
 
@@ -320,22 +361,22 @@ const Dashboard = ({ goTo }) => {
   const pending = CLIENT.media.filter(m => m.approval_status === 'pending').length;
 
   return (
-    <div className="grid grid-cols-12 gap-5">
-      <div className="col-span-3"><StatCard dark label="Total facturé" value={`${totalSpent.toLocaleString('fr-FR')} €`} delta={A.kpis?.spentDelta} deltaUp /></div>
-      <div className="col-span-3"><StatCard label="Médias livrés" value={CLIENT.media.length} delta={A.kpis?.mediaDelta} deltaUp /></div>
-      <div className="col-span-3"><StatCard label="À valider" value={pending} delta={pending > 0 ? 'en attente' : 'tout est OK'} /></div>
-      <div className="col-span-3">
+    <div className="grid grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-5">
+      <div className="lg:col-span-3"><StatCard dark label="Total facturé" value={`${totalSpent.toLocaleString('fr-FR')} €`} delta={A.kpis?.spentDelta} deltaUp /></div>
+      <div className="lg:col-span-3"><StatCard label="Médias livrés" value={CLIENT.media.length} delta={A.kpis?.mediaDelta} deltaUp /></div>
+      <div className="lg:col-span-3"><StatCard label="À valider" value={pending} delta={pending > 0 ? 'en attente' : 'tout est OK'} /></div>
+      <div className="lg:col-span-3">
         {CLIENT.analyticsEnabled
           ? <StatCard label="Engagement moy." value={engagement} delta={A.kpis?.engagementDelta} deltaUp />
           : <StatCard label="Tournages à venir" value={upcomingShoots} delta={upcomingShoots > 0 ? 'planifiés' : '—'} />}
       </div>
 
       {CLIENT.analyticsEnabled ? (
-        <div style={neu.raised} className="col-span-8 rounded-[28px] p-7 relative overflow-hidden">
+        <div style={neu.raised} className="col-span-2 lg:col-span-8 rounded-[24px] lg:rounded-[28px] p-5 lg:p-7 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #1a1a1d 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
-          <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Performance globale</div>
-          <h2 className="text-[28px] tracking-tight mt-2 leading-[1.1] max-w-md" style={SERIF}>Évolution de votre audience.</h2>
-          <div className="mt-5 h-[180px]">
+          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Performance globale</div>
+          <h2 className="text-[22px] lg:text-[28px] tracking-tight mt-2 leading-[1.1] max-w-md" style={SERIF}>Évolution de votre audience.</h2>
+          <div className="mt-5 h-[160px] lg:h-[180px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={REVENUE_DATA}>
                 <defs>
@@ -351,21 +392,21 @@ const Dashboard = ({ goTo }) => {
           </div>
         </div>
       ) : (
-        <div style={neu.raised} className="col-span-8 rounded-[28px] p-7 relative overflow-hidden flex flex-col justify-between min-h-[260px]">
+        <div style={neu.raised} className="col-span-2 lg:col-span-8 rounded-[24px] lg:rounded-[28px] p-5 lg:p-7 relative overflow-hidden flex flex-col justify-between min-h-[220px] lg:min-h-[260px]">
           <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #b08968 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
           <div className="relative">
             <div className="flex items-center gap-2">
               <Sparkles size={13} className="text-stone-400" />
-              <span className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Option disponible</span>
+              <span className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Option disponible</span>
             </div>
-            <h2 className="text-[28px] tracking-tight mt-2 leading-[1.1] max-w-md" style={SERIF}>
+            <h2 className="text-[22px] lg:text-[28px] tracking-tight mt-2 leading-[1.1] max-w-md" style={SERIF}>
               Suivez vos réseaux<br/><em className="italic text-stone-500">en temps réel.</em>
             </h2>
-            <p className="text-[13px] text-stone-500 mt-3 max-w-md leading-relaxed">
+            <p className="text-[12px] lg:text-[13px] text-stone-500 mt-3 max-w-md leading-relaxed">
               Analyses Instagram, Facebook & TikTok intégrées : audience, engagement, démographie et synthèse hebdomadaire — directement dans votre tableau de bord.
             </p>
           </div>
-          <div className="relative mt-5 flex items-center gap-3">
+          <div className="relative mt-5 flex items-center gap-3 flex-wrap">
             <a href="mailto:contact@timelesshouse.org?subject=Activer%20les%20analyses%20réseaux%20sociaux"
                style={neu.darkSm} className="px-5 py-2.5 rounded-full text-white text-[12px] font-semibold flex items-center gap-2">
               <ArrowUpRight size={13} /> Activer cette option
@@ -375,83 +416,83 @@ const Dashboard = ({ goTo }) => {
         </div>
       )}
 
-      <div className="col-span-4 flex flex-col gap-4">
-        <button onClick={() => goTo('media')} style={neu.raised} className="rounded-[24px] p-5 text-left flex items-center justify-between group">
+      <div className="col-span-2 lg:col-span-4 grid grid-cols-2 lg:grid-cols-1 gap-3 lg:gap-4">
+        <button onClick={() => goTo('media')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
           <div>
-            <div style={neu.darkSm} className="w-11 h-11 rounded-2xl flex items-center justify-center text-white mb-3"><ImageIcon size={18} /></div>
-            <div className="font-semibold text-[15px]">Mes médias</div>
-            <div className="text-[12px] text-stone-500 mt-0.5">{CLIENT.media.length} fichiers · {pending} à valider</div>
+            <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><ImageIcon size={16} /></div>
+            <div className="font-semibold text-[13px] lg:text-[15px]">Mes médias</div>
+            <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{CLIENT.media.length} fichiers · {pending} à valider</div>
           </div>
-          <ArrowUpRight size={18} className="text-stone-400 group-hover:text-stone-900 transition" />
+          <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
         </button>
         {CLIENT.analyticsEnabled ? (
-          <button onClick={() => goTo('analytics')} style={neu.raised} className="rounded-[24px] p-5 text-left flex items-center justify-between group">
+          <button onClick={() => goTo('analytics')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
             <div>
-              <div style={neu.darkSm} className="w-11 h-11 rounded-2xl flex items-center justify-center text-white mb-3"><BarChart3 size={18} /></div>
-              <div className="font-semibold text-[15px]">Analyses live</div>
-              <div className="text-[12px] text-stone-500 mt-0.5">Mise à jour temps réel</div>
+              <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><BarChart3 size={16} /></div>
+              <div className="font-semibold text-[13px] lg:text-[15px]">Analyses live</div>
+              <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">Mise à jour temps réel</div>
             </div>
-            <ArrowUpRight size={18} className="text-stone-400 group-hover:text-stone-900 transition" />
+            <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
           </button>
         ) : (
-          <button onClick={() => goTo('calendar')} style={neu.raised} className="rounded-[24px] p-5 text-left flex items-center justify-between group">
+          <button onClick={() => goTo('calendar')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
             <div>
-              <div style={neu.darkSm} className="w-11 h-11 rounded-2xl flex items-center justify-center text-white mb-3"><CalendarIcon size={18} /></div>
-              <div className="font-semibold text-[15px]">Calendrier</div>
-              <div className="text-[12px] text-stone-500 mt-0.5">{upcomingShoots} tournage{upcomingShoots > 1 ? 's' : ''} à venir</div>
+              <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><CalendarIcon size={16} /></div>
+              <div className="font-semibold text-[13px] lg:text-[15px]">Calendrier</div>
+              <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{upcomingShoots} tournage{upcomingShoots > 1 ? 's' : ''} à venir</div>
             </div>
-            <ArrowUpRight size={18} className="text-stone-400 group-hover:text-stone-900 transition" />
+            <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
           </button>
         )}
       </div>
 
-      <div style={neu.raised} className="col-span-7 rounded-[28px] p-6">
-        <div className="flex items-center justify-between mb-5">
+      <div style={neu.raised} className="col-span-2 lg:col-span-7 rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+        <div className="flex items-center justify-between mb-4 lg:mb-5">
           <div>
-            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">À venir</div>
-            <h3 className="text-[20px] tracking-tight mt-1" style={SERIF}>Prochains tournages</h3>
+            <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">À venir</div>
+            <h3 className="text-[18px] lg:text-[20px] tracking-tight mt-1" style={SERIF}>Prochains tournages</h3>
           </div>
-          <button onClick={() => goTo('calendar')} className="text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900">Voir tout <ArrowRight size={13} /></button>
+          <button onClick={() => goTo('calendar')} className="text-[11px] lg:text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0">Voir tout <ArrowRight size={13} /></button>
         </div>
         <div className="space-y-3">
           {CLIENT.shoots.slice(0, 3).map(s => (
-            <div key={s.id} style={neu.pressedSm} className="rounded-2xl p-4 flex items-center gap-4">
-              <div style={neu.darkSm} className="w-12 h-12 rounded-2xl flex flex-col items-center justify-center text-white">
-                <div className="text-[9px] uppercase tracking-wider text-stone-400">{s.month}</div>
-                <div className="text-[16px] font-semibold leading-none" style={SERIF}>{s.date}</div>
+            <div key={s.id} style={neu.pressedSm} className="rounded-2xl p-3 lg:p-4 flex items-center gap-3 lg:gap-4">
+              <div style={neu.darkSm} className="w-11 h-11 lg:w-12 lg:h-12 rounded-2xl flex flex-col items-center justify-center text-white shrink-0">
+                <div className="text-[8px] lg:text-[9px] uppercase tracking-wider text-stone-400">{s.month}</div>
+                <div className="text-[15px] lg:text-[16px] font-semibold leading-none" style={SERIF}>{s.date}</div>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-[14px] truncate">{s.title}</div>
-                <div className="flex items-center gap-3 mt-1 text-[11px] text-stone-500">
+                <div className="font-medium text-[13px] lg:text-[14px] truncate">{s.title}</div>
+                <div className="flex items-center gap-3 mt-1 text-[10.5px] lg:text-[11px] text-stone-500 flex-wrap">
                   {s.time && <span className="flex items-center gap-1"><Clock size={11} /> {s.time}</span>}
                   {s.location && <span className="flex items-center gap-1"><MapPin size={11} /> {s.location}</span>}
                 </div>
               </div>
-              <div className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full ${s.type === 'video' ? 'bg-stone-900 text-white' : 'bg-stone-200 text-stone-700'}`}>{s.type}</div>
+              <div className={`text-[9px] lg:text-[10px] uppercase tracking-wider px-2 lg:px-2.5 py-1 rounded-full shrink-0 ${s.type === 'video' ? 'bg-stone-900 text-white' : 'bg-stone-200 text-stone-700'}`}>{s.type}</div>
             </div>
           ))}
           {CLIENT.shoots.length === 0 && <div className="text-center py-8 text-[13px] text-stone-400">Aucun tournage programmé pour le moment.</div>}
         </div>
       </div>
 
-      <div style={neu.raised} className="col-span-5 rounded-[28px] p-6">
-        <div className="flex items-center justify-between mb-5">
+      <div style={neu.raised} className="col-span-2 lg:col-span-5 rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+        <div className="flex items-center justify-between mb-4 lg:mb-5">
           <div>
-            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Récent</div>
-            <h3 className="text-[20px] tracking-tight mt-1" style={SERIF}>Dernières factures</h3>
+            <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Récent</div>
+            <h3 className="text-[18px] lg:text-[20px] tracking-tight mt-1" style={SERIF}>Dernières factures</h3>
           </div>
-          <button onClick={() => goTo('invoices')} className="text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900">Voir tout <ArrowRight size={13} /></button>
+          <button onClick={() => goTo('invoices')} className="text-[11px] lg:text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0">Voir tout <ArrowRight size={13} /></button>
         </div>
         <div className="space-y-2.5">
           {CLIENT.invoices.slice(0, 4).map(inv => (
-            <div key={inv.id} className="flex items-center justify-between py-2">
-              <div>
-                <div className="font-medium text-[13px]">{inv.id}</div>
-                <div className="text-[11px] text-stone-500">{inv.date}</div>
+            <div key={inv.id} className="flex items-center justify-between py-2 gap-3">
+              <div className="min-w-0">
+                <div className="font-medium text-[12.5px] lg:text-[13px] truncate">{inv.id}</div>
+                <div className="text-[10.5px] lg:text-[11px] text-stone-500">{inv.date}</div>
               </div>
-              <div className="text-right">
-                <div className="font-semibold text-[14px]">{inv.amount.toLocaleString('fr-FR')} €</div>
-                <div className={`text-[10px] uppercase tracking-wider ${inv.status === 'payée' ? 'text-emerald-600' : 'text-amber-600'}`}>{inv.status}</div>
+              <div className="text-right shrink-0">
+                <div className="font-semibold text-[13px] lg:text-[14px]">{inv.amount.toLocaleString('fr-FR')} €</div>
+                <div className={`text-[9px] lg:text-[10px] uppercase tracking-wider ${inv.status === 'payée' ? 'text-emerald-600' : 'text-amber-600'}`}>{inv.status}</div>
               </div>
             </div>
           ))}
@@ -584,59 +625,70 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
     }
   };
 
+  const [tab, setTab] = useState('info'); // mobile uniquement : info | comments
+
   return (
-    <div className="fixed inset-0 z-50 flex bg-stone-900/95 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex flex-col lg:flex-row bg-stone-900/95 backdrop-blur-sm">
       {/* Zone média */}
-      <div className="flex-1 flex items-center justify-center relative p-8 min-w-0">
+      <div className="flex-1 flex items-center justify-center relative p-3 sm:p-6 lg:p-8 min-w-0 min-h-[40vh] lg:min-h-0">
         {/* Nav buttons */}
         {index > 0 && (
-          <button onClick={() => onIndex(index - 1)} className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur z-10">
-            <ChevronLeft size={22} />
+          <button onClick={() => onIndex(index - 1)} className="absolute left-2 lg:left-4 top-1/2 -translate-y-1/2 w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur z-10">
+            <ChevronLeft size={20} />
           </button>
         )}
         {index < items.length - 1 && (
-          <button onClick={() => onIndex(index + 1)} className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur z-10">
-            <ChevronRight size={22} />
+          <button onClick={() => onIndex(index + 1)} className="absolute right-2 lg:right-4 top-1/2 -translate-y-1/2 w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur z-10">
+            <ChevronRight size={20} />
           </button>
         )}
 
-        {/* Compteur */}
-        <div className="absolute top-4 left-4 text-white/70 text-[12px] font-medium z-10 bg-white/5 backdrop-blur px-3 py-1.5 rounded-full">
+        <div className="absolute top-3 left-3 lg:top-4 lg:left-4 text-white/70 text-[11px] lg:text-[12px] font-medium z-10 bg-white/5 backdrop-blur px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full">
           {index + 1} / {items.length}
         </div>
 
-        {/* Bouton fermer */}
-        <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur z-10">
-          <X size={18} />
+        <button onClick={onClose} className="absolute top-3 right-3 lg:top-4 lg:right-4 w-9 h-9 lg:w-10 lg:h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur z-10">
+          <X size={16} />
         </button>
 
-        {/* Affichage du média */}
-        <div className="max-w-full max-h-full flex items-center justify-center">
+        <div className="max-w-full max-h-full flex items-center justify-center w-full">
           {!embed && <div className="text-stone-400">Aucun aperçu disponible</div>}
           {embed && embed.kind === 'image' && (
-            <img src={embed.src} alt={m.title} className="max-w-full max-h-[85vh] object-contain rounded-xl" />
+            <img src={embed.src} alt={m.title} className="max-w-full max-h-[55vh] lg:max-h-[85vh] object-contain rounded-xl" />
           )}
           {embed && embed.kind === 'video' && (
-            <video src={embed.src} controls className="max-w-full max-h-[85vh] rounded-xl bg-black" />
+            <video src={embed.src} controls playsInline className="max-w-full max-h-[55vh] lg:max-h-[85vh] rounded-xl bg-black" />
           )}
           {embed && embed.kind === 'iframe' && (
-            <div className="w-[min(90vw,1200px)] aspect-video">
+            <div className="w-full max-w-[1200px] aspect-video">
               <iframe src={embed.src} className="w-full h-full rounded-xl" frameBorder="0" allow="autoplay; encrypted-media; fullscreen" allowFullScreen />
             </div>
           )}
         </div>
       </div>
 
-      {/* Panneau latéral */}
-      <aside className="w-[380px] shrink-0 bg-stone-50 flex flex-col">
-        {/* Header */}
-        <div className="p-6 border-b border-stone-200">
-          <div className="flex items-center gap-2 mb-2">
+      {/* Panneau (latéral desktop / bottom sheet mobile) */}
+      <aside className="lg:w-[380px] shrink-0 bg-stone-50 flex flex-col max-h-[60vh] lg:max-h-none border-t lg:border-t-0 border-stone-200">
+        {/* Onglets mobile uniquement */}
+        <div className="lg:hidden flex border-b border-stone-200 bg-white">
+          <button onClick={() => setTab('info')}
+            className={`flex-1 py-3 text-[12px] font-semibold uppercase tracking-wider transition ${tab === 'info' ? 'text-stone-900 border-b-2 border-stone-900' : 'text-stone-400'}`}>
+            Détails
+          </button>
+          <button onClick={() => setTab('comments')}
+            className={`flex-1 py-3 text-[12px] font-semibold uppercase tracking-wider transition ${tab === 'comments' ? 'text-stone-900 border-b-2 border-stone-900' : 'text-stone-400'}`}>
+            Commentaires {comments.length > 0 && <span className="text-stone-500">({comments.length})</span>}
+          </button>
+        </div>
+
+        {/* Header + actions (toujours visible sur desktop, dans onglet "info" sur mobile) */}
+        <div className={`${tab !== 'info' ? 'hidden lg:block' : ''} p-5 lg:p-6 border-b border-stone-200`}>
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             {m.type === 'video' ? <VideoIcon size={14} className="text-stone-500" /> : <Camera size={14} className="text-stone-500" />}
             <span className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold">{m.type === 'video' ? 'Vidéo' : 'Photo'}</span>
             {m.tag && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-stone-200 text-stone-600">{m.tag}</span>}
           </div>
-          <h3 className="text-[22px] tracking-tight leading-tight" style={SERIF}>{m.title}</h3>
+          <h3 className="text-[20px] lg:text-[22px] tracking-tight leading-tight" style={SERIF}>{m.title}</h3>
           <div className="text-[12px] text-stone-500 mt-1">
             {m.date}{m.duration ? ` · ${m.duration}` : ''}{m.size ? ` · ${m.size}` : ''}
           </div>
@@ -645,8 +697,8 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
           </button>
         </div>
 
-        {/* Approbation */}
-        <div className="p-6 border-b border-stone-200">
+        {/* Approbation (idem) */}
+        <div className={`${tab !== 'info' ? 'hidden lg:block' : ''} p-5 lg:p-6 border-b border-stone-200`}>
           <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold mb-3">Validation</div>
           <div className="mb-3"><ApprovalBadge status={localStatus} size="lg" /></div>
           <div className="grid grid-cols-2 gap-2">
@@ -667,15 +719,15 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
         </div>
 
         {/* Commentaires */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="px-6 pt-6 pb-3">
+        <div className={`${tab !== 'comments' ? 'hidden lg:flex' : 'flex'} flex-1 flex-col overflow-hidden min-h-[200px]`}>
+          <div className="hidden lg:block px-6 pt-6 pb-3">
             <div className="flex items-center gap-2">
               <MessageSquare size={13} className="text-stone-500" />
               <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold">Commentaires ({comments.length})</div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 space-y-3 pb-3">
+          <div className="flex-1 overflow-y-auto px-5 lg:px-6 pt-4 lg:pt-0 space-y-3 pb-3">
             {comments.length === 0 && <div className="text-[12px] text-stone-400 text-center py-6">Aucun commentaire.<br/>Démarrez la conversation.</div>}
             {comments.map(c => (
               <div key={c.id} className={`flex flex-col ${c.is_admin ? 'items-start' : 'items-end'}`}>
@@ -690,8 +742,7 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
             ))}
           </div>
 
-          {/* Input */}
-          <div className="p-4 border-t border-stone-200">
+          <div className="p-3 lg:p-4 border-t border-stone-200">
             <div className="flex items-end gap-2">
               <textarea
                 value={newComment}
@@ -790,8 +841,8 @@ const Media = () => {
   return (
     <div className="space-y-5">
       {/* Filtres + actions */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div style={neu.raisedXs} className="rounded-full p-1 flex items-center flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto no-scrollbar -mx-1 px-1">
           <Pill active={filter === 'tous'}      onClick={() => setFilter('tous')}>Tous</Pill>
           <Pill active={filter === 'photo'}     onClick={() => setFilter('photo')}>Photos</Pill>
           <Pill active={filter === 'video'}     onClick={() => setFilter('video')}>Vidéos</Pill>
@@ -799,14 +850,14 @@ const Media = () => {
           <Pill active={filter === 'approuves'} onClick={() => setFilter('approuves')}>Approuvés</Pill>
         </div>
         {media.length > 0 && (
-          <button onClick={downloadAll} style={neu.dark} className="px-5 py-2.5 rounded-full text-white text-[13px] font-semibold flex items-center gap-2">
+          <button onClick={downloadAll} style={neu.dark} className="px-5 py-2.5 rounded-full text-white text-[12.5px] lg:text-[13px] font-semibold flex items-center justify-center gap-2 shrink-0">
             <Package size={14} /> Tout télécharger ({media.length})
           </button>
         )}
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatCard label="Total" value={media.length} />
         <StatCard label="Photos" value={photos} />
         <StatCard label="Vidéos" value={videos} />
@@ -815,40 +866,39 @@ const Media = () => {
 
       {/* Groupes par tournage */}
       {groups.map((g, gi) => (
-        <div key={g.shoot?.id || `no-${gi}`} style={neu.raised} className="rounded-[28px] p-6">
-          <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-            <div className="flex items-center gap-4 min-w-0">
+        <div key={g.shoot?.id || `no-${gi}`} style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-4 lg:p-6">
+          <div className="flex items-start lg:items-center justify-between mb-4 lg:mb-5 flex-wrap gap-3">
+            <div className="flex items-center gap-3 lg:gap-4 min-w-0 flex-1">
               {g.shoot && (
-                <div style={g.shoot.type === 'video' ? neu.dark : neu.darkSm} className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white shrink-0">
-                  <div className="text-[9px] uppercase tracking-wider text-stone-400">{g.shoot.month}</div>
-                  <div className="text-[18px] leading-none font-semibold" style={SERIF}>{g.shoot.date}</div>
+                <div style={g.shoot.type === 'video' ? neu.dark : neu.darkSm} className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl flex flex-col items-center justify-center text-white shrink-0">
+                  <div className="text-[8px] lg:text-[9px] uppercase tracking-wider text-stone-400">{g.shoot.month}</div>
+                  <div className="text-[16px] lg:text-[18px] leading-none font-semibold" style={SERIF}>{g.shoot.date}</div>
                 </div>
               )}
-              <div className="min-w-0">
-                <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">
                   {g.shoot ? 'Tournage' : 'Hors tournage'}
                 </div>
-                <h3 className="text-[22px] tracking-tight leading-tight truncate" style={SERIF}>
+                <h3 className="text-[18px] lg:text-[22px] tracking-tight leading-tight truncate" style={SERIF}>
                   {g.shoot ? g.shoot.title : 'Médias divers'}
                 </h3>
-                <div className="text-[12px] text-stone-500 mt-0.5">{g.items.length} fichier{g.items.length > 1 ? 's' : ''}</div>
+                <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{g.items.length} fichier{g.items.length > 1 ? 's' : ''}</div>
               </div>
             </div>
             {g.items.length > 0 && (
-              <button onClick={() => downloadGroup(g)} style={neu.raisedXs} className="px-4 py-2 rounded-full text-[12.5px] font-semibold flex items-center gap-2">
-                <Download size={13} /> Télécharger ce tournage (.zip)
+              <button onClick={() => downloadGroup(g)} style={neu.raisedXs} className="px-3 lg:px-4 py-2 rounded-full text-[11.5px] lg:text-[12.5px] font-semibold flex items-center gap-2 shrink-0">
+                <Download size={13} /> <span className="hidden sm:inline">Télécharger</span> .zip
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
             {g.items.map(m => {
               const thumb = getThumbUrl(m);
-              // Si pas de vignette personnalisée, on tente l'autoplay direct
               const previewVideo = !m.thumb_url ? getPreviewVideoUrl(m) : null;
               return (
-                <button key={m.id} onClick={() => openLightbox(g.items, m)} style={neu.raisedSm} className="rounded-[20px] p-2.5 group text-left">
-                  <div className="aspect-[4/3] rounded-xl relative overflow-hidden bg-black"
+                <button key={m.id} onClick={() => openLightbox(g.items, m)} style={neu.raisedSm} className="rounded-[16px] lg:rounded-[20px] p-2 lg:p-2.5 group text-left">
+                  <div className="aspect-[4/3] rounded-lg lg:rounded-xl relative overflow-hidden bg-black"
                     style={!previewVideo ? { background: thumb ? `url(${thumb}) center/cover` : m.thumb } : undefined}>
                     {previewVideo && (
                       <video
@@ -865,24 +915,21 @@ const Media = () => {
                       <>
                         <div className="absolute inset-0 bg-black/30" />
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-12 h-12 rounded-full bg-white/95 flex items-center justify-center group-hover:scale-110 transition">
-                            <Play size={16} className="text-stone-900 ml-0.5" fill="#1a1a1d" />
+                          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-white/95 flex items-center justify-center group-hover:scale-110 transition">
+                            <Play size={14} className="text-stone-900 ml-0.5" fill="#1a1a1d" />
                           </div>
                         </div>
                       </>
                     )}
                     {m.type === 'video' && m.duration && (
-                      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-medium">{m.duration}</div>
+                      <div className="absolute bottom-1.5 right-1.5 lg:bottom-2 lg:right-2 px-1.5 lg:px-2 py-0.5 rounded-md bg-black/70 text-white text-[9px] lg:text-[10px] font-medium">{m.duration}</div>
                     )}
-                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-white/90 text-stone-800 text-[9px] font-semibold uppercase tracking-wider z-10">{m.type}</div>
-                    <div className="absolute top-2 right-2 z-10"><ApprovalBadge status={m.approval_status} /></div>
-                    <div className="absolute inset-0 bg-stone-900/0 group-hover:bg-stone-900/30 transition flex items-center justify-center opacity-0 group-hover:opacity-100 z-10">
-                      <div className="bg-white/95 rounded-full w-10 h-10 flex items-center justify-center"><Maximize2 size={14} /></div>
-                    </div>
+                    <div className="absolute top-1.5 left-1.5 lg:top-2 lg:left-2 px-1.5 lg:px-2 py-0.5 rounded-md bg-white/90 text-stone-800 text-[8px] lg:text-[9px] font-semibold uppercase tracking-wider z-10">{m.type}</div>
+                    <div className="absolute top-1.5 right-1.5 lg:top-2 lg:right-2 z-10"><ApprovalBadge status={m.approval_status} /></div>
                   </div>
-                  <div className="px-1 pt-3 pb-1">
-                    <div className="font-medium text-[13px] truncate">{m.title}</div>
-                    <div className="text-[10.5px] text-stone-500 mt-0.5">{m.date}{m.tag ? ` · ${m.tag}` : ''}</div>
+                  <div className="px-1 pt-2 lg:pt-3 pb-1">
+                    <div className="font-medium text-[12px] lg:text-[13px] truncate">{m.title}</div>
+                    <div className="text-[10px] lg:text-[10.5px] text-stone-500 mt-0.5 truncate">{m.date}{m.tag ? ` · ${m.tag}` : ''}</div>
                   </div>
                 </button>
               );
@@ -921,40 +968,62 @@ const Invoices = () => {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-3 gap-5">
-        <div style={neu.dark} className="rounded-[24px] p-6 text-white">
-          <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Total facturé</div>
-          <div className="text-[42px] tracking-tight mt-2 leading-none" style={SERIF}>{total.toLocaleString('fr-FR')} €</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-5">
+        <div style={neu.dark} className="rounded-[20px] lg:rounded-[24px] p-5 lg:p-6 text-white">
+          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Total facturé</div>
+          <div className="text-[32px] lg:text-[42px] tracking-tight mt-2 leading-none" style={SERIF}>{total.toLocaleString('fr-FR')} €</div>
         </div>
-        <div style={neu.raisedSm} className="rounded-[24px] p-6">
-          <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Réglé</div>
-          <div className="text-[32px] tracking-tight mt-2 leading-none" style={SERIF}>{paid.toLocaleString('fr-FR')} €</div>
-          <div className="mt-4 h-1.5 rounded-full" style={neu.pressedSm}><div className="h-full bg-emerald-500 rounded-full" style={{ width: total > 0 ? `${(paid/total)*100}%` : '0%' }} /></div>
+        <div style={neu.raisedSm} className="rounded-[20px] lg:rounded-[24px] p-5 lg:p-6">
+          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Réglé</div>
+          <div className="text-[26px] lg:text-[32px] tracking-tight mt-2 leading-none" style={SERIF}>{paid.toLocaleString('fr-FR')} €</div>
+          <div className="mt-3 lg:mt-4 h-1.5 rounded-full" style={neu.pressedSm}><div className="h-full bg-emerald-500 rounded-full" style={{ width: total > 0 ? `${(paid/total)*100}%` : '0%' }} /></div>
         </div>
-        <div style={neu.raisedSm} className="rounded-[24px] p-6">
-          <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">En attente</div>
-          <div className="text-[32px] tracking-tight mt-2 leading-none" style={SERIF}>{pending.toLocaleString('fr-FR')} €</div>
-          <div className="mt-4 h-1.5 rounded-full" style={neu.pressedSm}><div className="h-full bg-amber-400 rounded-full" style={{ width: total > 0 ? `${(pending/total)*100}%` : '0%' }} /></div>
+        <div style={neu.raisedSm} className="rounded-[20px] lg:rounded-[24px] p-5 lg:p-6">
+          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">En attente</div>
+          <div className="text-[26px] lg:text-[32px] tracking-tight mt-2 leading-none" style={SERIF}>{pending.toLocaleString('fr-FR')} €</div>
+          <div className="mt-3 lg:mt-4 h-1.5 rounded-full" style={neu.pressedSm}><div className="h-full bg-amber-400 rounded-full" style={{ width: total > 0 ? `${(pending/total)*100}%` : '0%' }} /></div>
         </div>
       </div>
 
-      <div style={neu.raised} className="rounded-[28px] p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-[20px] tracking-tight" style={SERIF}>Historique des factures</h3>
-        </div>
-        <div className="grid grid-cols-12 gap-4 px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold">
+      <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-4 lg:p-6">
+        <h3 className="text-[18px] lg:text-[20px] tracking-tight mb-4" style={SERIF}>Historique des factures</h3>
+
+        {/* En-têtes desktop uniquement */}
+        <div className="hidden lg:grid grid-cols-12 gap-4 px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold">
           <div className="col-span-3">Référence</div><div className="col-span-4">Description</div><div className="col-span-2">Date</div><div className="col-span-2">Montant</div><div className="col-span-1 text-right">Statut</div>
         </div>
+
         <div className="space-y-2">
           {CLIENT.invoices.map(inv => (
-            <div key={inv.id} style={neu.pressedSm} className="grid grid-cols-12 gap-4 px-4 py-4 rounded-2xl items-center">
-              <div className="col-span-3 font-mono text-[13px] font-medium">{inv.id}</div>
-              <div className="col-span-4 text-[13px] text-stone-700">{inv.desc}</div>
-              <div className="col-span-2 text-[12px] text-stone-500">{inv.date}</div>
-              <div className="col-span-2 font-semibold text-[14px]" style={SERIF}>{inv.amount.toLocaleString('fr-FR')} €</div>
-              <div className="col-span-1 flex items-center justify-end gap-2">
-                <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
-                {inv.url && <a href={inv.url} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900"><Download size={13} /></a>}
+            <div key={inv.id} style={neu.pressedSm} className="rounded-2xl p-4 lg:px-4 lg:py-4">
+              {/* Mobile : carte verticale */}
+              <div className="lg:hidden space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-mono text-[12.5px] font-medium">{inv.id}</div>
+                    <div className="text-[12.5px] text-stone-700 mt-1 line-clamp-2">{inv.desc}</div>
+                  </div>
+                  <span className={`text-[9px] uppercase tracking-wider px-2 py-1 rounded-full font-semibold shrink-0 ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <div className="text-[11px] text-stone-500">{inv.date}</div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-semibold text-[16px]" style={SERIF}>{inv.amount.toLocaleString('fr-FR')} €</span>
+                    {inv.url && <a href={inv.url} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-stone-600"><Download size={13} /></a>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop : ligne grille */}
+              <div className="hidden lg:grid grid-cols-12 gap-4 items-center">
+                <div className="col-span-3 font-mono text-[13px] font-medium">{inv.id}</div>
+                <div className="col-span-4 text-[13px] text-stone-700">{inv.desc}</div>
+                <div className="col-span-2 text-[12px] text-stone-500">{inv.date}</div>
+                <div className="col-span-2 font-semibold text-[14px]" style={SERIF}>{inv.amount.toLocaleString('fr-FR')} €</div>
+                <div className="col-span-1 flex items-center justify-end gap-2">
+                  <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
+                  {inv.url && <a href={inv.url} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900"><Download size={13} /></a>}
+                </div>
               </div>
             </div>
           ))}
@@ -985,8 +1054,8 @@ const Analytics = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div style={neu.raisedXs} className="rounded-full p-1 flex items-center flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto no-scrollbar">
           <Pill active={platform === 'all'} onClick={() => setPlatform('all')}>Tous réseaux</Pill>
           {platforms.map(p => <Pill key={p.name} active={platform === p.name} onClick={() => setPlatform(p.name)}>{p.name}</Pill>)}
         </div>
@@ -1001,7 +1070,7 @@ const Analytics = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatCard dark label="Abonnés totaux" value={k.totalFollowers || '—'} delta={k.followersDelta} deltaUp />
         <StatCard label="Engagement" value={k.engagement || '—'} delta={k.engagementDelta} deltaUp />
         <StatCard label="Reach hebdo" value={k.reach || '—'} delta={k.reachDelta} deltaUp />
@@ -1104,11 +1173,12 @@ const Calendar = () => {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-[22px] tracking-tight" style={SERIF}>Avril 2026</h3>
+        <h3 className="text-[20px] lg:text-[22px] tracking-tight" style={SERIF}>Avril 2026</h3>
       </div>
 
-      <div className="grid grid-cols-12 gap-5">
-        <div style={neu.raised} className="col-span-12 lg:col-span-8 rounded-[28px] p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Vue calendrier — desktop uniquement (illisible sur mobile) */}
+        <div style={neu.raised} className="hidden lg:block lg:col-span-8 rounded-[28px] p-6">
           <div className="grid grid-cols-7 gap-2 mb-3">
             {days.map(d => <div key={d} className="text-[11px] uppercase tracking-[0.18em] text-stone-400 font-semibold text-center py-2">{d}</div>)}
           </div>
@@ -1133,19 +1203,20 @@ const Calendar = () => {
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-4 space-y-4">
-          <div style={neu.raised} className="rounded-[24px] p-5">
-            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-4">Prochains événements</div>
+        {/* Liste prochains événements (mobile : pleine largeur) */}
+        <div className="lg:col-span-4 space-y-4">
+          <div style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-5">
+            <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-4">Prochains événements</div>
             <div className="space-y-3">
               {CLIENT.shoots.map(s => (
                 <div key={s.id} className="flex gap-3">
-                  <div style={s.type === 'video' ? neu.darkSm : neu.pressedSm} className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center shrink-0 ${s.type === 'video' ? 'text-white' : ''}`}>
+                  <div style={s.type === 'video' ? neu.darkSm : neu.pressedSm} className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 ${s.type === 'video' ? 'text-white' : ''}`}>
                     <div className={`text-[8px] uppercase tracking-wider ${s.type === 'video' ? 'text-stone-400' : 'text-stone-500'}`}>{s.month}</div>
                     <div className="text-[14px] leading-none font-semibold" style={SERIF}>{s.date}</div>
                   </div>
                   <div className="flex-1 min-w-0 pt-0.5">
-                    <div className="font-medium text-[12.5px] truncate">{s.title}</div>
-                    <div className="text-[10.5px] text-stone-500 mt-0.5">{s.time} · {s.location}</div>
+                    <div className="font-medium text-[13px] truncate">{s.title}</div>
+                    <div className="text-[11px] text-stone-500 mt-0.5 truncate">{s.time}{s.location && ` · ${s.location}`}</div>
                   </div>
                 </div>
               ))}
@@ -1180,7 +1251,8 @@ function App() {
 
   return (
     <div className="min-h-screen w-full" style={{ ...neu.base, fontFamily: '"Manrope", system-ui, sans-serif' }}>
-      <div className="flex gap-5 p-5 min-h-screen">
+      <MobileHeader onLogout={handleLogout} />
+      <div className="flex gap-5 px-3 pb-24 lg:p-5 lg:pb-5 min-h-screen">
         <Sidebar section={section} setSection={setSection} onLogout={handleLogout} />
         <main className="flex-1 min-w-0">
           <TopBar title={titleData.t} subtitle={titleData.s} />
@@ -1191,6 +1263,7 @@ function App() {
           {section === 'calendar'  && <Calendar />}
         </main>
       </div>
+      <BottomNav section={section} setSection={setSection} />
     </div>
   );
 }

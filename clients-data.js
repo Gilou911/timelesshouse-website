@@ -65,6 +65,7 @@ window.CODES_PAR_UNIVERS = {
         "precieuse-ronny":  "precieuse-ronny.html",
         "ezla-davy":        "photo-ezla-davy.html",
         "keysia-jason":     "video-keyzia-jason.html",
+        "Pau-Ema28032026": "video-Pauline-Emanuel.html",
         // "marie-lucas":   "mariage-marie-lucas.html",   ← exemple désactivé
     },
 

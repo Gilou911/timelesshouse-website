@@ -2305,36 +2305,36 @@
   <!-- ════════════════════════════════
        SCRIPTS
   ════════════════════════════════ -->
-  <!-- 🔐 Codes clients — fichier maître partagé par toutes les pages -->
-  <script src="clients-data.js"></script>
+  <!-- 🔐 Codes clients — validés via Supabase (univers immobilier) -->
+  <script src="supabase-config.js"></script>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    const sb = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+    window.checkCode = async function() {
+      const raw = document.getElementById('clientCode').value;
+      const code = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/&/g, ' ').trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+
+      const err = document.getElementById('modalError');
+      err.style.display = 'none';
+
+      try {
+        const { data, error } = await sb.from('clients').select('code, universe, redirect_url, active')
+          .eq('code', code).eq('active', true).eq('universe', 'immobilier').maybeSingle();
+        if (error || !data) {
+          err.style.display = 'block';
+          document.getElementById('clientCode').style.borderColor = 'rgba(217,112,112,0.5)';
+          setTimeout(function() { document.getElementById('clientCode').style.borderColor = ''; }, 1500);
+          return;
+        }
+        sessionStorage.setItem('access_granted', code);
+        window.location.href = data.redirect_url || 'immobilier.html';
+      } catch (e) { console.error(e); err.style.display = 'block'; }
+    };
+  </script>
 
   <script>
-    /* ════════════════════════════════════════════════════════════
-       🔐  ESPACE CLIENTS — UNIVERS IMMOBILIER
-       ════════════════════════════════════════════════════════════
-
-       📁 OÙ MODIFIER LES CODES ?
-       ──────────────────────────
-       Tous les codes du site sont gérés DANS UN SEUL FICHIER :
-
-           👉 clients-data.js  (à la racine du site)
-
-       Ouvre-le, trouve la section "immobilier" et ajoute/retire les
-       clients comme tu veux. Aucune autre édition n'est nécessaire.
-
-
-       ⚠️  SÉCURITÉ PAR UNIVERS — INCHANGÉE
-       ─────────────────────────────────────
-       Cette page (immobilier.html) lit UNIQUEMENT la section
-       "immobilier" du fichier partagé. Les codes des autres univers
-       (mariage, voyage…) seront REFUSÉS ici. C'est voulu.
-
-       Sur la page d'accueil (index.html), tous les codes fonctionnent.
-       ════════════════════════════════════════════════════════════ */
-
-    // On lit uniquement les codes de l'univers "immobilier" depuis le fichier partagé
-    const CODES_IMMO = (window.CODES_PAR_UNIVERS || {}).immobilier || {};
-
     const CONTACT_EMAIL = 'service@timelesshouse.org';
 
     /* ── PAGE TRANSITION ── */
@@ -2452,22 +2452,6 @@
     }
     function closeOnOverlay(e) { if (e.target === document.getElementById('clientModal')) closeModal(); }
 
-    function checkCode() {
-      const raw = document.getElementById('clientCode').value;
-      const code = raw.toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .replace(/&/g, ' ').trim()
-        .replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-      if (CODES_IMMO.hasOwnProperty(code)) {
-        sessionStorage.setItem('access_granted', code);
-        window.location.href = CODES_IMMO[code];
-      } else {
-        const err = document.getElementById('modalError');
-        err.style.display = 'block';
-        document.getElementById('clientCode').style.borderColor = 'rgba(217,112,112,0.5)';
-        setTimeout(() => { document.getElementById('clientCode').style.borderColor = ''; }, 1500);
-      }
-    }
     if (window.location.hash === '#clients') {
       setTimeout(openModal, 350);
       history.replaceState(null, null, ' ');

@@ -292,6 +292,9 @@
                 <h3 className="text-[18px] lg:text-[20px] tracking-tight mt-4 leading-tight" style={SERIF}>{c.name}</h3>
                 <div className="text-[12px] text-stone-500 mt-0.5">{c.sector}</div>
                 <div className="flex items-center gap-2 mt-4 text-[11px] flex-wrap">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-stone-200 text-stone-700 font-semibold uppercase tracking-wider text-[9.5px]">
+                    {c.universe || 'communication'}
+                  </span>
                   <code style={neu.pressedSm} className="px-2.5 py-1 rounded-md font-mono">{c.code}</code>
                   {c.analytics_enabled && (
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-violet-100 text-violet-700 font-semibold uppercase tracking-wider text-[9.5px]">
@@ -324,24 +327,47 @@
     function ClientForm({ existing, onClose, onSaved }) {
       const [form, setForm] = useState({
         name:              existing?.name              || '',
+        partner1:          existing?.partner1          || '',
+        partner2:          existing?.partner2          || '',
         code:              existing?.code              || '',
         greeting:          existing?.greeting          || '',
         initials:          existing?.initials          || '',
         sector:            existing?.sector            || '',
         client_email:      existing?.client_email      || '',
         agency_name:       existing?.agency_name       || 'TimelessHouse',
+        universe:          existing?.universe          || 'communication',
+        redirect_url:      existing?.redirect_url      || '',
         active:            existing?.active ?? true,
         analytics_enabled: existing?.analytics_enabled ?? false,
       });
       const [loading, setLoading] = useState(false);
       const [err, setErr] = useState('');
 
+      const COUPLE_UNIVERSES = ['mariage', 'fiancailles', 'anniversaire-mariage'];
+      const isCouple = COUPLE_UNIVERSES.includes(form.universe);
+
       const slugify = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+
+      // Auto-update name + initials + code suggestion quand partner1/partner2 changent
+      const updatePartners = (p1, p2) => {
+        const composedName = [p1, p2].filter(Boolean).join(' & ');
+        const composedInitials = [p1, p2].map(p => p?.[0] || '').join('').toUpperCase();
+        const composedCode = [p1, p2].filter(Boolean).map(slugify).join('-');
+        setForm({
+          ...form,
+          partner1: p1,
+          partner2: p2,
+          name: composedName,
+          initials: form.initials && form.initials !== composedInitials.slice(0, form.initials.length) ? form.initials : composedInitials,
+          code: existing ? form.code : (form.code && !composedCode.startsWith(form.code) ? form.code : composedCode),
+        });
+      };
 
       const submit = async (e) => {
         e.preventDefault();
         setLoading(true); setErr('');
         const payload = { ...form, code: slugify(form.code) };
+        if (!isCouple) { payload.partner1 = null; payload.partner2 = null; }
 
         let result;
         if (existing) {
@@ -365,14 +391,45 @@
       return (
         <Modal title={existing ? 'Modifier le client' : 'Nouvel espace client'} kicker={existing ? 'Édition' : 'Création'} onClose={onClose} size="lg">
           <form onSubmit={submit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Nom de la marque">
-                <Input required value={form.name} onChange={e => setForm({...form, name: e.target.value, initials: form.initials || e.target.value.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2)})} placeholder="Maison Lumière" />
-              </Field>
-              <Field label="Code d'accès (sans espaces)">
-                <Input required value={form.code} onChange={e => setForm({...form, code: e.target.value})} placeholder="maison-lumiere" />
-              </Field>
-            </div>
+            <Field label="Univers">
+              <Select value={form.universe} onChange={e => setForm({...form, universe: e.target.value})}>
+                <option value="communication">📊 Communication & Marketing (tableau de bord dynamique)</option>
+                <option value="mariage">💍 Mariage</option>
+                <option value="fiancailles">💎 Fiançailles</option>
+                <option value="anniversaire-mariage">🎂 Anniversaire de mariage</option>
+                <option value="immobilier">🏠 Immobilier</option>
+                <option value="commercial">📸 Commercial</option>
+                <option value="court-metrage">🎬 Court-métrage</option>
+                <option value="voyage">✈️ Voyage</option>
+                <option value="autre">📁 Autre</option>
+              </Select>
+            </Field>
+
+            {isCouple ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Prénom 1">
+                    <Input required value={form.partner1} onChange={e => updatePartners(e.target.value, form.partner2)} placeholder="Précieuse" />
+                  </Field>
+                  <Field label="Prénom 2">
+                    <Input required value={form.partner2} onChange={e => updatePartners(form.partner1, e.target.value)} placeholder="Ronny" />
+                  </Field>
+                </div>
+                <Field label="Code d'accès (sans espaces)">
+                  <Input required value={form.code} onChange={e => setForm({...form, code: e.target.value})} placeholder="precieuse-ronny" />
+                  <div className="text-[11px] text-stone-500 mt-1.5">Le code est auto-suggéré depuis les prénoms. Tu peux le personnaliser.</div>
+                </Field>
+              </>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Nom du client">
+                  <Input required value={form.name} onChange={e => setForm({...form, name: e.target.value, initials: form.initials || e.target.value.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2)})} placeholder="Maison Lumière" />
+                </Field>
+                <Field label="Code d'accès (sans espaces)">
+                  <Input required value={form.code} onChange={e => setForm({...form, code: e.target.value})} placeholder="maison-lumiere" />
+                </Field>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-4">
               <Field label="Prénom contact">
                 <Input value={form.greeting} onChange={e => setForm({...form, greeting: e.target.value})} placeholder="Camille" />
@@ -384,6 +441,17 @@
                 <Input value={form.sector} onChange={e => setForm({...form, sector: e.target.value})} placeholder="Hôtellerie" />
               </Field>
             </div>
+
+            {form.universe !== 'communication' && (
+              <Field label="Page de redirection (laisser vide pour utiliser les templates dynamiques)">
+                <Input value={form.redirect_url} onChange={e => setForm({...form, redirect_url: e.target.value})} placeholder="Laisser vide → event-photos.html (template dynamique)" />
+                <div className="text-[11px] text-stone-500 mt-1.5">
+                  💡 <strong>Recommandé :</strong> laissez vide pour utiliser les templates dynamiques (configurables dans l'onglet "Page client" après création).<br/>
+                  Pour pointer vers un fichier HTML spécifique (legacy), entrez son nom : <code>precieuse-ronny.html</code>
+                </div>
+              </Field>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <Field label="Email du client (pour les notifications)">
                 <Input type="email" value={form.client_email} onChange={e => setForm({...form, client_email: e.target.value})} placeholder="contact@maison-lumiere.fr" />
@@ -396,7 +464,8 @@
               </Field>
             </div>
 
-            <Field label="Options du client">
+            {form.universe === 'communication' && (
+              <Field label="Options du client">
               <button type="button" onClick={() => setForm({...form, analytics_enabled: !form.analytics_enabled})}
                 style={form.analytics_enabled ? neu.dark : neu.pressedSm}
                 className={`w-full px-5 py-4 rounded-2xl flex items-center justify-between transition ${form.analytics_enabled ? 'text-white' : 'text-stone-700'}`}>
@@ -412,6 +481,7 @@
                 </div>
               </button>
             </Field>
+            )}
 
             {err && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]"><AlertCircle size={14} /> {err}</div>}
 
@@ -430,17 +500,21 @@
        👤 CLIENT DETAIL PAGE (avec onglets)
        ════════════════════════════════════════════════════════════ */
     function ClientDetail({ client, onBack, refresh }) {
-      const [tab, setTab] = useState('media');
+      const [tab, setTab] = useState(client.universe && client.universe !== 'communication' ? 'event_pages' : 'media');
       const [editClient, setEditClient] = useState(false);
       const [confirmDelete, setConfirmDelete] = useState(false);
       const [sendingWelcome, setSendingWelcome] = useState(false);
 
       const tabs = [
+        ...(client.universe && client.universe !== 'communication' ? [{ id: 'event_pages', label: 'Page client', icon: Eye }] : []),
         { id: 'media',     label: 'Médias',    icon: ImageIcon },
         { id: 'invoices',  label: 'Factures',  icon: FileText },
         { id: 'shoots',    label: 'Tournages', icon: CalendarIcon },
         ...(client.analytics_enabled ? [{ id: 'analytics', label: 'Analyses', icon: BarChart3 }] : []),
       ];
+
+      // Onglet par défaut : Page client si univers événement, sinon Médias
+      const defaultTab = client.universe && client.universe !== 'communication' ? 'event_pages' : 'media';
 
       const deleteClient = async () => {
         await sb.from('clients').delete().eq('id', client.id);
@@ -512,6 +586,7 @@
           </div>
 
           {/* Tab content */}
+          {tab === 'event_pages' && <EventPagesTab clientId={client.id} client={client} />}
           {tab === 'media' && <MediaTab clientId={client.id} client={client} />}
           {tab === 'invoices' && <InvoicesTab clientId={client.id} />}
           {tab === 'shoots' && <ShootsTab clientId={client.id} />}
@@ -536,6 +611,442 @@
     /* ════════════════════════════════════════════════════════════
        📸 MEDIA TAB
        ════════════════════════════════════════════════════════════ */
+    /* ════════════════════════════════════════════════════════════
+       📸 ONGLET PAGE CLIENT (mariage, fiançailles, anniversaire…)
+       ════════════════════════════════════════════════════════════ */
+    function EventPagesTab({ clientId, client }) {
+      const [pages, setPages] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [editing, setEditing] = useState(null); // { page_type, config } ou null
+
+      const load = async () => {
+        setLoading(true);
+        const { data } = await sb.from('event_pages').select('*').eq('client_id', clientId);
+        setPages(data || []);
+        setLoading(false);
+      };
+      useEffect(() => { load(); }, [clientId]);
+
+      const photosPage = pages.find(p => p.page_type === 'photos');
+      const videoPage  = pages.find(p => p.page_type === 'video');
+
+      const removePage = async (id) => {
+        if (!confirm('Supprimer cette page ?')) return;
+        await sb.from('event_pages').delete().eq('id', id);
+        load();
+      };
+
+      return (
+        <div className="space-y-5">
+          <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+            <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
+              <div>
+                <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Pages publiées</div>
+                <h3 className="text-[20px] lg:text-[22px] tracking-tight mt-1" style={SERIF}>Espace de l'événement</h3>
+              </div>
+              {client.redirect_url && (
+                <a href={client.redirect_url} target="_blank" rel="noopener" style={neu.raisedXs} className="px-3 py-1.5 rounded-full text-[11.5px] flex items-center gap-1.5">
+                  <ExternalLink size={11} /> Voir l'espace
+                </a>
+              )}
+            </div>
+            <p className="text-[12px] lg:text-[13px] text-stone-500 mt-2">
+              Configurez la galerie photo et/ou le lecteur vidéo de votre client. Le client accède automatiquement à sa page après avoir saisi son code.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
+              {/* Carte Photos */}
+              <div style={photosPage ? neu.pressedSm : neu.raisedXs} className="rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Camera size={16} className="text-stone-600" />
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold">Galerie photos</span>
+                  </div>
+                  {photosPage && <span className="text-[9.5px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">Active</span>}
+                </div>
+                {photosPage ? (
+                  <>
+                    <div className="text-[14.5px] font-semibold mt-1" style={SERIF}>{photosPage.config?.couple || client.name}</div>
+                    <div className="text-[11.5px] text-stone-500 mt-0.5">
+                      {photosPage.config?.date}{photosPage.config?.lieu ? ' · ' + photosPage.config.lieu : ''}
+                    </div>
+                    <div className="text-[11px] text-stone-500 mt-2">
+                      {(photosPage.config?.categories || []).length} catégorie(s) · Cloudinary "{photosPage.config?.cloudName || '—'}"
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <Btn icon={Edit3} onClick={() => setEditing({ page_type: 'photos', config: photosPage.config, id: photosPage.id })}>Modifier</Btn>
+                      <Btn icon={Trash2} onClick={() => removePage(photosPage.id)} className="text-rose-600">Supprimer</Btn>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[12px] text-stone-500 mt-2">Aucune galerie configurée.</p>
+                    <Btn kind="dark" icon={Plus} onClick={() => setEditing({ page_type: 'photos', config: defaultPhotosConfig(client) })} full>Créer la galerie photos</Btn>
+                  </>
+                )}
+              </div>
+
+              {/* Carte Vidéo */}
+              <div style={videoPage ? neu.pressedSm : neu.raisedXs} className="rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Video size={16} className="text-stone-600" />
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold">Lecteur vidéo</span>
+                  </div>
+                  {videoPage && <span className="text-[9.5px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">Active</span>}
+                </div>
+                {videoPage ? (
+                  <>
+                    <div className="text-[14.5px] font-semibold mt-1" style={SERIF}>{videoPage.config?.couple || client.name}</div>
+                    <div className="text-[11.5px] text-stone-500 mt-0.5">
+                      {videoPage.config?.date}{videoPage.config?.lieu ? ' · ' + videoPage.config.lieu : ''}
+                    </div>
+                    <div className="text-[11px] text-stone-500 mt-2">
+                      {videoPage.config?.afficherTeaser && '🎬 Teaser '}{videoPage.config?.afficherFilm && '🎥 Film'}
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <Btn icon={Edit3} onClick={() => setEditing({ page_type: 'video', config: videoPage.config, id: videoPage.id })}>Modifier</Btn>
+                      <Btn icon={Trash2} onClick={() => removePage(videoPage.id)} className="text-rose-600">Supprimer</Btn>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[12px] text-stone-500 mt-2">Aucun lecteur configuré.</p>
+                    <Btn kind="dark" icon={Plus} onClick={() => setEditing({ page_type: 'video', config: defaultVideoConfig(client) })} full>Créer le lecteur vidéo</Btn>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* URL de redirection du client */}
+            <div style={neu.pressedSm} className="rounded-2xl p-4 mt-5 text-[11.5px] lg:text-[12px] text-stone-600">
+              <strong>URL d'accès :</strong> Le client est automatiquement redirigé vers{' '}
+              <code style={neu.raisedXs} className="px-1.5 py-0.5 rounded mx-1 font-mono text-[11px]">
+                {client.redirect_url || (photosPage ? 'event-photos.html' : (videoPage ? 'event-video.html' : '— rien à afficher —'))}
+              </code>{' '}
+              après saisie de son code.
+              {!client.redirect_url && (photosPage || videoPage) && (
+                <span className="block mt-1 text-emerald-600">✓ Configuration automatique active.</span>
+              )}
+            </div>
+          </div>
+
+          {editing && <EventPageForm clientId={clientId} client={client} {...editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+        </div>
+      );
+    }
+
+    function clientCouple(client) {
+      if (client.partner1 || client.partner2) {
+        return [client.partner1, client.partner2].filter(Boolean).join(' & ');
+      }
+      return client.name || '';
+    }
+
+    function defaultPhotosConfig(client) {
+      return {
+        couple: clientCouple(client),
+        date: '',
+        lieu: '',
+        dateISO: '',
+        cloudName: 'dyfa4zztq',
+        rootFolder: 'Photos_' + (client.code || ''),
+        categories: [],
+        zipDriveId: '',
+      };
+    }
+
+    function defaultVideoConfig(client) {
+      const base = {
+        couple: clientCouple(client),
+        afficherTeaser: true,
+        afficherFilm: true,
+        teaserUrls: { '1080p': '', '4K': '' },
+        filmUrls:   { '1080p': '', '4K': '' },
+        teaserDownloadUrl: '',
+        filmDownloadUrl: '',
+        defaultVideo: 'film',
+        upsellBouton: false,
+        upsellTexte: 'Commander ce film',
+        upsellLien: 'mailto:service@timelesshouse.org',
+      };
+      if (client.universe === 'anniversaire-mariage') {
+        return Object.assign(base, {
+          nombreAnnees: 0,
+          typeNoces: '',
+          dateCelebration: '',
+          dateCelebrationISO: '',
+          lieuCelebration: '',
+          dateMariageOriginal: '',
+        });
+      }
+      if (client.universe === 'fiancailles') {
+        return Object.assign(base, {
+          dateDemande: '',
+          dateDemandeISO: '',
+          lieuDemande: '',
+          dateMariagePrevu: '',
+        });
+      }
+      return Object.assign(base, { date: '', lieu: '', dateISO: '' });
+    }
+
+    function EventPageForm({ clientId, client, page_type, config, id, onClose, onSaved }) {
+      const [c, setC] = useState(config);
+      const [loading, setLoading] = useState(false);
+      const isPhotos = page_type === 'photos';
+      const isAnniversary = !isPhotos && client.universe === 'anniversaire-mariage';
+      const isEngagement  = !isPhotos && client.universe === 'fiancailles';
+
+      const submit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        const payload = { client_id: clientId, page_type, config: c };
+        const result = id
+          ? await sb.from('event_pages').update(payload).eq('id', id)
+          : await sb.from('event_pages').insert(payload);
+        if (!result.error) onSaved();
+        else { alert(result.error.message); setLoading(false); }
+      };
+
+      const updateConfig = (key, value) => setC({ ...c, [key]: value });
+
+      const formTitle = isPhotos ? 'Galerie photos'
+        : isAnniversary ? 'Lecteur vidéo (anniversaire)'
+        : isEngagement  ? 'Lecteur vidéo (fiançailles)'
+        : 'Lecteur vidéo';
+
+      return (
+        <Modal title={formTitle} kicker={id ? 'Édition' : 'Nouvelle page'} onClose={onClose} size="lg">
+          <form onSubmit={submit} className="space-y-4">
+            <Field label="Couple / Client">
+              <Input required value={c.couple || ''} onChange={e => updateConfig('couple', e.target.value)} placeholder="Précieuse & Ronny" />
+            </Field>
+
+            {isAnniversary ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Nombre d'années">
+                    <Input type="number" value={c.nombreAnnees || ''} onChange={e => updateConfig('nombreAnnees', parseInt(e.target.value) || 0)} placeholder="50" min="1" max="100" />
+                  </Field>
+                  <Field label="Type de noces (vide = auto)">
+                    <Input value={c.typeNoces || ''} onChange={e => updateConfig('typeNoces', e.target.value)} placeholder="Auto-détecté (Noces d'Or, etc.)" />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Date de célébration affichée">
+                    <Input value={c.dateCelebration || ''} onChange={e => updateConfig('dateCelebration', e.target.value)} placeholder="20 Septembre 2025" />
+                  </Field>
+                  <Field label="Date ISO (célébration)">
+                    <Input type="date" value={c.dateCelebrationISO || ''} onChange={e => updateConfig('dateCelebrationISO', e.target.value)} />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Lieu de la célébration">
+                    <Input value={c.lieuCelebration || ''} onChange={e => updateConfig('lieuCelebration', e.target.value)} placeholder="Optionnel" />
+                  </Field>
+                  <Field label="Date du mariage d'origine">
+                    <Input value={c.dateMariageOriginal || ''} onChange={e => updateConfig('dateMariageOriginal', e.target.value)} placeholder="20 Septembre 1975" />
+                  </Field>
+                </div>
+              </>
+            ) : isEngagement ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Date de la demande affichée">
+                    <Input value={c.dateDemande || ''} onChange={e => updateConfig('dateDemande', e.target.value)} placeholder="14 Février 2026" />
+                  </Field>
+                  <Field label="Date ISO (demande)">
+                    <Input type="date" value={c.dateDemandeISO || ''} onChange={e => updateConfig('dateDemandeISO', e.target.value)} />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Lieu de la demande">
+                    <Input value={c.lieuDemande || ''} onChange={e => updateConfig('lieuDemande', e.target.value)} placeholder="Paris, Pont des Arts" />
+                  </Field>
+                  <Field label="Date du mariage prévue">
+                    <Input value={c.dateMariagePrevu || ''} onChange={e => updateConfig('dateMariagePrevu', e.target.value)} placeholder="Optionnel — 12 Juin 2027" />
+                  </Field>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Date affichée">
+                    <Input value={c.date || ''} onChange={e => updateConfig('date', e.target.value)} placeholder="25 Avril 2026" />
+                  </Field>
+                  <Field label="Date ISO (pour balises HTML)">
+                    <Input type="date" value={c.dateISO || ''} onChange={e => updateConfig('dateISO', e.target.value)} />
+                  </Field>
+                </div>
+                <Field label="Lieu">
+                  <Input value={c.lieu || ''} onChange={e => updateConfig('lieu', e.target.value)} placeholder="Domaine de Versailles" />
+                </Field>
+              </>
+            )}
+
+            {/* Champs spécifiques PHOTOS */}
+            {isPhotos && (
+              <>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mt-6 mb-1">Cloudinary</div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Cloud Name">
+                    <Input required value={c.cloudName || ''} onChange={e => updateConfig('cloudName', e.target.value)} placeholder="dyfa4zztq" />
+                  </Field>
+                  <Field label="Dossier racine">
+                    <Input required value={c.rootFolder || ''} onChange={e => updateConfig('rootFolder', e.target.value)} placeholder="Photos_precieuse-ronny" />
+                  </Field>
+                </div>
+
+                <div className="flex items-center justify-between mt-6 mb-1">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Catégories</div>
+                  <button type="button" onClick={() => updateConfig('categories', [...(c.categories || []), { name: '', folder: '', count: 0 }])}
+                    style={neu.raisedXs} className="px-3 py-1.5 rounded-full text-[11.5px] flex items-center gap-1.5">
+                    <Plus size={11} /> Ajouter
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {(c.categories || []).map((cat, i) => (
+                    <div key={i} style={neu.pressedSm} className="rounded-xl p-3 grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-4">
+                        <Input value={cat.name} onChange={e => {
+                          const arr = [...c.categories];
+                          arr[i] = { ...arr[i], name: e.target.value };
+                          updateConfig('categories', arr);
+                        }} placeholder="Préparatifs" />
+                      </div>
+                      <div className="col-span-4">
+                        <Input value={cat.folder} onChange={e => {
+                          const arr = [...c.categories];
+                          arr[i] = { ...arr[i], folder: e.target.value };
+                          updateConfig('categories', arr);
+                        }} placeholder="preparatifs" />
+                      </div>
+                      <div className="col-span-3">
+                        <Input type="number" value={cat.count} onChange={e => {
+                          const arr = [...c.categories];
+                          arr[i] = { ...arr[i], count: parseInt(e.target.value) || 0 };
+                          updateConfig('categories', arr);
+                        }} placeholder="56" />
+                      </div>
+                      <div className="col-span-1 flex justify-end">
+                        <button type="button" onClick={() => updateConfig('categories', c.categories.filter((_, j) => j !== i))} className="text-rose-500 p-1">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {(!c.categories || c.categories.length === 0) && <div className="text-center text-[12px] text-stone-400 py-3">Ajoutez vos catégories (Préparatifs, Cérémonie, etc.)</div>}
+                </div>
+                <div className="text-[10.5px] text-stone-500 mt-1">
+                  Format Cloudinary attendu : <code>{c.rootFolder || 'rootFolder'}/[catégorie]/01.jpg</code>, 02.jpg, etc.
+                </div>
+
+                <Field label="ID Google Drive ZIP (optionnel)">
+                  <Input value={c.zipDriveId || ''} onChange={e => updateConfig('zipDriveId', e.target.value)} placeholder="abcXYZ123" />
+                </Field>
+              </>
+            )}
+
+            {/* Champs spécifiques VIDÉO */}
+            {!isPhotos && (
+              <>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mt-6 mb-2">Sections affichées</div>
+                <div className="grid grid-cols-2 gap-4">
+                  <button type="button" onClick={() => updateConfig('afficherTeaser', !c.afficherTeaser)}
+                    style={c.afficherTeaser ? neu.dark : neu.pressedSm}
+                    className={`px-4 py-3 rounded-2xl flex items-center justify-between transition ${c.afficherTeaser ? 'text-white' : 'text-stone-700'}`}>
+                    <span className="text-[12.5px] font-semibold">🎬 Teaser</span>
+                    <div className={`w-9 h-5 rounded-full p-0.5 ${c.afficherTeaser ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white transition-transform ${c.afficherTeaser ? 'translate-x-4' : ''}`} />
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => updateConfig('afficherFilm', !c.afficherFilm)}
+                    style={c.afficherFilm ? neu.dark : neu.pressedSm}
+                    className={`px-4 py-3 rounded-2xl flex items-center justify-between transition ${c.afficherFilm ? 'text-white' : 'text-stone-700'}`}>
+                    <span className="text-[12.5px] font-semibold">🎥 Film complet</span>
+                    <div className={`w-9 h-5 rounded-full p-0.5 ${c.afficherFilm ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white transition-transform ${c.afficherFilm ? 'translate-x-4' : ''}`} />
+                    </div>
+                  </button>
+                </div>
+
+                {c.afficherTeaser && (
+                  <>
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mt-6 mb-1">Teaser</div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field label="URL 1080p">
+                        <Input value={c.teaserUrls?.['1080p'] || ''} onChange={e => updateConfig('teaserUrls', { ...c.teaserUrls, '1080p': e.target.value })} placeholder="https://..." />
+                      </Field>
+                      <Field label="URL 4K">
+                        <Input value={c.teaserUrls?.['4K'] || ''} onChange={e => updateConfig('teaserUrls', { ...c.teaserUrls, '4K': e.target.value })} placeholder="https://..." />
+                      </Field>
+                    </div>
+                    <Field label="Lien de téléchargement teaser">
+                      <Input value={c.teaserDownloadUrl || ''} onChange={e => updateConfig('teaserDownloadUrl', e.target.value)} placeholder="https://..." />
+                    </Field>
+                  </>
+                )}
+
+                {c.afficherFilm && (
+                  <>
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mt-6 mb-1">Film complet</div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field label="URL 1080p">
+                        <Input value={c.filmUrls?.['1080p'] || ''} onChange={e => updateConfig('filmUrls', { ...c.filmUrls, '1080p': e.target.value })} placeholder="https://..." />
+                      </Field>
+                      <Field label="URL 4K">
+                        <Input value={c.filmUrls?.['4K'] || ''} onChange={e => updateConfig('filmUrls', { ...c.filmUrls, '4K': e.target.value })} placeholder="https://..." />
+                      </Field>
+                    </div>
+                    <Field label="Lien de téléchargement film">
+                      <Input value={c.filmDownloadUrl || ''} onChange={e => updateConfig('filmDownloadUrl', e.target.value)} placeholder="https://..." />
+                    </Field>
+                  </>
+                )}
+
+                <Field label="Vidéo affichée par défaut">
+                  <Select value={c.defaultVideo || 'film'} onChange={e => updateConfig('defaultVideo', e.target.value)}>
+                    <option value="film">🎥 Film complet</option>
+                    <option value="teaser">🎬 Teaser</option>
+                  </Select>
+                </Field>
+
+                <button type="button" onClick={() => updateConfig('upsellBouton', !c.upsellBouton)}
+                  style={c.upsellBouton ? neu.dark : neu.pressedSm}
+                  className={`w-full px-4 py-3 rounded-2xl flex items-center justify-between transition mt-3 ${c.upsellBouton ? 'text-white' : 'text-stone-700'}`}>
+                  <div className="text-left">
+                    <div className="text-[12.5px] font-semibold">Bouton de commande (upsell)</div>
+                    <div className={`text-[10.5px] mt-0.5 ${c.upsellBouton ? 'text-stone-300' : 'text-stone-500'}`}>Affiche un bouton "Commander" si la vidéo n'est pas livrée</div>
+                  </div>
+                  <div className={`w-9 h-5 rounded-full p-0.5 ${c.upsellBouton ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${c.upsellBouton ? 'translate-x-4' : ''}`} />
+                  </div>
+                </button>
+                {c.upsellBouton && (
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <Field label="Texte du bouton">
+                      <Input value={c.upsellTexte || ''} onChange={e => updateConfig('upsellTexte', e.target.value)} placeholder="Commander ce film" />
+                    </Field>
+                    <Field label="Lien de commande">
+                      <Input value={c.upsellLien || ''} onChange={e => updateConfig('upsellLien', e.target.value)} placeholder="mailto:service@..." />
+                    </Field>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="flex gap-3 pt-3">
+              <Btn onClick={onClose} full>Annuler</Btn>
+              <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
+                {loading ? 'Enregistrement…' : (id ? 'Mettre à jour' : 'Créer la page')}
+              </Btn>
+            </div>
+          </form>
+        </Modal>
+      );
+    }
+
     function MediaTab({ clientId, client }) {
       const [items, setItems] = useState([]);
       const [shoots, setShoots] = useState([]);

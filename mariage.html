@@ -1434,8 +1434,37 @@
     </p>
   </footer>
 
-  <!-- 🔐 Codes clients — fichier maître partagé par toutes les pages -->
-  <script src="clients-data.js"></script>
+  <!-- 🔐 Codes clients — validés via Supabase (univers couples : mariage, fiançailles, anniversaire) -->
+  <script src="supabase-config.js"></script>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    const sb = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+    const COUPLE_UNIVERSES = ['mariage', 'fiancailles', 'anniversaire-mariage'];
+
+    window.checkClientCode = async function() {
+      const raw = document.getElementById('clientCode').value;
+      const code = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/&/g, ' ').trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+
+      const err = document.getElementById('clientError');
+      err.style.display = 'none';
+
+      try {
+        const { data, error } = await sb.from('clients').select('code, universe, redirect_url, active')
+          .eq('code', code).eq('active', true).in('universe', COUPLE_UNIVERSES).maybeSingle();
+        if (error || !data) { err.style.display = 'block'; return; }
+        sessionStorage.setItem('access_granted', code);
+        // legacy → redirect_url ; sinon template selon univers
+        let dest;
+        if (data.redirect_url) dest = data.redirect_url;
+        else if (data.universe === 'anniversaire-mariage') dest = 'event-anniversary.html';
+        else if (data.universe === 'fiancailles') dest = 'event-engagement.html';
+        else dest = 'event-photos.html'; // mariage classique
+        window.location.href = dest;
+      } catch (e) { console.error(e); err.style.display = 'block'; }
+    };
+  </script>
 
   <script>
     /* ============================================================
@@ -1470,32 +1499,6 @@
     function closeModalOnOverlay(e) { if(e.target.classList.contains('modal-overlay')) closeModal(); }
     function toggleLanguage() { document.body.classList.toggle('en-mode'); }
 
-    /* ════════════════════════════════════════════════════════════
-       🔐  ESPACE CLIENTS — UNIVERS MARIAGE
-       ════════════════════════════════════════════════════════════
-
-       📁 OÙ MODIFIER LES CODES ?
-       ──────────────────────────
-       Tous les codes du site sont gérés DANS UN SEUL FICHIER :
-
-           👉 clients-data.js  (à la racine du site)
-
-       Ouvre-le, trouve la section "mariage" et ajoute/retire les
-       couples comme tu veux. Aucune autre édition n'est nécessaire.
-
-
-       ⚠️  SÉCURITÉ PAR UNIVERS — INCHANGÉE
-       ─────────────────────────────────────
-       Cette page (mariage.html) lit UNIQUEMENT la section "mariage"
-       du fichier partagé. Les codes des autres univers (immobilier,
-       voyage…) seront REFUSÉS ici. C'est voulu.
-
-       Sur la page d'accueil (index.html), tous les codes fonctionnent.
-       ════════════════════════════════════════════════════════════ */
-
-    // On lit uniquement les codes de l'univers "mariage" depuis le fichier partagé
-    const CODES_MARIAGE = (window.CODES_PAR_UNIVERS || {}).mariage || {};
-
     function openClientModal() {
         document.getElementById('clientModal').classList.add('active');
         document.body.style.overflow = 'hidden';
@@ -1509,21 +1512,6 @@
     }
     function closeClientModalOnOverlay(e) {
         if (e.target.classList.contains('modal-overlay')) closeClientModal();
-    }
-    function checkClientCode() {
-        const raw = document.getElementById('clientCode').value;
-        // Nettoyage automatique : minuscules, sans accents, espaces → tirets
-        const code = raw.toLowerCase()
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-            .replace(/&/g, ' ').trim()
-            .replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-
-        if (CODES_MARIAGE.hasOwnProperty(code)) {
-            sessionStorage.setItem('access_granted', code);
-            window.location.href = CODES_MARIAGE[code];
-        } else {
-            document.getElementById('clientError').style.display = 'block';
-        }
     }
     // Si on arrive sur cette page avec #clients dans l'URL, on ouvre la modale
     if (window.location.hash === '#clients') {

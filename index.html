@@ -125,6 +125,7 @@
       text-transform: uppercase; cursor: pointer;
     }
     .client-link:hover, .lang-switch:hover { opacity: 1; color: var(--accent-soft); }
+    .admin-link { opacity: 0.2; transition: opacity 0.3s, color 0.3s; color: var(--cine-cream); display: inline-flex; align-items: center; }
 
     /* Bouton Espace Clients enrichi (icône clé + pill) */
     .client-link {
@@ -409,6 +410,11 @@
           </svg>
         </a>
         <button class="lang-switch" onclick="toggleLanguage()" aria-label="Changer de langue">EN/FR</button>
+        <a href="communication-admin.html" class="admin-link" title="Administration" style="opacity:0.2;">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 15v2"/><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4"/>
+          </svg>
+        </a>
       </div>
     </header>
 
@@ -469,8 +475,39 @@
     <span class="page-transition-mark">TIMELESSHOUSE</span>
   </div>
 
-  <!-- 🔐 Codes clients — fichier maître partagé par toutes les pages -->
-  <script src="clients-data.js"></script>
+  <!-- 🔐 Codes clients — validés via Supabase (tous univers) -->
+  <script src="supabase-config.js"></script>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    const sb = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+    window.checkClientCode = async function() {
+      const raw = document.getElementById('clientCode').value;
+      const code = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/&/g, ' ').trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+
+      const btn = document.querySelector('#clientModal .btn-primary');
+      const err = document.getElementById('clientError');
+      if (btn) btn.disabled = true;
+      err.style.display = 'none';
+
+      try {
+        const { data, error } = await sb.from('clients').select('code, universe, redirect_url, active').eq('code', code).eq('active', true).maybeSingle();
+        if (error || !data) { err.style.display = 'block'; if (btn) btn.disabled = false; return; }
+        sessionStorage.setItem('access_granted', code);
+        let dest;
+        if (data.redirect_url) dest = data.redirect_url;
+        else if (data.universe === 'communication') dest = 'communication-dashboard.html';
+        else if (data.universe === 'anniversaire-mariage') dest = 'event-anniversary.html';
+        else if (data.universe === 'fiancailles') dest = 'event-engagement.html';
+        else dest = 'event-photos.html';
+        window.location.href = dest;
+      } catch (e) {
+        console.error(e); err.style.display = 'block'; if (btn) btn.disabled = false;
+      }
+    };
+    window.handleClientEnter = function(e) { if (e.key === 'Enter') window.checkClientCode(); };
+  </script>
 
   <script>
     /* ============================================================
@@ -538,35 +575,6 @@
       }
     ];
 
-    /* ════════════════════════════════════════════════════════════
-       🔐  ESPACE CLIENTS — PAGE D'ACCUEIL (TOUS UNIVERS)
-       ════════════════════════════════════════════════════════════
-
-       📁 OÙ MODIFIER LES CODES ?
-       ──────────────────────────
-       Tous les codes du site sont gérés DANS UN SEUL FICHIER :
-
-           👉 clients-data.js  (à la racine du site)
-
-       Sur cette page d'accueil, on agrège TOUS les univers :
-       n'importe quel code valide (mariage, immobilier, futur voyage…)
-       fonctionne ici.
-
-       Sur chaque sous-page (mariage.html, immobilier.html…), seuls
-       les codes de l'univers concerné fonctionnent. Sécurisé.
-       ════════════════════════════════════════════════════════════ */
-
-    // On lit la liste maîtresse depuis le fichier partagé
-    const CODES_PAR_UNIVERS = window.CODES_PAR_UNIVERS || {};
-
-    /* ⚙️  AGRÉGATION AUTOMATIQUE — NE PAS MODIFIER
-       Fusionne tous les univers ci-dessus en une seule liste,
-       pour que la page d'accueil accepte n'importe quel code. */
-    const CODES_CLIENTS = Object.values(CODES_PAR_UNIVERS).reduce(
-        (tous, univers) => Object.assign(tous, univers),
-        {}
-    );
-
     function openClientModal(e) {
       if(e) e.preventDefault();
       document.getElementById('clientModal').classList.add('active');
@@ -579,20 +587,6 @@
     function closeClientModalOnOverlay(e) {
       if(e.target.classList.contains('modal-overlay')) closeClientModal();
     }
-
-    function checkClientCode() {
-        let rawCode = document.getElementById('clientCode').value;
-        // On nettoie le code tapé par le client pour éviter les erreurs bêtes
-        const code = rawCode.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/&/g, ' ').trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-
-        if (CODES_CLIENTS.hasOwnProperty(code)) {
-            sessionStorage.setItem('access_granted', code);
-            window.location.href = CODES_CLIENTS[code];
-        } else {
-            document.getElementById('clientError').style.display = 'block';
-        }
-    }
-    function handleClientEnter(e) { if(e.key === 'Enter') checkClientCode(); }
 
     /* ============================================================
        ✉️  CONTACT

@@ -92,6 +92,9 @@
       code:       client.code,
       agencyName: client.agency_name || 'TimelessHouse',
       analyticsEnabled: client.analytics_enabled === true,
+      mediaEnabled:     client.media_enabled    !== false,
+      invoicesEnabled:  client.invoices_enabled !== false,
+      shootsEnabled:    client.shoots_enabled   !== false,
       media: (mediaRes.data || []).map(m => ({
         id:              m.id,
         type:            m.type,

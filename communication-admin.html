@@ -339,6 +339,9 @@
         redirect_url:      existing?.redirect_url      || '',
         active:            existing?.active ?? true,
         analytics_enabled: existing?.analytics_enabled ?? false,
+        media_enabled:     existing?.media_enabled    ?? true,
+        invoices_enabled:  existing?.invoices_enabled ?? true,
+        shoots_enabled:    existing?.shoots_enabled   ?? true,
       });
       const [loading, setLoading] = useState(false);
       const [err, setErr] = useState('');
@@ -465,22 +468,73 @@
             </div>
 
             {form.universe === 'communication' && (
-              <Field label="Options du client">
-              <button type="button" onClick={() => setForm({...form, analytics_enabled: !form.analytics_enabled})}
-                style={form.analytics_enabled ? neu.dark : neu.pressedSm}
-                className={`w-full px-5 py-4 rounded-2xl flex items-center justify-between transition ${form.analytics_enabled ? 'text-white' : 'text-stone-700'}`}>
-                <div className="flex items-center gap-3 text-left">
-                  <BarChart3 size={18} />
-                  <div>
-                    <div className="font-semibold text-[13.5px]">Analyses réseaux sociaux</div>
-                    <div className={`text-[11px] mt-0.5 ${form.analytics_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Option mensuelle — Affiche l'onglet "Analyses" pour ce client</div>
-                  </div>
+              <Field label="Modules visibles dans l'espace client">
+                <div className="space-y-2">
+                  {/* Médias */}
+                  <button type="button" onClick={() => setForm({...form, media_enabled: !form.media_enabled})}
+                    style={form.media_enabled ? neu.dark : neu.pressedSm}
+                    className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.media_enabled ? 'text-white' : 'text-stone-700'}`}>
+                    <div className="flex items-center gap-3 text-left">
+                      <ImageIcon size={17} />
+                      <div>
+                        <div className="font-semibold text-[13px]">Médias</div>
+                        <div className={`text-[10.5px] mt-0.5 ${form.media_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Photos, vidéos, validation et téléchargement ZIP</div>
+                      </div>
+                    </div>
+                    <div className={`w-10 h-5.5 rounded-full p-0.5 transition ${form.media_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.media_enabled ? 'translate-x-4' : ''}`} />
+                    </div>
+                  </button>
+
+                  {/* Factures */}
+                  <button type="button" onClick={() => setForm({...form, invoices_enabled: !form.invoices_enabled})}
+                    style={form.invoices_enabled ? neu.dark : neu.pressedSm}
+                    className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.invoices_enabled ? 'text-white' : 'text-stone-700'}`}>
+                    <div className="flex items-center gap-3 text-left">
+                      <FileText size={17} />
+                      <div>
+                        <div className="font-semibold text-[13px]">Factures</div>
+                        <div className={`text-[10.5px] mt-0.5 ${form.invoices_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Historique des factures et statuts de paiement</div>
+                      </div>
+                    </div>
+                    <div className={`w-10 h-5.5 rounded-full p-0.5 transition ${form.invoices_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.invoices_enabled ? 'translate-x-4' : ''}`} />
+                    </div>
+                  </button>
+
+                  {/* Tournages / Calendrier */}
+                  <button type="button" onClick={() => setForm({...form, shoots_enabled: !form.shoots_enabled})}
+                    style={form.shoots_enabled ? neu.dark : neu.pressedSm}
+                    className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.shoots_enabled ? 'text-white' : 'text-stone-700'}`}>
+                    <div className="flex items-center gap-3 text-left">
+                      <CalendarIcon size={17} />
+                      <div>
+                        <div className="font-semibold text-[13px]">Tournages & calendrier</div>
+                        <div className={`text-[10.5px] mt-0.5 ${form.shoots_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Tournages programmés et vue calendrier</div>
+                      </div>
+                    </div>
+                    <div className={`w-10 h-5.5 rounded-full p-0.5 transition ${form.shoots_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.shoots_enabled ? 'translate-x-4' : ''}`} />
+                    </div>
+                  </button>
+
+                  {/* Analyses (option payante existante) */}
+                  <button type="button" onClick={() => setForm({...form, analytics_enabled: !form.analytics_enabled})}
+                    style={form.analytics_enabled ? neu.dark : neu.pressedSm}
+                    className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.analytics_enabled ? 'text-white' : 'text-stone-700'}`}>
+                    <div className="flex items-center gap-3 text-left">
+                      <BarChart3 size={17} />
+                      <div>
+                        <div className="font-semibold text-[13px]">Analyses réseaux sociaux <span className={`text-[9.5px] ml-1 px-1.5 py-0.5 rounded-full ${form.analytics_enabled ? 'bg-white/20' : 'bg-violet-100 text-violet-700'} font-semibold uppercase tracking-wider`}>Option payante</span></div>
+                        <div className={`text-[10.5px] mt-0.5 ${form.analytics_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Audience, engagement, démographie en temps réel</div>
+                      </div>
+                    </div>
+                    <div className={`w-10 h-5.5 rounded-full p-0.5 transition ${form.analytics_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.analytics_enabled ? 'translate-x-4' : ''}`} />
+                    </div>
+                  </button>
                 </div>
-                <div className={`w-11 h-6 rounded-full p-0.5 transition ${form.analytics_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
-                  <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${form.analytics_enabled ? 'translate-x-5' : ''}`} />
-                </div>
-              </button>
-            </Field>
+              </Field>
             )}
 
             {err && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]"><AlertCircle size={14} /> {err}</div>}
@@ -500,21 +554,35 @@
        👤 CLIENT DETAIL PAGE (avec onglets)
        ════════════════════════════════════════════════════════════ */
     function ClientDetail({ client, onBack, refresh }) {
-      const [tab, setTab] = useState(client.universe && client.universe !== 'communication' ? 'event_pages' : 'media');
+      const [tab, setTab] = useState(() => {
+        if (client.universe && client.universe !== 'communication') return 'event_pages';
+        if (client.media_enabled !== false) return 'media';
+        if (client.invoices_enabled !== false) return 'invoices';
+        if (client.shoots_enabled !== false) return 'shoots';
+        if (client.analytics_enabled) return 'analytics';
+        return 'media';
+      });
       const [editClient, setEditClient] = useState(false);
       const [confirmDelete, setConfirmDelete] = useState(false);
       const [sendingWelcome, setSendingWelcome] = useState(false);
 
+      // Par défaut, les modules sont activés (pour les clients pré-migration v8 qui ont NULL)
+      const mediaOn    = client.media_enabled    !== false;
+      const invoicesOn = client.invoices_enabled !== false;
+      const shootsOn   = client.shoots_enabled   !== false;
+
       const tabs = [
         ...(client.universe && client.universe !== 'communication' ? [{ id: 'event_pages', label: 'Page client', icon: Eye }] : []),
-        { id: 'media',     label: 'Médias',    icon: ImageIcon },
-        { id: 'invoices',  label: 'Factures',  icon: FileText },
-        { id: 'shoots',    label: 'Tournages', icon: CalendarIcon },
+        ...(mediaOn    ? [{ id: 'media',    label: 'Médias',    icon: ImageIcon }]  : []),
+        ...(invoicesOn ? [{ id: 'invoices', label: 'Factures',  icon: FileText }]   : []),
+        ...(shootsOn   ? [{ id: 'shoots',   label: 'Tournages', icon: CalendarIcon }] : []),
         ...(client.analytics_enabled ? [{ id: 'analytics', label: 'Analyses', icon: BarChart3 }] : []),
       ];
 
-      // Onglet par défaut : Page client si univers événement, sinon Médias
-      const defaultTab = client.universe && client.universe !== 'communication' ? 'event_pages' : 'media';
+      // Onglet par défaut : Page client si univers événement, sinon Médias (ou premier onglet dispo)
+      const defaultTab = (client.universe && client.universe !== 'communication')
+        ? 'event_pages'
+        : (tabs[0]?.id || 'media');
 
       const deleteClient = async () => {
         await sb.from('clients').delete().eq('id', client.id);
@@ -617,7 +685,8 @@
     function EventPagesTab({ clientId, client }) {
       const [pages, setPages] = useState([]);
       const [loading, setLoading] = useState(true);
-      const [editing, setEditing] = useState(null); // { page_type, config } ou null
+      const [editing, setEditing] = useState(null);
+      const [notifying, setNotifying] = useState(false);
 
       const load = async () => {
         setLoading(true);
@@ -629,11 +698,54 @@
 
       const photosPage = pages.find(p => p.page_type === 'photos');
       const videoPage  = pages.find(p => p.page_type === 'video');
+      const hasAnyPage = !!(photosPage || videoPage);
 
       const removePage = async (id) => {
         if (!confirm('Supprimer cette page ?')) return;
         await sb.from('event_pages').delete().eq('id', id);
         load();
+      };
+
+      const notifyClient = async () => {
+        if (!client.client_email) {
+          alert("Ajoutez d'abord l'email du client (Modifier → champ Email).");
+          return;
+        }
+        if (!hasAnyPage) {
+          alert("Configurez d'abord au moins une page (galerie photos ou lecteur vidéo).");
+          return;
+        }
+        const contentLabel = photosPage && videoPage ? "vos photos et votre film"
+          : videoPage ? "votre film"
+          : "vos photos";
+        if (!confirm(`Envoyer un email à ${client.client_email} pour annoncer que ${contentLabel} ${photosPage && videoPage ? 'sont disponibles' : (videoPage ? 'est disponible' : 'sont disponibles')} ?`)) return;
+
+        setNotifying(true);
+        try {
+          // URL de livraison directe selon univers
+          const deliveryUrl = client.redirect_url
+            ? (window.location.origin + '/' + client.redirect_url)
+            : (window.location.origin + '/mariage.html');
+
+          const url = `${window.SUPABASE_URL}/functions/v1/notify-client`;
+          const res = await fetch(url, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}` },
+            body:    JSON.stringify({
+              kind: 'event_ready',
+              client_id: client.id,
+              extra: {
+                hasPhotos: !!photosPage,
+                hasVideo:  !!videoPage,
+                deliveryUrl,
+              },
+            }),
+          });
+          if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
+          else if (res.status === 404) alert("La fonction de notification n'est pas déployée.");
+          else alert(`Erreur : ${await res.text()}`);
+        } catch (e) { alert("Erreur réseau : " + e.message); }
+        setNotifying(false);
       };
 
       return (
@@ -644,11 +756,19 @@
                 <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Pages publiées</div>
                 <h3 className="text-[20px] lg:text-[22px] tracking-tight mt-1" style={SERIF}>Espace de l'événement</h3>
               </div>
-              {client.redirect_url && (
-                <a href={client.redirect_url} target="_blank" rel="noopener" style={neu.raisedXs} className="px-3 py-1.5 rounded-full text-[11.5px] flex items-center gap-1.5">
-                  <ExternalLink size={11} /> Voir l'espace
-                </a>
-              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                {hasAnyPage && client.client_email && (
+                  <button onClick={notifyClient} disabled={notifying} style={neu.dark} className="px-4 py-2 rounded-full text-white text-[12px] font-semibold flex items-center gap-1.5 disabled:opacity-60">
+                    {notifying ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                    {notifying ? 'Envoi…' : 'Notifier le client'}
+                  </button>
+                )}
+                {client.redirect_url && (
+                  <a href={client.redirect_url} target="_blank" rel="noopener" style={neu.raisedXs} className="px-3 py-1.5 rounded-full text-[11.5px] flex items-center gap-1.5">
+                    <ExternalLink size={11} /> Voir l'espace
+                  </a>
+                )}
+              </div>
             </div>
             <p className="text-[12px] lg:text-[13px] text-stone-500 mt-2">
               Configurez la galerie photo et/ou le lecteur vidéo de votre client. Le client accède automatiquement à sa page après avoir saisi son code.

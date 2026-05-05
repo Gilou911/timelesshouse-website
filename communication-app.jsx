@@ -260,10 +260,10 @@ const ApprovalBadge = ({ status, size = 'sm' }) => {
 const Sidebar = ({ section, setSection, onLogout }) => {
   const nav = [
     { id: 'dashboard', icon: Home, label: 'Accueil' },
-    { id: 'media',     icon: ImageIcon, label: 'Médias' },
-    { id: 'invoices',  icon: FileText, label: 'Factures' },
-    ...(CLIENT.analyticsEnabled ? [{ id: 'analytics', icon: BarChart3, label: 'Analyses' }] : []),
-    { id: 'calendar',  icon: CalendarIcon, label: 'Calendrier' },
+    ...(CLIENT.mediaEnabled    ? [{ id: 'media',    icon: ImageIcon,    label: 'Médias' }]      : []),
+    ...(CLIENT.invoicesEnabled ? [{ id: 'invoices', icon: FileText,     label: 'Factures' }]    : []),
+    ...(CLIENT.analyticsEnabled ? [{ id: 'analytics', icon: BarChart3,  label: 'Analyses' }]    : []),
+    ...(CLIENT.shootsEnabled   ? [{ id: 'calendar', icon: CalendarIcon, label: 'Calendrier' }]  : []),
   ];
 
   return (
@@ -309,10 +309,10 @@ const MobileHeader = ({ onLogout }) => (
 const BottomNav = ({ section, setSection }) => {
   const nav = [
     { id: 'dashboard', icon: Home, label: 'Accueil' },
-    { id: 'media',     icon: ImageIcon, label: 'Médias' },
-    { id: 'invoices',  icon: FileText, label: 'Factures' },
-    ...(CLIENT.analyticsEnabled ? [{ id: 'analytics', icon: BarChart3, label: 'Analyses' }] : []),
-    { id: 'calendar',  icon: CalendarIcon, label: 'Calendrier' },
+    ...(CLIENT.mediaEnabled    ? [{ id: 'media',    icon: ImageIcon,    label: 'Médias' }]      : []),
+    ...(CLIENT.invoicesEnabled ? [{ id: 'invoices', icon: FileText,     label: 'Factures' }]    : []),
+    ...(CLIENT.analyticsEnabled ? [{ id: 'analytics', icon: BarChart3,  label: 'Analyses' }]    : []),
+    ...(CLIENT.shootsEnabled   ? [{ id: 'calendar', icon: CalendarIcon, label: 'Calendrier' }]  : []),
   ];
   return (
     <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-30 rounded-3xl px-2 py-2 flex items-center justify-around" style={neu.raised}>
@@ -362,13 +362,15 @@ const Dashboard = ({ goTo }) => {
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-5">
-      <div className="lg:col-span-3"><StatCard dark label="Total facturé" value={`${totalSpent.toLocaleString('fr-FR')} €`} delta={A.kpis?.spentDelta} deltaUp /></div>
-      <div className="lg:col-span-3"><StatCard label="Médias livrés" value={CLIENT.media.length} delta={A.kpis?.mediaDelta} deltaUp /></div>
-      <div className="lg:col-span-3"><StatCard label="À valider" value={pending} delta={pending > 0 ? 'en attente' : 'tout est OK'} /></div>
+      {CLIENT.invoicesEnabled && <div className="lg:col-span-3"><StatCard dark label="Total facturé" value={`${totalSpent.toLocaleString('fr-FR')} €`} delta={A.kpis?.spentDelta} deltaUp /></div>}
+      {CLIENT.mediaEnabled && <div className="lg:col-span-3"><StatCard label="Médias livrés" value={CLIENT.media.length} delta={A.kpis?.mediaDelta} deltaUp /></div>}
+      {CLIENT.mediaEnabled && <div className="lg:col-span-3"><StatCard label="À valider" value={pending} delta={pending > 0 ? 'en attente' : 'tout est OK'} /></div>}
       <div className="lg:col-span-3">
         {CLIENT.analyticsEnabled
           ? <StatCard label="Engagement moy." value={engagement} delta={A.kpis?.engagementDelta} deltaUp />
-          : <StatCard label="Tournages à venir" value={upcomingShoots} delta={upcomingShoots > 0 ? 'planifiés' : '—'} />}
+          : CLIENT.shootsEnabled
+            ? <StatCard label="Tournages à venir" value={upcomingShoots} delta={upcomingShoots > 0 ? 'planifiés' : '—'} />
+            : null}
       </div>
 
       {CLIENT.analyticsEnabled ? (
@@ -417,14 +419,16 @@ const Dashboard = ({ goTo }) => {
       )}
 
       <div className="col-span-2 lg:col-span-4 grid grid-cols-2 lg:grid-cols-1 gap-3 lg:gap-4">
-        <button onClick={() => goTo('media')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
-          <div>
-            <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><ImageIcon size={16} /></div>
-            <div className="font-semibold text-[13px] lg:text-[15px]">Mes médias</div>
-            <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{CLIENT.media.length} fichiers · {pending} à valider</div>
-          </div>
-          <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
-        </button>
+        {CLIENT.mediaEnabled && (
+          <button onClick={() => goTo('media')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
+            <div>
+              <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><ImageIcon size={16} /></div>
+              <div className="font-semibold text-[13px] lg:text-[15px]">Mes médias</div>
+              <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{CLIENT.media.length} fichiers · {pending} à valider</div>
+            </div>
+            <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
+          </button>
+        )}
         {CLIENT.analyticsEnabled ? (
           <button onClick={() => goTo('analytics')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
             <div>
@@ -434,7 +438,7 @@ const Dashboard = ({ goTo }) => {
             </div>
             <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
           </button>
-        ) : (
+        ) : CLIENT.shootsEnabled ? (
           <button onClick={() => goTo('calendar')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
             <div>
               <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><CalendarIcon size={16} /></div>
@@ -443,10 +447,20 @@ const Dashboard = ({ goTo }) => {
             </div>
             <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
           </button>
-        )}
+        ) : CLIENT.invoicesEnabled ? (
+          <button onClick={() => goTo('invoices')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
+            <div>
+              <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><FileText size={16} /></div>
+              <div className="font-semibold text-[13px] lg:text-[15px]">Factures</div>
+              <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{CLIENT.invoices.length} facture{CLIENT.invoices.length > 1 ? 's' : ''}</div>
+            </div>
+            <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
+          </button>
+        ) : null}
       </div>
 
-      <div style={neu.raised} className="col-span-2 lg:col-span-7 rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+      {CLIENT.shootsEnabled && (
+      <div style={neu.raised} className={`col-span-2 ${CLIENT.invoicesEnabled ? 'lg:col-span-7' : 'lg:col-span-12'} rounded-[24px] lg:rounded-[28px] p-5 lg:p-6`}>
         <div className="flex items-center justify-between mb-4 lg:mb-5">
           <div>
             <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">À venir</div>
@@ -474,8 +488,10 @@ const Dashboard = ({ goTo }) => {
           {CLIENT.shoots.length === 0 && <div className="text-center py-8 text-[13px] text-stone-400">Aucun tournage programmé pour le moment.</div>}
         </div>
       </div>
+      )}
 
-      <div style={neu.raised} className="col-span-2 lg:col-span-5 rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+      {CLIENT.invoicesEnabled && (
+      <div style={neu.raised} className={`col-span-2 ${CLIENT.shootsEnabled ? 'lg:col-span-5' : 'lg:col-span-12'} rounded-[24px] lg:rounded-[28px] p-5 lg:p-6`}>
         <div className="flex items-center justify-between mb-4 lg:mb-5">
           <div>
             <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Récent</div>
@@ -499,6 +515,7 @@ const Dashboard = ({ goTo }) => {
           {CLIENT.invoices.length === 0 && <div className="text-center py-6 text-[13px] text-stone-400">Aucune facture pour le moment.</div>}
         </div>
       </div>
+      )}
     </div>
   );
 };
@@ -1257,10 +1274,10 @@ function App() {
         <main className="flex-1 min-w-0">
           <TopBar title={titleData.t} subtitle={titleData.s} />
           {section === 'dashboard' && <Dashboard goTo={setSection} />}
-          {section === 'media'     && <Media />}
-          {section === 'invoices'  && <Invoices />}
+          {section === 'media'     && (CLIENT.mediaEnabled    ? <Media />    : <Dashboard goTo={setSection} />)}
+          {section === 'invoices'  && (CLIENT.invoicesEnabled ? <Invoices /> : <Dashboard goTo={setSection} />)}
           {section === 'analytics' && (CLIENT.analyticsEnabled ? <Analytics /> : <Dashboard goTo={setSection} />)}
-          {section === 'calendar'  && <Calendar />}
+          {section === 'calendar'  && (CLIENT.shootsEnabled   ? <Calendar /> : <Dashboard goTo={setSection} />)}
         </main>
       </div>
       <BottomNav section={section} setSection={setSection} />

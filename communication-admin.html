@@ -395,7 +395,19 @@
         <Modal title={existing ? 'Modifier le client' : 'Nouvel espace client'} kicker={existing ? 'Édition' : 'Création'} onClose={onClose} size="lg">
           <form onSubmit={submit} className="space-y-4">
             <Field label="Univers">
-              <Select value={form.universe} onChange={e => setForm({...form, universe: e.target.value})}>
+              <Select value={form.universe} onChange={e => {
+                const newUniverse = e.target.value;
+                const COUPLES = ['mariage', 'fiancailles', 'anniversaire-mariage'];
+                // Pour les nouveaux clients couples, on désactive par défaut les 3 modules extras
+                // (sauf si l'utilisateur les a déjà touchés ou si on édite un client existant)
+                if (!existing && COUPLES.includes(newUniverse) && !COUPLES.includes(form.universe)) {
+                  setForm({...form, universe: newUniverse, media_enabled: false, invoices_enabled: false, shoots_enabled: false});
+                } else if (!existing && !COUPLES.includes(newUniverse) && COUPLES.includes(form.universe)) {
+                  setForm({...form, universe: newUniverse, media_enabled: true, invoices_enabled: true, shoots_enabled: true});
+                } else {
+                  setForm({...form, universe: newUniverse});
+                }
+              }}>
                 <option value="communication">📊 Communication & Marketing (tableau de bord dynamique)</option>
                 <option value="mariage">💍 Mariage</option>
                 <option value="fiancailles">💎 Fiançailles</option>
@@ -467,58 +479,58 @@
               </Field>
             </div>
 
-            {form.universe === 'communication' && (
-              <Field label="Modules visibles dans l'espace client">
-                <div className="space-y-2">
-                  {/* Médias */}
-                  <button type="button" onClick={() => setForm({...form, media_enabled: !form.media_enabled})}
-                    style={form.media_enabled ? neu.dark : neu.pressedSm}
-                    className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.media_enabled ? 'text-white' : 'text-stone-700'}`}>
-                    <div className="flex items-center gap-3 text-left">
-                      <ImageIcon size={17} />
-                      <div>
-                        <div className="font-semibold text-[13px]">Médias</div>
-                        <div className={`text-[10.5px] mt-0.5 ${form.media_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Photos, vidéos, validation et téléchargement ZIP</div>
-                      </div>
+            <Field label="Modules visibles dans l'espace client">
+              <div className="space-y-2">
+                {/* Médias */}
+                <button type="button" onClick={() => setForm({...form, media_enabled: !form.media_enabled})}
+                  style={form.media_enabled ? neu.dark : neu.pressedSm}
+                  className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.media_enabled ? 'text-white' : 'text-stone-700'}`}>
+                  <div className="flex items-center gap-3 text-left">
+                    <ImageIcon size={17} />
+                    <div>
+                      <div className="font-semibold text-[13px]">Médias</div>
+                      <div className={`text-[10.5px] mt-0.5 ${form.media_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Photos, vidéos, validation et téléchargement ZIP</div>
                     </div>
-                    <div className={`w-10 h-5.5 rounded-full p-0.5 transition ${form.media_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
-                      <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.media_enabled ? 'translate-x-4' : ''}`} />
-                    </div>
-                  </button>
+                  </div>
+                  <div className={`w-10 h-5.5 rounded-full p-0.5 transition ${form.media_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.media_enabled ? 'translate-x-4' : ''}`} />
+                  </div>
+                </button>
 
-                  {/* Factures */}
-                  <button type="button" onClick={() => setForm({...form, invoices_enabled: !form.invoices_enabled})}
-                    style={form.invoices_enabled ? neu.dark : neu.pressedSm}
-                    className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.invoices_enabled ? 'text-white' : 'text-stone-700'}`}>
-                    <div className="flex items-center gap-3 text-left">
-                      <FileText size={17} />
-                      <div>
-                        <div className="font-semibold text-[13px]">Factures</div>
-                        <div className={`text-[10.5px] mt-0.5 ${form.invoices_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Historique des factures et statuts de paiement</div>
-                      </div>
+                {/* Factures */}
+                <button type="button" onClick={() => setForm({...form, invoices_enabled: !form.invoices_enabled})}
+                  style={form.invoices_enabled ? neu.dark : neu.pressedSm}
+                  className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.invoices_enabled ? 'text-white' : 'text-stone-700'}`}>
+                  <div className="flex items-center gap-3 text-left">
+                    <FileText size={17} />
+                    <div>
+                      <div className="font-semibold text-[13px]">Factures</div>
+                      <div className={`text-[10.5px] mt-0.5 ${form.invoices_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Historique des factures et statuts de paiement</div>
                     </div>
-                    <div className={`w-10 h-5.5 rounded-full p-0.5 transition ${form.invoices_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
-                      <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.invoices_enabled ? 'translate-x-4' : ''}`} />
-                    </div>
-                  </button>
+                  </div>
+                  <div className={`w-10 h-5.5 rounded-full p-0.5 transition ${form.invoices_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.invoices_enabled ? 'translate-x-4' : ''}`} />
+                  </div>
+                </button>
 
-                  {/* Tournages / Calendrier */}
-                  <button type="button" onClick={() => setForm({...form, shoots_enabled: !form.shoots_enabled})}
-                    style={form.shoots_enabled ? neu.dark : neu.pressedSm}
-                    className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.shoots_enabled ? 'text-white' : 'text-stone-700'}`}>
-                    <div className="flex items-center gap-3 text-left">
-                      <CalendarIcon size={17} />
-                      <div>
-                        <div className="font-semibold text-[13px]">Tournages & calendrier</div>
-                        <div className={`text-[10.5px] mt-0.5 ${form.shoots_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Tournages programmés et vue calendrier</div>
-                      </div>
+                {/* Tournages / Calendrier */}
+                <button type="button" onClick={() => setForm({...form, shoots_enabled: !form.shoots_enabled})}
+                  style={form.shoots_enabled ? neu.dark : neu.pressedSm}
+                  className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.shoots_enabled ? 'text-white' : 'text-stone-700'}`}>
+                  <div className="flex items-center gap-3 text-left">
+                    <CalendarIcon size={17} />
+                    <div>
+                      <div className="font-semibold text-[13px]">Tournages & calendrier</div>
+                      <div className={`text-[10.5px] mt-0.5 ${form.shoots_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Tournages programmés et vue calendrier</div>
                     </div>
-                    <div className={`w-10 h-5.5 rounded-full p-0.5 transition ${form.shoots_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
-                      <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.shoots_enabled ? 'translate-x-4' : ''}`} />
-                    </div>
-                  </button>
+                  </div>
+                  <div className={`w-10 h-5.5 rounded-full p-0.5 transition ${form.shoots_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.shoots_enabled ? 'translate-x-4' : ''}`} />
+                  </div>
+                </button>
 
-                  {/* Analyses (option payante existante) */}
+                {/* Analyses — Communication uniquement */}
+                {form.universe === 'communication' && (
                   <button type="button" onClick={() => setForm({...form, analytics_enabled: !form.analytics_enabled})}
                     style={form.analytics_enabled ? neu.dark : neu.pressedSm}
                     className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.analytics_enabled ? 'text-white' : 'text-stone-700'}`}>
@@ -533,9 +545,14 @@
                       <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.analytics_enabled ? 'translate-x-4' : ''}`} />
                     </div>
                   </button>
+                )}
+              </div>
+              {form.universe !== 'communication' && (
+                <div className="text-[11px] text-stone-500 mt-2.5">
+                  💡 Pour les univers événement, ces modules complètent l'espace galerie/film. Tu peux par exemple n'activer que les Médias pour donner accès à des photos/vidéos additionnelles, ou laisser tout désactivé pour une page de livraison pure.
                 </div>
-              </Field>
-            )}
+              )}
+            </Field>
 
             {err && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]"><AlertCircle size={14} /> {err}</div>}
 

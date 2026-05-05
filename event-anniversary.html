@@ -614,21 +614,48 @@
     }
 
     /* RESPONSIVE */
+    @media (max-width: 900px) {
+      header { padding: 80px 24px 36px; }
+      .download-title { font-size: 2rem; }
+      .video-selector { gap: 4px; padding: 4px; }
+      .selector-btn { padding: 11px 22px; min-width: 130px; font-size: 10px; }
+      .anniversary-rule { width: min(360px, 80vw); }
+    }
     @media (max-width: 768px) {
       header { padding: 70px 20px 30px; }
-      .download-title { font-size: 1.8rem; }
-      .btn-download { padding: 18px 20px; font-size: 10px; }
+      .download-title { font-size: 1.75rem; line-height: 1.1; }
+      .download-subtitle { font-size: 11px; }
+      .btn-download { padding: 16px 22px; font-size: 10px; gap: 14px; }
       .video-wrapper::before, .video-wrapper::after { width: 14px; height: 14px; }
+      .video-selector { flex-wrap: wrap; gap: 4px; }
       .selector-btn {
-        padding: 10px 20px; min-width: 120px;
-        font-size: 9px; letter-spacing: 0.25em;
+        padding: 10px 18px; min-width: 110px;
+        font-size: 9px; letter-spacing: 0.22em;
       }
-      .quality-controls { top: 12px; right: 12px; padding: 2px; }
+      .quality-controls { top: 10px; right: 10px; padding: 2px; }
       .quality-btn { padding: 4px 8px; font-size: 9px; }
-      .soon-basic { font-size: 1.8rem; }
-      .upsell-title { font-size: 1.6rem; }
-      .anniversary-type { letter-spacing: 0.35em; font-size: 10px; }
+      .soon-basic { font-size: 1.6rem; }
+      .upsell-title { font-size: 1.5rem; }
+      .upsell-desc { font-size: 11px; }
+      .upsell-btn { padding: 11px 22px; font-size: 10px; }
+      .anniversary-type { letter-spacing: 0.32em; font-size: 10px; }
       .anniversary-rule { width: min(320px, 80vw); }
+    }
+    @media (max-width: 480px) {
+      header { padding: 56px 16px 24px; }
+      .download-title { font-size: 1.5rem; }
+      .video-selector { width: calc(100% - 32px); margin: 0 auto; }
+      .selector-btn { flex: 1; min-width: 0; padding: 9px 8px; font-size: 8.5px; letter-spacing: 0.18em; }
+      .btn-download { padding: 15px 18px; font-size: 9.5px; gap: 10px; }
+      .quality-controls { top: 8px; right: 8px; }
+      .quality-btn { padding: 3px 7px; font-size: 8.5px; letter-spacing: 0.1em; }
+      .anniversary-rule { width: min(280px, 85vw); }
+      .anniversary-years { font-size: clamp(2.6rem, 12vw, 3.5rem); }
+    }
+    @media (max-width: 380px) {
+      .download-title { font-size: 1.3rem; }
+      .selector-btn { padding: 9px 6px; font-size: 8px; }
+      .anniversary-rule { width: min(240px, 88vw); }
     }
 
     @media (prefers-reduced-motion: reduce) {

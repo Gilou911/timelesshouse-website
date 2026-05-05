@@ -649,8 +649,8 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col lg:flex-row bg-stone-900/95 backdrop-blur-sm">
-      {/* Zone média */}
-      <div className="flex-1 flex items-center justify-center relative p-3 sm:p-6 lg:p-8 min-w-0 min-h-[40vh] lg:min-h-0">
+      {/* Zone média — hauteur fixe sur mobile pour ne pas déborder sur l'aside */}
+      <div className="flex items-center justify-center relative p-3 sm:p-6 lg:p-8 min-w-0 lg:flex-1 h-[55vh] lg:h-auto shrink-0 overflow-hidden">
         {/* Nav buttons */}
         {index > 0 && (
           <button onClick={() => onIndex(index - 1)} className="absolute left-2 lg:left-4 top-1/2 -translate-y-1/2 w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur z-10">
@@ -671,13 +671,13 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
           <X size={16} />
         </button>
 
-        <div className="max-w-full max-h-full flex items-center justify-center w-full">
+        <div className="max-w-full max-h-full flex items-center justify-center w-full h-full">
           {!embed && <div className="text-stone-400">Aucun aperçu disponible</div>}
           {embed && embed.kind === 'image' && (
-            <img src={embed.src} alt={m.title} className="max-w-full max-h-[55vh] lg:max-h-[85vh] object-contain rounded-xl" />
+            <img src={embed.src} alt={m.title} className="max-w-full max-h-full object-contain rounded-xl" />
           )}
           {embed && embed.kind === 'video' && (
-            <video src={embed.src} controls playsInline className="max-w-full max-h-[55vh] lg:max-h-[85vh] rounded-xl bg-black" />
+            <video src={embed.src} controls playsInline className="max-w-full max-h-full object-contain rounded-xl bg-black" />
           )}
           {embed && embed.kind === 'iframe' && (
             <div className="w-full max-w-[1200px] aspect-video">
@@ -687,8 +687,8 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
         </div>
       </div>
 
-      {/* Panneau (latéral desktop / bottom sheet mobile) */}
-      <aside className="lg:w-[380px] shrink-0 bg-stone-50 flex flex-col max-h-[60vh] lg:max-h-none border-t lg:border-t-0 border-stone-200">
+      {/* Panneau (latéral desktop / panneau bas mobile) */}
+      <aside className="lg:w-[380px] shrink-0 bg-stone-50 flex flex-col flex-1 lg:flex-none overflow-hidden border-t lg:border-t-0 border-stone-200">
         {/* Onglets mobile uniquement */}
         <div className="lg:hidden flex border-b border-stone-200 bg-white">
           <button onClick={() => setTab('info')}
@@ -701,41 +701,44 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
           </button>
         </div>
 
-        {/* Header + actions (toujours visible sur desktop, dans onglet "info" sur mobile) */}
-        <div className={`${tab !== 'info' ? 'hidden lg:block' : ''} p-5 lg:p-6 border-b border-stone-200`}>
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            {m.type === 'video' ? <VideoIcon size={14} className="text-stone-500" /> : <Camera size={14} className="text-stone-500" />}
-            <span className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold">{m.type === 'video' ? 'Vidéo' : 'Photo'}</span>
-            {m.tag && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-stone-200 text-stone-600">{m.tag}</span>}
+        {/* Conteneur info (header + validation) — scrollable sur mobile */}
+        <div className={`${tab !== 'info' ? 'hidden lg:block' : 'flex flex-col'} lg:block lg:overflow-visible overflow-y-auto`}>
+          {/* Header + actions */}
+          <div className="p-5 lg:p-6 border-b border-stone-200">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              {m.type === 'video' ? <VideoIcon size={14} className="text-stone-500" /> : <Camera size={14} className="text-stone-500" />}
+              <span className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold">{m.type === 'video' ? 'Vidéo' : 'Photo'}</span>
+              {m.tag && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-stone-200 text-stone-600">{m.tag}</span>}
+            </div>
+            <h3 className="text-[20px] lg:text-[22px] tracking-tight leading-tight" style={SERIF}>{m.title}</h3>
+            <div className="text-[12px] text-stone-500 mt-1">
+              {m.date}{m.duration ? ` · ${m.duration}` : ''}{m.size ? ` · ${m.size}` : ''}
+            </div>
+            <button onClick={downloadOne} className="mt-4 w-full px-4 py-2.5 rounded-full bg-stone-900 text-white text-[12.5px] font-semibold flex items-center justify-center gap-2 hover:bg-stone-800">
+              <Download size={14} /> Télécharger
+            </button>
           </div>
-          <h3 className="text-[20px] lg:text-[22px] tracking-tight leading-tight" style={SERIF}>{m.title}</h3>
-          <div className="text-[12px] text-stone-500 mt-1">
-            {m.date}{m.duration ? ` · ${m.duration}` : ''}{m.size ? ` · ${m.size}` : ''}
-          </div>
-          <button onClick={downloadOne} className="mt-4 w-full px-4 py-2.5 rounded-full bg-stone-900 text-white text-[12.5px] font-semibold flex items-center justify-center gap-2 hover:bg-stone-800">
-            <Download size={14} /> Télécharger
-          </button>
-        </div>
 
-        {/* Approbation (idem) */}
-        <div className={`${tab !== 'info' ? 'hidden lg:block' : ''} p-5 lg:p-6 border-b border-stone-200`}>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold mb-3">Validation</div>
-          <div className="mb-3"><ApprovalBadge status={localStatus} size="lg" /></div>
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => setApproval('approved')} disabled={savingApproval || localStatus === 'approved'}
-              className={`px-3 py-2.5 rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5 transition ${localStatus === 'approved' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'} disabled:opacity-50`}>
-              <ThumbsUp size={13} /> Approuver
-            </button>
-            <button onClick={() => setApproval('changes_requested')} disabled={savingApproval || localStatus === 'changes_requested'}
-              className={`px-3 py-2.5 rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5 transition ${localStatus === 'changes_requested' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'} disabled:opacity-50`}>
-              <RefreshCw size={13} /> Changements
-            </button>
+          {/* Approbation */}
+          <div className="p-5 lg:p-6 border-b border-stone-200">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold mb-3">Validation</div>
+            <div className="mb-3"><ApprovalBadge status={localStatus} size="lg" /></div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setApproval('approved')} disabled={savingApproval || localStatus === 'approved'}
+                className={`px-3 py-2.5 rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5 transition ${localStatus === 'approved' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'} disabled:opacity-50`}>
+                <ThumbsUp size={13} /> Approuver
+              </button>
+              <button onClick={() => setApproval('changes_requested')} disabled={savingApproval || localStatus === 'changes_requested'}
+                className={`px-3 py-2.5 rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5 transition ${localStatus === 'changes_requested' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'} disabled:opacity-50`}>
+                <RefreshCw size={13} /> Changements
+              </button>
+            </div>
+            {localStatus !== 'pending' && (
+              <button onClick={() => setApproval('pending')} disabled={savingApproval} className="mt-2 w-full px-3 py-1.5 text-[11px] text-stone-500 hover:text-stone-900">
+                Remettre en attente
+              </button>
+            )}
           </div>
-          {localStatus !== 'pending' && (
-            <button onClick={() => setApproval('pending')} disabled={savingApproval} className="mt-2 w-full px-3 py-1.5 text-[11px] text-stone-500 hover:text-stone-900">
-              Remettre en attente
-            </button>
-          )}
         </div>
 
         {/* Commentaires */}

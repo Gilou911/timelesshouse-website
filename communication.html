@@ -67,7 +67,40 @@
     .modal-btn:disabled { opacity: 0.6; cursor: wait; }
     .modal-error { color: #c44; font-size: 12px; margin-top: 18px; display: none; }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    @media (max-width: 640px) { .page { padding: 20px; } .hero-title { font-size: 2.2rem; } .modal-content { padding: 40px 28px; } }
+
+    /* ─── RESPONSIVE MOBILE ─── */
+    @media (max-width: 900px) {
+      .top-bar { padding: 18px 22px; }
+      .logo { font-size: 16px; letter-spacing: 0.16em; }
+      .top-actions { gap: 14px; }
+      .lang-toggle, .admin-link { padding: 6px 10px; font-size: 10px; }
+      .main-content { padding: 50px 24px 30px; }
+      .hero-title { font-size: 2.6rem; line-height: 1.1; }
+      .hero-text { font-size: 0.92rem; line-height: 1.7; max-width: 100%; padding: 0 6px; }
+      .hero-cta { padding: 14px 32px; font-size: 11px; letter-spacing: 0.22em; }
+      .modal-content { padding: 44px 32px; max-width: 92vw; }
+      .modal-title { font-size: 1.9rem; }
+      .modal-text { font-size: 12.5px; }
+      .modal-input { font-size: 13px; padding: 13px 16px; }
+      .modal-btn { padding: 14px 20px; font-size: 11px; }
+    }
+    @media (max-width: 640px) {
+      .top-bar { padding: 16px 18px; }
+      .main-content { padding: 36px 18px 24px; }
+      .hero-title { font-size: 2.15rem; letter-spacing: -0.01em; }
+      .hero-text { font-size: 0.88rem; margin-bottom: 32px; }
+      .hero-cta { padding: 13px 26px; }
+      .modal-content { padding: 38px 24px; border-radius: 10px; }
+      .modal-icon { width: 48px; height: 48px; margin-bottom: 18px; }
+      .modal-icon svg { width: 18px; height: 18px; }
+      .modal-kicker { font-size: 10px; }
+      .modal-title { font-size: 1.7rem; margin-bottom: 10px; }
+    }
+    @media (max-width: 380px) {
+      .hero-title { font-size: 1.85rem; }
+      .modal-content { padding: 32px 20px; }
+      .modal-input { letter-spacing: 0.12em; }
+    }
   </style>
 </head>
 <body>

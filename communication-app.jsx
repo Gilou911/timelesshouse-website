@@ -5,7 +5,7 @@
      ▸ Galerie avec lightbox (photos)
      ▸ Lecteur vidéo intégré (Cloudinary, Streamable, YouTube, mp4)
      ▸ Médias regroupés par tournage
-     ▸ Téléchargement ZIP par tournage ou global
+     ▸ Téléchargement direct (Cloudinary + Backblaze, iOS compatible)
      ▸ Approbation client (en attente / approuvé / changements)
      ▸ Commentaires par média
    ════════════════════════════════════════════════════════════ */
@@ -18,7 +18,7 @@ import {
   Play, X, MessageCircle, Check, AlertCircle, RefreshCw, ArrowUpRight,
   Instagram, Facebook, Youtube, Sparkles, ArrowRight, Clock, MapPin,
   Grid, List, Send, ThumbsUp, Loader2, Camera, Video as VideoIcon,
-  CheckCircle2, MessageSquare, Maximize2, Package
+  CheckCircle2, MessageSquare, Maximize2
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis,
@@ -80,7 +80,7 @@ const neu = {
 const SERIF = { fontFamily: 'Instrument Serif, serif', fontWeight: 400 };
 
 // ────────────────────────────────────────────────────────────
-// 🛠 HELPERS — détection player + zip + format
+// 🛠 HELPERS — détection player + format
 // ────────────────────────────────────────────────────────────
 function getEmbed(url, type) {
   if (!url) return null;
@@ -178,39 +178,123 @@ function frenchDate(iso) {
   return d.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-async function downloadZipBatch(items, zipName, onProgress) {
-  if (!window.JSZip) { alert("Le module ZIP n'est pas chargé."); return; }
-  const zip = new window.JSZip();
-  const failed = [];
-  let done = 0;
+// ────────────────────────────────────────────────────────────
+// 📥 DOWNLOAD MOBILE-FRIENDLY (iOS Safari compatible)
+// ────────────────────────────────────────────────────────────
+const isIOS = () =>
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-  for (const m of items) {
-    if (!m.url || m.url === '#') { failed.push(m.title); done++; onProgress && onProgress(done, items.length); continue; }
-    try {
-      const res = await fetch(m.url, { mode: 'cors' });
-      if (!res.ok) throw new Error(res.status);
-      const blob = await res.blob();
-      const ext = guessExtension(m.url, m.type);
-      const fname = `${String(done + 1).padStart(2, '0')}-${sanitizeFilename(m.title)}.${ext}`;
-      zip.file(fname, blob);
-    } catch (e) {
-      failed.push(m.title);
+const isMobile = () => /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+/**
+ * Détecte si l'URL est sur un CDN qu'on sait forcer à servir un
+ * Content-Disposition: attachment côté serveur (= vrai téléchargement
+ * natif partout, même sur iOS Safari).
+ */
+function isForceDownloadCDN(url) {
+  if (!url) return false;
+  return (
+    url.includes('res.cloudinary.com') ||
+    url.includes('backblazeb2.com')      // f001.backblazeb2.com, f002…, etc.
+  );
+}
+
+/**
+ * Transforme une URL Cloudinary en URL "download forcé" via fl_attachment.
+ * Cloudinary renvoie alors un header Content-Disposition: attachment côté
+ * serveur, ce qui déclenche un vrai téléchargement même sur iOS Safari.
+ */
+function toCloudinaryDownloadUrl(url, filename) {
+  if (!url || !url.includes('res.cloudinary.com')) return null;
+  if (url.includes('fl_attachment')) return url; // déjà transformée
+  const safeName = (filename || 'fichier')
+    .replace(/\.[^.]+$/, '')
+    .replace(/[^a-zA-Z0-9-_]/g, '_')
+    .slice(0, 60);
+  return url.replace('/upload/', `/upload/fl_attachment:${safeName}/`);
+}
+
+/**
+ * Transforme une URL Backblaze B2 (bucket public) en URL "download forcé"
+ * via le paramètre b2ContentDisposition. Le serveur B2 renvoie alors un
+ * header Content-Disposition: attachment, ce qui force le téléchargement
+ * au lieu d'ouvrir le fichier dans le navigateur (RFC 6266).
+ * Fonctionne pour les URLs du type :
+ *   https://f001.backblazeb2.com/file/<bucket>/<path>
+ */
+function toBackblazeDownloadUrl(url, filename) {
+  if (!url || !url.includes('backblazeb2.com')) return null;
+  if (url.includes('b2ContentDisposition')) return url; // déjà transformée
+  // Nom de fichier sans caractères problématiques pour un header HTTP
+  const safeName = (filename || 'fichier')
+    .replace(/["\\]/g, '')
+    .slice(0, 80);
+  const disposition = encodeURIComponent(`attachment; filename="${safeName}"`);
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}b2ContentDisposition=${disposition}`;
+}
+
+/**
+ * Tente de transformer n'importe quelle URL connue en URL de
+ * téléchargement forcé. Retourne null si le CDN n'est pas géré.
+ */
+function toForceDownloadUrl(url, filename) {
+  return toCloudinaryDownloadUrl(url, filename) ||
+         toBackblazeDownloadUrl(url, filename) ||
+         null;
+}
+
+/**
+ * Téléchargement unifié et optimisé pour iOS/Android/Desktop.
+ *  - Cloudinary / Backblaze → URL "download forcé" (marche partout, même iOS)
+ *  - iOS hors CDN connu → navigation directe (Partager → Enregistrer)
+ *  - Desktop / Android → fetch + blob classique
+ * Retourne true si le téléchargement a été initié.
+ */
+async function smartDownload(url, filename, type) {
+  if (!url || url === '#') return false;
+  const ext = guessExtension(url, type);
+  const fullName = `${sanitizeFilename(filename)}.${ext}`;
+
+  // 1) CDN reconnus (Cloudinary, Backblaze) → URL "force download"
+  const forcedUrl = toForceDownloadUrl(url, fullName);
+  if (forcedUrl) {
+    if (isIOS()) {
+      // Sur iOS, navigation directe : le header Content-Disposition déclenche le DL
+      window.location.href = forcedUrl;
+    } else {
+      const a = document.createElement('a');
+      a.href = forcedUrl;
+      a.download = fullName;
+      a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
-    done++;
-    onProgress && onProgress(done, items.length);
+    return true;
   }
 
-  const content = await zip.generateAsync({ type: 'blob' }, (meta) => {
-    onProgress && onProgress(items.length, items.length, Math.round(meta.percent));
-  });
+  // 2) iOS hors CDN reconnu : ouverture directe (l'utilisateur sauvegarde via Partager)
+  if (isIOS()) {
+    window.location.href = url;
+    return true;
+  }
 
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(content);
-  a.download = `${sanitizeFilename(zipName)}.zip`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(a.href);
-
-  return { failed };
+  // 3) Desktop / Android : fetch + blob (technique éprouvée)
+  try {
+    const r = await fetch(url, { mode: 'cors' });
+    if (!r.ok) throw new Error(r.status);
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fullName;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    return true;
+  } catch (e) {
+    // Ultime fallback : ouverture en nouvel onglet
+    window.open(url, '_blank', 'noopener');
+    return false;
+  }
 }
 
 // ────────────────────────────────────────────────────────────
@@ -524,29 +608,6 @@ const Dashboard = ({ goTo }) => {
 };
 
 // ────────────────────────────────────────────────────────────
-// 📦 ZIP PROGRESS MODAL
-// ────────────────────────────────────────────────────────────
-const ZipModal = ({ progress, onClose }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-stone-900/40 backdrop-blur-sm">
-    <div style={neu.raised} className="rounded-[28px] p-8 max-w-sm w-full text-center">
-      <div style={neu.darkSm} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mx-auto mb-4">
-        <Package size={22} />
-      </div>
-      <h3 className="text-[22px] tracking-tight" style={SERIF}>Préparation du ZIP</h3>
-      <p className="text-[13px] text-stone-500 mt-2">
-        {progress.zipping ? 'Compression en cours…' : `${progress.done} / ${progress.total} fichiers`}
-      </p>
-      <div className="mt-5 h-2 rounded-full overflow-hidden" style={neu.pressedSm}>
-        <div className="h-full bg-stone-900 transition-all" style={{ width: `${progress.zipping ? progress.zipPct : (progress.total ? Math.round(progress.done / progress.total * 100) : 0)}%` }} />
-      </div>
-      {progress.done === progress.total && progress.zipPct === 100 && (
-        <button onClick={onClose} className="mt-5 text-[12px] text-stone-500 hover:text-stone-900">Fermer</button>
-      )}
-    </div>
-  </div>
-);
-
-// ────────────────────────────────────────────────────────────
 // 💬 LIGHTBOX (image / vidéo + approbation + commentaires)
 // ────────────────────────────────────────────────────────────
 const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
@@ -630,18 +691,18 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
 
   const downloadOne = async () => {
     if (!m.url) return;
-    try {
-      const r = await fetch(m.url, { mode: 'cors' });
-      const blob = await r.blob();
-      const ext = guessExtension(m.url, m.type);
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `${sanitizeFilename(m.title)}.${ext}`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-    } catch (e) {
-      // Fallback : ouvre dans un nouvel onglet
-      window.open(m.url, '_blank');
+    const ok = await smartDownload(m.url, m.title, m.type);
+    // Sur iOS hors CDN reconnu, expliquer comment sauvegarder le fichier
+    if (ok && isIOS() && !isForceDownloadCDN(m.url)) {
+      setTimeout(() => {
+        alert(
+          "Le fichier s'est ouvert dans Safari.\n\n" +
+          "Pour l'enregistrer sur votre iPhone :\n" +
+          "1. Appuyez sur l'icône Partager (carré avec flèche)\n" +
+          "2. Choisissez « Enregistrer dans Fichiers »\n" +
+          "   ou « Enregistrer la vidéo / l'image »"
+        );
+      }, 800);
     }
   };
 
@@ -787,12 +848,11 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
 };
 
 // ────────────────────────────────────────────────────────────
-// 📸 MEDIA VIEW (galerie + tournages + zip)
+// 📸 MEDIA VIEW (galerie + tournages)
 // ────────────────────────────────────────────────────────────
 const Media = () => {
   const [filter, setFilter] = useState('tous');
   const [lightbox, setLightbox] = useState({ open: false, items: [], index: 0 });
-  const [zipProgress, setZipProgress] = useState(null);
   const [media, setMedia] = useState(CLIENT.media);
 
   // Filtres
@@ -833,29 +893,6 @@ const Media = () => {
     setMedia(prev => prev.map(m => m.id === id ? { ...m, approval_status: status } : m));
   };
 
-  const downloadGroup = async (group) => {
-    const name = group.shoot ? `${group.shoot.title}` : `${CLIENT.name} — Médias`;
-    setZipProgress({ total: group.items.length, done: 0, zipping: false, zipPct: 0 });
-    const result = await downloadZipBatch(group.items, name, (done, total, zipPct) => {
-      setZipProgress({ total, done, zipping: zipPct !== undefined, zipPct: zipPct || 0 });
-    });
-    if (result && result.failed && result.failed.length) {
-      alert(`${result.failed.length} fichier(s) n'ont pas pu être inclus dans le ZIP (CORS) :\n\n${result.failed.join('\n')}\n\nVous pouvez les télécharger un par un en cliquant dessus.`);
-    }
-    setZipProgress(null);
-  };
-
-  const downloadAll = async () => {
-    setZipProgress({ total: media.length, done: 0, zipping: false, zipPct: 0 });
-    const result = await downloadZipBatch(media, `${CLIENT.name} — Tous les médias`, (done, total, zipPct) => {
-      setZipProgress({ total, done, zipping: zipPct !== undefined, zipPct: zipPct || 0 });
-    });
-    if (result && result.failed && result.failed.length) {
-      alert(`${result.failed.length} fichier(s) n'ont pas pu être inclus.`);
-    }
-    setZipProgress(null);
-  };
-
   const photos     = media.filter(m => m.type === 'photo').length;
   const videos     = media.filter(m => m.type === 'video').length;
   const aValider   = media.filter(m => m.approval_status === 'pending').length;
@@ -872,11 +909,6 @@ const Media = () => {
           <Pill active={filter === 'a-valider'} onClick={() => setFilter('a-valider')}>À valider</Pill>
           <Pill active={filter === 'approuves'} onClick={() => setFilter('approuves')}>Approuvés</Pill>
         </div>
-        {media.length > 0 && (
-          <button onClick={downloadAll} style={neu.dark} className="px-5 py-2.5 rounded-full text-white text-[12.5px] lg:text-[13px] font-semibold flex items-center justify-center gap-2 shrink-0">
-            <Package size={14} /> Tout télécharger ({media.length})
-          </button>
-        )}
       </div>
 
       {/* Stats */}
@@ -908,11 +940,6 @@ const Media = () => {
                 <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{g.items.length} fichier{g.items.length > 1 ? 's' : ''}</div>
               </div>
             </div>
-            {g.items.length > 0 && (
-              <button onClick={() => downloadGroup(g)} style={neu.raisedXs} className="px-3 lg:px-4 py-2 rounded-full text-[11.5px] lg:text-[12.5px] font-semibold flex items-center gap-2 shrink-0">
-                <Download size={13} /> <span className="hidden sm:inline">Télécharger</span> .zip
-              </button>
-            )}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
@@ -975,8 +1002,6 @@ const Media = () => {
           onClose={() => setLightbox({ ...lightbox, open: false })}
           onMediaUpdate={onMediaUpdate} />
       )}
-
-      {zipProgress && <ZipModal progress={zipProgress} onClose={() => setZipProgress(null)} />}
     </div>
   );
 };
@@ -1032,7 +1057,15 @@ const Invoices = () => {
                   <div className="text-[11px] text-stone-500">{inv.date}</div>
                   <div className="flex items-center gap-3">
                     <span className="font-semibold text-[16px]" style={SERIF}>{inv.amount.toLocaleString('fr-FR')} €</span>
-                    {inv.url && <a href={inv.url} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-stone-600"><Download size={13} /></a>}
+                    {inv.url && (
+                      <button
+                        onClick={() => smartDownload(inv.url, `Facture-${inv.id}`, 'pdf')}
+                        className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-stone-600"
+                        title="Télécharger la facture"
+                      >
+                        <Download size={13} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1045,7 +1078,15 @@ const Invoices = () => {
                 <div className="col-span-2 font-semibold text-[14px]" style={SERIF}>{inv.amount.toLocaleString('fr-FR')} €</div>
                 <div className="col-span-1 flex items-center justify-end gap-2">
                   <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
-                  {inv.url && <a href={inv.url} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900"><Download size={13} /></a>}
+                  {inv.url && (
+                    <button
+                      onClick={() => smartDownload(inv.url, `Facture-${inv.id}`, 'pdf')}
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900"
+                      title="Télécharger la facture"
+                    >
+                      <Download size={13} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

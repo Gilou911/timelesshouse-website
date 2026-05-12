@@ -189,15 +189,12 @@ const isMobile = () => /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent
 
 /**
  * Détecte si l'URL est sur un CDN qu'on sait forcer à servir un
- * Content-Disposition: attachment côté serveur (= vrai téléchargement
- * natif partout, même sur iOS Safari).
+ * Content-Disposition: attachment côté serveur.
+ * Note : Backblaze est désormais géré directement via les métadonnées du fichier.
  */
 function isForceDownloadCDN(url) {
   if (!url) return false;
-  return (
-    url.includes('res.cloudinary.com') ||
-    url.includes('backblazeb2.com')      // f001.backblazeb2.com, f002…, etc.
-  );
+  return url.includes('res.cloudinary.com');
 }
 
 /**
@@ -216,40 +213,20 @@ function toCloudinaryDownloadUrl(url, filename) {
 }
 
 /**
- * Transforme une URL Backblaze B2 (bucket public) en URL "download forcé"
- * via le paramètre b2ContentDisposition. Le serveur B2 renvoie alors un
- * header Content-Disposition: attachment, ce qui force le téléchargement
- * au lieu d'ouvrir le fichier dans le navigateur (RFC 6266).
- * Fonctionne pour les URLs du type :
- *   https://f001.backblazeb2.com/file/<bucket>/<path>
- */
-function toBackblazeDownloadUrl(url, filename) {
-  if (!url || !url.includes('backblazeb2.com')) return null;
-  if (url.includes('b2ContentDisposition')) return url; // déjà transformée
-  // Nom de fichier sans caractères problématiques pour un header HTTP
-  const safeName = (filename || 'fichier')
-    .replace(/["\\]/g, '')
-    .slice(0, 80);
-  const disposition = encodeURIComponent(`attachment; filename="${safeName}"`);
-  const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}b2ContentDisposition=${disposition}`;
-}
-
-/**
  * Tente de transformer n'importe quelle URL connue en URL de
- * téléchargement forcé. Retourne null si le CDN n'est pas géré.
+ * téléchargement forcé.
  */
 function toForceDownloadUrl(url, filename) {
-  return toCloudinaryDownloadUrl(url, filename) ||
-         toBackblazeDownloadUrl(url, filename) ||
-         null;
+  // On ne traite plus Backblaze ici car le paramètre causait une erreur 401.
+  // Le téléchargement Backblaze est désormais natif grâce aux métadonnées.
+  return toCloudinaryDownloadUrl(url, filename) || null;
 }
 
 /**
  * Téléchargement unifié et optimisé pour iOS/Android/Desktop.
- *  - Cloudinary / Backblaze → URL "download forcé" (marche partout, même iOS)
- *  - iOS hors CDN connu → navigation directe (Partager → Enregistrer)
- *  - Desktop / Android → fetch + blob classique
+ * - Cloudinary → URL "download forcé" (marche partout, même iOS)
+ * - iOS hors CDN connu (ex: Backblaze) → navigation directe avec anti-cache
+ * - Desktop / Android → fetch + blob classique
  * Retourne true si le téléchargement a été initié.
  */
 async function smartDownload(url, filename, type) {
@@ -257,11 +234,10 @@ async function smartDownload(url, filename, type) {
   const ext = guessExtension(url, type);
   const fullName = `${sanitizeFilename(filename)}.${ext}`;
 
-  // 1) CDN reconnus (Cloudinary, Backblaze) → URL "force download"
+  // 1) CDN reconnus (Cloudinary) → URL "force download"
   const forcedUrl = toForceDownloadUrl(url, fullName);
   if (forcedUrl) {
     if (isIOS()) {
-      // Sur iOS, navigation directe : le header Content-Disposition déclenche le DL
       window.location.href = forcedUrl;
     } else {
       const a = document.createElement('a');
@@ -273,15 +249,19 @@ async function smartDownload(url, filename, type) {
     return true;
   }
 
-  // 2) iOS hors CDN reconnu : ouverture directe (l'utilisateur sauvegarde via Partager)
+  // Création d'une URL anti-cache pour contourner les mémoires des navigateurs
+  // et les forcer à lire la métadonnée Content-Disposition de Backblaze
+  const noCacheUrl = url + (url.includes('?') ? '&' : '?') + 'nocache=' + Date.now();
+
+  // 2) iOS hors CDN reconnu : ouverture directe
   if (isIOS()) {
-    window.location.href = url;
+    window.location.href = noCacheUrl;
     return true;
   }
 
   // 3) Desktop / Android : fetch + blob (technique éprouvée)
   try {
-    const r = await fetch(url, { mode: 'cors' });
+    const r = await fetch(noCacheUrl, { mode: 'cors' });
     if (!r.ok) throw new Error(r.status);
     const blob = await r.blob();
     const a = document.createElement('a');
@@ -291,8 +271,8 @@ async function smartDownload(url, filename, type) {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     return true;
   } catch (e) {
-    // Ultime fallback : ouverture en nouvel onglet
-    window.open(url, '_blank', 'noopener');
+    // Ultime fallback : ouverture en nouvel onglet avec l'URL anti-cache
+    window.open(noCacheUrl, '_blank', 'noopener');
     return false;
   }
 }

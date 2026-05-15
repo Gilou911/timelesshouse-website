@@ -106,46 +106,40 @@ const useDarkMode = () => {
   return [isDark, toggleDark];
 };
 
-// ---------- DarkToggle (refined SVG arc travelling top↔bottom) ----------
-const C_STEP = 50;
-const C_INITIAL = -9.8;
+// ---------- DarkToggle (toggle iOS classique : track + disque qui glisse) ----------
 const DarkToggle = ({ isDark, onToggle }) => {
-  const [offset, setOffset] = useState(() => {
-    try {
-      const saved = parseFloat(localStorage.getItem('th-c-offset'));
-      return isNaN(saved) ? (isDark ? C_INITIAL + C_STEP : C_INITIAL) : saved;
-    } catch (e) { return C_INITIAL; }
-  });
-  const prevIsDark = useRef(isDark);
-  useEffect(() => {
-    if (prevIsDark.current !== isDark) {
-      setOffset(o => {
-        const next = o + C_STEP;
-        try { localStorage.setItem('th-c-offset', next); } catch (e) {}
-        return next;
-      });
-      prevIsDark.current = isDark;
-    }
-  }, [isDark]);
   return (
-    <button onClick={onToggle} role="switch" aria-checked={isDark}
+    <button
+      onClick={onToggle}
+      role="switch"
+      aria-checked={isDark}
       aria-label={isDark ? 'Passer en mode jour' : 'Passer en mode nuit'}
       title={isDark ? 'Mode jour' : 'Mode nuit'}
       style={{
-        display: 'inline-block', width: 42, height: 22, borderRadius: 11,
-        background: 'linear-gradient(145deg, #28282c, #323236)',
-        position: 'relative', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0,
-        boxShadow: 'inset 0 1.5px 4px rgba(0,0,0,0.6), inset 0 -1px 1px rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.25)',
-        WebkitTapHighlightColor: 'transparent', outline: 'none', transition: 'box-shadow 0.4s ease',
+        display: 'inline-flex', alignItems: 'center', flexShrink: 0,
+        width: 44, height: 26, borderRadius: 13, padding: 2,
+        border: 'none', cursor: 'pointer',
+        background: isDark
+          ? 'linear-gradient(145deg, #2c2c30, #1a1a1d)'
+          : 'linear-gradient(145deg, #d4d5da, #c0c1c6)',
+        boxShadow: isDark
+          ? 'inset 1px 1px 3px rgba(0,0,0,0.55), inset -1px -1px 2px rgba(255,255,255,0.05)'
+          : 'inset 1px 1px 3px rgba(150,152,160,0.5), inset -1px -1px 2px rgba(255,255,255,0.85)',
+        WebkitTapHighlightColor: 'transparent', outline: 'none',
+        transition: 'background 0.4s ease, box-shadow 0.4s ease',
+        boxSizing: 'border-box',
       }}>
-      <svg viewBox="0 0 42 22" preserveAspectRatio="none"
-           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none', display: 'block' }}>
-        <rect x="1.2" y="1.2" width="39.6" height="19.6" rx="9.8" ry="9.8" pathLength="100"
-          fill="none"
-          stroke={isDark ? 'rgba(255,255,255,0.92)' : 'rgba(135,135,140,0.75)'}
-          strokeWidth="2.4" strokeDasharray="50 50" strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 0.7s cubic-bezier(0.65,0.05,0.35,1), stroke 0.7s cubic-bezier(0.65,0.05,0.35,1)' }} />
-      </svg>
+      <span
+        style={{
+          display: 'block', width: 22, height: 22, borderRadius: '50%',
+          background: isDark
+            ? 'radial-gradient(circle at 30% 30%, #f5f5f8, #d4d5da)'
+            : 'radial-gradient(circle at 30% 30%, #ffffff, #f1f2f5)',
+          boxShadow: '0 1.5px 4px rgba(0,0,0,0.35), 0 0.5px 1px rgba(0,0,0,0.2)',
+          transform: isDark ? 'translateX(18px)' : 'translateX(0)',
+          transition: 'transform 0.35s cubic-bezier(0.4, 0.0, 0.2, 1), background 0.4s ease',
+        }}
+      />
     </button>
   );
 };

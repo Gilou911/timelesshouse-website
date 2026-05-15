@@ -1522,16 +1522,17 @@
     function MediaForm({ clientId, shoots = [], existing, onClose, onSaved }) {
       const [form, setForm] = useState({
         type:       existing?.type       || 'photo',
-        title:      existing?.title      || '',
-        url:        existing?.url        || '',
-        thumb_url:  existing?.thumb_url  || '',
-        thumb_grad: existing?.thumb_grad || 'linear-gradient(135deg,#1a1a1d 0%,#3a3a3d 100%)',
-        date_label: existing?.date_label || '',
-        duration:   existing?.duration   || '',
-        size_label: existing?.size_label || '',
-        tag:        existing?.tag        || '',
-        position:   existing?.position   ?? 0,
-        shoot_id:   existing?.shoot_id   || '',
+        title:       existing?.title       || '',
+        url:         existing?.url         || '',
+        preview_url: existing?.preview_url || '',
+        thumb_url:   existing?.thumb_url   || '',
+        thumb_grad:  existing?.thumb_grad  || 'linear-gradient(135deg,#1a1a1d 0%,#3a3a3d 100%)',
+        date_label:  existing?.date_label  || '',
+        duration:    existing?.duration    || '',
+        size_label:  existing?.size_label  || '',
+        tag:         existing?.tag         || '',
+        position:    existing?.position    ?? 0,
+        shoot_id:    existing?.shoot_id    || '',
       });
       const [loading, setLoading] = useState(false);
 
@@ -1572,9 +1573,26 @@
             <Field label="Titre">
               <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Campagne printemps — Hero" />
             </Field>
-            <Field label="URL du fichier (Cloudinary, Streamable, YouTube, Drive…)">
-              <Input value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://res.cloudinary.com/…" />
-            </Field>
+            {form.type === 'video' ? (
+              <>
+                <Field label="URL vidéo originale (haute qualité — pour le téléchargement)">
+                  <Input value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://… (fichier .mp4 original)" />
+                  <div className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
+                    💾 Fichier non compressé que le client peut télécharger. Souvent lourd, peu adapté à la lecture en direct.
+                  </div>
+                </Field>
+                <Field label="URL vidéo allégée (compressée — pour la lecture en direct)">
+                  <Input value={form.preview_url} onChange={e => setForm({...form, preview_url: e.target.value})} placeholder="https://… (.mp4 web, Streamable, Cloudinary…)" />
+                  <div className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
+                    ▶️ <strong>Optionnel mais recommandé.</strong> Version compressée que le client peut lire instantanément dans son navigateur pour valider et commenter. Si vide, c'est la vidéo originale qui sera utilisée pour la lecture (lent sur connexion mobile).
+                  </div>
+                </Field>
+              </>
+            ) : (
+              <Field label="URL du fichier (Cloudinary, Drive, S3…)">
+                <Input value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://res.cloudinary.com/…" />
+              </Field>
+            )}
             <Field label="Tournage associé (optionnel — permet de grouper les médias chez le client)">
               <Select value={form.shoot_id} onChange={e => setForm({...form, shoot_id: e.target.value})}>
                 <option value="">— Hors tournage —</option>

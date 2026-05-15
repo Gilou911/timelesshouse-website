@@ -208,21 +208,25 @@ function getThumbUrl(media) {
 }
 
 // Renvoie une URL vidéo directe utilisable dans <video autoplay> pour l'aperçu
-// dans la galerie. Renvoie null si la vidéo nécessite un iframe (YouTube, Vimeo…)
+// dans la galerie. Privilégie preview_url (allégée) si dispo, sinon url.
+// Renvoie null si la vidéo nécessite un iframe (YouTube, Vimeo…)
 function getPreviewVideoUrl(media) {
-  if (media.type !== 'video' || !media.url) return null;
+  if (media.type !== 'video') return null;
+  // Privilégier la version allégée pour la fluidité de l'autoplay galerie
+  const src = media.preview_url || media.url;
+  if (!src) return null;
   try {
-    const u = new URL(media.url);
+    const u = new URL(src);
     const host = u.hostname.replace(/^www\./, '');
     const path = u.pathname;
     // Fichier vidéo direct
-    if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(path)) return media.url;
+    if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(path)) return src;
     // Cloudinary
-    if (/res\.cloudinary\.com\/.*\/video\/upload/.test(media.url)) return media.url;
+    if (/res\.cloudinary\.com\/.*\/video\/upload/.test(src)) return src;
     // Streamable share URL → on dérive l'URL directe MP4
     if (host === 'streamable.com') {
       const id = path.split('/').filter(Boolean).pop();
-      if (id) return path.startsWith('/l/') ? media.url : `https://streamable.com/l/${id}/mp4-high.mp4`;
+      if (id) return path.startsWith('/l/') ? src : `https://streamable.com/l/${id}/mp4-high.mp4`;
     }
   } catch (e) {}
   return null;
@@ -697,7 +701,10 @@ const Dashboard = ({ goTo }) => {
 // ────────────────────────────────────────────────────────────
 const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
   const m = items[index];
-  const embed = useMemo(() => getEmbed(m.url, m.type), [m]);
+  // Pour la LECTURE : privilégier la vidéo allégée (preview_url) si fournie.
+  // Le téléchargement utilise toujours m.url (haute qualité, plus bas dans downloadOne).
+  const playableSrc = (m.type === 'video' && m.preview_url) ? m.preview_url : m.url;
+  const embed = useMemo(() => getEmbed(playableSrc, m.type), [m, playableSrc]);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
@@ -860,9 +867,14 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
             <div className="text-[12px] text-stone-500 mt-1">
               {m.date}{m.duration ? ` · ${m.duration}` : ''}{m.size ? ` · ${m.size}` : ''}
             </div>
-            <button onClick={downloadOne} className="mt-4 w-full px-4 py-2.5 rounded-full bg-stone-900 text-white text-[12.5px] font-semibold flex items-center justify-center gap-2 hover:bg-stone-800">
-              <Download size={14} /> Télécharger
+            <button onClick={downloadOne} className="mt-4 w-full px-4 py-3 rounded-full bg-stone-900 text-white text-[12.5px] font-semibold flex items-center justify-center gap-2 hover:bg-stone-800 active:scale-95 transition-transform">
+              <Download size={14} /> Télécharger{m.type === 'video' && m.preview_url ? ' (version HD)' : ''}
             </button>
+            {m.type === 'video' && m.preview_url && (
+              <div className="mt-2 text-[10.5px] text-stone-500 text-center leading-relaxed">
+                Vous regardez la version allégée. La version originale haute qualité (plus lourde) est disponible au téléchargement.
+              </div>
+            )}
           </div>
 
           {/* Approbation */}

@@ -23,19 +23,119 @@
   }
   </script>
 
+  <!-- Apply theme BEFORE rendering to avoid flash -->
+  <script>
+    (function(){
+      try {
+        if (localStorage.getItem('th-dark-mode') === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } catch(e) {}
+    })();
+  </script>
+
   <style>
-    body { margin: 0; background: #e8e9ec; font-family: 'Manrope', system-ui, sans-serif; }
+    body { margin: 0; background: #e9e4d9; font-family: 'Manrope', system-ui, sans-serif; transition: background 0.5s ease; }
+    [data-theme="dark"] body { background: #181b20; }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(120,120,130,0.3); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(134,121,106,0.32); border-radius: 4px; }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(30,212,216,0.18); }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(30,212,216,0.32); }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    .loading-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #e8e9ec; z-index: 9999; transition: opacity 0.5s ease; }
+    .loading-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #e9e4d9; z-index: 9999; transition: opacity 0.5s ease, background 0.5s ease; }
+    [data-theme="dark"] .loading-screen { background: #181b20; }
     .loading-screen.hide { opacity: 0; pointer-events: none; }
-    .loading-spinner { width: 38px; height: 38px; border: 2.5px solid #d1d5db; border-top-color: #1a1a1d; border-radius: 50%; animation: spin 0.9s linear infinite; margin-bottom: 18px; }
-    .loading-text { font-family: 'Instrument Serif', serif; font-size: 22px; color: #1a1a1d; letter-spacing: -0.01em; }
-    .loading-sub { font-size: 12px; color: #6b7280; margin-top: 4px; }
+    .loading-spinner { width: 38px; height: 38px; border: 2.5px solid #d8d1c0; border-top-color: #2a2620; border-radius: 50%; animation: spin 0.9s linear infinite; margin-bottom: 18px; }
+    [data-theme="dark"] .loading-spinner { border-color: rgba(30,212,216,0.18); border-top-color: #1ed4d8; box-shadow: 0 0 14px rgba(30,212,216,0.35); }
+    .loading-text { font-family: 'Instrument Serif', serif; font-size: 22px; color: #2a2620; letter-spacing: -0.01em; }
+    [data-theme="dark"] .loading-text { color: #e6e8eb; }
+    .loading-sub { font-size: 12px; color: #86796a; margin-top: 4px; }
+    [data-theme="dark"] .loading-sub { color: #7e828b; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Overrides Tailwind pour mode DARK (palette cyan + graphite) ─── */
+    [data-theme="dark"] .text-stone-900 { color: #e6e8eb !important; }
+    [data-theme="dark"] .text-stone-800 { color: #d4d6dc !important; }
+    [data-theme="dark"] .text-stone-700 { color: #b6b9c0 !important; }
+    [data-theme="dark"] .text-stone-600 { color: #969aa3 !important; }
+    [data-theme="dark"] .text-stone-500 { color: #7e828b !important; }
+    [data-theme="dark"] .text-stone-400 { color: #686c75 !important; }
+    [data-theme="dark"] .text-stone-300 { color: #4f535c !important; }
+    [data-theme="dark"] .bg-white { background-color: #22262d !important; }
+    [data-theme="dark"] .bg-stone-50 { background-color: #1d2025 !important; }
+    [data-theme="dark"] .bg-stone-100 { background-color: #22262d !important; }
+    [data-theme="dark"] .bg-stone-200 { background-color: rgba(30,212,216,0.12) !important; }
+    [data-theme="dark"] .bg-stone-300 { background-color: rgba(30,212,216,0.18) !important; }
+    [data-theme="dark"] .bg-stone-900 { background-color: #1ed4d8 !important; }
+    [data-theme="dark"] .text-white { color: #0a1417 !important; }
+    [data-theme="dark"] .placeholder\:text-stone-400::placeholder { color: #686c75 !important; }
+    [data-theme="dark"] .border-stone-200 { border-color: rgba(255,255,255,0.07) !important; }
+    [data-theme="dark"] .border-stone-300 { border-color: rgba(30,212,216,0.22) !important; }
+    [data-theme="dark"] hr { border-color: rgba(255,255,255,0.07) !important; }
+
+    /* — Tabs / underlines — cyan en dark */
+    [data-theme="dark"] .border-stone-900 { border-color: #1ed4d8 !important; }
+
+    /* — Hover states sur boutons cyan (bg-stone-900 → cyan, hover doit rester cyan-darker, pas gris) */
+    [data-theme="dark"] .hover\:bg-stone-800:hover { background-color: #1bbabe !important; }
+    [data-theme="dark"] .hover\:bg-white\/20:hover { background-color: rgba(30,212,216,0.18) !important; }
+
+    /* — bg-stone-700 / bg-stone-800 statiques (rares — calendar today photo chip, etc.) */
+    [data-theme="dark"] .bg-stone-700 { background-color: rgba(255,255,255,0.08) !important; }
+    [data-theme="dark"] .bg-stone-800 { background-color: #1bbabe !important; }
+
+    /* — Status colors — emerald / amber / rose adoucis pour fond graphite */
+    [data-theme="dark"] .bg-emerald-50  { background-color: rgba(52,211,153,0.10) !important; }
+    [data-theme="dark"] .bg-emerald-100 { background-color: rgba(52,211,153,0.14) !important; }
+    [data-theme="dark"] .text-emerald-700 { color: #6ee7b7 !important; }
+    [data-theme="dark"] .text-emerald-600 { color: #34d399 !important; }
+    [data-theme="dark"] .text-emerald-500 { color: #34d399 !important; }
+    [data-theme="dark"] .bg-emerald-500 { background-color: #10b981 !important; }
+    [data-theme="dark"] .bg-emerald-600 { background-color: #10b981 !important; }
+    [data-theme="dark"] .hover\:bg-emerald-100:hover { background-color: rgba(52,211,153,0.20) !important; }
+
+    [data-theme="dark"] .bg-amber-100 { background-color: rgba(251,191,36,0.14) !important; }
+    [data-theme="dark"] .text-amber-700 { color: #fcd34d !important; }
+    [data-theme="dark"] .text-amber-600 { color: #fbbf24 !important; }
+    [data-theme="dark"] .text-amber-200 { color: #fde68a !important; }
+    [data-theme="dark"] .bg-amber-400 { background-color: #f59e0b !important; }
+
+    [data-theme="dark"] .bg-rose-50  { background-color: rgba(244,114,182,0.10) !important; }
+    [data-theme="dark"] .bg-rose-100 { background-color: rgba(244,114,182,0.14) !important; }
+    [data-theme="dark"] .text-rose-700 { color: #fda4af !important; }
+    [data-theme="dark"] .text-rose-400 { color: #fb7185 !important; }
+    [data-theme="dark"] .bg-rose-600 { background-color: #e11d48 !important; }
+    [data-theme="dark"] .hover\:bg-rose-100:hover { background-color: rgba(244,114,182,0.20) !important; }
+
+    /* — Recharts (Cartesian grid + Axis ticks + Tooltip) */
+    [data-theme="dark"] .recharts-cartesian-grid line { stroke: rgba(255,255,255,0.06) !important; }
+    [data-theme="dark"] .recharts-cartesian-axis-tick-value tspan { fill: #7e828b !important; }
+    [data-theme="dark"] .recharts-default-tooltip { background-color: #22262d !important; border-color: rgba(30,212,216,0.25) !important; color: #e6e8eb !important; }
+    [data-theme="dark"] .recharts-tooltip-label,
+    [data-theme="dark"] .recharts-tooltip-item { color: #e6e8eb !important; }
+
+    /* — Utilitaires custom : glow cyan signature */
+    .th-glow-accent { transition: box-shadow 0.3s ease; }
+    [data-theme="dark"] .th-glow-accent { box-shadow: 0 0 24px rgba(30,212,216,0.28); }
+    [data-theme="dark"] .th-glow-accent:hover { box-shadow: 0 0 32px rgba(30,212,216,0.45); }
+
+    /* — Transitions thème globales — */
+    body, .text-stone-900, .text-stone-800, .text-stone-700, .text-stone-600,
+    .text-stone-500, .text-stone-400, .text-stone-300, .bg-white, .bg-stone-50,
+    .bg-stone-100, .bg-stone-200, .bg-stone-300, .bg-stone-900,
+    .border-stone-200, .border-stone-300, .border-stone-900 {
+      transition: background-color 0.45s ease, color 0.45s ease, border-color 0.45s ease;
+    }
+
+    /* — Selection texte — cyan glow en dark, warm en light */
+    ::selection { background: rgba(42,38,32,0.18); color: #2a2620; }
+    [data-theme="dark"] ::selection { background: rgba(30,212,216,0.35); color: #0a1417; }
+
+    /* — Focus visible (accessibilité) — */
+    [data-theme="dark"] *:focus-visible { outline: 2px solid #1ed4d8; outline-offset: 2px; }
+    *:focus-visible { outline: 2px solid #2a2620; outline-offset: 2px; }
   </style>
 </head>
 <body>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, createContext, useContext } from 'react';
 import {
   Home, Image as ImageIcon, FileText, BarChart3, Calendar as CalendarIcon,
   Settings, LogOut, Search, Bell, Plus, Upload, Filter, Download,
@@ -14,7 +14,7 @@ import {
 } from 'recharts';
 
 // ---------- Neumorphic style tokens ----------
-const neu = {
+const NEU_LIGHT = {
   base: { backgroundColor: '#e8e9ec' },
   raised: {
     backgroundColor: '#f1f2f5',
@@ -44,6 +44,121 @@ const neu = {
     backgroundColor: '#1a1a1d',
     boxShadow: '4px 4px 10px rgba(166, 171, 189, 0.4), -2px -2px 6px rgba(255, 255, 255, 0.5)',
   },
+};
+
+// ---------- Dark-mode neumorphic tokens ----------
+const NEU_DARK = {
+  base: { backgroundColor: '#1c1d21' },
+  raised: {
+    backgroundColor: '#23242a',
+    boxShadow: '10px 10px 24px rgba(0, 0, 0, 0.55), -5px -5px 15px rgba(45, 47, 58, 0.28)',
+  },
+  raisedSm: {
+    backgroundColor: '#23242a',
+    boxShadow: '5px 5px 12px rgba(0, 0, 0, 0.48), -3px -3px 8px rgba(45, 47, 58, 0.22)',
+  },
+  raisedXs: {
+    backgroundColor: '#23242a',
+    boxShadow: '3px 3px 7px rgba(0, 0, 0, 0.42), -2px -2px 5px rgba(45, 47, 58, 0.18)',
+  },
+  pressed: {
+    backgroundColor: '#18191e',
+    boxShadow: 'inset 5px 5px 10px rgba(0, 0, 0, 0.55), inset -3px -3px 8px rgba(45, 47, 58, 0.2)',
+  },
+  pressedSm: {
+    backgroundColor: '#18191e',
+    boxShadow: 'inset 3px 3px 6px rgba(0, 0, 0, 0.48), inset -2px -2px 5px rgba(45, 47, 58, 0.15)',
+  },
+  dark: {
+    backgroundColor: '#2d2e36',
+    boxShadow: '8px 8px 18px rgba(0, 0, 0, 0.65), -3px -3px 8px rgba(45, 47, 58, 0.22), inset 1px 1px 2px rgba(255, 255, 255, 0.04)',
+  },
+  darkSm: {
+    backgroundColor: '#2d2e36',
+    boxShadow: '4px 4px 10px rgba(0, 0, 0, 0.55), -2px -2px 6px rgba(45, 47, 58, 0.18)',
+  },
+};
+
+// Mutable pointer : reassigned by App component on theme change.
+// All components read `neu.X` and get the active token set (re-render is triggered via App key).
+let neu = NEU_LIGHT;
+
+// ---------- Theme Context (still kept for components that want isDark/toggleDark) ----------
+const ThemeContext = createContext({ isDark: false, toggleDark: () => {} });
+const useTheme = () => useContext(ThemeContext);
+
+// ---------- useDarkMode hook ----------
+const useDarkMode = () => {
+  const [isDark, setIsDark] = useState(() => {
+    try { return localStorage.getItem('th-dark-mode') === 'dark'; }
+    catch (e) { return false; }
+  });
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    try { localStorage.setItem('th-dark-mode', isDark ? 'dark' : 'light'); }
+    catch (e) {}
+  }, [isDark]);
+  const toggleDark = useCallback(() => setIsDark(d => !d), []);
+  return [isDark, toggleDark];
+};
+
+// ---------- DarkToggle component (refined SVG arc) ----------
+const C_STEP = 50;
+const C_INITIAL = -9.8;
+
+const DarkToggle = ({ isDark, onToggle }) => {
+  const [offset, setOffset] = useState(() => {
+    try {
+      const saved = parseFloat(localStorage.getItem('th-c-offset'));
+      return isNaN(saved) ? (isDark ? C_INITIAL + C_STEP : C_INITIAL) : saved;
+    } catch (e) { return C_INITIAL; }
+  });
+  const prevIsDark = React.useRef(isDark);
+
+  useEffect(() => {
+    if (prevIsDark.current !== isDark) {
+      setOffset(o => {
+        const next = o + C_STEP;
+        try { localStorage.setItem('th-c-offset', next); } catch (e) {}
+        return next;
+      });
+      prevIsDark.current = isDark;
+    }
+  }, [isDark]);
+
+  return (
+    <button
+      onClick={onToggle}
+      role="switch"
+      aria-checked={isDark}
+      aria-label={isDark ? 'Passer en mode jour' : 'Passer en mode nuit'}
+      title={isDark ? 'Mode jour' : 'Mode nuit'}
+      style={{
+        display: 'inline-block',
+        width: 42, height: 22,
+        borderRadius: 11,
+        background: 'linear-gradient(145deg, #28282c, #323236)',
+        position: 'relative',
+        border: 'none', cursor: 'pointer', padding: 0,
+        flexShrink: 0,
+        boxShadow: 'inset 0 1.5px 4px rgba(0,0,0,0.6), inset 0 -1px 1px rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.25)',
+        WebkitTapHighlightColor: 'transparent',
+        outline: 'none',
+        transition: 'box-shadow 0.4s ease',
+      }}
+    >
+      <svg viewBox="0 0 42 22" preserveAspectRatio="none"
+           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none', display: 'block' }}>
+        <rect x="1.2" y="1.2" width="39.6" height="19.6" rx="9.8" ry="9.8" pathLength="100"
+              fill="none"
+              stroke={isDark ? 'rgba(255,255,255,0.92)' : 'rgba(135,135,140,0.75)'}
+              strokeWidth="2.4"
+              strokeDasharray="50 50"
+              strokeDashoffset={offset}
+              style={{ transition: 'stroke-dashoffset 0.7s cubic-bezier(0.65,0.05,0.35,1), stroke 0.7s cubic-bezier(0.65,0.05,0.35,1)' }} />
+      </svg>
+    </button>
+  );
 };
 
 // ---------- Mock data ----------
@@ -212,7 +327,9 @@ const Sidebar = ({ mode, section, setSection, agencyName }) => {
 };
 
 // ---------- TopBar ----------
-const TopBar = ({ title, subtitle, mode, setMode, currentClient, setCurrentClient }) => (
+const TopBar = ({ title, subtitle, mode, setMode, currentClient, setCurrentClient }) => {
+  const { isDark, toggleDark } = useTheme();
+  return (
   <div className="flex items-center justify-between mb-7">
     <div>
       <h1 className="text-[34px] tracking-tight leading-[1.05]" style={{ fontFamily: 'Instrument Serif, serif', fontWeight: 400 }}>
@@ -254,13 +371,19 @@ const TopBar = ({ title, subtitle, mode, setMode, currentClient, setCurrentClien
         <div className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-rose-400" />
       </button>
 
+      {/* Dark mode toggle */}
+      <div style={neu.raisedXs} className="h-10 px-3 rounded-full flex items-center justify-center">
+        <DarkToggle isDark={isDark} onToggle={toggleDark} />
+      </div>
+
       {/* Avatar */}
       <div style={neu.raisedXs} className="w-10 h-10 rounded-full p-1">
         <div className="w-full h-full rounded-full bg-gradient-to-br from-stone-400 to-stone-700" />
       </div>
     </div>
   </div>
-);
+  );
+};
 
 // ---------- CLIENT VIEWS ----------
 
@@ -1206,6 +1329,16 @@ const AdminPlanning = () => (
 
 // ---------- ROOT ----------
 export default function App() {
+  const [isDark, toggleDark] = useDarkMode();
+  // Re-assign the module-level mutable `neu` pointer so every component
+  // reads the active token set during render.
+  neu = isDark ? NEU_DARK : NEU_LIGHT;
+
+  const themeValue = useMemo(() => ({
+    isDark,
+    toggleDark,
+  }), [isDark, toggleDark]);
+
   const [mode, setMode] = useState('admin');
   const [adminSection, setAdminSection] = useState('overview');
   const [clientSection, setClientSection] = useState('dashboard');
@@ -1239,13 +1372,35 @@ export default function App() {
   const titles = sectionTitles[mode][section];
 
   return (
+    <ThemeContext.Provider value={themeValue}>
     <div className="min-h-screen w-full" style={{ ...neu.base, fontFamily: '"Manrope", system-ui, sans-serif' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap');
-        body { background: #e8e9ec; }
+        body { background: ${isDark ? '#1c1d21' : '#e8e9ec'}; transition: background 0.5s ease; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(120,120,130,0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: ${isDark ? 'rgba(80,82,90,0.55)' : 'rgba(120,120,130,0.3)'}; border-radius: 4px; }
+
+        /* ─── Dark-mode color overrides for Tailwind classes ─── */
+        [data-theme="dark"] .text-stone-900 { color: #e2e3e8 !important; }
+        [data-theme="dark"] .text-stone-800 { color: #d4d5da !important; }
+        [data-theme="dark"] .text-stone-700 { color: #b8b9c0 !important; }
+        [data-theme="dark"] .text-stone-600 { color: #9899a0 !important; }
+        [data-theme="dark"] .text-stone-500 { color: #82838a !important; }
+        [data-theme="dark"] .text-stone-400 { color: #6b6c73 !important; }
+        [data-theme="dark"] .text-stone-300 { color: #545560 !important; }
+        [data-theme="dark"] .bg-white { background-color: #2d2e36 !important; }
+        [data-theme="dark"] .bg-stone-50 { background-color: #23242a !important; }
+        [data-theme="dark"] .bg-stone-100 { background-color: #2d2e36 !important; }
+        [data-theme="dark"] .bg-stone-900 { background-color: #f1f2f5 !important; }
+        [data-theme="dark"] .text-white { color: #1a1a1d !important; }
+        [data-theme="dark"] .placeholder\\:text-stone-400::placeholder { color: #6b6c73 !important; }
+        [data-theme="dark"] .border-stone-200 { border-color: rgba(255,255,255,0.07) !important; }
+        [data-theme="dark"] .border-stone-300 { border-color: rgba(255,255,255,0.1) !important; }
+        [data-theme="dark"] hr { border-color: rgba(255,255,255,0.07) !important; }
+
+        /* Smooth transitions on theme change */
+        * { transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease; }
       `}</style>
 
       <div className="flex gap-5 p-5 min-h-screen">
@@ -1279,5 +1434,6 @@ export default function App() {
         </main>
       </div>
     </div>
+    </ThemeContext.Provider>
   );
 }

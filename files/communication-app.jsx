@@ -354,26 +354,26 @@ async function smartDownload(url, filename, type) {
 // ────────────────────────────────────────────────────────────
 const Pill = ({ active, children, onClick }) => (
   <button onClick={onClick} style={active ? neu.dark : {}}
-    className={`px-5 py-3 rounded-full text-[13px] font-medium tracking-tight transition-all whitespace-nowrap min-h-[44px] ${active ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`}>
+    className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${active ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`}>
     {children}
   </button>
 );
 
 const NavItem = ({ icon: Icon, label, active, onClick }) => (
   <button onClick={onClick} style={active ? neu.pressedSm : {}}
-    className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-left transition-all min-h-[48px] ${active ? 'text-stone-900' : 'text-stone-500 hover:text-stone-800'}`}>
+    className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-left transition-all ${active ? 'text-stone-900' : 'text-stone-500 hover:text-stone-800'}`}>
     <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
     <span className="text-[14px] font-medium tracking-tight">{label}</span>
   </button>
 );
 
 const StatCard = ({ label, value, delta, deltaUp, dark }) => (
-  <div style={dark ? neu.dark : neu.raisedSm} className={`rounded-[22px] lg:rounded-3xl p-5 lg:p-6 ${dark ? 'text-white' : 'text-stone-900'}`}>
-    <div className={`text-[12px] lg:text-[13px] ${dark ? 'text-stone-400' : 'text-stone-500'} font-medium leading-none`}>{label}</div>
-    <div className="text-[28px] lg:text-[34px] tracking-tight mt-3 leading-none" style={SERIF}>{value}</div>
+  <div style={dark ? neu.dark : neu.raisedSm} className={`rounded-2xl lg:rounded-3xl p-4 lg:p-6 ${dark ? 'text-white' : 'text-stone-900'}`}>
+    <div className={`text-[11px] lg:text-[13px] ${dark ? 'text-stone-400' : 'text-stone-500'} font-medium`}>{label}</div>
+    <div className="text-[24px] lg:text-[32px] tracking-tight mt-1.5 lg:mt-2 leading-none" style={SERIF}>{value}</div>
     {delta && (
-      <div className="flex items-center gap-1.5 mt-3 text-[11.5px] lg:text-[12px] leading-none">
-        <span className={deltaUp ? 'text-emerald-500 font-semibold' : (dark ? 'text-stone-400 font-medium' : 'text-stone-500 font-medium')}>{delta}</span>
+      <div className="flex items-center gap-1.5 mt-2 lg:mt-3 text-[11px] lg:text-[12px]">
+        <span className={deltaUp ? 'text-emerald-500 font-semibold' : 'text-rose-400 font-semibold'}>{delta}</span>
       </div>
     )}
   </div>
@@ -436,34 +436,19 @@ const Sidebar = ({ section, setSection, onLogout, isDark, toggleDark }) => {
 };
 
 const MobileHeader = ({ onLogout, isDark, toggleDark }) => (
-  <header
-    className="lg:hidden flex items-center justify-between px-5 py-3.5 sticky top-0 z-30"
-    style={{
-      backgroundColor: isDark ? 'rgba(28,29,33,0.85)' : 'rgba(232,233,236,0.85)',
-      backdropFilter: 'saturate(180%) blur(20px)',
-      WebkitBackdropFilter: 'saturate(180%) blur(20px)',
-      borderBottom: isDark ? '0.5px solid rgba(255,255,255,0.06)' : '0.5px solid rgba(0,0,0,0.06)',
-    }}>
-    <div className="flex items-center gap-3 min-w-0">
-      <div style={neu.darkSm} className="w-11 h-11 rounded-full flex items-center justify-center text-white text-[12px] font-semibold shrink-0">
-        {CLIENT.initials}
+  <header className="lg:hidden flex items-center justify-between px-5 py-4 sticky top-0 z-30" style={{ backgroundColor: isDark ? '#1c1d21' : '#e8e9ec' }}>
+    <div>
+      <div className="text-[20px] tracking-tight leading-none" style={{ ...SERIF, fontStyle: 'italic' }}>
+        {CLIENT.agencyName}<span className="text-stone-400">.</span>
       </div>
-      <div className="min-w-0">
-        <div className="text-[17px] tracking-tight leading-none truncate" style={{ ...SERIF, fontStyle: 'italic' }}>
-          {CLIENT.agencyName}<span className="text-stone-400">.</span>
-        </div>
-        <div className="text-[10px] uppercase tracking-[0.16em] text-stone-400 mt-1 font-medium truncate">
-          {CLIENT.name}
-        </div>
-      </div>
+      <div className="text-[9px] uppercase tracking-[0.18em] text-stone-400 mt-0.5 font-medium">Espace client</div>
     </div>
-    <div className="flex gap-2 items-center shrink-0">
-      <div style={neu.raisedXs} className="h-11 px-3 rounded-full flex items-center justify-center">
+    <div className="flex gap-2 items-center">
+      <div style={neu.raisedXs} className="h-10 px-2.5 rounded-full flex items-center justify-center">
         <DarkToggle isDark={isDark} onToggle={toggleDark} />
       </div>
-      <button onClick={onLogout} aria-label="Déconnexion" style={neu.raisedXs}
-        className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
-        <LogOut size={16} />
+      <button onClick={onLogout} style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center text-stone-600">
+        <LogOut size={15} />
       </button>
     </div>
   </header>
@@ -475,29 +460,19 @@ const BottomNav = ({ section, setSection }) => {
     ...(CLIENT.mediaEnabled    ? [{ id: 'media',    icon: ImageIcon,    label: 'Médias' }]      : []),
     ...(CLIENT.invoicesEnabled ? [{ id: 'invoices', icon: FileText,     label: 'Factures' }]    : []),
     ...(CLIENT.analyticsEnabled ? [{ id: 'analytics', icon: BarChart3,  label: 'Analyses' }]    : []),
-    ...(CLIENT.shootsEnabled   ? [{ id: 'calendar', icon: CalendarIcon, label: 'Agenda' }]      : []),
+    ...(CLIENT.shootsEnabled   ? [{ id: 'calendar', icon: CalendarIcon, label: 'Calendrier' }]  : []),
   ];
   return (
-    <nav
-      className="lg:hidden fixed bottom-4 left-4 right-4 z-30 rounded-[28px] px-2 py-2 flex items-center justify-around"
-      style={{
-        ...neu.raised,
-        backdropFilter: 'saturate(180%) blur(20px)',
-        WebkitBackdropFilter: 'saturate(180%) blur(20px)',
-      }}>
+    <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-30 rounded-3xl px-2 py-2 flex items-center justify-around" style={neu.raised}>
       {nav.map(n => {
         const Icon = n.icon;
         const active = section === n.id;
         return (
-          <button
-            key={n.id}
-            onClick={() => setSection(n.id)}
+          <button key={n.id} onClick={() => setSection(n.id)}
             style={active ? neu.darkSm : {}}
-            aria-label={n.label}
-            aria-current={active ? 'page' : undefined}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[52px] py-2 px-1 rounded-2xl transition-all active:scale-95 ${active ? 'text-white' : 'text-stone-500'}`}>
-            <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
-            <span className="text-[10px] font-semibold tracking-tight leading-none">{n.label}</span>
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-2xl transition ${active ? 'text-white' : 'text-stone-500'}`}>
+            <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
+            <span className="text-[9px] font-semibold tracking-tight">{n.label}</span>
           </button>
         );
       })}
@@ -509,28 +484,23 @@ const BottomNav = ({ section, setSection }) => {
 // TOPBAR
 // ────────────────────────────────────────────────────────────
 const TopBar = ({ title, subtitle }) => (
-  <div className="flex items-center justify-between mb-6 lg:mb-8 gap-4 pt-4 lg:pt-0">
+  <div className="flex items-start lg:items-center justify-between mb-5 lg:mb-7 gap-3">
     <div className="min-w-0 flex-1">
-      <h1 className="text-[28px] lg:text-[34px] tracking-tight leading-[1.05]" style={SERIF}>{title}</h1>
-      {subtitle && (
-        <div className="text-[13px] lg:text-[13px] text-stone-500 mt-1.5 leading-relaxed">{subtitle}</div>
-      )}
+      <h1 className="text-[26px] lg:text-[34px] tracking-tight leading-[1.05]" style={SERIF}>{title}</h1>
+      {subtitle && <div className="text-[12px] lg:text-[13px] text-stone-500 mt-1 hidden sm:block">{subtitle}</div>}
     </div>
-    <div className="hidden lg:flex items-center gap-3 shrink-0">
+    <div className="hidden lg:flex items-center gap-3">
       <div style={neu.raisedXs} className="rounded-full pl-2 pr-4 py-1.5 flex items-center gap-2.5">
         <div style={neu.darkSm} className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-semibold">{CLIENT.initials}</div>
         <span className="text-[13px] font-medium">{CLIENT.name}</span>
       </div>
     </div>
+    <div style={neu.darkSm} className="lg:hidden w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0">{CLIENT.initials}</div>
   </div>
 );
 
 // ────────────────────────────────────────────────────────────
-// 🏠 DASHBOARD — Refonte Apple-style (mai 2026)
-//   • Une hiérarchie claire par bloc, suppression des "kickers" uppercase
-//   • Cartes quick-action 56px tactile sur mobile, alignées dans une grille 2 col
-//   • Espacement vertical cohérent (gap-4 mobile, gap-5 desktop)
-//   • Plus de respiration, moins de décorations parasites
+// 🏠 DASHBOARD (sans bloc stockage)
 // ────────────────────────────────────────────────────────────
 const Dashboard = ({ goTo }) => {
   const totalSpent = CLIENT.invoices.reduce((a, b) => a + b.amount, 0);
@@ -538,37 +508,25 @@ const Dashboard = ({ goTo }) => {
   const engagement = (A.kpis && A.kpis.engagement) || '—';
   const pending = CLIENT.media.filter(m => m.approval_status === 'pending').length;
 
-  // Build stat list dynamically (max 4)
-  const stats = [];
-  if (CLIENT.invoicesEnabled) stats.push({ key: 'spent', dark: true, label: 'Total facturé', value: `${totalSpent.toLocaleString('fr-FR')} €`, delta: A.kpis?.spentDelta, deltaUp: true });
-  if (CLIENT.mediaEnabled)    stats.push({ key: 'media', label: 'Médias livrés', value: CLIENT.media.length, delta: A.kpis?.mediaDelta, deltaUp: true });
-  if (CLIENT.mediaEnabled)    stats.push({ key: 'valid', label: 'À valider', value: pending, delta: pending > 0 ? 'en attente' : 'tout est OK' });
-  if (CLIENT.analyticsEnabled) stats.push({ key: 'eng', label: 'Engagement', value: engagement, delta: A.kpis?.engagementDelta, deltaUp: true });
-  else if (CLIENT.shootsEnabled) stats.push({ key: 'shoots', label: 'Tournages', value: upcomingShoots, delta: upcomingShoots > 0 ? 'planifiés' : '—' });
-
-  // Quick actions
-  const actions = [];
-  if (CLIENT.mediaEnabled)     actions.push({ id: 'media',     icon: ImageIcon,    title: 'Mes médias',  sub: `${CLIENT.media.length} fichiers · ${pending} à valider` });
-  if (CLIENT.analyticsEnabled) actions.push({ id: 'analytics', icon: BarChart3,    title: 'Analyses',    sub: 'Mise à jour temps réel' });
-  else if (CLIENT.shootsEnabled) actions.push({ id: 'calendar', icon: CalendarIcon, title: 'Calendrier',  sub: `${upcomingShoots} tournage${upcomingShoots > 1 ? 's' : ''} à venir` });
-  else if (CLIENT.invoicesEnabled) actions.push({ id: 'invoices', icon: FileText,   title: 'Factures',    sub: `${CLIENT.invoices.length} facture${CLIENT.invoices.length > 1 ? 's' : ''}` });
-
   return (
-    <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-5">
-      {/* ── Stats ── 2 col mobile, 4 col desktop ── */}
-      <div className="grid grid-cols-2 gap-3 lg:col-span-12 lg:grid-cols-4 lg:gap-5">
-        {stats.slice(0, 4).map(s => (
-          <StatCard key={s.key} dark={s.dark} label={s.label} value={s.value} delta={s.delta} deltaUp={s.deltaUp} />
-        ))}
+    <div className="grid grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-5">
+      {CLIENT.invoicesEnabled && <div className="lg:col-span-3"><StatCard dark label="Total facturé" value={`${totalSpent.toLocaleString('fr-FR')} €`} delta={A.kpis?.spentDelta} deltaUp /></div>}
+      {CLIENT.mediaEnabled && <div className="lg:col-span-3"><StatCard label="Médias livrés" value={CLIENT.media.length} delta={A.kpis?.mediaDelta} deltaUp /></div>}
+      {CLIENT.mediaEnabled && <div className="lg:col-span-3"><StatCard label="À valider" value={pending} delta={pending > 0 ? 'en attente' : 'tout est OK'} /></div>}
+      <div className="lg:col-span-3">
+        {CLIENT.analyticsEnabled
+          ? <StatCard label="Engagement moy." value={engagement} delta={A.kpis?.engagementDelta} deltaUp />
+          : CLIENT.shootsEnabled
+            ? <StatCard label="Tournages à venir" value={upcomingShoots} delta={upcomingShoots > 0 ? 'planifiés' : '—'} />
+            : null}
       </div>
 
-      {/* ── Bloc principal : Analytics ou CTA Option ── */}
       {CLIENT.analyticsEnabled ? (
-        <div style={neu.raised} className="lg:col-span-8 rounded-[24px] lg:rounded-[28px] p-6 lg:p-7 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-[0.08] pointer-events-none" style={{ background: 'radial-gradient(circle, #1a1a1d 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
-          <h2 className="text-[22px] lg:text-[28px] tracking-tight leading-[1.1] max-w-md" style={SERIF}>Évolution de votre audience</h2>
-          <div className="text-[13px] text-stone-500 mt-1.5 leading-relaxed">Sur les 4 dernières semaines.</div>
-          <div className="mt-6 h-[180px] lg:h-[200px]">
+        <div style={neu.raised} className="col-span-2 lg:col-span-8 rounded-[24px] lg:rounded-[28px] p-5 lg:p-7 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #1a1a1d 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
+          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Performance globale</div>
+          <h2 className="text-[22px] lg:text-[28px] tracking-tight mt-2 leading-[1.1] max-w-md" style={SERIF}>Évolution de votre audience.</h2>
+          <div className="mt-5 h-[160px] lg:h-[180px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={REVENUE_DATA}>
                 <defs>
@@ -584,115 +542,127 @@ const Dashboard = ({ goTo }) => {
           </div>
         </div>
       ) : (
-        <div style={neu.raised} className="lg:col-span-8 rounded-[24px] lg:rounded-[28px] p-6 lg:p-7 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-[0.08] pointer-events-none" style={{ background: 'radial-gradient(circle, #b08968 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
+        <div style={neu.raised} className="col-span-2 lg:col-span-8 rounded-[24px] lg:rounded-[28px] p-5 lg:p-7 relative overflow-hidden flex flex-col justify-between min-h-[220px] lg:min-h-[260px]">
+          <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #b08968 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
           <div className="relative">
-            <h2 className="text-[22px] lg:text-[28px] tracking-tight leading-[1.1] max-w-md" style={SERIF}>
-              Suivez vos réseaux <em className="italic text-stone-500">en temps réel</em>
-            </h2>
-            <p className="text-[13px] lg:text-[13.5px] text-stone-500 mt-3 max-w-md leading-relaxed">
-              Analyses Instagram, Facebook & TikTok intégrées : audience, engagement et synthèse hebdomadaire — directement dans votre tableau de bord.
-            </p>
-            <div className="mt-6 flex items-center gap-3 flex-wrap">
-              <a href="mailto:contact@timelesshouse.org?subject=Activer%20les%20analyses%20réseaux%20sociaux"
-                style={neu.darkSm} className="px-5 py-3 rounded-full text-white text-[13px] font-semibold flex items-center gap-2 min-h-[44px] active:scale-95 transition-transform">
-                <ArrowUpRight size={14} /> Activer cette option
-              </a>
-              <span className="text-[12px] text-stone-400">À partir de 49 €/mois</span>
+            <div className="flex items-center gap-2">
+              <Sparkles size={13} className="text-stone-400" />
+              <span className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Option disponible</span>
             </div>
+            <h2 className="text-[22px] lg:text-[28px] tracking-tight mt-2 leading-[1.1] max-w-md" style={SERIF}>
+              Suivez vos réseaux<br/><em className="italic text-stone-500">en temps réel.</em>
+            </h2>
+            <p className="text-[12px] lg:text-[13px] text-stone-500 mt-3 max-w-md leading-relaxed">
+              Analyses Instagram, Facebook & TikTok intégrées : audience, engagement, démographie et synthèse hebdomadaire — directement dans votre tableau de bord.
+            </p>
+          </div>
+          <div className="relative mt-5 flex items-center gap-3 flex-wrap">
+            <a href="mailto:contact@timelesshouse.org?subject=Activer%20les%20analyses%20réseaux%20sociaux"
+               style={neu.darkSm} className="px-5 py-2.5 rounded-full text-white text-[12px] font-semibold flex items-center gap-2">
+              <ArrowUpRight size={13} /> Activer cette option
+            </a>
+            <span className="text-[11px] text-stone-400">À partir de 49 €/mois</span>
           </div>
         </div>
       )}
 
-      {/* ── Quick actions ── grille adaptative, cartes pleines hauteur ── */}
-      <div className="grid grid-cols-1 gap-3 lg:col-span-4 lg:gap-4">
-        {actions.map(a => {
-          const Icon = a.icon;
-          return (
-            <button
-              key={a.id}
-              onClick={() => goTo(a.id)}
-              style={neu.raised}
-              className="rounded-[22px] lg:rounded-[24px] p-5 text-left flex items-center justify-between gap-4 group min-h-[88px] active:scale-[0.99] transition-transform">
-              <div className="flex items-center gap-4 min-w-0">
-                <div style={neu.darkSm} className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shrink-0">
-                  <Icon size={18} />
-                </div>
-                <div className="min-w-0">
-                  <div className="font-semibold text-[15px] tracking-tight">{a.title}</div>
-                  <div className="text-[12px] text-stone-500 mt-0.5 truncate">{a.sub}</div>
-                </div>
-              </div>
-              <ArrowUpRight size={18} className="text-stone-400 group-hover:text-stone-900 transition shrink-0" />
-            </button>
-          );
-        })}
+      <div className="col-span-2 lg:col-span-4 grid grid-cols-2 lg:grid-cols-1 gap-3 lg:gap-4">
+        {CLIENT.mediaEnabled && (
+          <button onClick={() => goTo('media')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
+            <div>
+              <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><ImageIcon size={16} /></div>
+              <div className="font-semibold text-[13px] lg:text-[15px]">Mes médias</div>
+              <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{CLIENT.media.length} fichiers · {pending} à valider</div>
+            </div>
+            <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
+          </button>
+        )}
+        {CLIENT.analyticsEnabled ? (
+          <button onClick={() => goTo('analytics')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
+            <div>
+              <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><BarChart3 size={16} /></div>
+              <div className="font-semibold text-[13px] lg:text-[15px]">Analyses live</div>
+              <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">Mise à jour temps réel</div>
+            </div>
+            <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
+          </button>
+        ) : CLIENT.shootsEnabled ? (
+          <button onClick={() => goTo('calendar')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
+            <div>
+              <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><CalendarIcon size={16} /></div>
+              <div className="font-semibold text-[13px] lg:text-[15px]">Calendrier</div>
+              <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{upcomingShoots} tournage{upcomingShoots > 1 ? 's' : ''} à venir</div>
+            </div>
+            <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
+          </button>
+        ) : CLIENT.invoicesEnabled ? (
+          <button onClick={() => goTo('invoices')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
+            <div>
+              <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><FileText size={16} /></div>
+              <div className="font-semibold text-[13px] lg:text-[15px]">Factures</div>
+              <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{CLIENT.invoices.length} facture{CLIENT.invoices.length > 1 ? 's' : ''}</div>
+            </div>
+            <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
+          </button>
+        ) : null}
       </div>
 
-      {/* ── Prochains tournages ── titre direct, pas de kicker ── */}
       {CLIENT.shootsEnabled && (
-        <div style={neu.raised} className={`rounded-[24px] lg:rounded-[28px] p-5 lg:p-6 ${CLIENT.invoicesEnabled ? 'lg:col-span-7' : 'lg:col-span-12'}`}>
-          <div className="flex items-end justify-between mb-5 gap-3">
-            <h3 className="text-[20px] lg:text-[22px] tracking-tight leading-none" style={SERIF}>Prochains tournages</h3>
-            <button onClick={() => goTo('calendar')} className="text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0 min-h-[32px]">
-              Tout voir <ArrowRight size={13} />
-            </button>
+      <div style={neu.raised} className={`col-span-2 ${CLIENT.invoicesEnabled ? 'lg:col-span-7' : 'lg:col-span-12'} rounded-[24px] lg:rounded-[28px] p-5 lg:p-6`}>
+        <div className="flex items-center justify-between mb-4 lg:mb-5">
+          <div>
+            <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">À venir</div>
+            <h3 className="text-[18px] lg:text-[20px] tracking-tight mt-1" style={SERIF}>Prochains tournages</h3>
           </div>
-          <div className="space-y-2.5">
-            {CLIENT.shoots.slice(0, 3).map(s => (
-              <div key={s.id} style={neu.pressedSm} className="rounded-2xl p-3.5 lg:p-4 flex items-center gap-4">
-                <div style={neu.darkSm} className="w-12 h-12 rounded-xl flex flex-col items-center justify-center text-white shrink-0">
-                  <div className="text-[8.5px] uppercase tracking-wider text-stone-400 leading-none">{s.month}</div>
-                  <div className="text-[16px] font-semibold leading-none mt-1" style={SERIF}>{s.date}</div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-[14px] truncate leading-tight">{s.title}</div>
-                  <div className="flex items-center gap-3 mt-1.5 text-[11.5px] text-stone-500 flex-wrap leading-none">
-                    {s.time && <span className="flex items-center gap-1"><Clock size={11} /> {s.time}</span>}
-                    {s.location && <span className="flex items-center gap-1"><MapPin size={11} /> {s.location}</span>}
-                  </div>
-                </div>
-                <div className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full shrink-0 font-semibold ${s.type === 'video' ? 'bg-stone-900 text-white' : 'bg-stone-200 text-stone-700'}`}>
-                  {s.type}
+          <button onClick={() => goTo('calendar')} className="text-[11px] lg:text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0">Voir tout <ArrowRight size={13} /></button>
+        </div>
+        <div className="space-y-3">
+          {CLIENT.shoots.slice(0, 3).map(s => (
+            <div key={s.id} style={neu.pressedSm} className="rounded-2xl p-3 lg:p-4 flex items-center gap-3 lg:gap-4">
+              <div style={neu.darkSm} className="w-11 h-11 lg:w-12 lg:h-12 rounded-2xl flex flex-col items-center justify-center text-white shrink-0">
+                <div className="text-[8px] lg:text-[9px] uppercase tracking-wider text-stone-400">{s.month}</div>
+                <div className="text-[15px] lg:text-[16px] font-semibold leading-none" style={SERIF}>{s.date}</div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-[13px] lg:text-[14px] truncate">{s.title}</div>
+                <div className="flex items-center gap-3 mt-1 text-[10.5px] lg:text-[11px] text-stone-500 flex-wrap">
+                  {s.time && <span className="flex items-center gap-1"><Clock size={11} /> {s.time}</span>}
+                  {s.location && <span className="flex items-center gap-1"><MapPin size={11} /> {s.location}</span>}
                 </div>
               </div>
-            ))}
-            {CLIENT.shoots.length === 0 && (
-              <div className="text-center py-10 text-[13px] text-stone-400">Aucun tournage programmé.</div>
-            )}
-          </div>
+              <div className={`text-[9px] lg:text-[10px] uppercase tracking-wider px-2 lg:px-2.5 py-1 rounded-full shrink-0 ${s.type === 'video' ? 'bg-stone-900 text-white' : 'bg-stone-200 text-stone-700'}`}>{s.type}</div>
+            </div>
+          ))}
+          {CLIENT.shoots.length === 0 && <div className="text-center py-8 text-[13px] text-stone-400">Aucun tournage programmé pour le moment.</div>}
         </div>
+      </div>
       )}
 
-      {/* ── Dernières factures ── */}
       {CLIENT.invoicesEnabled && (
-        <div style={neu.raised} className={`rounded-[24px] lg:rounded-[28px] p-5 lg:p-6 ${CLIENT.shootsEnabled ? 'lg:col-span-5' : 'lg:col-span-12'}`}>
-          <div className="flex items-end justify-between mb-5 gap-3">
-            <h3 className="text-[20px] lg:text-[22px] tracking-tight leading-none" style={SERIF}>Dernières factures</h3>
-            <button onClick={() => goTo('invoices')} className="text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0 min-h-[32px]">
-              Tout voir <ArrowRight size={13} />
-            </button>
+      <div style={neu.raised} className={`col-span-2 ${CLIENT.shootsEnabled ? 'lg:col-span-5' : 'lg:col-span-12'} rounded-[24px] lg:rounded-[28px] p-5 lg:p-6`}>
+        <div className="flex items-center justify-between mb-4 lg:mb-5">
+          <div>
+            <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Récent</div>
+            <h3 className="text-[18px] lg:text-[20px] tracking-tight mt-1" style={SERIF}>Dernières factures</h3>
           </div>
-          <div className="divide-y divide-stone-200/60">
-            {CLIENT.invoices.slice(0, 4).map(inv => (
-              <div key={inv.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                <div className="min-w-0">
-                  <div className="font-medium text-[13.5px] truncate leading-tight">{inv.id}</div>
-                  <div className="text-[11.5px] text-stone-500 mt-0.5 leading-none">{inv.date}</div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="font-semibold text-[14px] leading-none">{inv.amount.toLocaleString('fr-FR')} €</div>
-                  <div className={`text-[10px] uppercase tracking-wider mt-1 font-semibold leading-none ${inv.status === 'payée' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    {inv.status}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {CLIENT.invoices.length === 0 && (
-              <div className="text-center py-8 text-[13px] text-stone-400">Aucune facture émise.</div>
-            )}
-          </div>
+          <button onClick={() => goTo('invoices')} className="text-[11px] lg:text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0">Voir tout <ArrowRight size={13} /></button>
         </div>
+        <div className="space-y-2.5">
+          {CLIENT.invoices.slice(0, 4).map(inv => (
+            <div key={inv.id} className="flex items-center justify-between py-2 gap-3">
+              <div className="min-w-0">
+                <div className="font-medium text-[12.5px] lg:text-[13px] truncate">{inv.id}</div>
+                <div className="text-[10.5px] lg:text-[11px] text-stone-500">{inv.date}</div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="font-semibold text-[13px] lg:text-[14px]">{inv.amount.toLocaleString('fr-FR')} €</div>
+                <div className={`text-[9px] lg:text-[10px] uppercase tracking-wider ${inv.status === 'payée' ? 'text-emerald-600' : 'text-amber-600'}`}>{inv.status}</div>
+              </div>
+            </div>
+          ))}
+          {CLIENT.invoices.length === 0 && <div className="text-center py-6 text-[13px] text-stone-400">Aucune facture pour le moment.</div>}
+        </div>
+      </div>
       )}
     </div>
   );
@@ -990,44 +960,45 @@ const Media = () => {
   const approuves  = media.filter(m => m.approval_status === 'approved').length;
 
   return (
-    <div className="space-y-5 lg:space-y-6">
-      {/* Filtres — scroll horizontal propre sur mobile */}
-      <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto no-scrollbar">
-        <Pill active={filter === 'tous'}      onClick={() => setFilter('tous')}>Tous</Pill>
-        <Pill active={filter === 'photo'}     onClick={() => setFilter('photo')}>Photos</Pill>
-        <Pill active={filter === 'video'}     onClick={() => setFilter('video')}>Vidéos</Pill>
-        <Pill active={filter === 'a-valider'} onClick={() => setFilter('a-valider')}>À valider</Pill>
-        <Pill active={filter === 'approuves'} onClick={() => setFilter('approuves')}>Approuvés</Pill>
+    <div className="space-y-5">
+      {/* Filtres + actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto no-scrollbar -mx-1 px-1">
+          <Pill active={filter === 'tous'}      onClick={() => setFilter('tous')}>Tous</Pill>
+          <Pill active={filter === 'photo'}     onClick={() => setFilter('photo')}>Photos</Pill>
+          <Pill active={filter === 'video'}     onClick={() => setFilter('video')}>Vidéos</Pill>
+          <Pill active={filter === 'a-valider'} onClick={() => setFilter('a-valider')}>À valider</Pill>
+          <Pill active={filter === 'approuves'} onClick={() => setFilter('approuves')}>Approuvés</Pill>
+        </div>
       </div>
 
-      {/* Stats — 2 cols mobile, 4 cols desktop */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatCard label="Total" value={media.length} />
         <StatCard label="Photos" value={photos} />
         <StatCard label="Vidéos" value={videos} />
         <StatCard label="À valider" value={aValider} delta={`${approuves} approuvés`} />
       </div>
 
-      {/* Groupes par tournage — header simplifié, pas de kicker */}
+      {/* Groupes par tournage */}
       {groups.map((g, gi) => (
-        <div key={g.shoot?.id || `no-${gi}`} style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
-          <div className="flex items-center gap-4 mb-5">
-            {g.shoot ? (
-              <div style={g.shoot.type === 'video' ? neu.dark : neu.darkSm} className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white shrink-0">
-                <div className="text-[9px] uppercase tracking-wider text-stone-400 leading-none">{g.shoot.month}</div>
-                <div className="text-[18px] leading-none font-semibold mt-1" style={SERIF}>{g.shoot.date}</div>
-              </div>
-            ) : (
-              <div style={neu.pressedSm} className="w-14 h-14 rounded-2xl flex items-center justify-center text-stone-400 shrink-0">
-                <ImageIcon size={20} />
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <h3 className="text-[20px] lg:text-[24px] tracking-tight leading-tight truncate" style={SERIF}>
-                {g.shoot ? g.shoot.title : 'Médias divers'}
-              </h3>
-              <div className="text-[12px] text-stone-500 mt-1 leading-none">
-                {g.items.length} fichier{g.items.length > 1 ? 's' : ''}
+        <div key={g.shoot?.id || `no-${gi}`} style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-4 lg:p-6">
+          <div className="flex items-start lg:items-center justify-between mb-4 lg:mb-5 flex-wrap gap-3">
+            <div className="flex items-center gap-3 lg:gap-4 min-w-0 flex-1">
+              {g.shoot && (
+                <div style={g.shoot.type === 'video' ? neu.dark : neu.darkSm} className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl flex flex-col items-center justify-center text-white shrink-0">
+                  <div className="text-[8px] lg:text-[9px] uppercase tracking-wider text-stone-400">{g.shoot.month}</div>
+                  <div className="text-[16px] lg:text-[18px] leading-none font-semibold" style={SERIF}>{g.shoot.date}</div>
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">
+                  {g.shoot ? 'Tournage' : 'Hors tournage'}
+                </div>
+                <h3 className="text-[18px] lg:text-[22px] tracking-tight leading-tight truncate" style={SERIF}>
+                  {g.shoot ? g.shoot.title : 'Médias divers'}
+                </h3>
+                <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{g.items.length} fichier{g.items.length > 1 ? 's' : ''}</div>
               </div>
             </div>
           </div>
@@ -1037,8 +1008,8 @@ const Media = () => {
               const thumb = getThumbUrl(m);
               const previewVideo = !m.thumb_url ? getPreviewVideoUrl(m) : null;
               return (
-                <button key={m.id} onClick={() => openLightbox(g.items, m)} style={neu.raisedSm} className="rounded-[18px] lg:rounded-[20px] p-2 lg:p-2.5 group text-left active:scale-[0.98] transition-transform">
-                  <div className="aspect-[4/3] rounded-xl relative overflow-hidden bg-black"
+                <button key={m.id} onClick={() => openLightbox(g.items, m)} style={neu.raisedSm} className="rounded-[16px] lg:rounded-[20px] p-2 lg:p-2.5 group text-left">
+                  <div className="aspect-[4/3] rounded-lg lg:rounded-xl relative overflow-hidden bg-black"
                     style={!previewVideo ? { background: thumb ? `url(${thumb}) center/cover` : m.thumb } : undefined}>
                     {previewVideo && (
                       <video
@@ -1055,20 +1026,21 @@ const Media = () => {
                       <>
                         <div className="absolute inset-0 bg-black/30" />
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-11 h-11 lg:w-12 lg:h-12 rounded-full bg-white/95 flex items-center justify-center group-hover:scale-110 transition">
+                          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-white/95 flex items-center justify-center group-hover:scale-110 transition">
                             <Play size={14} className="text-stone-900 ml-0.5" fill="#1a1a1d" />
                           </div>
                         </div>
                       </>
                     )}
                     {m.type === 'video' && m.duration && (
-                      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-medium">{m.duration}</div>
+                      <div className="absolute bottom-1.5 right-1.5 lg:bottom-2 lg:right-2 px-1.5 lg:px-2 py-0.5 rounded-md bg-black/70 text-white text-[9px] lg:text-[10px] font-medium">{m.duration}</div>
                     )}
-                    <div className="absolute top-2 right-2 z-10"><ApprovalBadge status={m.approval_status} /></div>
+                    <div className="absolute top-1.5 left-1.5 lg:top-2 lg:left-2 px-1.5 lg:px-2 py-0.5 rounded-md bg-white/90 text-stone-800 text-[8px] lg:text-[9px] font-semibold uppercase tracking-wider z-10">{m.type}</div>
+                    <div className="absolute top-1.5 right-1.5 lg:top-2 lg:right-2 z-10"><ApprovalBadge status={m.approval_status} /></div>
                   </div>
-                  <div className="px-1 pt-2.5 pb-1">
-                    <div className="font-medium text-[12.5px] lg:text-[13px] truncate leading-tight">{m.title}</div>
-                    <div className="text-[10.5px] text-stone-500 mt-1 truncate leading-none">{m.date}{m.tag ? ` · ${m.tag}` : ''}</div>
+                  <div className="px-1 pt-2 lg:pt-3 pb-1">
+                    <div className="font-medium text-[12px] lg:text-[13px] truncate">{m.title}</div>
+                    <div className="text-[10px] lg:text-[10.5px] text-stone-500 mt-0.5 truncate">{m.date}{m.tag ? ` · ${m.tag}` : ''}</div>
                   </div>
                 </button>
               );
@@ -1104,61 +1076,55 @@ const Invoices = () => {
   const pending = CLIENT.invoices.filter(i => i.status === 'en attente').reduce((a, b) => a + b.amount, 0);
 
   return (
-    <div className="space-y-5 lg:space-y-6">
-      {/* Stats — empilées sur mobile pour bien souffler */}
+    <div className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-5">
-        <div style={neu.dark} className="rounded-[22px] lg:rounded-[24px] p-6 text-white">
-          <div className="text-[12px] text-stone-400 font-medium leading-none">Total facturé</div>
-          <div className="text-[34px] lg:text-[42px] tracking-tight mt-3 leading-none" style={SERIF}>{total.toLocaleString('fr-FR')} €</div>
+        <div style={neu.dark} className="rounded-[20px] lg:rounded-[24px] p-5 lg:p-6 text-white">
+          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Total facturé</div>
+          <div className="text-[32px] lg:text-[42px] tracking-tight mt-2 leading-none" style={SERIF}>{total.toLocaleString('fr-FR')} €</div>
         </div>
-        <div style={neu.raisedSm} className="rounded-[22px] lg:rounded-[24px] p-6">
-          <div className="text-[12px] text-stone-500 font-medium leading-none">Réglé</div>
-          <div className="text-[28px] lg:text-[32px] tracking-tight mt-3 leading-none" style={SERIF}>{paid.toLocaleString('fr-FR')} €</div>
-          <div className="mt-4 h-1.5 rounded-full" style={neu.pressedSm}>
-            <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: total > 0 ? `${(paid/total)*100}%` : '0%' }} />
-          </div>
+        <div style={neu.raisedSm} className="rounded-[20px] lg:rounded-[24px] p-5 lg:p-6">
+          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Réglé</div>
+          <div className="text-[26px] lg:text-[32px] tracking-tight mt-2 leading-none" style={SERIF}>{paid.toLocaleString('fr-FR')} €</div>
+          <div className="mt-3 lg:mt-4 h-1.5 rounded-full" style={neu.pressedSm}><div className="h-full bg-emerald-500 rounded-full" style={{ width: total > 0 ? `${(paid/total)*100}%` : '0%' }} /></div>
         </div>
-        <div style={neu.raisedSm} className="rounded-[22px] lg:rounded-[24px] p-6">
-          <div className="text-[12px] text-stone-500 font-medium leading-none">En attente</div>
-          <div className="text-[28px] lg:text-[32px] tracking-tight mt-3 leading-none" style={SERIF}>{pending.toLocaleString('fr-FR')} €</div>
-          <div className="mt-4 h-1.5 rounded-full" style={neu.pressedSm}>
-            <div className="h-full bg-amber-400 rounded-full transition-all" style={{ width: total > 0 ? `${(pending/total)*100}%` : '0%' }} />
-          </div>
+        <div style={neu.raisedSm} className="rounded-[20px] lg:rounded-[24px] p-5 lg:p-6">
+          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">En attente</div>
+          <div className="text-[26px] lg:text-[32px] tracking-tight mt-2 leading-none" style={SERIF}>{pending.toLocaleString('fr-FR')} €</div>
+          <div className="mt-3 lg:mt-4 h-1.5 rounded-full" style={neu.pressedSm}><div className="h-full bg-amber-400 rounded-full" style={{ width: total > 0 ? `${(pending/total)*100}%` : '0%' }} /></div>
         </div>
       </div>
 
-      <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
-        <h3 className="text-[20px] lg:text-[22px] tracking-tight mb-5 leading-none" style={SERIF}>Historique des factures</h3>
+      <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-4 lg:p-6">
+        <h3 className="text-[18px] lg:text-[20px] tracking-tight mb-4" style={SERIF}>Historique des factures</h3>
 
         {/* En-têtes desktop uniquement */}
-        <div className="hidden lg:grid grid-cols-12 gap-4 px-4 pb-3 text-[10.5px] uppercase tracking-[0.16em] text-stone-400 font-semibold border-b border-stone-200/60">
+        <div className="hidden lg:grid grid-cols-12 gap-4 px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold">
           <div className="col-span-3">Référence</div><div className="col-span-4">Description</div><div className="col-span-2">Date</div><div className="col-span-2">Montant</div><div className="col-span-1 text-right">Statut</div>
         </div>
 
-        <div className="space-y-2 lg:space-y-1 lg:mt-2">
+        <div className="space-y-2">
           {CLIENT.invoices.map(inv => (
-            <div key={inv.id} style={neu.pressedSm} className="rounded-2xl p-4 lg:p-4 lg:bg-transparent lg:shadow-none" >
-              {/* Mobile : carte verticale aérée */}
-              <div className="lg:hidden">
-                <div className="flex items-start justify-between gap-3 mb-3">
+            <div key={inv.id} style={neu.pressedSm} className="rounded-2xl p-4 lg:px-4 lg:py-4">
+              {/* Mobile : carte verticale */}
+              <div className="lg:hidden space-y-2">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="font-mono text-[13px] font-semibold leading-none">{inv.id}</div>
-                    <div className="text-[13px] text-stone-700 mt-2 leading-snug line-clamp-2">{inv.desc}</div>
+                    <div className="font-mono text-[12.5px] font-medium">{inv.id}</div>
+                    <div className="text-[12.5px] text-stone-700 mt-1 line-clamp-2">{inv.desc}</div>
                   </div>
-                  <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold shrink-0 leading-none ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
+                  <span className={`text-[9px] uppercase tracking-wider px-2 py-1 rounded-full font-semibold shrink-0 ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
                 </div>
-                <div className="flex items-center justify-between pt-3 border-t border-stone-200/60">
-                  <div className="text-[11.5px] text-stone-500 leading-none">{inv.date}</div>
+                <div className="flex items-center justify-between pt-2">
+                  <div className="text-[11px] text-stone-500">{inv.date}</div>
                   <div className="flex items-center gap-3">
-                    <span className="font-semibold text-[18px] leading-none" style={SERIF}>{inv.amount.toLocaleString('fr-FR')} €</span>
+                    <span className="font-semibold text-[16px]" style={SERIF}>{inv.amount.toLocaleString('fr-FR')} €</span>
                     {inv.url && (
                       <button
                         onClick={() => smartDownload(inv.url, `Facture-${inv.id}`, 'pdf')}
-                        aria-label="Télécharger la facture"
-                        className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-stone-600 shrink-0 active:scale-95 transition-transform"
+                        className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-stone-600"
                         title="Télécharger la facture"
                       >
-                        <Download size={14} />
+                        <Download size={13} />
                       </button>
                     )}
                   </div>
@@ -1166,7 +1132,7 @@ const Invoices = () => {
               </div>
 
               {/* Desktop : ligne grille */}
-              <div className="hidden lg:grid grid-cols-12 gap-4 items-center py-1">
+              <div className="hidden lg:grid grid-cols-12 gap-4 items-center">
                 <div className="col-span-3 font-mono text-[13px] font-medium">{inv.id}</div>
                 <div className="col-span-4 text-[13px] text-stone-700">{inv.desc}</div>
                 <div className="col-span-2 text-[12px] text-stone-500">{inv.date}</div>
@@ -1176,7 +1142,7 @@ const Invoices = () => {
                   {inv.url && (
                     <button
                       onClick={() => smartDownload(inv.url, `Facture-${inv.id}`, 'pdf')}
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100"
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900"
                       title="Télécharger la facture"
                     >
                       <Download size={13} />
@@ -1405,9 +1371,9 @@ function App() {
 
   const titles = {
     dashboard: { t: `Bonjour ${CLIENT.greeting}`, s: 'Voici un aperçu de votre activité.' },
-    media:     { t: 'Vos médias',                  s: 'Touchez un fichier pour le visualiser, le télécharger ou le valider.' },
+    media:     { t: 'Vos médias',                  s: 'Toutes vos photos et vidéos. Cliquez sur un fichier pour le visualiser, le télécharger ou le valider.' },
     invoices:  { t: 'Vos factures',                s: 'Historique complet de votre facturation.' },
-    analytics: { t: 'Analyses temps réel',         s: 'Performance de vos réseaux sociaux.' },
+    analytics: { t: 'Analyses temps réel',         s: 'Performance de vos réseaux sociaux, mise à jour en continu.' },
     calendar:  { t: 'Vos tournages',               s: 'Calendrier des prochains shootings.' },
   };
   const titleData = titles[section] || titles.dashboard;
@@ -1415,7 +1381,7 @@ function App() {
   return (
     <div className="min-h-screen w-full" style={{ ...neu.base, fontFamily: '"Manrope", system-ui, sans-serif' }}>
       <MobileHeader onLogout={handleLogout} isDark={isDark} toggleDark={toggleDark} />
-      <div className="flex gap-5 px-4 pb-28 lg:p-5 lg:pb-5 min-h-screen">
+      <div className="flex gap-5 px-3 pb-24 lg:p-5 lg:pb-5 min-h-screen">
         <Sidebar section={section} setSection={setSection} onLogout={handleLogout} isDark={isDark} toggleDark={toggleDark} />
         <main className="flex-1 min-w-0">
           <TopBar title={titleData.t} subtitle={titleData.s} />

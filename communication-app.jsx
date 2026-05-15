@@ -67,26 +67,34 @@ const ENGAGEMENT_DATA = A.engagementByDay && A.engagementByDay.length ? A.engage
 // ────────────────────────────────────────────────────────────
 // 🎨 STYLES NÉOMORPHIQUES
 // ────────────────────────────────────────────────────────────
+// 🎨 Palette LIGHT — cream warm (harmonisée avec communication.html)
 const NEU_LIGHT = {
-  base:      { backgroundColor: '#e8e9ec' },
-  raised:    { backgroundColor: '#f1f2f5', boxShadow: '10px 10px 24px rgba(166,171,189,0.45), -10px -10px 24px rgba(255,255,255,0.95)' },
-  raisedSm:  { backgroundColor: '#f1f2f5', boxShadow: '5px 5px 12px rgba(166,171,189,0.35), -5px -5px 12px rgba(255,255,255,0.9)' },
-  raisedXs:  { backgroundColor: '#f1f2f5', boxShadow: '3px 3px 7px rgba(166,171,189,0.3), -3px -3px 7px rgba(255,255,255,0.85)' },
-  pressed:   { backgroundColor: '#e8e9ec', boxShadow: 'inset 5px 5px 10px rgba(166,171,189,0.35), inset -5px -5px 10px rgba(255,255,255,0.9)' },
-  pressedSm: { backgroundColor: '#e8e9ec', boxShadow: 'inset 3px 3px 6px rgba(166,171,189,0.3), inset -3px -3px 6px rgba(255,255,255,0.85)' },
-  dark:      { backgroundColor: '#1a1a1d', boxShadow: '8px 8px 18px rgba(166,171,189,0.4), -3px -3px 8px rgba(255,255,255,0.6), inset 1px 1px 2px rgba(255,255,255,0.1)' },
-  darkSm:    { backgroundColor: '#1a1a1d', boxShadow: '4px 4px 10px rgba(166,171,189,0.4), -2px -2px 6px rgba(255,255,255,0.5)' },
+  base:      { backgroundColor: '#e9e4d9' },
+  raised:    { backgroundColor: '#efeae0', boxShadow: '10px 10px 24px rgba(168,156,134,0.32), -10px -10px 24px rgba(255,253,247,0.92)' },
+  raisedSm:  { backgroundColor: '#efeae0', boxShadow: '5px 5px 12px rgba(168,156,134,0.26), -5px -5px 12px rgba(255,253,247,0.88)' },
+  raisedXs:  { backgroundColor: '#efeae0', boxShadow: '3px 3px 7px rgba(168,156,134,0.22), -3px -3px 7px rgba(255,253,247,0.82)' },
+  pressed:   { backgroundColor: '#e3ddd0', boxShadow: 'inset 5px 5px 10px rgba(168,156,134,0.32), inset -5px -5px 10px rgba(255,253,247,0.9)' },
+  pressedSm: { backgroundColor: '#e3ddd0', boxShadow: 'inset 3px 3px 6px rgba(168,156,134,0.26), inset -3px -3px 6px rgba(255,253,247,0.85)' },
+  dark:      { backgroundColor: '#2a2620', boxShadow: '8px 8px 18px rgba(168,156,134,0.36), -3px -3px 8px rgba(255,253,247,0.6), inset 1px 1px 2px rgba(255,255,255,0.08)' },
+  darkSm:    { backgroundColor: '#2a2620', boxShadow: '4px 4px 10px rgba(168,156,134,0.36), -2px -2px 6px rgba(255,253,247,0.5)' },
+  accent:    '#2a2620',
+  accentText:'#f5f1e6',
+  textChart: '#2a2620',
 };
 
+// 🎨 Palette DARK — graphite bleuté + accent ivoire chaud
 const NEU_DARK = {
-  base:      { backgroundColor: '#1c1d21' },
-  raised:    { backgroundColor: '#23242a', boxShadow: '10px 10px 24px rgba(0,0,0,0.55), -5px -5px 15px rgba(45,47,58,0.28)' },
-  raisedSm:  { backgroundColor: '#23242a', boxShadow: '5px 5px 12px rgba(0,0,0,0.48), -3px -3px 8px rgba(45,47,58,0.22)' },
-  raisedXs:  { backgroundColor: '#23242a', boxShadow: '3px 3px 7px rgba(0,0,0,0.42), -2px -2px 5px rgba(45,47,58,0.18)' },
-  pressed:   { backgroundColor: '#18191e', boxShadow: 'inset 5px 5px 10px rgba(0,0,0,0.55), inset -3px -3px 8px rgba(45,47,58,0.2)' },
-  pressedSm: { backgroundColor: '#18191e', boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.48), inset -2px -2px 5px rgba(45,47,58,0.15)' },
-  dark:      { backgroundColor: '#2d2e36', boxShadow: '8px 8px 18px rgba(0,0,0,0.65), -3px -3px 8px rgba(45,47,58,0.22), inset 1px 1px 2px rgba(255,255,255,0.04)' },
-  darkSm:    { backgroundColor: '#2d2e36', boxShadow: '4px 4px 10px rgba(0,0,0,0.55), -2px -2px 6px rgba(45,47,58,0.18)' },
+  base:      { backgroundColor: '#181b20' },
+  raised:    { backgroundColor: '#22262d', boxShadow: '10px 10px 24px rgba(0,0,0,0.55), -5px -5px 15px rgba(54,60,72,0.28)' },
+  raisedSm:  { backgroundColor: '#22262d', boxShadow: '5px 5px 12px rgba(0,0,0,0.48), -3px -3px 8px rgba(54,60,72,0.22)' },
+  raisedXs:  { backgroundColor: '#22262d', boxShadow: '3px 3px 7px rgba(0,0,0,0.42), -2px -2px 5px rgba(54,60,72,0.18)' },
+  pressed:   { backgroundColor: '#14171c', boxShadow: 'inset 5px 5px 10px rgba(0,0,0,0.55), inset -3px -3px 8px rgba(54,60,72,0.2)' },
+  pressedSm: { backgroundColor: '#14171c', boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.48), inset -2px -2px 5px rgba(54,60,72,0.15)' },
+  dark:      { backgroundColor: '#e8d8be', boxShadow: '8px 8px 18px rgba(0,0,0,0.62), -3px -3px 8px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.35), 0 0 24px rgba(232,216,190,0.25)' },
+  darkSm:    { backgroundColor: '#e8d8be', boxShadow: '4px 4px 10px rgba(0,0,0,0.55), -2px -2px 6px rgba(54,60,72,0.18), 0 0 0 1px rgba(232,216,190,0.3), 0 0 16px rgba(232,216,190,0.2)' },
+  accent:    '#e8d8be',
+  accentText:'#1a1410',
+  textChart: '#e8d8be',
 };
 
 // Mutable pointer — reassigned by App on theme change
@@ -120,11 +128,11 @@ const DarkToggle = ({ isDark, onToggle }) => {
         width: 44, height: 26, borderRadius: 13, padding: 2,
         border: 'none', cursor: 'pointer',
         background: isDark
-          ? 'linear-gradient(145deg, #2c2c30, #1a1a1d)'
-          : 'linear-gradient(145deg, #d4d5da, #c0c1c6)',
+          ? 'linear-gradient(145deg, #22262d, #181b20)'
+          : 'linear-gradient(145deg, #d8d1c0, #c5bda9)',
         boxShadow: isDark
           ? 'inset 1px 1px 3px rgba(0,0,0,0.55), inset -1px -1px 2px rgba(255,255,255,0.05)'
-          : 'inset 1px 1px 3px rgba(150,152,160,0.5), inset -1px -1px 2px rgba(255,255,255,0.85)',
+          : 'inset 1px 1px 3px rgba(168,156,134,0.5), inset -1px -1px 2px rgba(255,253,247,0.85)',
         WebkitTapHighlightColor: 'transparent', outline: 'none',
         transition: 'background 0.4s ease, box-shadow 0.4s ease',
         boxSizing: 'border-box',
@@ -133,8 +141,8 @@ const DarkToggle = ({ isDark, onToggle }) => {
         style={{
           display: 'block', width: 22, height: 22, borderRadius: '50%',
           background: isDark
-            ? 'radial-gradient(circle at 30% 30%, #f5f5f8, #d4d5da)'
-            : 'radial-gradient(circle at 30% 30%, #ffffff, #f1f2f5)',
+            ? 'radial-gradient(circle at 30% 30%, #f5f1e6, #e8d8be)'
+            : 'radial-gradient(circle at 30% 30%, #ffffff, #efeae0)',
           boxShadow: '0 1.5px 4px rgba(0,0,0,0.35), 0 0.5px 1px rgba(0,0,0,0.2)',
           transform: isDark ? 'translateX(18px)' : 'translateX(0)',
           transition: 'transform 0.35s cubic-bezier(0.4, 0.0, 0.2, 1), background 0.4s ease',
@@ -563,7 +571,7 @@ const Dashboard = ({ goTo }) => {
       {/* ── Bloc principal : Analytics ou CTA Option ── */}
       {CLIENT.analyticsEnabled ? (
         <div style={neu.raised} className="lg:col-span-8 rounded-[24px] lg:rounded-[28px] p-6 lg:p-7 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-[0.08] pointer-events-none" style={{ background: 'radial-gradient(circle, #1a1a1d 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
+          <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-[0.08] pointer-events-none" style={{ background: `radial-gradient(circle, ${neu.accent} 0%, transparent 70%)`, transform: 'translate(30%, -30%)' }} />
           <h2 className="text-[22px] lg:text-[28px] tracking-tight leading-[1.1] max-w-md" style={SERIF}>Évolution de votre audience</h2>
           <div className="text-[13px] text-stone-500 mt-1.5 leading-relaxed">Sur les 4 dernières semaines.</div>
           <div className="mt-6 h-[180px] lg:h-[200px]">
@@ -571,11 +579,11 @@ const Dashboard = ({ goTo }) => {
               <AreaChart data={REVENUE_DATA}>
                 <defs>
                   <linearGradient id="cgrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#1a1a1d" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#1a1a1d" stopOpacity={0} />
+                    <stop offset="0%" stopColor={neu.textChart} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={neu.textChart} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <Area type="monotone" dataKey="value" stroke="#1a1a1d" strokeWidth={2.2} fill="url(#cgrad)" />
+                <Area type="monotone" dataKey="value" stroke={neu.textChart} strokeWidth={2.2} fill="url(#cgrad)" />
                 <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
               </AreaChart>
             </ResponsiveContainer>
@@ -1062,7 +1070,7 @@ const Media = () => {
                         <div className="absolute inset-0 bg-black/30" />
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="w-11 h-11 lg:w-12 lg:h-12 rounded-full bg-white/95 flex items-center justify-center group-hover:scale-110 transition">
-                            <Play size={14} className="text-stone-900 ml-0.5" fill="#1a1a1d" />
+                            <Play size={14} className="text-stone-900 ml-0.5" fill="#2a2620" />
                           </div>
                         </div>
                       </>
@@ -1262,7 +1270,7 @@ const Analytics = () => {
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 6px 20px rgba(0,0,0,0.12)' }} />
-                <Bar dataKey="insta" fill="#1a1a1d" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="insta" fill={neu.textChart} radius={[8, 8, 0, 0]} />
                 <Bar dataKey="fb"    fill="#9ca3af" radius={[8, 8, 0, 0]} />
                 <Bar dataKey="tt"    fill="#d1d5db" radius={[8, 8, 0, 0]} />
               </BarChart>
@@ -1277,7 +1285,7 @@ const Analytics = () => {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={demo} innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="v">
-                  {['#1a1a1d', '#4a4a4d', '#9ca3af', '#d1d5db'].map((c, i) => <Cell key={i} fill={c} />)}
+                  {[neu.textChart, '#4a4a4d', '#9ca3af', '#d1d5db'].map((c, i) => <Cell key={i} fill={c} />)}
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
@@ -1289,7 +1297,7 @@ const Analytics = () => {
           <div className="space-y-2 mt-4">
             {demo.map((r, i) => (
               <div key={r.name} className="flex items-center justify-between text-[12px]">
-                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-sm" style={{ background: ['#1a1a1d', '#4a4a4d', '#9ca3af', '#d1d5db'][i] }} /> {r.name}</span>
+                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-sm" style={{ background: [neu.textChart, '#4a4a4d', '#9ca3af', '#d1d5db'][i] }} /> {r.name}</span>
                 <span className="font-semibold">{r.v}%</span>
               </div>
             ))}

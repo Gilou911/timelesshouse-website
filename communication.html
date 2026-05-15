@@ -25,7 +25,7 @@
     /* ════════════════════════════════════════════════════════════
        🎨 NEUMORPHIC DESIGN — refonte mai 2026
        LIGHT : cream warm (#e9e4d9) — pebble surfaces
-       DARK  : graphite bleuté (#181b20) — cyan accent (#1ed4d8)
+       DARK  : graphite bleuté (#181b20) — ivoire accent (#e8d8be)
        ════════════════════════════════════════════════════════════ */
     :root {
       --bg:            #e9e4d9;
@@ -59,9 +59,9 @@
       --text:          #e6e8eb;
       --text-soft:     #b6b9c0;
       --text-muted:    #7e828b;
-      --accent:        #1ed4d8;
-      --accent-on:     #0a1417;
-      --accent-glow:   rgba(30,212,216,0.35);
+      --accent:        #e8d8be;
+      --accent-on:     #1a1410;
+      --accent-glow:   rgba(232,216,190,0.35);
       --divider:       rgba(255,255,255,0.06);
       --error:         #ff7a7a;
     }
@@ -151,7 +151,7 @@
       box-shadow:
         inset 1px 1px 3px rgba(0,0,0,0.65),
         inset -1px -1px 2px rgba(54,60,72,0.18),
-        0 0 0 1px rgba(30,212,216,0.18);
+        0 0 0 1px rgba(232,216,190,0.18);
     }
     .dark-toggle .toggle-thumb {
       display: block;
@@ -162,9 +162,9 @@
       transition: transform 0.35s cubic-bezier(0.4, 0.0, 0.2, 1), background 0.4s ease;
     }
     [data-theme="dark"] .dark-toggle .toggle-thumb {
-      background: radial-gradient(circle at 30% 30%, #f5f1e6, #1ed4d8);
+      background: radial-gradient(circle at 30% 30%, #f5f1e6, #e8d8be);
       transform: translateX(18px);
-      box-shadow: 0 1.5px 4px rgba(0,0,0,0.45), 0 0 8px rgba(30,212,216,0.55);
+      box-shadow: 0 1.5px 4px rgba(0,0,0,0.45), 0 0 8px rgba(232,216,190,0.55);
     }
     /* Override : le toggle ne suit pas la grille des .pill-btn icon-only */
     .dark-toggle.pill-btn.icon-only { padding: 2px; justify-content: flex-start; }
@@ -205,7 +205,7 @@
     }
     [data-theme="dark"] .hero-title em {
       color: var(--accent);
-      text-shadow: 0 0 24px rgba(30,212,216,0.25);
+      text-shadow: 0 0 24px rgba(232,216,190,0.25);
     }
 
     .hero-text {
@@ -245,14 +245,14 @@
       position: relative;
     }
     [data-theme="dark"] .access-btn {
-      box-shadow: 8px 8px 18px rgba(0,0,0,0.62), -3px -3px 8px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(30,212,216,0.35), 0 0 24px rgba(30,212,216,0.25);
+      box-shadow: 8px 8px 18px rgba(0,0,0,0.62), -3px -3px 8px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.35), 0 0 24px rgba(232,216,190,0.25);
     }
     .access-btn:hover {
       transform: translateY(-2px);
       box-shadow: 12px 12px 24px var(--shadow-dark), -5px -5px 12px var(--shadow-light), inset 1px 1px 2px rgba(255,255,255,0.08);
     }
     [data-theme="dark"] .access-btn:hover {
-      box-shadow: 12px 12px 24px rgba(0,0,0,0.62), -5px -5px 12px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(30,212,216,0.5), 0 0 36px rgba(30,212,216,0.45);
+      box-shadow: 12px 12px 24px rgba(0,0,0,0.62), -5px -5px 12px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.5), 0 0 36px rgba(232,216,190,0.45);
     }
     .access-btn:active { transform: translateY(0); }
     .access-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -317,7 +317,7 @@
       box-shadow: 8px 8px 18px var(--shadow-dark), -3px -3px 8px var(--shadow-light), inset 1px 1px 2px rgba(255,255,255,0.08);
     }
     [data-theme="dark"] .modal-icon {
-      box-shadow: 8px 8px 18px rgba(0,0,0,0.62), -3px -3px 8px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(30,212,216,0.35), 0 0 20px rgba(30,212,216,0.3);
+      box-shadow: 8px 8px 18px rgba(0,0,0,0.62), -3px -3px 8px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.35), 0 0 20px rgba(232,216,190,0.3);
     }
     .modal-icon svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
@@ -381,10 +381,10 @@
       transition: all 0.3s;
     }
     [data-theme="dark"] .modal-btn {
-      box-shadow: 6px 6px 14px rgba(0,0,0,0.55), -4px -4px 10px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(30,212,216,0.3);
+      box-shadow: 6px 6px 14px rgba(0,0,0,0.55), -4px -4px 10px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.3);
     }
     .modal-btn:hover { transform: translateY(-1px); }
-    [data-theme="dark"] .modal-btn:hover { box-shadow: 6px 6px 14px rgba(0,0,0,0.55), -4px -4px 10px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(30,212,216,0.5), 0 0 20px rgba(30,212,216,0.35); }
+    [data-theme="dark"] .modal-btn:hover { box-shadow: 6px 6px 14px rgba(0,0,0,0.55), -4px -4px 10px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.5), 0 0 20px rgba(232,216,190,0.35); }
     .modal-btn:disabled { opacity: 0.5; cursor: wait; transform: none; }
 
     .modal-error {

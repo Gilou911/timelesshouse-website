@@ -22,34 +22,49 @@
   }
   </script>
 
+  <!-- Apply theme BEFORE rendering to avoid flash -->
+  <script>
+    (function(){
+      try {
+        if (localStorage.getItem('th-dark-mode') === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } catch(e) {}
+    })();
+  </script>
+
   <style>
-    body { margin: 0; background: #e8e9ec; font-family: 'Manrope', system-ui, sans-serif; transition: background 0.5s ease; }
-    [data-theme="dark"] body { background: #1c1d21; }
+    body { margin: 0; background: #e9e4d9; font-family: 'Manrope', system-ui, sans-serif; transition: background 0.5s ease; }
+    [data-theme="dark"] body { background: #181b20; }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(120,120,130,0.3); border-radius: 4px; }
-    [data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(80,82,90,0.55); }
+    ::-webkit-scrollbar-thumb { background: rgba(134,121,106,0.32); border-radius: 4px; }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(232,216,190,0.18); }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(232,216,190,0.32); }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     input, textarea, select { font-family: inherit; }
     input:focus, textarea:focus, select:focus { outline: none; }
 
-    /* ─── Dark-mode color overrides for Tailwind classes ─── */
-    [data-theme="dark"] .text-stone-900 { color: #e2e3e8 !important; }
-    [data-theme="dark"] .text-stone-800 { color: #d4d5da !important; }
-    [data-theme="dark"] .text-stone-700 { color: #b8b9c0 !important; }
-    [data-theme="dark"] .text-stone-600 { color: #9899a0 !important; }
-    [data-theme="dark"] .text-stone-500 { color: #82838a !important; }
-    [data-theme="dark"] .text-stone-400 { color: #6b6c73 !important; }
-    [data-theme="dark"] .text-stone-300 { color: #545560 !important; }
-    [data-theme="dark"] .bg-white { background-color: #2d2e36 !important; }
-    [data-theme="dark"] .bg-stone-50 { background-color: #23242a !important; }
-    [data-theme="dark"] .bg-stone-100 { background-color: #2d2e36 !important; }
-    [data-theme="dark"] .bg-stone-900 { background-color: #f1f2f5 !important; }
-    [data-theme="dark"] .text-white { color: #1a1a1d !important; }
-    [data-theme="dark"] .placeholder\:text-stone-400::placeholder { color: #6b6c73 !important; }
+    /* ─── Dark-mode color overrides (palette graphite + ivoire chaud) ─── */
+    [data-theme="dark"] .text-stone-900 { color: #e6e8eb !important; }
+    [data-theme="dark"] .text-stone-800 { color: #d4d6dc !important; }
+    [data-theme="dark"] .text-stone-700 { color: #b6b9c0 !important; }
+    [data-theme="dark"] .text-stone-600 { color: #969aa3 !important; }
+    [data-theme="dark"] .text-stone-500 { color: #7e828b !important; }
+    [data-theme="dark"] .text-stone-400 { color: #686c75 !important; }
+    [data-theme="dark"] .text-stone-300 { color: #4f535c !important; }
+    [data-theme="dark"] .bg-white { background-color: #22262d !important; }
+    [data-theme="dark"] .bg-stone-50 { background-color: #1d2025 !important; }
+    [data-theme="dark"] .bg-stone-100 { background-color: #22262d !important; }
+    [data-theme="dark"] .bg-stone-200 { background-color: rgba(232,216,190,0.12) !important; }
+    [data-theme="dark"] .bg-stone-300 { background-color: rgba(232,216,190,0.18) !important; }
+    [data-theme="dark"] .bg-stone-900 { background-color: #e8d8be !important; }
+    [data-theme="dark"] .text-white { color: #1a1410 !important; }
+    [data-theme="dark"] .placeholder\:text-stone-400::placeholder { color: #686c75 !important; }
     [data-theme="dark"] .border-stone-200 { border-color: rgba(255,255,255,0.07) !important; }
-    [data-theme="dark"] .border-stone-300 { border-color: rgba(255,255,255,0.1) !important; }
+    [data-theme="dark"] .border-stone-300 { border-color: rgba(232,216,190,0.22) !important; }
+    [data-theme="dark"] .border-stone-900 { border-color: #e8d8be !important; }
     [data-theme="dark"] hr { border-color: rgba(255,255,255,0.07) !important; }
 
     /* Smooth theme transitions */
@@ -78,28 +93,33 @@
     const sb = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
     /* ════════════════════════════════════════════════════════════
-       🎨 STYLES NÉOMORPHIQUES (cohérents avec le dashboard client)
+       🎨 STYLES NÉOMORPHIQUES (harmonisés avec le dashboard client)
+       LIGHT : cream warm (#e9e4d9) — DARK : graphite + ivoire (#e8d8be)
        ════════════════════════════════════════════════════════════ */
     const NEU_LIGHT = {
-      base:      { backgroundColor: '#e8e9ec' },
-      raised:    { backgroundColor: '#f1f2f5', boxShadow: '10px 10px 24px rgba(166,171,189,0.45), -10px -10px 24px rgba(255,255,255,0.95)' },
-      raisedSm:  { backgroundColor: '#f1f2f5', boxShadow: '5px 5px 12px rgba(166,171,189,0.35), -5px -5px 12px rgba(255,255,255,0.9)' },
-      raisedXs:  { backgroundColor: '#f1f2f5', boxShadow: '3px 3px 7px rgba(166,171,189,0.3), -3px -3px 7px rgba(255,255,255,0.85)' },
-      pressed:   { backgroundColor: '#e8e9ec', boxShadow: 'inset 5px 5px 10px rgba(166,171,189,0.35), inset -5px -5px 10px rgba(255,255,255,0.9)' },
-      pressedSm: { backgroundColor: '#e8e9ec', boxShadow: 'inset 3px 3px 6px rgba(166,171,189,0.3), inset -3px -3px 6px rgba(255,255,255,0.85)' },
-      dark:      { backgroundColor: '#1a1a1d', boxShadow: '8px 8px 18px rgba(166,171,189,0.4), -3px -3px 8px rgba(255,255,255,0.6), inset 1px 1px 2px rgba(255,255,255,0.1)' },
-      darkSm:    { backgroundColor: '#1a1a1d', boxShadow: '4px 4px 10px rgba(166,171,189,0.4), -2px -2px 6px rgba(255,255,255,0.5)' },
+      base:      { backgroundColor: '#e9e4d9' },
+      raised:    { backgroundColor: '#efeae0', boxShadow: '10px 10px 24px rgba(168,156,134,0.32), -10px -10px 24px rgba(255,253,247,0.92)' },
+      raisedSm:  { backgroundColor: '#efeae0', boxShadow: '5px 5px 12px rgba(168,156,134,0.26), -5px -5px 12px rgba(255,253,247,0.88)' },
+      raisedXs:  { backgroundColor: '#efeae0', boxShadow: '3px 3px 7px rgba(168,156,134,0.22), -3px -3px 7px rgba(255,253,247,0.82)' },
+      pressed:   { backgroundColor: '#e3ddd0', boxShadow: 'inset 5px 5px 10px rgba(168,156,134,0.32), inset -5px -5px 10px rgba(255,253,247,0.9)' },
+      pressedSm: { backgroundColor: '#e3ddd0', boxShadow: 'inset 3px 3px 6px rgba(168,156,134,0.26), inset -3px -3px 6px rgba(255,253,247,0.85)' },
+      dark:      { backgroundColor: '#2a2620', boxShadow: '8px 8px 18px rgba(168,156,134,0.36), -3px -3px 8px rgba(255,253,247,0.6), inset 1px 1px 2px rgba(255,255,255,0.08)' },
+      darkSm:    { backgroundColor: '#2a2620', boxShadow: '4px 4px 10px rgba(168,156,134,0.36), -2px -2px 6px rgba(255,253,247,0.5)' },
+      accent:    '#2a2620',
+      accentText:'#f5f1e6',
     };
 
     const NEU_DARK = {
-      base:      { backgroundColor: '#1c1d21' },
-      raised:    { backgroundColor: '#23242a', boxShadow: '10px 10px 24px rgba(0,0,0,0.55), -5px -5px 15px rgba(45,47,58,0.28)' },
-      raisedSm:  { backgroundColor: '#23242a', boxShadow: '5px 5px 12px rgba(0,0,0,0.48), -3px -3px 8px rgba(45,47,58,0.22)' },
-      raisedXs:  { backgroundColor: '#23242a', boxShadow: '3px 3px 7px rgba(0,0,0,0.42), -2px -2px 5px rgba(45,47,58,0.18)' },
-      pressed:   { backgroundColor: '#18191e', boxShadow: 'inset 5px 5px 10px rgba(0,0,0,0.55), inset -3px -3px 8px rgba(45,47,58,0.2)' },
-      pressedSm: { backgroundColor: '#18191e', boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.48), inset -2px -2px 5px rgba(45,47,58,0.15)' },
-      dark:      { backgroundColor: '#2d2e36', boxShadow: '8px 8px 18px rgba(0,0,0,0.65), -3px -3px 8px rgba(45,47,58,0.22), inset 1px 1px 2px rgba(255,255,255,0.04)' },
-      darkSm:    { backgroundColor: '#2d2e36', boxShadow: '4px 4px 10px rgba(0,0,0,0.55), -2px -2px 6px rgba(45,47,58,0.18)' },
+      base:      { backgroundColor: '#181b20' },
+      raised:    { backgroundColor: '#22262d', boxShadow: '10px 10px 24px rgba(0,0,0,0.55), -5px -5px 15px rgba(54,60,72,0.28)' },
+      raisedSm:  { backgroundColor: '#22262d', boxShadow: '5px 5px 12px rgba(0,0,0,0.48), -3px -3px 8px rgba(54,60,72,0.22)' },
+      raisedXs:  { backgroundColor: '#22262d', boxShadow: '3px 3px 7px rgba(0,0,0,0.42), -2px -2px 5px rgba(54,60,72,0.18)' },
+      pressed:   { backgroundColor: '#14171c', boxShadow: 'inset 5px 5px 10px rgba(0,0,0,0.55), inset -3px -3px 8px rgba(54,60,72,0.2)' },
+      pressedSm: { backgroundColor: '#14171c', boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.48), inset -2px -2px 5px rgba(54,60,72,0.15)' },
+      dark:      { backgroundColor: '#e8d8be', boxShadow: '8px 8px 18px rgba(0,0,0,0.62), -3px -3px 8px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.35), 0 0 24px rgba(232,216,190,0.25)' },
+      darkSm:    { backgroundColor: '#e8d8be', boxShadow: '4px 4px 10px rgba(0,0,0,0.55), -2px -2px 6px rgba(54,60,72,0.18), 0 0 0 1px rgba(232,216,190,0.3), 0 0 16px rgba(232,216,190,0.2)' },
+      accent:    '#e8d8be',
+      accentText:'#1a1410',
     };
 
     // Mutable pointer — reassigned by App on theme change
@@ -134,11 +154,11 @@
             width: 44, height: 26, borderRadius: 13, padding: 2,
             border: 'none', cursor: 'pointer',
             background: isDark
-              ? 'linear-gradient(145deg, #2c2c30, #1a1a1d)'
-              : 'linear-gradient(145deg, #d4d5da, #c0c1c6)',
+              ? 'linear-gradient(145deg, #22262d, #181b20)'
+              : 'linear-gradient(145deg, #d8d1c0, #c5bda9)',
             boxShadow: isDark
               ? 'inset 1px 1px 3px rgba(0,0,0,0.55), inset -1px -1px 2px rgba(255,255,255,0.05)'
-              : 'inset 1px 1px 3px rgba(150,152,160,0.5), inset -1px -1px 2px rgba(255,255,255,0.85)',
+              : 'inset 1px 1px 3px rgba(168,156,134,0.5), inset -1px -1px 2px rgba(255,253,247,0.85)',
             WebkitTapHighlightColor: 'transparent', outline: 'none',
             transition: 'background 0.4s ease, box-shadow 0.4s ease',
             boxSizing: 'border-box',
@@ -147,8 +167,8 @@
             style={{
               display: 'block', width: 22, height: 22, borderRadius: '50%',
               background: isDark
-                ? 'radial-gradient(circle at 30% 30%, #f5f5f8, #d4d5da)'
-                : 'radial-gradient(circle at 30% 30%, #ffffff, #f1f2f5)',
+                ? 'radial-gradient(circle at 30% 30%, #f5f1e6, #e8d8be)'
+                : 'radial-gradient(circle at 30% 30%, #ffffff, #efeae0)',
               boxShadow: '0 1.5px 4px rgba(0,0,0,0.35), 0 0.5px 1px rgba(0,0,0,0.2)',
               transform: isDark ? 'translateX(18px)' : 'translateX(0)',
               transition: 'transform 0.35s cubic-bezier(0.4, 0.0, 0.2, 1), background 0.4s ease',
@@ -1526,7 +1546,7 @@
         url:         existing?.url         || '',
         preview_url: existing?.preview_url || '',
         thumb_url:   existing?.thumb_url   || '',
-        thumb_grad:  existing?.thumb_grad  || 'linear-gradient(135deg,#1a1a1d 0%,#3a3a3d 100%)',
+        thumb_grad:  existing?.thumb_grad  || 'linear-gradient(135deg,#2a2620 0%,#4a4238 100%)',
         date_label:  existing?.date_label  || '',
         duration:    existing?.duration    || '',
         size_label:  existing?.size_label  || '',
@@ -1548,7 +1568,7 @@
       };
 
       const gradients = [
-        'linear-gradient(135deg,#1a1a1d 0%,#3a3a3d 100%)',
+        'linear-gradient(135deg,#2a2620 0%,#4a4238 100%)',
         'linear-gradient(135deg,#2d4a3e 0%,#5a7a6e 100%)',
         'linear-gradient(135deg,#3a2a1a 0%,#6a5a4a 100%)',
         'linear-gradient(135deg,#2a2a3d 0%,#5a5a7d 100%)',

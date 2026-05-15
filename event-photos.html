@@ -159,6 +159,48 @@
       --shadow-lg: 0 30px 80px rgba(0, 0, 0, 0.7);
     }
 
+    /* ================================================
+       THÈMES — appliqués via data-theme sur <body>
+       ================================================ */
+    [data-theme="creme"] {
+      --bg-dark: #f2ede6;
+      --bg-deeper: #ebe4db;
+      --bg-elev: #e6dfd6;
+      --text-light: #1a1714;
+      --text-muted: #6b6560;
+      --text-dim: #9a948e;
+      --accent: #8b6a48;
+      --accent-dark: #7a5a3a;
+      --accent-soft: rgba(139, 106, 72, 0.12);
+      --border-subtle: rgba(26, 23, 20, 0.08);
+      --border-medium: rgba(26, 23, 20, 0.14);
+      --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
+      --shadow-lg: 0 30px 80px rgba(0, 0, 0, 0.2);
+    }
+    [data-theme="creme"] .aspect {
+      background: linear-gradient(110deg, #ddd6cd 8%, #e6dfd6 18%, #ddd6cd 33%) !important;
+    }
+    [data-theme="creme"] .lightbox { background: rgba(242, 237, 230, 0) !important; }
+    [data-theme="creme"] .lightbox.active { background: rgba(242, 237, 230, 0.97) !important; }
+    [data-theme="creme"] .cinema-loader { background: var(--bg-deeper); }
+
+    [data-theme="ardoise"] {
+      --bg-dark: #13161c;
+      --bg-deeper: #0d1014;
+      --bg-elev: #1a1e26;
+      --text-light: #e8eaef;
+      --text-muted: #7a8090;
+      --text-dim: #50565e;
+      --accent: #7a9bb8;
+      --accent-dark: #6585a0;
+      --accent-soft: rgba(122, 155, 184, 0.15);
+      --border-subtle: rgba(232, 234, 239, 0.07);
+      --border-medium: rgba(232, 234, 239, 0.12);
+    }
+    [data-theme="ardoise"] .aspect {
+      background: linear-gradient(110deg, #181c24 8%, #1e2230 18%, #181c24 33%) !important;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
     body {
@@ -465,7 +507,7 @@
     .scroll-top svg { width: 18px; height: 18px; }
 
     /* ================================================
-       GRILLE MASONRY
+       GRILLE — SYSTÈME MULTI-LAYOUT
        ================================================ */
     .gallery-container {
       max-width: 1700px;
@@ -485,6 +527,7 @@
       font-style: italic;
     }
 
+    /* ── MASONRY (default) — flex justified rows, hauteurs fixes, largeurs au ratio réel ── */
     .masonry-grid {
       display: flex;
       flex-wrap: wrap;
@@ -493,6 +536,82 @@
       transition: opacity 0.4s var(--ease-cinema);
     }
     .masonry-grid.fade-out { opacity: 0; }
+
+    /* ── GRID — grille uniforme 3-4 colonnes, recadrage centré ── */
+    .masonry-grid[data-layout="grid"] {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--gap);
+    }
+    .masonry-grid[data-layout="grid"] .photo-item {
+      width: 100% !important;
+      height: 220px !important;
+      aspect-ratio: unset !important;
+    }
+    .masonry-grid[data-layout="grid"] .photo-item img {
+      object-fit: cover !important;
+    }
+    @media (max-width: 768px) {
+      .masonry-grid[data-layout="grid"] {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 480px) {
+      .masonry-grid[data-layout="grid"] {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px;
+      }
+      .masonry-grid[data-layout="grid"] .photo-item { height: 150px !important; }
+    }
+
+    /* ── COLUMNS — vraie masonry CSS, hauteur naturelle, effet Pinterest ── */
+    .masonry-grid[data-layout="columns"] {
+      display: block;
+      column-count: 3;
+      column-gap: var(--gap);
+    }
+    .masonry-grid[data-layout="columns"] .photo-item {
+      display: block;
+      break-inside: avoid;
+      width: 100% !important;
+      height: auto !important;
+      aspect-ratio: unset !important;
+      margin-bottom: var(--gap);
+    }
+    .masonry-grid[data-layout="columns"] .photo-item img {
+      position: static !important;
+      height: auto !important;
+      object-fit: cover !important;
+    }
+    .masonry-grid[data-layout="columns"] .photo-item .aspect { display: none; }
+    @media (max-width: 900px) {
+      .masonry-grid[data-layout="columns"] { column-count: 2; }
+    }
+    @media (max-width: 480px) {
+      .masonry-grid[data-layout="columns"] { column-count: 2; column-gap: 4px; }
+      .masonry-grid[data-layout="columns"] .photo-item { margin-bottom: 4px; }
+    }
+
+    /* ── EDITORIAL — une photo par rangée, pleine largeur, format cinéma ── */
+    .masonry-grid[data-layout="editorial"] {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .masonry-grid[data-layout="editorial"] .photo-item {
+      width: 100% !important;
+      height: clamp(340px, 55vw, 700px) !important;
+      aspect-ratio: unset !important;
+      border-radius: 0;
+    }
+    .masonry-grid[data-layout="editorial"] .photo-item img {
+      object-fit: cover !important;
+    }
+    @media (max-width: 640px) {
+      .masonry-grid[data-layout="editorial"] .photo-item {
+        height: clamp(220px, 65vw, 400px) !important;
+      }
+    }
 
     .photo-item {
       position: relative;
@@ -960,6 +1079,15 @@
       document.querySelector('meta[name="description"]')
         .setAttribute('content', 'Galerie photos du mariage de ' + c.couple + ' — ' + c.date + ', ' + c.lieu + '.');
 
+      // Thème visuel
+      if (c.theme && c.theme !== 'noir') {
+        document.body.setAttribute('data-theme', c.theme);
+      }
+      // Layout de galerie
+      if (c.layout && c.layout !== 'masonry') {
+        document.getElementById('galleryGrid').setAttribute('data-layout', c.layout);
+      }
+
       document.getElementById('coupleTitle').textContent = c.couple;
       document.getElementById('dateLieu').textContent = c.date + ' • ' + c.lieu;
       document.getElementById('dateLieu').setAttribute('datetime', c.dateISO);
@@ -1130,11 +1258,14 @@
           item.dataset.thumbUrl = thumbUrl;
           item.dataset.alt = `${cat.name} - ${WEDDING_CONFIG.couple}`;
           item.dataset.folder = cat.folder;
-          // Largeur par défaut (ratio 3:2) avant connaissance du ratio réel.
-          // Remplacée dynamiquement par loadImage() quand l'image HD est chargée.
-          const defaultRowHeight = window.innerWidth <= 640 ? 180 : (window.innerWidth <= 1100 ? 240 : 300);
-          item.style.width = (defaultRowHeight * 1.5) + 'px';
-          item.style.aspectRatio = '3 / 2';
+
+          const layout = galleryGrid.getAttribute('data-layout') || 'masonry';
+          // En mode masonry : largeur calculée selon ratio. Autres modes : CSS s'en charge.
+          if (layout === 'masonry') {
+            const defaultRowHeight = window.innerWidth <= 640 ? 180 : (window.innerWidth <= 1100 ? 240 : 300);
+            item.style.width = (defaultRowHeight * 1.5) + 'px';
+            item.style.aspectRatio = '3 / 2';
+          }
 
           const aspect = document.createElement('span');
           aspect.className = 'aspect';
@@ -1189,15 +1320,16 @@
           img.src = gridUrl;
           img.classList.add('img-loaded');
           if (hd.naturalWidth && hd.naturalHeight) {
-            // Largeur calculée à partir du ratio réel de l'image et
-            // de la hauteur de rangée actuelle (différente selon breakpoint).
-            // Ainsi chaque photo est affichée à ses proportions exactes,
-            // sans jamais être rognée ni déformée.
-            const rowHeight = parseInt(getComputedStyle(item).height) || 300;
-            const ratio = hd.naturalWidth / hd.naturalHeight;
-            const computedWidth = rowHeight * ratio;
-            item.style.width = computedWidth + 'px';
-            item.style.aspectRatio = `${hd.naturalWidth} / ${hd.naturalHeight}`;
+            const layout = galleryGrid.getAttribute('data-layout') || 'masonry';
+            if (layout === 'masonry') {
+              // Largeur calculée à partir du ratio réel de l'image et
+              // de la hauteur de rangée actuelle (différente selon breakpoint).
+              const rowHeight = parseInt(getComputedStyle(item).height) || 300;
+              const ratio = hd.naturalWidth / hd.naturalHeight;
+              const computedWidth = rowHeight * ratio;
+              item.style.width = computedWidth + 'px';
+              item.style.aspectRatio = `${hd.naturalWidth} / ${hd.naturalHeight}`;
+            }
             item.classList.add('img-ready');
           }
         };

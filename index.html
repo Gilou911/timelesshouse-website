@@ -544,39 +544,43 @@
        écrasé en pilule verticale sur iPhone.
        ════════════════════════════════════════════════ */
     @media (max-width: 768px) {
-      /* Le logo est centré en absolu : il reste TOUJOURS
-         au milieu de l'écran, peu importe la largeur
-         des contrôles à droite. */
+      /* Disposition mobile claire : LOGO À GAUCHE,
+         contrôles à droite. Aucun chevauchement possible,
+         contrairement au logo centré en absolu. */
       .top-bar {
         position: relative;
         display: flex;
         align-items: center;
+        justify-content: space-between;
         min-height: 44px;
-        gap: 0;
+        gap: 8px;
       }
       .top-left { display: none; }
       .logo {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
+        position: static;
+        transform: none;
         margin: 0;
-        font-size: 15px;
-        letter-spacing: 0.08em;
+        flex: 0 1 auto;
+        font-size: 14px;
+        letter-spacing: 0.05em;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .top-right {
+        flex: 0 0 auto;
         margin-left: auto;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
       }
-      /* Les 3 contrôles partagent la MÊME hauteur (44px) et
-         centrent leur contenu → ils sont parfaitement alignés
-         sur une seule ligne. Ils ne se compriment jamais. */
+      /* Les 4 contrôles partagent la MÊME hauteur (44px) et
+         centrent leur contenu → parfaitement alignés sur
+         une seule ligne. Ils ne se compriment jamais. */
       .client-link,
       .social-link,
-      .lang-switch {
+      .lang-switch,
+      .admin-link {
         flex: 0 0 auto;
         height: 44px;
         min-height: 44px;
@@ -598,20 +602,27 @@
 
       /* Instagram : zone tactile carrée centrée */
       .social-link {
-        width: 44px;
+        width: 38px;
         padding: 0;
       }
-      .social-link svg { width: 21px; height: 21px; }
+      .social-link svg { width: 20px; height: 20px; }
 
       /* EN/FR : même hauteur, padding horizontal seulement */
       .lang-switch {
-        padding: 0 4px;
-        font-size: 11px;
-        letter-spacing: 0.10em;
+        padding: 0 2px;
+        font-size: 10px;
+        letter-spacing: 0.08em;
         white-space: nowrap;
       }
 
-      .admin-link { display: none; }
+      /* Cadenas admin : RESTAURÉ, discret mais aligné */
+      .admin-link {
+        display: inline-flex !important;
+        width: 30px;
+        padding: 0;
+        opacity: 0.28;
+      }
+      .admin-link svg { width: 15px; height: 15px; }
 
       /* ── Bouton mail flottant : enveloppe CENTRÉE dans le cercle ──
          Avant : padding asymétrique + espace réservé au texte masqué
@@ -643,14 +654,25 @@
     }
 
     @media (max-width: 400px) {
-      /* Écrans étroits : on resserre pour éviter
-         tout chevauchement logo / contrôles */
-      .logo { font-size: 13px; letter-spacing: 0.05em; }
-      .top-right { gap: 6px; }
+      /* Écrans étroits : on resserre encore pour garantir
+         que logo + 4 contrôles tiennent sans chevauchement */
+      .logo { font-size: 12.5px; letter-spacing: 0.03em; }
+      .top-right { gap: 4px; }
       .client-link { width: 42px; height: 42px; min-height: 42px; }
       .client-link svg { width: 15px; height: 15px; }
-      .social-link { width: 40px; height: 42px; min-height: 42px; }
-      .lang-switch { height: 42px; min-height: 42px; font-size: 10px; }
+      .social-link { width: 34px; height: 42px; min-height: 42px; }
+      .social-link svg { width: 19px; height: 19px; }
+      .lang-switch { height: 42px; min-height: 42px; font-size: 9.5px; padding: 0; }
+      .admin-link { width: 26px; height: 42px; min-height: 42px; }
+      .admin-link svg { width: 14px; height: 14px; }
+    }
+
+    @media (max-width: 340px) {
+      /* Très petits écrans : le cadenas admin (easter-egg)
+         passe en dernier recours sous le menu, on le masque
+         pour préserver la lisibilité du logo */
+      .admin-link { display: none !important; }
+      .logo { font-size: 12px; }
     }
 
   </style>

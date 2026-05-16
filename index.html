@@ -569,44 +569,88 @@
         margin-left: auto;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
       }
-      /* Les contrôles ne se compriment jamais */
+      /* Les 3 contrôles partagent la MÊME hauteur (44px) et
+         centrent leur contenu → ils sont parfaitement alignés
+         sur une seule ligne. Ils ne se compriment jamais. */
       .client-link,
       .social-link,
-      .lang-switch { flex: 0 0 auto; }
+      .lang-switch {
+        flex: 0 0 auto;
+        height: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+      }
 
       /* Bouton « Espace clients » : vrai cercle régulier */
       .client-link {
         width: 44px;
-        height: 44px;
-        min-height: 44px;
         padding: 0;
         gap: 0;
         border-radius: 50%;
         aspect-ratio: 1 / 1;
-        justify-content: center;
-        align-items: center;
       }
       .client-link svg { width: 16px; height: 16px; }
 
+      /* Instagram : zone tactile carrée centrée */
+      .social-link {
+        width: 44px;
+        padding: 0;
+      }
+      .social-link svg { width: 21px; height: 21px; }
+
+      /* EN/FR : même hauteur, padding horizontal seulement */
       .lang-switch {
+        padding: 0 4px;
         font-size: 11px;
         letter-spacing: 0.10em;
         white-space: nowrap;
       }
-      .social-link svg { width: 20px; height: 20px; }
+
       .admin-link { display: none; }
+
+      /* ── Bouton mail flottant : enveloppe CENTRÉE dans le cercle ──
+         Avant : padding asymétrique + espace réservé au texte masqué
+         → l'icône était décalée vers la gauche. */
+      .floating-contact {
+        width: 52px;
+        height: 52px;
+        min-height: 52px;
+        padding: 0 !important;
+        gap: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        aspect-ratio: 1 / 1;
+      }
+      .floating-contact .contact-text { display: none; }
+      .floating-contact svg {
+        width: 18px;
+        height: 18px;
+        display: block;
+      }
+      /* Au survol/tap : on garde le cercle parfait (pas d'élargissement) */
+      .floating-contact:hover {
+        padding: 0 !important;
+        letter-spacing: normal;
+      }
+      .floating-contact:hover svg { transform: none; }
     }
 
     @media (max-width: 400px) {
       /* Écrans étroits : on resserre pour éviter
          tout chevauchement logo / contrôles */
       .logo { font-size: 13px; letter-spacing: 0.05em; }
-      .top-right { gap: 8px; }
+      .top-right { gap: 6px; }
       .client-link { width: 42px; height: 42px; min-height: 42px; }
       .client-link svg { width: 15px; height: 15px; }
-      .lang-switch { font-size: 10px; }
+      .social-link { width: 40px; height: 42px; min-height: 42px; }
+      .lang-switch { height: 42px; min-height: 42px; font-size: 10px; }
     }
 
   </style>

@@ -591,6 +591,39 @@
       *:hover { transition: none !important; }
     }
 
+    /* ════════════════════════════════════════════════
+       ✅ CORRECTIF RESPONSIVE MOBILE — Communication (mai 2026)
+       ════════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      body { overflow-x: hidden; }
+      .page {
+        min-height: 100dvh;
+        padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+      }
+
+      /* Moins de vide : le héros respire sans paraître perdu */
+      .main-content { padding: 20px 14px; }
+      .brand-kicker { margin-bottom: 16px; }
+      .hero-title  { margin-bottom: 18px; }
+      .hero-text   { margin-bottom: 24px; }
+      .services    { margin-bottom: 30px; }
+
+      /* Header : le toggle nuit/jour aligné, pas un disque isolé */
+      .top-right { gap: 8px; align-items: center; }
+      .top-right .dark-toggle { align-self: center; }
+
+      /* Footer jamais rogné par la barre du navigateur */
+      footer {
+        padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+        line-height: 1.5;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .hero-text { font-size: 0.85rem; }
+      footer { font-size: 10px; }
+    }
+
   </style>
 </head>
 <body>

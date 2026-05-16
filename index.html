@@ -448,6 +448,95 @@
       *:hover { transition: none !important; }
     }
 
+    /* ════════════════════════════════════════════════
+       ✅ CORRECTIF RESPONSIVE MOBILE — Accueil (mai 2026)
+       Charge en dernier : prioritaire sur les règles précédentes
+       ════════════════════════════════════════════════ */
+
+    /* Renfort lisibilité des cartes (fond photo chargé) — tous écrans */
+    .theme-btn { box-shadow: 0 8px 28px rgba(0, 0, 0, 0.30); }
+
+    @media (max-width: 768px) {
+      /* La page défile proprement et respecte la barre iOS
+         (avant : body overflow:hidden → bas de page rogné) */
+      body { overflow-x: hidden; overflow-y: auto; }
+      .page {
+        min-height: 100dvh;
+        padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+      }
+
+      /* Header : on garde le logo centré mais compact */
+      .top-bar { grid-template-columns: 1fr auto 1fr; gap: 8px; }
+      .logo { font-size: 15px; letter-spacing: 0.06em; }
+      .top-right { gap: 10px; }
+
+      /* Bouton « Espace Clients » : vraie pastille ronde et lisible
+         (avant : capsule verticale vide à côté du logo) */
+      .client-link {
+        width: 44px; height: 44px; min-height: 44px;
+        padding: 0; gap: 0;
+        justify-content: center;
+        border-color: rgba(245, 236, 223, 0.45);
+        background: rgba(26, 20, 16, 0.45);
+        backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      }
+      .client-link span { display: none; }
+      .client-link::after { display: none !important; }
+      .client-link svg { width: 17px; height: 17px; opacity: 1; }
+
+      .social-link { padding: 4px; }
+      .social-link svg { width: 22px; height: 22px; }
+      /* Lien admin (easter-egg) : hors-sujet sur mobile, on le retire */
+      .admin-link { display: none; }
+
+      /* Kicker enfin lisible par-dessus la photo */
+      .brand-kicker {
+        margin-bottom: 22px;
+        text-shadow: 0 2px 14px rgba(0, 0, 0, 0.65);
+      }
+      .main-content { padding: 24px 8px 24px; }
+
+      /* Cartes d'univers : fond assombri + ombre + texte détouré
+         → lisibles même sur l'image de fond claire */
+      .themes { gap: 18px; }
+      .theme-btn {
+        width: 100%;
+        max-width: 360px;
+        padding: 22px 24px;
+        background: rgba(20, 16, 12, 0.46);
+        border-color: rgba(245, 236, 223, 0.32);
+        backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.40);
+      }
+      .theme-label {
+        font-size: clamp(2rem, 9vw, 2.6rem);
+        text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
+      }
+      .theme-subtitle {
+        opacity: 0.85;
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+      }
+
+      /* Mention bas : plus rognée par la barre du navigateur */
+      .bottom-hint {
+        opacity: 0.55;
+        padding: 20px 0 calc(6px + env(safe-area-inset-bottom));
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+      }
+
+      /* Contact flottant : au-dessus de la barre gestuelle iOS */
+      .floating-contact {
+        bottom: calc(18px + env(safe-area-inset-bottom));
+        right: 16px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .logo { font-size: 13px; letter-spacing: 0.04em; }
+      .theme-label { font-size: clamp(1.8rem, 8.5vw, 2.2rem); }
+      .theme-btn { padding: 20px 20px; }
+    }
+
   </style>
 </head>
 <body>

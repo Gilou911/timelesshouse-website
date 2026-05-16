@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="description" content="Votre film de mariage – TimelessHouse Private Collection" />
   <meta name="theme-color" content="#0a0a0a" />
 
@@ -545,6 +545,86 @@
     a:focus-visible, button:focus-visible {
       outline: 2px solid var(--accent); outline-offset: 4px;
     }
+  
+    /* ════════════════════════════════════════════════
+       DURCISSEMENT RESPONSIVE UNIVERSEL — TimelessHouse
+       Filet de sécurité mobile/tablette, additif et non destructif
+       ════════════════════════════════════════════════ */
+
+    /* 1 — Anti-débordement horizontal global */
+    html, body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
+    img, video, svg, iframe { max-width: 100%; height: auto; }
+    video, iframe { display: block; }
+
+    /* 2 — 100vh → utilise la hauteur dynamique réelle (barre URL mobile) */
+    @supports (height: 100dvh) {
+      .full-h, .hero, .min-h-screen { min-height: 100dvh; }
+    }
+
+    /* 3 — Confort tactile : cibles ≥ 44px sur écrans tactiles */
+    @media (hover: none) and (pointer: coarse) {
+      a, button, [role="button"], input[type="submit"], input[type="button"], .btn, .btn-primary, .btn-action, .filter-btn {
+        min-height: 44px;
+      }
+      a:not(.logo):not(.inline-link), button, [role="button"] {
+        touch-action: manipulation;
+      }
+    }
+
+    /* 4 — Empêche le zoom auto iOS sur focus champ (police ≥ 16px) */
+    @media (max-width: 768px) {
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+    }
+
+    /* 5 — Safe-area : encoches & barre gestuelle iPhone */
+    @supports (padding: max(0px)) {
+      body {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+    }
+
+    /* 6 — Tablette : conteneurs fluides */
+    @media (max-width: 1024px) {
+      .container, .wrapper, [class*="max-w-"] {
+        padding-left: clamp(16px, 4vw, 40px);
+        padding-right: clamp(16px, 4vw, 40px);
+      }
+    }
+
+    /* 7 — Téléphone : typographie & espacement resserrés */
+    @media (max-width: 640px) {
+      h1 { font-size: clamp(1.6rem, 7vw, 2.4rem); line-height: 1.1; }
+      h2 { font-size: clamp(1.3rem, 5.5vw, 2rem); }
+      h3 { font-size: clamp(1.1rem, 4.5vw, 1.5rem); }
+      .grid, [class*="grid-cols"] { gap: 12px; }
+    }
+
+    /* 8 — Très petits écrans : grilles multi-colonnes → 1 colonne */
+    @media (max-width: 420px) {
+      [style*="grid-template-columns"]:not([data-keep-grid]) {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+    /* 9 — Scroll fluide tactile pour barres horizontales */
+    .filter-bar, .scroll-x, [class*="overflow-x"] {
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .filter-bar::-webkit-scrollbar, .scroll-x::-webkit-scrollbar { display: none; }
+
+    /* 10 — Désactive le hover « collant » sur tactile */
+    @media (hover: none) {
+      *:hover { transition: none !important; }
+    }
+
   </style>
 </head>
 

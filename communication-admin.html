@@ -942,8 +942,22 @@
                     <div className="text-[11.5px] text-stone-500 mt-0.5">
                       {photosPage.config?.date}{photosPage.config?.lieu ? ' · ' + photosPage.config.lieu : ''}
                     </div>
-                    <div className="text-[11px] text-stone-500 mt-2">
-                      {(photosPage.config?.categories || []).length} catégorie(s) · Cloudinary "{photosPage.config?.cloudName || '—'}"
+                    <div className="text-[11px] text-stone-500 mt-2 flex flex-wrap items-center gap-x-1 gap-y-1.5">
+                      <span>
+                        {photosPage.config?.galleryMode === 'flat'
+                          ? 'Galerie unique · '
+                          : `${(photosPage.config?.categories || []).length} catégorie(s) · `}
+                        Cloudinary "{photosPage.config?.cloudName || '—'}"
+                      </span>
+                      {photosPage.config?.layout && photosPage.config.layout !== 'masonry' && (
+                        <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">{photosPage.config.layout}</span>
+                      )}
+                      {photosPage.config?.theme && photosPage.config.theme !== 'noir' && (
+                        <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">{photosPage.config.theme}</span>
+                      )}
+                      {photosPage.config?.galleryMode && photosPage.config.galleryMode !== 'categorized' && (
+                        <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[9px] uppercase tracking-wide">{photosPage.config.galleryMode}</span>
+                      )}
                     </div>
                     <div className="flex gap-2 mt-4">
                       <Btn icon={Edit3} onClick={() => setEditing({ page_type: 'photos', config: photosPage.config, id: photosPage.id })}>Modifier</Btn>
@@ -1025,6 +1039,9 @@
         rootFolder: 'Photos_' + (client.code || ''),
         categories: [],
         zipDriveId: '',
+        layout: 'masonry',
+        theme: 'noir',
+        galleryMode: 'categorized',  // 'categorized' | 'flat'
       };
     }
 
@@ -1170,9 +1187,25 @@
                   </Field>
                 </div>
 
+                <div className="mt-6 rounded-xl p-4" style={neu.pressedSm}>
+                  <div className="flex items-start gap-2.5">
+                    <div className="mt-0.5 text-emerald-600 flex-shrink-0">
+                      <CheckCircle2 size={16} />
+                    </div>
+                    <div>
+                      <div className="text-[12.5px] font-semibold text-stone-700">Détection automatique activée</div>
+                      <div className="text-[11.5px] text-stone-500 mt-1 leading-relaxed">
+                        Les photos sont listées automatiquement depuis Cloudinary.
+                        Plus besoin de numéroter vos fichiers ni de compter.
+                        Uploadez vos photos dans <code className="text-[10.5px] bg-stone-200/60 px-1 py-0.5 rounded">{c.rootFolder || 'dossier_racine'}/[catégorie]/</code> sous n'importe quel nom (IMG_2841.jpg, etc.) — chaque sous-dossier devient une catégorie.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between mt-6 mb-1">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Catégories</div>
-                  <button type="button" onClick={() => updateConfig('categories', [...(c.categories || []), { name: '', folder: '', count: 0 }])}
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Catégories — ordre & noms (optionnel)</div>
+                  <button type="button" onClick={() => updateConfig('categories', [...(c.categories || []), { name: '', folder: '' }])}
                     style={neu.raisedXs} className="px-3 py-1.5 rounded-full text-[11.5px] flex items-center gap-1.5">
                     <Plus size={11} /> Ajouter
                   </button>
@@ -1180,26 +1213,20 @@
                 <div className="space-y-2">
                   {(c.categories || []).map((cat, i) => (
                     <div key={i} style={neu.pressedSm} className="rounded-xl p-3 grid grid-cols-12 gap-2 items-center">
-                      <div className="col-span-4">
+                      <div className="col-span-1 flex justify-center text-stone-400 text-[12px] font-semibold">{i + 1}</div>
+                      <div className="col-span-5">
                         <Input value={cat.name} onChange={e => {
                           const arr = [...c.categories];
                           arr[i] = { ...arr[i], name: e.target.value };
                           updateConfig('categories', arr);
-                        }} placeholder="Préparatifs" />
+                        }} placeholder="Nom affiché — Préparatifs" />
                       </div>
-                      <div className="col-span-4">
+                      <div className="col-span-5">
                         <Input value={cat.folder} onChange={e => {
                           const arr = [...c.categories];
                           arr[i] = { ...arr[i], folder: e.target.value };
                           updateConfig('categories', arr);
-                        }} placeholder="preparatifs" />
-                      </div>
-                      <div className="col-span-3">
-                        <Input type="number" value={cat.count} onChange={e => {
-                          const arr = [...c.categories];
-                          arr[i] = { ...arr[i], count: parseInt(e.target.value) || 0 };
-                          updateConfig('categories', arr);
-                        }} placeholder="56" />
+                        }} placeholder="Sous-dossier — preparatifs" />
                       </div>
                       <div className="col-span-1 flex justify-end">
                         <button type="button" onClick={() => updateConfig('categories', c.categories.filter((_, j) => j !== i))} className="text-rose-500 p-1">
@@ -1208,15 +1235,156 @@
                       </div>
                     </div>
                   ))}
-                  {(!c.categories || c.categories.length === 0) && <div className="text-center text-[12px] text-stone-400 py-3">Ajoutez vos catégories (Préparatifs, Cérémonie, etc.)</div>}
+                  {(!c.categories || c.categories.length === 0) && (
+                    <div className="text-center text-[12px] text-stone-400 py-3 leading-relaxed">
+                      Laissez vide → toutes les catégories sont détectées et triées automatiquement.<br/>
+                      Ajoutez-les ici uniquement pour <strong>imposer un ordre</strong> ou <strong>renommer</strong> l'affichage.
+                    </div>
+                  )}
                 </div>
-                <div className="text-[10.5px] text-stone-500 mt-1">
-                  Format Cloudinary attendu : <code>{c.rootFolder || 'rootFolder'}/[catégorie]/01.jpg</code>, 02.jpg, etc.
+                <div className="text-[10.5px] text-stone-500 mt-2">
+                  Structure Cloudinary : <code>{c.rootFolder || 'rootFolder'}/preparatifs/*</code>, <code>{c.rootFolder || 'rootFolder'}/ceremonie/*</code> … (noms de fichiers libres)
                 </div>
 
                 <Field label="ID Google Drive ZIP (optionnel)">
                   <Input value={c.zipDriveId || ''} onChange={e => updateConfig('zipDriveId', e.target.value)} placeholder="abcXYZ123" />
                 </Field>
+
+                {/* ── Sélecteur de Layout ── */}
+                <div className="mt-6">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Disposition de la galerie</div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                    {[
+                      { id: 'masonry', label: 'Masonry', desc: 'Rangées justifiées', icon: (
+                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                          <rect x="1" y="1" width="17" height="8" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="20" y="1" width="11" height="8" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="33" y="1" width="6" height="8" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="1" y="11" width="10" height="8" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="13" y="11" width="16" height="8" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="31" y="11" width="8" height="8" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="1" y="21" width="14" height="6" rx="1" fill="currentColor" opacity="0.4"/>
+                          <rect x="17" y="21" width="9" height="6" rx="1" fill="currentColor" opacity="0.4"/>
+                          <rect x="28" y="21" width="11" height="6" rx="1" fill="currentColor" opacity="0.4"/>
+                        </svg>
+                      )},
+                      { id: 'grid', label: 'Grille', desc: 'Carrés uniformes', icon: (
+                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                          <rect x="1" y="1" width="11" height="8" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="14" y="1" width="12" height="8" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="28" y="1" width="11" height="8" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="1" y="11" width="11" height="8" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="14" y="11" width="12" height="8" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="28" y="11" width="11" height="8" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="1" y="21" width="11" height="6" rx="1" fill="currentColor" opacity="0.4"/>
+                          <rect x="14" y="21" width="12" height="6" rx="1" fill="currentColor" opacity="0.4"/>
+                          <rect x="28" y="21" width="11" height="6" rx="1" fill="currentColor" opacity="0.4"/>
+                        </svg>
+                      )},
+                      { id: 'columns', label: 'Colonnes', desc: 'Masonry vertical', icon: (
+                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                          <rect x="1" y="1" width="11" height="12" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="14" y="1" width="12" height="7" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="28" y="1" width="11" height="10" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="1" y="15" width="11" height="7" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="14" y="10" width="12" height="11" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="28" y="13" width="11" height="9" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="1" y="24" width="11" height="3" rx="1" fill="currentColor" opacity="0.3"/>
+                          <rect x="14" y="23" width="12" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                          <rect x="28" y="24" width="11" height="3" rx="1" fill="currentColor" opacity="0.3"/>
+                        </svg>
+                      )},
+                      { id: 'editorial', label: 'Éditorial', desc: 'Pleine largeur', icon: (
+                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                          <rect x="1" y="1" width="38" height="7" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="1" y="10" width="38" height="7" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="1" y="19" width="38" height="8" rx="1" fill="currentColor" opacity="0.4"/>
+                        </svg>
+                      )},
+                    ].map(opt => {
+                      const isActive = (c.layout || 'masonry') === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => updateConfig('layout', opt.id)}
+                          style={isActive ? neu.pressedSm : neu.raisedXs}
+                          className={`rounded-xl p-3 flex flex-col items-center gap-2 transition-all active:scale-[0.97] ${isActive ? 'text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                        >
+                          <div className={`w-full ${isActive ? 'text-stone-700' : 'text-stone-400'}`}>{opt.icon}</div>
+                          <div className="text-[11px] font-semibold">{opt.label}</div>
+                          <div className="text-[9.5px] text-stone-400 text-center leading-tight">{opt.desc}</div>
+                          {isActive && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5"/>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ── Sélecteur de Mode Galerie ── */}
+                <div className="mt-5">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Mode galerie</div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {[
+                      { id: 'categorized', label: 'Catégories', desc: 'Filtres par thème' },
+                      { id: 'flat', label: 'Galerie unique', desc: 'Tout mélangé' },
+                    ].map(m => {
+                      const isActive = (c.galleryMode || 'categorized') === m.id;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => updateConfig('galleryMode', m.id)}
+                          style={isActive ? neu.pressedSm : neu.raisedXs}
+                          className={`rounded-xl p-3 flex flex-col items-center gap-2 transition-all active:scale-[0.97] ${isActive ? 'text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                        >
+                          <div className="text-[14px]">{m.id === 'categorized' ? '📁' : '📷'}</div>
+                          <div className="text-[11px] font-semibold">{m.label}</div>
+                          <div className="text-[9.5px] text-stone-400 text-center leading-tight">{m.desc}</div>
+                          {isActive && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5"/>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ── Sélecteur de Thème ── */}
+                <div className="mt-5">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Thème visuel</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {[
+                      { id: 'noir', label: 'Noir', sub: 'Fond sombre', bg: '#0a0a0a', accent: '#b08968' },
+                      { id: 'creme', label: 'Crème', sub: 'Fond clair', bg: '#f2ede6', accent: '#8b6a48' },
+                      { id: 'ardoise', label: 'Ardoise', sub: 'Bleu nuit', bg: '#13161c', accent: '#7a9bb8' },
+                    ].map(t => {
+                      const isActive = (c.theme || 'noir') === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => updateConfig('theme', t.id)}
+                          style={isActive ? neu.pressedSm : neu.raisedXs}
+                          className={`rounded-xl p-3 flex items-center gap-3 transition-all active:scale-[0.98] ${isActive ? '' : 'opacity-70 hover:opacity-90'}`}
+                        >
+                          <div className="relative flex-shrink-0">
+                            <div style={{ background: t.bg, width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <div style={{ width: 14, height: 2, background: t.accent, borderRadius: 2 }}/>
+                            </div>
+                            {isActive && (
+                              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+                                <Check size={7} color="white"/>
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <div className="text-[11.5px] font-semibold">{t.label}</div>
+                            <div className="text-[9.5px] text-stone-400">{t.sub}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </>
             )}
 

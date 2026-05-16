@@ -121,6 +121,9 @@
       rootFolder: '',
       categories: [],
       zipDriveId: '',
+      layout: 'masonry',
+      theme: 'noir',
+      galleryMode: 'categorized',
     }, photosPage.config || {});
 
     cfg.videoUrl = videoPage
@@ -977,6 +980,86 @@
       }
       .photo-item { opacity: 1; transform: none; }
     }
+  
+    /* ════════════════════════════════════════════════
+       DURCISSEMENT RESPONSIVE UNIVERSEL — TimelessHouse
+       Filet de sécurité mobile/tablette, additif et non destructif
+       ════════════════════════════════════════════════ */
+
+    /* 1 — Anti-débordement horizontal global */
+    html, body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
+    img, video, svg, iframe { max-width: 100%; height: auto; }
+    video, iframe { display: block; }
+
+    /* 2 — 100vh → utilise la hauteur dynamique réelle (barre URL mobile) */
+    @supports (height: 100dvh) {
+      .full-h, .hero, .min-h-screen { min-height: 100dvh; }
+    }
+
+    /* 3 — Confort tactile : cibles ≥ 44px sur écrans tactiles */
+    @media (hover: none) and (pointer: coarse) {
+      a, button, [role="button"], input[type="submit"], input[type="button"], .btn, .btn-primary, .btn-action, .filter-btn {
+        min-height: 44px;
+      }
+      a:not(.logo):not(.inline-link), button, [role="button"] {
+        touch-action: manipulation;
+      }
+    }
+
+    /* 4 — Empêche le zoom auto iOS sur focus champ (police ≥ 16px) */
+    @media (max-width: 768px) {
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+    }
+
+    /* 5 — Safe-area : encoches & barre gestuelle iPhone */
+    @supports (padding: max(0px)) {
+      body {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+    }
+
+    /* 6 — Tablette : conteneurs fluides */
+    @media (max-width: 1024px) {
+      .container, .wrapper, [class*="max-w-"] {
+        padding-left: clamp(16px, 4vw, 40px);
+        padding-right: clamp(16px, 4vw, 40px);
+      }
+    }
+
+    /* 7 — Téléphone : typographie & espacement resserrés */
+    @media (max-width: 640px) {
+      h1 { font-size: clamp(1.6rem, 7vw, 2.4rem); line-height: 1.1; }
+      h2 { font-size: clamp(1.3rem, 5.5vw, 2rem); }
+      h3 { font-size: clamp(1.1rem, 4.5vw, 1.5rem); }
+      .grid, [class*="grid-cols"] { gap: 12px; }
+    }
+
+    /* 8 — Très petits écrans : grilles multi-colonnes → 1 colonne */
+    @media (max-width: 420px) {
+      [style*="grid-template-columns"]:not([data-keep-grid]) {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+    /* 9 — Scroll fluide tactile pour barres horizontales */
+    .filter-bar, .scroll-x, [class*="overflow-x"] {
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .filter-bar::-webkit-scrollbar, .scroll-x::-webkit-scrollbar { display: none; }
+
+    /* 10 — Désactive le hover « collant » sur tactile */
+    @media (hover: none) {
+      *:hover { transition: none !important; }
+    }
+
   </style>
 </head>
 <body>
@@ -1138,8 +1221,13 @@
     let currentLightboxIndex = 0;
     let hasSeenSwipeHint = false;
 
-    // Format de vos fichiers : toujours un "0" devant le numéro.
-    // 1 → "01", 9 → "09", 10 → "010", 12 → "012", 100 → "0100"
+    // GALLERY_DATA : structure unifiée alimentée soit par l'Edge Function
+    // (mode dynamique, recommandé — zéro numérotation), soit par l'ancien
+    // système numéroté (fallback de compatibilité).
+    //   [{ folder, name, count, images: [{ publicId|baseFilename }] }]
+    let GALLERY_DATA = [];
+
+    // Legacy : ancien format de nom de fichier ("01.jpg", "012.jpg"…)
     const formatNumber = (n) => "0" + n;
     const showLoader = () => loader.classList.remove('hidden');
     const hideLoader = () => loader.classList.add('hidden');
@@ -1167,14 +1255,106 @@
       });
     }, { rootMargin: '400px 0px', threshold: 0.01 });
 
-    // --- Init ---
-    function initGallery() {
-      const totalCount = CATEGORIES_CONFIG.reduce((sum, cat) => sum + cat.count, 0);
-      createFilterButton("Tout voir", "all", true, totalCount);
-      CATEGORIES_CONFIG.forEach(cat => {
-        if (cat.count > 0) createFilterButton(cat.name, cat.folder, false, cat.count);
-      });
+    // --- Init : récupère la liste réelle des photos (Edge Function) ---
+    async function initGallery() {
+      showLoader();
+      try {
+        await loadGalleryFromCloudinary();   // mode dynamique
+      } catch (e) {
+        console.warn('[galerie] Edge Function indisponible, fallback legacy :', e);
+        loadGalleryLegacy();                  // ancien mode numéroté
+      }
+
+      if (!GALLERY_DATA.length || GALLERY_DATA.every(c => c.count === 0)) {
+        galleryGrid.innerHTML = '<div class="empty-state">Galerie en cours de préparation</div>';
+        hideLoader();
+        return;
+      }
+
+      const totalCount = GALLERY_DATA.reduce((s, c) => s + c.count, 0);
+      
+      // Décide d'afficher les filtres selon : 
+      // - Mode galerie (categorized vs flat)
+      // - Nombre de catégories (plusieurs catégories = besoin de filtres)
+      const galleryMode = WEDDING_CONFIG.galleryMode || 'categorized';
+      const hasMultipleCats = GALLERY_DATA.length > 1
+        || (GALLERY_DATA[0] && GALLERY_DATA[0].folder !== '_racine_');
+      const showFilters = galleryMode === 'categorized' && hasMultipleCats;
+
+      if (showFilters) {
+        createFilterButton("Tout voir", "all", true, totalCount);
+        GALLERY_DATA.forEach(cat => {
+          if (cat.count > 0) createFilterButton(cat.name, cat.folder, false, cat.count);
+        });
+      } else {
+        filterContainer.style.display = 'none';
+      }
       generateImages('all');
+    }
+
+    // ── Mode DYNAMIQUE : appelle l'Edge Function Supabase ──────────────
+    // Plus aucune numérotation ni comptage. La fonction renvoie la liste
+    // exacte des photos depuis Cloudinary (clé secrète gardée côté serveur).
+    async function loadGalleryFromCloudinary() {
+      const code = sessionStorage.getItem('access_granted');
+      const base = (window.SUPABASE_URL || '').replace(/\/+$/, '');
+      if (!code || !base) throw new Error('Contexte Supabase manquant');
+
+      const resp = await fetch(base + '/functions/v1/list-gallery', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': window.SUPABASE_ANON_KEY || '',
+          'Authorization': 'Bearer ' + (window.SUPABASE_ANON_KEY || ''),
+        },
+        body: JSON.stringify({ code }),
+      });
+
+      if (!resp.ok) throw new Error('list-gallery HTTP ' + resp.status);
+      const data = await resp.json();
+      if (!data || !Array.isArray(data.categories)) throw new Error('Réponse invalide');
+
+      // Curation optionnelle : si l'admin a défini un ordre/des noms
+      // dans cfg.categories, on les respecte ; sinon ordre auto.
+      const cfgCats = Array.isArray(WEDDING_CONFIG.categories) ? WEDDING_CONFIG.categories : [];
+      const apiByFolder = new Map(data.categories.map(c => [c.folder, c]));
+
+      let ordered = [];
+      if (cfgCats.length) {
+        cfgCats.forEach(cc => {
+          const api = apiByFolder.get(cc.folder);
+          if (api && api.count > 0) {
+            ordered.push({ folder: cc.folder, name: cc.name || api.name, count: api.count, images: api.images });
+            apiByFolder.delete(cc.folder);
+          }
+        });
+        // Dossiers détectés non listés dans la config → ajoutés à la fin
+        apiByFolder.forEach(api => { if (api.count > 0) ordered.push(api); });
+      } else {
+        ordered = data.categories.filter(c => c.count > 0);
+      }
+
+      GALLERY_DATA = ordered.map(c => ({
+        folder: c.folder,
+        name: c.name,
+        count: c.count,
+        images: c.images.map(img => ({ publicId: img.publicId, w: img.width, h: img.height })),
+      }));
+    }
+
+    // ── Mode LEGACY : compatibilité anciens clients (fichiers numérotés) ─
+    function loadGalleryLegacy() {
+      const cats = Array.isArray(CATEGORIES_CONFIG) ? CATEGORIES_CONFIG : [];
+      GALLERY_DATA = cats
+        .filter(c => c.count > 0)
+        .map(c => ({
+          folder: c.folder,
+          name: c.name,
+          count: c.count,
+          images: Array.from({ length: c.count }, (_, i) => ({
+            baseFilename: formatNumber(i + 1),
+          })),
+        }));
     }
 
     function createFilterButton(name, filterId, isActive, count) {
@@ -1218,8 +1398,8 @@
       currentFilteredImages = [];
 
       const categories = filterId === 'all'
-        ? CATEGORIES_CONFIG
-        : CATEGORIES_CONFIG.filter(c => c.folder === filterId);
+        ? GALLERY_DATA
+        : GALLERY_DATA.filter(c => c.folder === filterId);
 
       const totalToLoad = categories.reduce((sum, c) => sum + c.count, 0);
 
@@ -1230,20 +1410,27 @@
       }
 
       categories.forEach(cat => {
-        for (let i = 1; i <= cat.count; i++) {
-          const baseFilename = formatNumber(i);
-          const imagePath = `${ROOT_FOLDER}/${cat.folder}/${baseFilename}`;
+        cat.images.forEach((img, idx) => {
+          // imagePath : soit le public_id renvoyé par Cloudinary (mode
+          // dynamique, ZÉRO numérotation), soit l'ancien chemin numéroté.
+          const imagePath = img.publicId
+            ? img.publicId
+            : `${ROOT_FOLDER}/${cat.folder}/${img.baseFilename}`;
 
           const hdUrl    = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/q_auto:best,f_auto/${imagePath}`;
           const gridUrl  = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/c_scale,w_900,q_auto:good,f_auto/${imagePath}`;
           const thumbUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/c_scale,w_40,e_blur:800,q_auto:low,f_auto/${imagePath}`;
 
+          const niceName = (img.publicId
+            ? img.publicId.split('/').pop()
+            : `${cat.name}-${img.baseFilename}`) + '.jpg';
+
           const imageData = {
             hdUrl, gridUrl, thumbUrl,
-            fileName: `${cat.name}-${baseFilename}.jpg`,
+            fileName: niceName,
             category: cat.name,
-            baseFilename,
-            folder: cat.folder
+            folder: cat.folder,
+            w: img.w || null, h: img.h || null,
           };
           currentFilteredImages.push(imageData);
           const localIndex = currentFilteredImages.length - 1;
@@ -1252,7 +1439,7 @@
           item.className = 'photo-item';
           item.setAttribute('role', 'listitem');
           item.setAttribute('tabindex', '0');
-          item.setAttribute('aria-label', `Photo ${cat.name} ${baseFilename}, ouvrir en grand`);
+          item.setAttribute('aria-label', `Photo ${cat.name} ${idx + 1}, ouvrir en grand`);
           item.dataset.index = localIndex;
           item.dataset.gridUrl = gridUrl;
           item.dataset.thumbUrl = thumbUrl;
@@ -1260,11 +1447,17 @@
           item.dataset.folder = cat.folder;
 
           const layout = galleryGrid.getAttribute('data-layout') || 'masonry';
-          // En mode masonry : largeur calculée selon ratio. Autres modes : CSS s'en charge.
+          // En mode masonry : si Cloudinary a renvoyé les dimensions, on
+          // pré-calcule le ratio exact (zéro saut de mise en page).
           if (layout === 'masonry') {
             const defaultRowHeight = window.innerWidth <= 640 ? 180 : (window.innerWidth <= 1100 ? 240 : 300);
-            item.style.width = (defaultRowHeight * 1.5) + 'px';
-            item.style.aspectRatio = '3 / 2';
+            if (img.w && img.h) {
+              item.style.width = (defaultRowHeight * (img.w / img.h)) + 'px';
+              item.style.aspectRatio = `${img.w} / ${img.h}`;
+            } else {
+              item.style.width = (defaultRowHeight * 1.5) + 'px';
+              item.style.aspectRatio = '3 / 2';
+            }
           }
 
           const aspect = document.createElement('span');
@@ -1294,7 +1487,7 @@
 
           galleryGrid.appendChild(item);
           io.observe(item);
-        }
+        });
       });
 
       setTimeout(hideLoader, 400);
@@ -1383,7 +1576,7 @@
       resetZoom(false);
 
       lightboxImg.src = data.thumbUrl;
-      lightboxImg.alt = `${data.category} — ${data.baseFilename}`;
+      lightboxImg.alt = `${data.category} — ${WEDDING_CONFIG.couple}`;
 
       const hd = new Image();
       hd.src = data.hdUrl;
@@ -1685,7 +1878,11 @@
     });
 
     // --- Boot ---
-    initGallery();
+    initGallery().catch(err => {
+      console.error('[galerie] échec initialisation :', err);
+      hideLoader();
+      galleryGrid.innerHTML = '<div class="empty-state">Galerie momentanément indisponible</div>';
+    });
 
     // Expose pour les onclick HTML
     window.closeLightbox = closeLightbox;

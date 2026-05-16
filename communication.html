@@ -133,41 +133,42 @@
     .pill-btn.icon-only { width: 38px; padding: 0; justify-content: center; }
     .pill-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
-    /* ─── Dark toggle (iOS classique : track + disque qui glisse — impossible à déformer) ─── */
+    /* ─── Dark toggle (fin + arc SVG qui voyage — version raffinée) ─── */
     .dark-toggle {
-      width: 44px !important; min-width: 44px;
-      height: 26px; border-radius: 13px;
-      padding: 2px;
-      display: inline-flex; align-items: center; flex-shrink: 0;
-      background: linear-gradient(145deg, #d4cfc2, #c0bbac);
+      width: 42px !important; min-width: 42px;
+      height: 22px; border-radius: 11px;
+      padding: 0 !important;
+      display: inline-block; flex-shrink: 0;
+      position: relative;
+      background: linear-gradient(145deg, #28282c, #323236);
       box-shadow:
-        inset 1px 1px 3px rgba(150,140,120,0.45),
-        inset -1px -1px 2px rgba(255,253,247,0.85);
-      transition: background 0.4s ease, box-shadow 0.4s ease;
+        inset 0 1.5px 4px rgba(0,0,0,0.6),
+        inset 0 -1px 1px rgba(255,255,255,0.03),
+        0 1px 2px rgba(0,0,0,0.25);
+      transition: box-shadow 0.4s ease;
       -webkit-tap-highlight-color: transparent;
     }
-    [data-theme="dark"] .dark-toggle {
-      background: linear-gradient(145deg, #1c2026, #14171c);
-      box-shadow:
-        inset 1px 1px 3px rgba(0,0,0,0.65),
-        inset -1px -1px 2px rgba(54,60,72,0.18),
-        0 0 0 1px rgba(232,216,190,0.18);
+    .dark-toggle:hover { transform: none; }
+    .dark-toggle .th-arc-svg {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      overflow: visible; pointer-events: none; display: block;
     }
-    .dark-toggle .toggle-thumb {
-      display: block;
-      width: 22px; height: 22px; border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, #ffffff, #f1ede2);
-      box-shadow: 0 1.5px 4px rgba(0,0,0,0.32), 0 0.5px 1px rgba(0,0,0,0.18);
-      transform: translateX(0);
-      transition: transform 0.35s cubic-bezier(0.4, 0.0, 0.2, 1), background 0.4s ease;
+    .dark-toggle .th-arc {
+      fill: none;
+      stroke: rgba(135,135,140,0.75);   /* JOUR : arc foncé */
+      stroke-width: 2.4;
+      stroke-dasharray: 50 50;
+      stroke-dashoffset: -9.8;
+      transition:
+        stroke-dashoffset 0.7s cubic-bezier(0.65,0.05,0.35,1),
+        stroke 0.7s cubic-bezier(0.65,0.05,0.35,1);
     }
-    [data-theme="dark"] .dark-toggle .toggle-thumb {
-      background: radial-gradient(circle at 30% 30%, #f5f1e6, #e8d8be);
-      transform: translateX(18px);
-      box-shadow: 0 1.5px 4px rgba(0,0,0,0.45), 0 0 8px rgba(232,216,190,0.55);
+    [data-theme="dark"] .dark-toggle .th-arc {
+      stroke: rgba(255,255,255,0.92);   /* NUIT : arc blanc */
     }
     /* Override : le toggle ne suit pas la grille des .pill-btn icon-only */
-    .dark-toggle.pill-btn.icon-only { padding: 2px; justify-content: flex-start; }
+    .dark-toggle.pill-btn.icon-only { padding: 0 !important; justify-content: flex-start; }
 
     /* ─── Main content ─── */
     .main-content {
@@ -440,10 +441,10 @@
       .back-link, .pill-btn { height: 36px; padding: 0 14px; font-size: 10.5px; }
       .back-link { padding: 10px 14px; }
       .pill-btn.icon-only { width: 36px; padding: 0; }
-      /* Toggle un peu plus petit que sur desktop mais aligné verticalement */
+      /* Toggle fin : taille constante, jamais déformé */
       .top-right .dark-toggle {
-        width: 46px !important; min-width: 46px;
-        height: 26px; border-radius: 13px;
+        width: 42px !important; min-width: 42px;
+        height: 22px; border-radius: 11px;
         align-self: center;
       }
       .main-content { padding: 36px 14px 24px; }
@@ -469,8 +470,7 @@
       .logo { font-size: 17px; line-height: 1; }
       .back-link span { display: none; }
       .back-link,
-      .top-right .pill-btn,
-      .top-right .dark-toggle {
+      .top-right .pill-btn {
         height: 40px;
         flex-shrink: 0;
       }
@@ -483,16 +483,15 @@
       .top-right .pill-btn:not(.icon-only) {
         padding: 0 14px;
       }
-      /* Le toggle garde sa taille spécifique mais s'aligne sur 40px de hauteur de cellule */
+      /* Le toggle garde sa taille fine et se centre dans la rangée de 40px */
       .top-right .dark-toggle {
-        width: 48px !important;
-        min-width: 48px;
-        height: 28px;
-        border-radius: 14px;
+        width: 42px !important;
+        min-width: 42px;
+        height: 22px;
+        border-radius: 11px;
         align-self: center;
+        flex-shrink: 0;
       }
-      .top-right .dark-toggle .toggle-thumb { width: 24px; height: 24px; }
-      [data-theme="dark"] .dark-toggle .toggle-thumb { transform: translateX(20px); }
       .top-right { gap: 8px; }
 
       .main-content { padding: 28px 12px 20px; }
@@ -641,8 +640,10 @@
       <a href="index.html" class="logo">TimelessHouse<span class="logo-dot">.</span></a>
       <div class="top-right">
         <button class="pill-btn" onclick="toggleLanguage()" aria-label="Changer de langue">FR/EN</button>
-        <button class="pill-btn icon-only dark-toggle" onclick="toggleDarkMode()" role="switch" aria-label="Basculer mode jour/nuit" id="darkToggleBtn">
-          <span class="toggle-thumb"></span>
+        <button class="pill-btn icon-only dark-toggle" onclick="toggleDarkMode()" role="switch" aria-checked="false" aria-label="Basculer mode jour/nuit" id="darkToggleBtn">
+          <svg class="th-arc-svg" viewBox="0 0 42 22" preserveAspectRatio="none" aria-hidden="true">
+            <rect class="th-arc" x="1.2" y="1.2" width="39.6" height="19.6" rx="9.8" ry="9.8" pathLength="100"/>
+          </svg>
         </button>
         <a href="communication-admin.html" class="pill-btn icon-only" title="Administration" style="opacity:0.45;">
           <svg viewBox="0 0 24 24"><path d="M12 15v2"/><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4"/></svg>
@@ -750,15 +751,40 @@
     window.toggleLanguage = function() { document.body.classList.toggle('en-mode'); };
 
     window.toggleDarkMode = function() {
-      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      if (isDark) {
-        document.documentElement.removeAttribute('data-theme');
-        try { localStorage.setItem('th-dark-mode', 'light'); } catch(e) {}
-      } else {
+      var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      var next = !isDark;
+      if (next) {
         document.documentElement.setAttribute('data-theme', 'dark');
         try { localStorage.setItem('th-dark-mode', 'dark'); } catch(e) {}
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        try { localStorage.setItem('th-dark-mode', 'light'); } catch(e) {}
       }
+      var btn = document.getElementById('darkToggleBtn');
+      if (btn) btn.setAttribute('aria-checked', String(next));
+      thCOffset += TH_C_STEP;
+      try { localStorage.setItem('th-c-offset', thCOffset); } catch(e) {}
+      var arc = document.querySelector('#darkToggleBtn .th-arc');
+      if (arc) arc.style.strokeDashoffset = thCOffset;
     };
+
+    // ─── Toggle SVG arc : état initial sans animation ───
+    var TH_C_STEP = 50;
+    var TH_C_INITIAL = -9.8;
+    var thSaved = parseFloat(localStorage.getItem('th-c-offset'));
+    var thCOffset = isNaN(thSaved) ? TH_C_INITIAL : thSaved;
+    (function(){
+      var arc = document.querySelector('#darkToggleBtn .th-arc');
+      var btn = document.getElementById('darkToggleBtn');
+      var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (btn) btn.setAttribute('aria-checked', String(isDark));
+      if (arc) {
+        arc.style.transition = 'none';
+        arc.style.strokeDashoffset = thCOffset;
+        arc.getBoundingClientRect();
+        requestAnimationFrame(function(){ arc.style.transition = ''; });
+      }
+    })();
 
     if (window.location.hash === '#clients') { setTimeout(openClientModal, 350); history.replaceState(null, null, ' '); }
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeClientModal(); });

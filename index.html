@@ -537,6 +537,78 @@
       .theme-btn { padding: 20px 20px; }
     }
 
+    /* ════════════════════════════════════════════════
+       🔧 CORRECTIF EN-TÊTE MOBILE — alignement (mai 2026)
+       Dernier bloc : priorité maximale sur tout le reste.
+       Problème corrigé : logo décalé à gauche + bouton clé
+       écrasé en pilule verticale sur iPhone.
+       ════════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      /* Le logo est centré en absolu : il reste TOUJOURS
+         au milieu de l'écran, peu importe la largeur
+         des contrôles à droite. */
+      .top-bar {
+        position: relative;
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+        gap: 0;
+      }
+      .top-left { display: none; }
+      .logo {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        margin: 0;
+        font-size: 15px;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+      }
+      .top-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      /* Les contrôles ne se compriment jamais */
+      .client-link,
+      .social-link,
+      .lang-switch { flex: 0 0 auto; }
+
+      /* Bouton « Espace clients » : vrai cercle régulier */
+      .client-link {
+        width: 44px;
+        height: 44px;
+        min-height: 44px;
+        padding: 0;
+        gap: 0;
+        border-radius: 50%;
+        aspect-ratio: 1 / 1;
+        justify-content: center;
+        align-items: center;
+      }
+      .client-link svg { width: 16px; height: 16px; }
+
+      .lang-switch {
+        font-size: 11px;
+        letter-spacing: 0.10em;
+        white-space: nowrap;
+      }
+      .social-link svg { width: 20px; height: 20px; }
+      .admin-link { display: none; }
+    }
+
+    @media (max-width: 400px) {
+      /* Écrans étroits : on resserre pour éviter
+         tout chevauchement logo / contrôles */
+      .logo { font-size: 13px; letter-spacing: 0.05em; }
+      .top-right { gap: 8px; }
+      .client-link { width: 42px; height: 42px; min-height: 42px; }
+      .client-link svg { width: 15px; height: 15px; }
+      .lang-switch { font-size: 10px; }
+    }
+
   </style>
 </head>
 <body>

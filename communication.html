@@ -133,12 +133,15 @@
     .pill-btn.icon-only { width: 38px; padding: 0; justify-content: center; }
     .pill-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
-    /* ─── Dark toggle (fin + arc SVG qui voyage — version raffinée) ─── */
+    /* ─── Dark toggle (fin + arc SVG qui voyage — dimensions verrouillées) ─── */
     .dark-toggle {
-      width: 42px !important; min-width: 42px;
-      height: 22px; border-radius: 11px;
+      width: 42px !important; min-width: 42px !important; max-width: 42px !important;
+      height: 22px !important; min-height: 22px !important; max-height: 22px !important;
+      border-radius: 11px !important;
       padding: 0 !important;
-      display: inline-block; flex-shrink: 0;
+      display: inline-flex !important; align-items: center; justify-content: center;
+      flex: 0 0 auto; align-self: center;
+      box-sizing: border-box;
       position: relative;
       background: linear-gradient(145deg, #28282c, #323236);
       box-shadow:
@@ -150,9 +153,11 @@
     }
     .dark-toggle:hover { transform: none; }
     .dark-toggle .th-arc-svg {
-      position: absolute; inset: 0;
-      width: 100%; height: 100%;
-      overflow: visible; pointer-events: none; display: block;
+      display: block !important;
+      width: 42px !important; height: 22px !important;
+      overflow: visible; pointer-events: none;
+      flex: 0 0 auto;
+      stroke-width: 2.4 !important;
     }
     .dark-toggle .th-arc {
       fill: none;
@@ -167,8 +172,12 @@
     [data-theme="dark"] .dark-toggle .th-arc {
       stroke: rgba(255,255,255,0.92);   /* NUIT : arc blanc */
     }
-    /* Override : le toggle ne suit pas la grille des .pill-btn icon-only */
-    .dark-toggle.pill-btn.icon-only { padding: 0 !important; justify-content: flex-start; }
+    /* Override : le toggle ne suit jamais la grille des .pill-btn */
+    .dark-toggle.pill-btn,
+    .dark-toggle.pill-btn.icon-only {
+      width: 42px !important; height: 22px !important;
+      padding: 0 !important; justify-content: center;
+    }
 
     /* ─── Main content ─── */
     .main-content {
@@ -441,12 +450,8 @@
       .back-link, .pill-btn { height: 36px; padding: 0 14px; font-size: 10.5px; }
       .back-link { padding: 10px 14px; }
       .pill-btn.icon-only { width: 36px; padding: 0; }
-      /* Toggle fin : taille constante, jamais déformé */
-      .top-right .dark-toggle {
-        width: 42px !important; min-width: 42px;
-        height: 22px; border-radius: 11px;
-        align-self: center;
-      }
+      /* Toggle fin : dimensions verrouillées en base, on ne touche qu'à l'alignement */
+      .top-right .dark-toggle { align-self: center; }
       .main-content { padding: 36px 14px 24px; }
       .hero-title { font-size: 2.4rem; }
       .hero-text { font-size: 0.92rem; line-height: 1.65; padding: 0 6px; }
@@ -483,12 +488,8 @@
       .top-right .pill-btn:not(.icon-only) {
         padding: 0 14px;
       }
-      /* Le toggle garde sa taille fine et se centre dans la rangée de 40px */
+      /* Le toggle garde sa taille fine (verrouillée en base) et se centre */
       .top-right .dark-toggle {
-        width: 42px !important;
-        min-width: 42px;
-        height: 22px;
-        border-radius: 11px;
         align-self: center;
         flex-shrink: 0;
       }
@@ -641,7 +642,7 @@
       <div class="top-right">
         <button class="pill-btn" onclick="toggleLanguage()" aria-label="Changer de langue">FR/EN</button>
         <button class="pill-btn icon-only dark-toggle" onclick="toggleDarkMode()" role="switch" aria-checked="false" aria-label="Basculer mode jour/nuit" id="darkToggleBtn">
-          <svg class="th-arc-svg" viewBox="0 0 42 22" preserveAspectRatio="none" aria-hidden="true">
+          <svg class="th-arc-svg" width="42" height="22" viewBox="0 0 42 22" preserveAspectRatio="none" aria-hidden="true">
             <rect class="th-arc" x="1.2" y="1.2" width="39.6" height="19.6" rx="9.8" ry="9.8" pathLength="100"/>
           </svg>
         </button>

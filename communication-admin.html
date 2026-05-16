@@ -171,20 +171,26 @@
           aria-label={isDark ? 'Passer en mode jour' : 'Passer en mode nuit'}
           title={isDark ? 'Mode jour' : 'Mode nuit'}
           style={{
-            display: 'inline-block',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: '0 0 auto',
+            alignSelf: 'center',
             width: 42, height: 22,
+            minWidth: 42, minHeight: 22,
+            maxWidth: 42, maxHeight: 22,
+            boxSizing: 'border-box',
             borderRadius: 11,
             background: 'linear-gradient(145deg, #28282c, #323236)',
-            position: 'relative',
             border: 'none', cursor: 'pointer', padding: 0,
-            flexShrink: 0,
             boxShadow: 'inset 0 1.5px 4px rgba(0,0,0,0.6), inset 0 -1px 1px rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.25)',
             WebkitTapHighlightColor: 'transparent',
             outline: 'none',
+            overflow: 'visible',
             transition: 'box-shadow 0.4s ease',
           }}>
-          <svg viewBox="0 0 42 22" preserveAspectRatio="none"
-               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none', display: 'block' }}>
+          <svg width="42" height="22" viewBox="0 0 42 22" preserveAspectRatio="none"
+               style={{ display: 'block', width: 42, height: 22, flex: '0 0 auto', overflow: 'visible', pointerEvents: 'none' }}>
             <rect x="1.2" y="1.2" width="39.6" height="19.6" rx="9.8" ry="9.8" pathLength="100"
                   fill="none"
                   stroke={isDark ? 'rgba(255,255,255,0.92)' : 'rgba(135,135,140,0.75)'}

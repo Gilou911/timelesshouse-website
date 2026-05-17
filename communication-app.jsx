@@ -784,6 +784,20 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
     if (!error && data) {
       setComments([...comments, data]);
       setNewComment('');
+
+      // 💬 Notifier l'admin qu'un commentaire a été posté
+      try {
+        fetch(`${window.SUPABASE_URL}/functions/v1/notify-client`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}` },
+          body:    JSON.stringify({
+            kind:      'admin_new_comment',
+            client_id: window.__CLIENT.id,
+            media_id:  m.id,
+            comment:   payload.comment,
+          }),
+        }).catch(() => {});
+      } catch (e) {}
     } else {
       alert("Impossible d'envoyer le commentaire.");
     }
@@ -797,19 +811,19 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
       setLocalStatus(status);
       onMediaUpdate && onMediaUpdate(m.id, status);
 
-      // Notifier l'admin SEULEMENT lors d'une demande de changements (action importante)
-      if (status === 'changes_requested') {
+      // Notifier l'admin lors d'une approbation ou d'une demande de changements
+      if (status === 'approved' || status === 'changes_requested') {
         try {
           fetch(`${window.SUPABASE_URL}/functions/v1/notify-client`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}` },
             body:    JSON.stringify({
-              kind:       'admin_changes_requested',
+              kind:       status === 'approved' ? 'admin_media_approved' : 'admin_changes_requested',
               client_id:  window.__CLIENT.id,
               media_id:   m.id,
-              dedupe_key: `changes:${m.id}:${new Date().toISOString().slice(0,10)}`,
+              dedupe_key: `${status}:${m.id}:${new Date().toISOString().slice(0,10)}`,
             }),
-          }).catch(() => {}); // silencieux : si l'admin n'a pas configuré son email, ce n'est pas grave
+          }).catch(() => {});
         } catch (e) {}
       }
     } else {

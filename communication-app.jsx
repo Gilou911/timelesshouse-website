@@ -999,21 +999,41 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
 // 📸 MEDIA VIEW (galerie + tournages)
 // ────────────────────────────────────────────────────────────
 const Media = () => {
-  const [filter, setFilter] = useState('tous');
+  const [filter,   setFilter]   = useState('tous');   // tous | photo | video | a-valider | approuves
+  const [search,   setSearch]   = useState('');       // recherche par titre
+  const [activeTag, setActiveTag] = useState('');     // tag sélectionné ('' = tous)
+  const [view,     setView]     = useState('grid');   // grid | list
   const [lightbox, setLightbox] = useState({ open: false, items: [], index: 0 });
-  const [media, setMedia] = useState(CLIENT.media);
+  const [media,    setMedia]    = useState(CLIENT.media);
 
-  // Filtres
+  // Tags uniques présents dans les médias (tri alphabétique)
+  const allTags = useMemo(() => {
+    const tags = [...new Set(media.map(m => m.tag).filter(Boolean))].sort();
+    return tags;
+  }, [media]);
+
+  // Application de tous les filtres en cascade
   const filtered = useMemo(() => {
-    if (filter === 'tous')        return media;
-    if (filter === 'photo')       return media.filter(m => m.type === 'photo');
-    if (filter === 'video')       return media.filter(m => m.type === 'video');
-    if (filter === 'a-valider')   return media.filter(m => m.approval_status === 'pending');
-    if (filter === 'approuves')   return media.filter(m => m.approval_status === 'approved');
-    return media;
-  }, [filter, media]);
+    let res = media;
+    // Filtre type / statut
+    if (filter === 'photo')     res = res.filter(m => m.type === 'photo');
+    if (filter === 'video')     res = res.filter(m => m.type === 'video');
+    if (filter === 'a-valider') res = res.filter(m => m.approval_status === 'pending');
+    if (filter === 'approuves') res = res.filter(m => m.approval_status === 'approved');
+    // Filtre tag
+    if (activeTag)              res = res.filter(m => m.tag === activeTag);
+    // Recherche textuelle (insensible à la casse + accents)
+    if (search.trim()) {
+      const q = search.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      res = res.filter(m => {
+        const t = (m.title || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return t.includes(q);
+      });
+    }
+    return res;
+  }, [filter, activeTag, search, media]);
 
-  // Regroupement par tournage
+  // Regroupement par tournage (mode grille)
   const groups = useMemo(() => {
     const byShoot = new Map();
     filtered.forEach(m => {
@@ -1032,121 +1052,330 @@ const Media = () => {
     return arr;
   }, [filtered]);
 
-  const openLightbox = (groupItems, item) => {
-    const idx = groupItems.findIndex(x => x.id === item.id);
-    setLightbox({ open: true, items: groupItems, index: idx });
+  const openLightbox = (items, item) => {
+    const idx = items.findIndex(x => x.id === item.id);
+    setLightbox({ open: true, items, index: idx });
   };
 
   const onMediaUpdate = (id, status) => {
     setMedia(prev => prev.map(m => m.id === id ? { ...m, approval_status: status } : m));
   };
 
-  const photos     = media.filter(m => m.type === 'photo').length;
-  const videos     = media.filter(m => m.type === 'video').length;
-  const aValider   = media.filter(m => m.approval_status === 'pending').length;
-  const approuves  = media.filter(m => m.approval_status === 'approved').length;
+  const hasActiveFilters = filter !== 'tous' || activeTag || search.trim();
+  const photos   = media.filter(m => m.type === 'photo').length;
+  const videos   = media.filter(m => m.type === 'video').length;
+  const aValider = media.filter(m => m.approval_status === 'pending').length;
+  const approuves = media.filter(m => m.approval_status === 'approved').length;
 
   return (
-    <div className="space-y-5 lg:space-y-6">
-      {/* Filtres — scroll horizontal propre sur mobile */}
-      <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto no-scrollbar">
-        <Pill active={filter === 'tous'}      onClick={() => setFilter('tous')}>Tous</Pill>
-        <Pill active={filter === 'photo'}     onClick={() => setFilter('photo')}>Photos</Pill>
-        <Pill active={filter === 'video'}     onClick={() => setFilter('video')}>Vidéos</Pill>
-        <Pill active={filter === 'a-valider'} onClick={() => setFilter('a-valider')}>À valider</Pill>
-        <Pill active={filter === 'approuves'} onClick={() => setFilter('approuves')}>Approuvés</Pill>
+    <div className="space-y-4 lg:space-y-5">
+
+      {/* ── Barre supérieure : recherche + toggle vue ── */}
+      <div className="flex items-center gap-3">
+        {/* Champ de recherche */}
+        <div className="relative flex-1">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+          <input
+            type="search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher un fichier…"
+            style={neu.pressedSm}
+            className="w-full pl-9 pr-4 py-3 rounded-full text-[13.5px] placeholder:text-stone-400 bg-transparent outline-none"
+          />
+          {search && (
+            <button onClick={() => setSearch('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 transition">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        {/* Toggle grille / liste */}
+        <div style={neu.raisedXs} className="rounded-full p-1 flex items-center shrink-0">
+          <button onClick={() => setView('grid')}
+            style={view === 'grid' ? neu.darkSm : {}}
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition active:scale-95 ${view === 'grid' ? 'text-white' : 'text-stone-500'}`}
+            title="Vue grille">
+            <Grid size={15} />
+          </button>
+          <button onClick={() => setView('list')}
+            style={view === 'list' ? neu.darkSm : {}}
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition active:scale-95 ${view === 'list' ? 'text-white' : 'text-stone-500'}`}
+            title="Vue liste">
+            <List size={15} />
+          </button>
+        </div>
       </div>
 
-      {/* Stats — 2 cols mobile, 4 cols desktop */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
+      {/* ── Filtres type ── */}
+      <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto no-scrollbar">
+        <Pill active={filter === 'tous'}      onClick={() => setFilter('tous')}>Tous ({media.length})</Pill>
+        <Pill active={filter === 'photo'}     onClick={() => setFilter('photo')}>📸 Photos ({photos})</Pill>
+        <Pill active={filter === 'video'}     onClick={() => setFilter('video')}>🎥 Vidéos ({videos})</Pill>
+        <Pill active={filter === 'a-valider'} onClick={() => setFilter('a-valider')}>⏳ À valider ({aValider})</Pill>
+        <Pill active={filter === 'approuves'} onClick={() => setFilter('approuves')}>✓ Approuvés ({approuves})</Pill>
+      </div>
+
+      {/* ── Filtres tags (n'apparaît que s'il y a 2+ tags distincts) ── */}
+      {allTags.length >= 2 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold shrink-0">Tag</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => setActiveTag('')}
+              style={!activeTag ? neu.darkSm : neu.raisedXs}
+              className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition active:scale-95 ${!activeTag ? 'text-white' : 'text-stone-600'}`}>
+              Tous
+            </button>
+            {allTags.map(tag => (
+              <button
+                key={tag}
+                onClick={() => setActiveTag(activeTag === tag ? '' : tag)}
+                style={activeTag === tag ? neu.darkSm : neu.raisedXs}
+                className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition active:scale-95 ${activeTag === tag ? 'text-white' : 'text-stone-600'}`}>
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Stats — 2 cols mobile, 4 cols desktop ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatCard label="Total" value={media.length} />
         <StatCard label="Photos" value={photos} />
         <StatCard label="Vidéos" value={videos} />
         <StatCard label="À valider" value={aValider} delta={`${approuves} approuvés`} />
       </div>
 
-      {/* Groupes par tournage — header simplifié, pas de kicker */}
-      {groups.map((g, gi) => (
-        <div key={g.shoot?.id || `no-${gi}`} style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
-          <div className="flex items-center gap-4 mb-5">
-            {g.shoot ? (
-              <div style={g.shoot.type === 'video' ? neu.dark : neu.darkSm} className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white shrink-0">
-                <div className="text-[9px] uppercase tracking-wider text-stone-400 leading-none">{g.shoot.month}</div>
-                <div className="text-[18px] leading-none font-semibold mt-1" style={SERIF}>{g.shoot.date}</div>
+      {/* ── Résultats filtrés : label + reset ── */}
+      {hasActiveFilters && (
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[12.5px] text-stone-500">
+            {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
+            {search ? ` pour « ${search} »` : ''}
+            {activeTag ? ` · tag "${activeTag}"` : ''}
+          </span>
+          <button onClick={() => { setFilter('tous'); setActiveTag(''); setSearch(''); }}
+            className="text-[12px] text-stone-400 hover:text-stone-700 flex items-center gap-1 transition">
+            <X size={12} /> Réinitialiser
+          </button>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          VUE GRILLE — groupée par tournage
+          ══════════════════════════════════════════════ */}
+      {view === 'grid' && (
+        <>
+          {groups.map((g, gi) => (
+            <div key={g.shoot?.id || `no-${gi}`} style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+              {/* En-tête du groupe */}
+              <div className="flex items-center gap-4 mb-5">
+                {g.shoot ? (
+                  <div style={g.shoot.type === 'video' ? neu.dark : neu.darkSm} className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white shrink-0">
+                    <div className="text-[9px] uppercase tracking-wider text-stone-400 leading-none">{g.shoot.month}</div>
+                    <div className="text-[18px] leading-none font-semibold mt-1" style={SERIF}>{g.shoot.date}</div>
+                  </div>
+                ) : (
+                  <div style={neu.pressedSm} className="w-14 h-14 rounded-2xl flex items-center justify-center text-stone-400 shrink-0">
+                    <ImageIcon size={20} />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[20px] lg:text-[24px] tracking-tight leading-tight truncate" style={SERIF}>
+                    {g.shoot ? g.shoot.title : 'Médias divers'}
+                  </h3>
+                  <div className="text-[12px] text-stone-500 mt-1 leading-none">
+                    {g.items.length} fichier{g.items.length > 1 ? 's' : ''}
+                    {g.shoot?.location ? ` · ${g.shoot.location}` : ''}
+                  </div>
+                </div>
               </div>
-            ) : (
-              <div style={neu.pressedSm} className="w-14 h-14 rounded-2xl flex items-center justify-center text-stone-400 shrink-0">
-                <ImageIcon size={20} />
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <h3 className="text-[20px] lg:text-[24px] tracking-tight leading-tight truncate" style={SERIF}>
-                {g.shoot ? g.shoot.title : 'Médias divers'}
-              </h3>
-              <div className="text-[12px] text-stone-500 mt-1 leading-none">
-                {g.items.length} fichier{g.items.length > 1 ? 's' : ''}
+
+              {/* Grille de cartes */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
+                {g.items.map(m => {
+                  const thumb = getThumbUrl(m);
+                  const previewVideo = !m.thumb_url ? getPreviewVideoUrl(m) : null;
+                  return (
+                    <button key={m.id} onClick={() => openLightbox(g.items, m)}
+                      style={neu.raisedSm}
+                      className="rounded-[18px] lg:rounded-[20px] p-2 lg:p-2.5 group text-left active:scale-[0.98] transition-transform">
+                      <div className="aspect-[4/3] rounded-xl relative overflow-hidden bg-black"
+                        style={!previewVideo ? { background: thumb ? `url(${thumb}) center/cover` : m.thumb } : undefined}>
+                        {previewVideo && (
+                          <video src={previewVideo} autoPlay muted loop playsInline preload="metadata"
+                            className="absolute inset-0 w-full h-full object-cover" />
+                        )}
+                        {m.type === 'video' && !previewVideo && (
+                          <>
+                            <div className="absolute inset-0 bg-black/30" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-11 h-11 lg:w-12 lg:h-12 rounded-full bg-white/95 flex items-center justify-center group-hover:scale-110 transition">
+                                <Play size={14} className="text-stone-900 ml-0.5" fill="#2a2620" />
+                              </div>
+                            </div>
+                          </>
+                        )}
+                        {m.type === 'video' && m.duration && (
+                          <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-medium">{m.duration}</div>
+                        )}
+                        <div className="absolute top-2 right-2 z-10"><ApprovalBadge status={m.approval_status} /></div>
+                      </div>
+                      <div className="px-1 pt-2.5 pb-1">
+                        <div className="font-medium text-[12.5px] lg:text-[13px] truncate leading-tight">{m.title}</div>
+                        <div className="text-[10.5px] text-stone-500 mt-1 truncate leading-none">
+                          {m.date}{m.tag ? ` · ${m.tag}` : ''}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
+          ))}
+        </>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          VUE LISTE — plate, tous les médias en lignes
+          ══════════════════════════════════════════════ */}
+      {view === 'list' && (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] overflow-hidden">
+          {/* En-têtes desktop */}
+          <div className="hidden lg:grid grid-cols-12 gap-3 px-5 py-3.5 text-[10.5px] uppercase tracking-[0.16em] text-stone-400 font-semibold border-b border-stone-200/60">
+            <div className="col-span-1" />
+            <div className="col-span-4">Titre</div>
+            <div className="col-span-2">Tag</div>
+            <div className="col-span-2">Date</div>
+            <div className="col-span-1">Durée / Taille</div>
+            <div className="col-span-1 text-center">Statut</div>
+            <div className="col-span-1 text-right">Ouvrir</div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
-            {g.items.map(m => {
+          <div className="divide-y divide-stone-200/40">
+            {filtered.map(m => {
               const thumb = getThumbUrl(m);
-              const previewVideo = !m.thumb_url ? getPreviewVideoUrl(m) : null;
               return (
-                <button key={m.id} onClick={() => openLightbox(g.items, m)} style={neu.raisedSm} className="rounded-[18px] lg:rounded-[20px] p-2 lg:p-2.5 group text-left active:scale-[0.98] transition-transform">
-                  <div className="aspect-[4/3] rounded-xl relative overflow-hidden bg-black"
-                    style={!previewVideo ? { background: thumb ? `url(${thumb}) center/cover` : m.thumb } : undefined}>
-                    {previewVideo && (
-                      <video
-                        src={previewVideo}
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                        preload="metadata"
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
-                    )}
-                    {m.type === 'video' && !previewVideo && (
-                      <>
-                        <div className="absolute inset-0 bg-black/30" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-11 h-11 lg:w-12 lg:h-12 rounded-full bg-white/95 flex items-center justify-center group-hover:scale-110 transition">
-                            <Play size={14} className="text-stone-900 ml-0.5" fill="#2a2620" />
-                          </div>
+                <button key={m.id} onClick={() => openLightbox(filtered, m)}
+                  className="w-full text-left hover:bg-stone-50/50 transition-colors active:bg-stone-100/60 group">
+
+                  {/* Mobile : carte horizontale compacte */}
+                  <div className="lg:hidden flex items-center gap-3.5 px-4 py-3.5">
+                    {/* Vignette */}
+                    <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 relative"
+                      style={{ background: thumb ? `url(${thumb}) center/cover` : m.thumb }}>
+                      {m.type === 'video' && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <Play size={12} className="text-white" fill="white" />
                         </div>
-                      </>
-                    )}
-                    {m.type === 'video' && m.duration && (
-                      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-medium">{m.duration}</div>
-                    )}
-                    <div className="absolute top-2 right-2 z-10"><ApprovalBadge status={m.approval_status} /></div>
+                      )}
+                    </div>
+                    {/* Infos */}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-[13.5px] truncate leading-tight">{m.title}</div>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        {m.tag && (
+                          <span style={neu.pressedSm} className="text-[10px] px-2 py-0.5 rounded-full text-stone-600 font-medium">{m.tag}</span>
+                        )}
+                        <span className="text-[11px] text-stone-400">{m.date}</span>
+                        {m.duration && <span className="text-[11px] text-stone-400">{m.duration}</span>}
+                        {m.size && <span className="text-[11px] text-stone-400">{m.size}</span>}
+                      </div>
+                    </div>
+                    {/* Badge + icône */}
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <ApprovalBadge status={m.approval_status} />
+                    </div>
                   </div>
-                  <div className="px-1 pt-2.5 pb-1">
-                    <div className="font-medium text-[12.5px] lg:text-[13px] truncate leading-tight">{m.title}</div>
-                    <div className="text-[10.5px] text-stone-500 mt-1 truncate leading-none">{m.date}{m.tag ? ` · ${m.tag}` : ''}</div>
+
+                  {/* Desktop : ligne grille */}
+                  <div className="hidden lg:grid grid-cols-12 gap-3 items-center px-5 py-3.5">
+                    {/* Vignette */}
+                    <div className="col-span-1">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden relative"
+                        style={{ background: thumb ? `url(${thumb}) center/cover` : m.thumb }}>
+                        {m.type === 'video' && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <Play size={10} className="text-white ml-px" fill="white" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {/* Titre */}
+                    <div className="col-span-4">
+                      <div className="font-medium text-[13.5px] truncate leading-tight">{m.title}</div>
+                      <div className="text-[11px] text-stone-400 mt-0.5 leading-none">
+                        {m.type === 'video' ? 'Vidéo' : 'Photo'}
+                      </div>
+                    </div>
+                    {/* Tag */}
+                    <div className="col-span-2">
+                      {m.tag
+                        ? <span style={neu.pressedSm} className="text-[11px] px-2.5 py-1 rounded-full text-stone-600 font-medium inline-block">{m.tag}</span>
+                        : <span className="text-[11px] text-stone-300">—</span>
+                      }
+                    </div>
+                    {/* Date */}
+                    <div className="col-span-2 text-[12px] text-stone-500">{m.date || '—'}</div>
+                    {/* Durée / Taille */}
+                    <div className="col-span-1 text-[12px] text-stone-500">
+                      {m.duration || m.size || '—'}
+                    </div>
+                    {/* Statut */}
+                    <div className="col-span-1 flex justify-center">
+                      <ApprovalBadge status={m.approval_status} />
+                    </div>
+                    {/* Bouton ouvrir */}
+                    <div className="col-span-1 flex justify-end">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 group-hover:text-stone-900 group-hover:bg-stone-100 transition">
+                        <Maximize2 size={13} />
+                      </div>
+                    </div>
                   </div>
                 </button>
               );
             })}
           </div>
         </div>
-      ))}
+      )}
 
+      {/* ── État vide ── */}
       {media.length === 0 && (
         <div style={neu.raised} className="rounded-[28px] p-16 text-center">
-          <div style={neu.darkSm} className="w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-4"><ImageIcon size={22} /></div>
+          <div style={neu.darkSm} className="w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-4">
+            <ImageIcon size={22} />
+          </div>
           <h3 className="text-[20px] tracking-tight" style={SERIF}>Aucun média pour l'instant</h3>
           <p className="text-[13px] text-stone-500 mt-2">Vos livraisons apparaîtront ici dès qu'elles seront prêtes.</p>
         </div>
       )}
 
+      {/* ── Aucun résultat avec filtres actifs ── */}
+      {media.length > 0 && filtered.length === 0 && (
+        <div style={neu.raised} className="rounded-[28px] p-12 text-center">
+          <div style={neu.pressedSm} className="w-14 h-14 rounded-2xl flex items-center justify-center text-stone-400 mx-auto mb-4">
+            <Search size={20} />
+          </div>
+          <h3 className="text-[18px] tracking-tight" style={SERIF}>Aucun résultat</h3>
+          <p className="text-[13px] text-stone-500 mt-2">Essayez d'autres termes ou réinitialisez les filtres.</p>
+          <button onClick={() => { setFilter('tous'); setActiveTag(''); setSearch(''); }}
+            className="mt-4 px-5 py-2.5 rounded-full text-[12.5px] font-semibold transition active:scale-95"
+            style={neu.dark}>
+            <span className="text-white">Tout afficher</span>
+          </button>
+        </div>
+      )}
+
       {lightbox.open && (
-        <Lightbox items={lightbox.items} index={lightbox.index}
+        <Lightbox
+          items={lightbox.items}
+          index={lightbox.index}
           onIndex={(i) => setLightbox({ ...lightbox, index: i })}
           onClose={() => setLightbox({ ...lightbox, open: false })}
-          onMediaUpdate={onMediaUpdate} />
+          onMediaUpdate={onMediaUpdate}
+        />
       )}
     </div>
   );

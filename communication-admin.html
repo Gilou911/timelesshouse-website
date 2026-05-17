@@ -206,6 +206,45 @@
     const SERIF = { fontFamily: 'Instrument Serif, serif', fontWeight: 400 };
 
     /* ════════════════════════════════════════════════════════════
+       📅 DATE HELPERS
+       ════════════════════════════════════════════════════════════ */
+    const MOIS_FR = ['Jan', 'Fév', 'Mars', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
+    const MOIS_FR_LONG = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
+    /** Retourne la date du jour au format ISO "YYYY-MM-DD" */
+    const todayISO = () => {
+      const d = new Date();
+      return d.toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+    };
+
+    /** Retourne la date dans 30 jours au format ISO "YYYY-MM-DD" */
+    const in30DaysISO = () => {
+      const d = new Date(); d.setDate(d.getDate() + 30);
+      return d.toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+    };
+
+    /** Convertit "2026-05-17" → "17 Mai 2026" */
+    const isoToLabel = (iso) => {
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-').map(Number);
+      return `${d} ${MOIS_FR_LONG[m - 1]} ${y}`;
+    };
+
+    /** Convertit "2026-05-17" → { date_day: 17, month_label: 'Mai', year: 2026 } */
+    const isoToShootParts = (iso) => {
+      if (!iso) return {};
+      const [y, m, d] = iso.split('-').map(Number);
+      return { date_day: d, month_label: MOIS_FR[m - 1], year: y };
+    };
+
+    /** Convertit (day, monthLabel, year) → "2026-05-17" */
+    const shootPartsToISO = (day, monthLabel, year) => {
+      const mi = MOIS_FR.indexOf(monthLabel);
+      if (mi === -1 || !day || !year) return '';
+      return `${year}-${String(mi + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    };
+
+    /* ════════════════════════════════════════════════════════════
        🔧 ATOMS
        ════════════════════════════════════════════════════════════ */
     const Btn = ({ kind = 'soft', onClick, children, type = 'button', disabled, full, icon: Icon, className = '' }) => {
@@ -1125,6 +1164,11 @@
 
       const updateConfig = (key, value) => setC({ ...c, [key]: value });
 
+      /** Met à jour un champ ISO date + son libellé affiché automatiquement */
+      const updateConfigDate = (isoKey, labelKey, iso) => {
+        setC({ ...c, [isoKey]: iso, [labelKey]: isoToLabel(iso) });
+      };
+
       const formTitle = isPhotos ? 'Galerie photos'
         : isAnniversary ? 'Lecteur vidéo (anniversaire)'
         : isEngagement  ? 'Lecteur vidéo (fiançailles)'
@@ -1148,54 +1192,46 @@
                   </Field>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Date de célébration affichée">
-                    <Input value={c.dateCelebration || ''} onChange={e => updateConfig('dateCelebration', e.target.value)} placeholder="20 Septembre 2025" />
+                  <Field label="Date de célébration">
+                    <Input type="date" value={c.dateCelebrationISO || ''} onChange={e => updateConfigDate('dateCelebrationISO', 'dateCelebration', e.target.value)} />
+                    <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.dateCelebration || '—'}</strong></div>
                   </Field>
-                  <Field label="Date ISO (célébration)">
-                    <Input type="date" value={c.dateCelebrationISO || ''} onChange={e => updateConfig('dateCelebrationISO', e.target.value)} />
-                  </Field>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Lieu de la célébration">
                     <Input value={c.lieuCelebration || ''} onChange={e => updateConfig('lieuCelebration', e.target.value)} placeholder="Optionnel" />
                   </Field>
-                  <Field label="Date du mariage d'origine">
-                    <Input value={c.dateMariageOriginal || ''} onChange={e => updateConfig('dateMariageOriginal', e.target.value)} placeholder="20 Septembre 1975" />
-                  </Field>
                 </div>
+                <Field label="Date du mariage d'origine">
+                  <Input type="date" value={c.dateMariageOriginalISO || ''} onChange={e => updateConfigDate('dateMariageOriginalISO', 'dateMariageOriginal', e.target.value)} />
+                  <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.dateMariageOriginal || '—'}</strong></div>
+                </Field>
               </>
             ) : isEngagement ? (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Date de la demande affichée">
-                    <Input value={c.dateDemande || ''} onChange={e => updateConfig('dateDemande', e.target.value)} placeholder="14 Février 2026" />
+                  <Field label="Date de la demande">
+                    <Input type="date" value={c.dateDemandeISO || ''} onChange={e => updateConfigDate('dateDemandeISO', 'dateDemande', e.target.value)} />
+                    <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.dateDemande || '—'}</strong></div>
                   </Field>
-                  <Field label="Date ISO (demande)">
-                    <Input type="date" value={c.dateDemandeISO || ''} onChange={e => updateConfig('dateDemandeISO', e.target.value)} />
-                  </Field>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Lieu de la demande">
                     <Input value={c.lieuDemande || ''} onChange={e => updateConfig('lieuDemande', e.target.value)} placeholder="Paris, Pont des Arts" />
                   </Field>
-                  <Field label="Date du mariage prévue">
-                    <Input value={c.dateMariagePrevu || ''} onChange={e => updateConfig('dateMariagePrevu', e.target.value)} placeholder="Optionnel — 12 Juin 2027" />
-                  </Field>
                 </div>
+                <Field label="Date du mariage prévue">
+                  <Input type="date" value={c.dateMariagePrevuISO || ''} onChange={e => updateConfigDate('dateMariagePrevuISO', 'dateMariagePrevu', e.target.value)} />
+                  <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.dateMariagePrevu || '—'}</strong></div>
+                </Field>
               </>
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Date affichée">
-                    <Input value={c.date || ''} onChange={e => updateConfig('date', e.target.value)} placeholder="25 Avril 2026" />
+                  <Field label="Date de l'événement">
+                    <Input type="date" value={c.dateISO || ''} onChange={e => updateConfigDate('dateISO', 'date', e.target.value)} />
+                    <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.date || '—'}</strong></div>
                   </Field>
-                  <Field label="Date ISO (pour balises HTML)">
-                    <Input type="date" value={c.dateISO || ''} onChange={e => updateConfig('dateISO', e.target.value)} />
+                  <Field label="Lieu">
+                    <Input value={c.lieu || ''} onChange={e => updateConfig('lieu', e.target.value)} placeholder="Domaine de Versailles" />
                   </Field>
                 </div>
-                <Field label="Lieu">
-                  <Input value={c.lieu || ''} onChange={e => updateConfig('lieu', e.target.value)} placeholder="Domaine de Versailles" />
-                </Field>
               </>
             )}
 
@@ -1740,7 +1776,8 @@
         preview_url: existing?.preview_url || '',
         thumb_url:   existing?.thumb_url   || '',
         thumb_grad:  existing?.thumb_grad  || 'linear-gradient(135deg,#2a2620 0%,#4a4238 100%)',
-        date_label:  existing?.date_label  || '',
+        date_label:  existing?.date_label  || (existing ? '' : isoToLabel(todayISO())),
+        date_iso_local: existing?.date_label ? '' : todayISO(),
         duration:    existing?.duration    || '',
         size_label:  existing?.size_label  || '',
         tag:         existing?.tag         || '',
@@ -1749,10 +1786,16 @@
       });
       const [loading, setLoading] = useState(false);
 
+      // Quand on change la date via le picker, auto-générer le libellé
+      const handleMediaDate = (iso) => {
+        setForm({ ...form, date_iso_local: iso, date_label: isoToLabel(iso) });
+      };
+
       const submit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        const payload = { ...form, client_id: clientId, position: parseInt(form.position) || 0, shoot_id: form.shoot_id || null };
+        const { date_iso_local, ...rest } = form;
+        const payload = { ...rest, client_id: clientId, position: parseInt(form.position) || 0, shoot_id: form.shoot_id || null };
         const result = existing
           ? await sb.from('media').update(payload).eq('id', existing.id)
           : await sb.from('media').insert(payload);
@@ -1816,7 +1859,8 @@
             </Field>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Field label="Date">
-                <Input value={form.date_label} onChange={e => setForm({...form, date_label: e.target.value})} placeholder="12 Avr 2026" />
+                <Input type="date" value={form.date_iso_local} onChange={e => handleMediaDate(e.target.value)} />
+                <div className="text-[11px] text-stone-500 mt-1">{form.date_label || '—'}</div>
               </Field>
               {form.type === 'video' && (
                 <Field label="Durée">
@@ -1967,17 +2011,24 @@
         reference:   existing?.reference   || '',
         description: existing?.description || '',
         amount:      existing?.amount      || '',
-        date_label:  existing?.date_label  || '',
-        due_date:    existing?.due_date    || '',
+        date_label:  existing?.date_label  || (existing ? '' : isoToLabel(todayISO())),
+        date_iso_local: existing?.date_label ? '' : todayISO(),
+        due_date:    existing?.due_date    || (existing ? '' : in30DaysISO()),
         status:      existing?.status      || 'en attente',
         pdf_url:     existing?.pdf_url     || '',
       });
       const [loading, setLoading] = useState(false);
 
+      // Quand on change la date d'émission via le date picker, auto-générer le libellé
+      const handleEmissionDate = (iso) => {
+        setForm({ ...form, date_iso_local: iso, date_label: isoToLabel(iso) });
+      };
+
       const submit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        const payload = { ...form, client_id: clientId, amount: parseFloat(form.amount), due_date: form.due_date || null };
+        const { date_iso_local, ...rest } = form;
+        const payload = { ...rest, client_id: clientId, amount: parseFloat(form.amount), due_date: form.due_date || null };
         const result = existing
           ? await sb.from('invoices').update(payload).eq('id', existing.id)
           : await sb.from('invoices').insert(payload);
@@ -1992,8 +2043,9 @@
               <Field label="Référence">
                 <Input required value={form.reference} onChange={e => setForm({...form, reference: e.target.value})} placeholder="FAC-2026-042" />
               </Field>
-              <Field label="Date d'émission (libellé)">
-                <Input value={form.date_label} onChange={e => setForm({...form, date_label: e.target.value})} placeholder="15 Avr 2026" />
+              <Field label="Date d'émission">
+                <Input type="date" value={form.date_iso_local} onChange={e => handleEmissionDate(e.target.value)} />
+                <div className="text-[11px] text-stone-500 mt-1">Libellé : <strong>{form.date_label || '—'}</strong></div>
               </Field>
             </div>
             <Field label="Description">
@@ -2003,7 +2055,7 @@
               <Field label="Montant (€)">
                 <Input required type="number" step="0.01" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} placeholder="3200" />
               </Field>
-              <Field label="Échéance (pour rappels auto)">
+              <Field label="Échéance (rappels auto)">
                 <Input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} />
               </Field>
               <Field label="Statut">
@@ -2094,12 +2146,12 @@
     }
 
     function ShootForm({ clientId, existing, onClose, onSaved }) {
+      // Reconstituer la date ISO à partir des anciens champs si on édite un existant
+      const existingISO = existing?.date_iso || (existing ? shootPartsToISO(existing.date_day, existing.month_label, existing.year) : '');
       const [form, setForm] = useState({
         title:       existing?.title       || '',
         type:        existing?.type        || 'photo',
-        date_day:    existing?.date_day    || '',
-        month_label: existing?.month_label || 'Avr',
-        year:        existing?.year        || 2026,
+        date_iso:    existingISO || (existing ? '' : todayISO()),
         time_label:  existing?.time_label  || '',
         location:    existing?.location    || '',
         notes:       existing?.notes       || '',
@@ -2109,7 +2161,16 @@
       const submit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        const payload = { ...form, client_id: clientId, date_day: parseInt(form.date_day), year: parseInt(form.year) };
+        // Calculer les champs legacy à partir de la date ISO
+        const parts = isoToShootParts(form.date_iso);
+        const payload = {
+          ...form,
+          client_id:   clientId,
+          date_day:    parts.date_day || null,
+          month_label: parts.month_label || 'Jan',
+          year:        parts.year || new Date().getFullYear(),
+          date_iso:    form.date_iso || null,
+        };
         const result = existing
           ? await sb.from('shoots').update(payload).eq('id', existing.id)
           : await sb.from('shoots').insert(payload);
@@ -2117,36 +2178,25 @@
         else { alert(result.error.message); setLoading(false); }
       };
 
-      const months = ['Jan', 'Fév', 'Mars', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
-
       return (
         <Modal title={existing ? 'Modifier le tournage' : 'Nouveau tournage'} kicker="Planning" onClose={onClose} size="lg">
           <form onSubmit={submit} className="space-y-4">
             <Field label="Titre du tournage">
               <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Shooting éditorial — Maison Lumière" />
             </Field>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Field label="Type">
                 <Select value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
                   <option value="photo">📸 Photo</option>
                   <option value="video">🎥 Vidéo</option>
                 </Select>
               </Field>
+              <Field label="Date du tournage">
+                <Input required type="date" value={form.date_iso} onChange={e => setForm({...form, date_iso: e.target.value})} />
+                <div className="text-[11px] text-stone-500 mt-1">{form.date_iso ? isoToLabel(form.date_iso) : '—'}</div>
+              </Field>
               <Field label="Horaire">
                 <Input value={form.time_label} onChange={e => setForm({...form, time_label: e.target.value})} placeholder="09:00 — 16:00" />
-              </Field>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <Field label="Jour">
-                <Input required type="number" min="1" max="31" value={form.date_day} onChange={e => setForm({...form, date_day: e.target.value})} />
-              </Field>
-              <Field label="Mois">
-                <Select value={form.month_label} onChange={e => setForm({...form, month_label: e.target.value})}>
-                  {months.map(m => <option key={m} value={m}>{m}</option>)}
-                </Select>
-              </Field>
-              <Field label="Année">
-                <Input type="number" value={form.year} onChange={e => setForm({...form, year: e.target.value})} />
               </Field>
             </div>
             <Field label="Lieu">

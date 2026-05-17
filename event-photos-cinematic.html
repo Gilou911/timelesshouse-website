@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <meta name="description" content="Galerie photos de mariage — TimelessHouse Private Collection" />
+
+  <meta property="og:title" content="TimelessHouse — Galerie Photos" />
+  <meta property="og:description" content="Galerie photos — Collection privée." />
+  <meta property="og:type" content="website" />
+
+  <title>TimelessHouse — Galerie Photos</title>
+
+  <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Jost:wght@300;400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- 🔐 Config Supabase (URL + ANON_KEY) -->
+  <script src="supabase-config.js"></script>
+
+  <!-- 📥 Chargement de la config depuis Supabase (top-level await) — IDENTIQUE à event-photos.html -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    const sb = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+    function showError(type, clientName) {
+      document.body.style.opacity = '1';
+      document.body.innerHTML = `
+        <div style="
+          min-height:100vh; background:#0a0a0a; display:flex; align-items:center;
+          justify-content:center; font-family:'Jost',sans-serif; padding:24px;
+        ">
+          <div style="text-align:center; max-width:460px;">
+            <div style="
+              font-family:'Cormorant Garamond',serif; font-style:italic;
+              font-size:clamp(2rem,6vw,3rem); color:#b08968; margin-bottom:8px; letter-spacing:0.02em;
+            ">TimelessHouse<span style="color:#555">.</span></div>
+            <div style="width:40px; height:1px; background:#b08968; opacity:0.4; margin:20px auto;"></div>
+            ${type === 'not-ready' ? `
+              <div style="font-size:11px; letter-spacing:0.25em; color:#666; text-transform:uppercase; margin-bottom:16px;">Votre espace</div>
+              <div style="font-family:'Cormorant Garamond',serif; font-size:clamp(1.4rem,4vw,1.9rem); color:#f4f0eb; margin-bottom:16px; line-height:1.3;">
+                ${clientName ? clientName + ',<br>' : ''}votre galerie est en cours de préparation.
+              </div>
+              <p style="font-size:13px; color:#666; line-height:1.7; margin-bottom:28px;">
+                Nous finalisons votre espace privé. Vous recevrez un email dès qu'il sera disponible.
+              </p>
+              <a href="mailto:service@timelesshouse.org" style="
+                display:inline-block; padding:12px 28px; border:1px solid #333;
+                color:#b08968; font-size:11px; letter-spacing:0.2em; text-transform:uppercase;
+                text-decoration:none; transition:all 0.2s;
+              ">Contacter TimelessHouse</a>
+            ` : `
+              <div style="font-size:11px; letter-spacing:0.25em; color:#666; text-transform:uppercase; margin-bottom:16px;">Accès</div>
+              <div style="font-family:'Cormorant Garamond',serif; font-size:clamp(1.4rem,4vw,1.9rem); color:#f4f0eb; margin-bottom:16px;">
+                Code non reconnu.
+              </div>
+              <p style="font-size:13px; color:#666; line-height:1.7; margin-bottom:28px;">
+                Votre code d'accès semble incorrect ou expiré. Merci de le vérifier ou de contacter votre photographe.
+              </p>
+              <a href="mariage.html" style="
+                display:inline-block; padding:12px 28px; border:1px solid #333;
+                color:#b08968; font-size:11px; letter-spacing:0.2em; text-transform:uppercase;
+                text-decoration:none; margin-right:12px;
+              ">Réessayer</a>
+              <a href="mailto:service@timelesshouse.org" style="
+                display:inline-block; padding:12px 28px; border:1px solid #222;
+                color:#555; font-size:11px; letter-spacing:0.2em; text-transform:uppercase;
+                text-decoration:none;
+              ">Contacter</a>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    const code = sessionStorage.getItem('access_granted');
+    if (!code) { window.location.href = 'mariage.html'; throw new Error('No access'); }
+
+    const { data: client, error: cErr } = await sb.from('clients')
+      .select('id, code, name, universe, agency_name')
+      .eq('code', code).eq('active', true).maybeSingle();
+
+    if (cErr || !client) {
+      sessionStorage.removeItem('access_granted');
+      showError('invalid');
+      throw new Error('Client not found');
+    }
+
+    const { data: pages } = await sb.from('event_pages')
+      .select('page_type, config')
+      .eq('client_id', client.id);
+
+    const photosPage = (pages || []).find(p => p.page_type === 'photos');
+    const videoPage  = (pages || []).find(p => p.page_type === 'video');
+
+    if (!photosPage) {
+      if (videoPage) {
+        const dest = client.universe === 'anniversaire-mariage' ? 'event-anniversary.html'
+          : client.universe === 'fiancailles' ? 'event-engagement.html'
+          : 'event-video.html';
+        window.location.href = dest;
+      } else {
+        showError('not-ready', client.name);
+      }
+      throw new Error('No photos page');
+    }
+
+    const cfg = Object.assign({
+      couple: client.name,
+      date: '',
+      lieu: '',
+      dateISO: '',
+      cloudName: '',
+      rootFolder: '',
+      categories: [],
+      zipDriveId: '',
+      layout: 'masonry',
+      theme: 'noir',
+      galleryMode: 'categorized',
+      style: 'classic',          // 'classic' | 'cinematic'
+      coverPublicId: '',   // optionnel : public_id Cloudinary de la photo de couverture
+    }, photosPage.config || {});
+
+    // 🎞️ Garde-fou symétrique : ce template est réservé au style
+    // "cinematic". Si l'admin a (re)basculé ce client en "classic",
+    // on renvoie vers la galerie standard.
+    if (cfg.style !== 'cinematic') {
+      window.location.replace('event-photos.html');
+      throw new Error('redirect → classic');
+    }
+
+    cfg.videoUrl = videoPage
+      ? (client.universe === 'anniversaire-mariage' ? 'event-anniversary.html'
+        : client.universe === 'fiancailles' ? 'event-engagement.html'
+        : 'event-video.html')
+      : '';
+    const COUPLE_UNIVERSES = ['mariage', 'fiancailles', 'anniversaire-mariage'];
+    cfg.accueilUrl = COUPLE_UNIVERSES.includes(client.universe)
+      ? 'mariage.html'
+      : (client.universe ? client.universe + '.html' : 'index.html');
+
+    window.WEDDING_CONFIG = cfg;
+    window.__CLIENT = client;
+    window.dispatchEvent(new CustomEvent('config-ready'));
+  </script>
+
+  <style>
+    :root {
+      --bg:        #0a0a0a;
+      --bg-deep:   #050505;
+      --bg-elev:   #111110;
+      --ink:       #f4f0eb;
+      --ink-soft:  #a39c8f;
+      --ink-dim:   #5a554b;
+      --accent:    #b08968;
+      --accent-dk: #97714f;
+      --accent-gl: rgba(176, 137, 104, 0.14);
+      --line:      rgba(244, 240, 235, 0.10);
+      --line-soft: rgba(244, 240, 235, 0.06);
+      --gap: 10px;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
+      --shadow: 0 30px 90px rgba(0,0,0,0.7);
+    }
+
+    /* ── Thèmes (parité avec event-photos.html) ── */
+    [data-theme="creme"] {
+      --bg: #f3eee7; --bg-deep: #ece5db; --bg-elev: #e7e0d6;
+      --ink: #1a1714; --ink-soft: #6b6560; --ink-dim: #a39d95;
+      --accent: #8b6a48; --accent-dk: #74552f; --accent-gl: rgba(139,106,72,0.12);
+      --line: rgba(26,23,20,0.10); --line-soft: rgba(26,23,20,0.06);
+      --shadow: 0 30px 90px rgba(0,0,0,0.18);
+    }
+    [data-theme="ardoise"] {
+      --bg: #13161c; --bg-deep: #0d1014; --bg-elev: #1a1e26;
+      --ink: #e8eaef; --ink-soft: #828a98; --ink-dim: #4a505a;
+      --accent: #7fa0bd; --accent-dk: #6585a0; --accent-gl: rgba(127,160,189,0.15);
+      --line: rgba(232,234,239,0.09); --line-soft: rgba(232,234,239,0.05);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: "Jost", sans-serif;
+      font-weight: 300;
+      background: var(--bg);
+      color: var(--ink);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+    body.no-scroll { overflow: hidden; }
+    ::selection { background: var(--accent); color: var(--bg); }
+    :focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+    img { -webkit-user-drag: none; user-select: none; }
+
+    /* Grain cinéma */
+    .grain {
+      position: fixed; inset: 0; pointer-events: none; z-index: 3;
+      opacity: 0.035; mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    }
+
+    /* ════════════════════════ LOADER ════════════════════════ */
+    .boot {
+      position: fixed; inset: 0; z-index: 9999; background: var(--bg-deep);
+      display: flex; align-items: center; justify-content: center; flex-direction: column;
+      transition: opacity 1s var(--ease), visibility 1s var(--ease);
+    }
+    .boot.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+    .boot-mark {
+      font-family: "Cormorant Garamond", serif; font-style: italic;
+      font-size: 1.7rem; color: var(--accent); letter-spacing: 0.06em;
+      opacity: 0; animation: bootIn 1.1s var(--ease) 0.15s forwards;
+    }
+    .boot-line {
+      width: 1px; height: 0; background: var(--accent); margin: 22px auto 0;
+      animation: bootLine 1.5s var(--ease) 0.5s forwards;
+    }
+    @keyframes bootIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform:none; } }
+    @keyframes bootLine { to { height: 54px; } }
+
+    /* ════════════════════════ COVER / HÉRO ════════════════════════ */
+    .cover {
+      position: relative; height: 100svh; min-height: 560px;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; text-align: center;
+    }
+    .cover-bg {
+      position: absolute; inset: -4%;
+      background-size: cover; background-position: center;
+      transform: scale(1.06);
+      animation: kenburns 26s ease-out infinite alternate;
+      filter: brightness(0.55) saturate(1.05);
+    }
+    @keyframes kenburns {
+      from { transform: scale(1.06) translate(0,0); }
+      to   { transform: scale(1.16) translate(-1.5%, -2%); }
+    }
+    .cover::after {
+      content: ""; position: absolute; inset: 0; z-index: 1;
+      background:
+        radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.45) 100%),
+        linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 25%, transparent 60%, rgba(0,0,0,0.55) 100%);
+    }
+    [data-theme="creme"] .cover-bg { filter: brightness(0.72) saturate(1.05); }
+    [data-theme="creme"] .cover::after {
+      background:
+        radial-gradient(ellipse at center, transparent 35%, rgba(20,16,12,0.32) 100%),
+        linear-gradient(to bottom, rgba(20,16,12,0.30) 0%, transparent 30%, transparent 62%, rgba(20,16,12,0.42) 100%);
+    }
+
+    .cover-inner { position: relative; z-index: 2; padding: 0 24px; color: #fff; }
+    .cover-photog {
+      font-family: "Jost", sans-serif; font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.42em; color: rgba(255,255,255,0.7);
+      margin-bottom: 34px; text-decoration: none; display: inline-block;
+      opacity: 0; animation: rise 1.3s var(--ease) 0.6s forwards;
+      transition: color 0.4s var(--ease);
+    }
+    .cover-photog:hover { color: #fff; }
+    .cover h1 {
+      font-family: "Cormorant Garamond", serif; font-weight: 300; font-style: italic;
+      font-size: clamp(3rem, 11vw, 8.5rem); line-height: 0.95; letter-spacing: 0.005em;
+      margin: 0; text-shadow: 0 4px 40px rgba(0,0,0,0.4);
+      opacity: 0; animation: rise 1.5s var(--ease) 0.9s forwards;
+    }
+    .cover-meta {
+      margin-top: 30px; font-size: 10.5px; text-transform: uppercase;
+      letter-spacing: 0.4em; color: rgba(255,255,255,0.82);
+      display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap;
+      opacity: 0; animation: rise 1.3s var(--ease) 1.25s forwards;
+    }
+    .cover-meta i { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); font-style: normal; }
+    @keyframes rise { from { opacity:0; transform: translateY(26px); } to { opacity:1; transform:none; } }
+
+    .cover-scroll {
+      position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%);
+      z-index: 2; background: none; border: none; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      color: rgba(255,255,255,0.75); font-family: "Jost", sans-serif;
+      font-size: 9px; text-transform: uppercase; letter-spacing: 0.34em;
+      opacity: 0; animation: rise 1.2s var(--ease) 1.6s forwards;
+      transition: color 0.4s var(--ease);
+    }
+    .cover-scroll:hover { color: #fff; }
+    .cover-scroll .ln { width: 1px; height: 46px; background: rgba(255,255,255,0.4); position: relative; overflow: hidden; }
+    .cover-scroll .ln::after {
+      content: ""; position: absolute; left: 0; top: -60%; width: 100%; height: 60%;
+      background: #fff; animation: scrollPulse 2.2s var(--ease) infinite;
+    }
+    @keyframes scrollPulse { 0%{ top:-60%; } 60%,100%{ top:120%; } }
+
+    /* ════════════════════════ TOP BAR (apparaît au scroll) ════════════════════════ */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px clamp(18px, 4vw, 44px);
+      background: color-mix(in srgb, var(--bg) 78%, transparent);
+      -webkit-backdrop-filter: saturate(180%) blur(18px);
+      backdrop-filter: saturate(180%) blur(18px);
+      border-bottom: 1px solid transparent;
+      transform: translateY(-110%);
+      transition: transform 0.7s var(--ease), border-color 0.4s ease, background 0.4s ease;
+    }
+    .topbar.show { transform: translateY(0); border-bottom-color: var(--line-soft); }
+    .topbar-name {
+      font-family: "Cormorant Garamond", serif; font-style: italic;
+      font-size: 1.15rem; color: var(--ink); letter-spacing: 0.02em; text-decoration: none;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50vw;
+    }
+    .topbar-actions { display: flex; align-items: center; gap: 6px; }
+    .tb-btn {
+      display: inline-flex; align-items: center; gap: 9px;
+      background: none; border: 1px solid transparent; cursor: pointer;
+      color: var(--ink-soft); font-family: "Jost", sans-serif; font-weight: 300;
+      font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.24em;
+      padding: 10px 16px; border-radius: 999px; text-decoration: none;
+      transition: all 0.4s var(--ease); white-space: nowrap;
+    }
+    .tb-btn svg { width: 14px; height: 14px; stroke-width: 1.6; }
+    .tb-btn:hover { color: var(--ink); background: var(--accent-gl); }
+    .tb-btn.solid { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 400; }
+    .tb-btn.solid:hover { background: var(--accent-dk); border-color: var(--accent-dk); color: var(--bg); }
+    .tb-btn .lbl-full { display: inline; }
+    .tb-btn .lbl-short { display: none; }
+
+    /* ════════════════════════ SCÈNES ════════════════════════ */
+    .stage { position: relative; z-index: 2; }
+
+    .scene { padding: clamp(70px, 11vw, 140px) clamp(14px, 4vw, 56px) 0; }
+    .scene:last-child { padding-bottom: clamp(90px, 12vw, 150px); }
+
+    .scene-head {
+      text-align: center; max-width: 720px; margin: 0 auto clamp(38px, 5vw, 64px);
+      opacity: 0; transform: translateY(28px);
+    }
+    .scene.in .scene-head { opacity: 1; transform: none; transition: opacity 1.1s var(--ease), transform 1.1s var(--ease); }
+    .scene-no {
+      font-family: "Cormorant Garamond", serif; font-size: 11px; font-style: italic;
+      letter-spacing: 0.5em; color: var(--accent); text-transform: uppercase; display: block;
+      margin-bottom: 18px;
+    }
+    .scene-name {
+      font-family: "Cormorant Garamond", serif; font-weight: 300; font-style: italic;
+      font-size: clamp(2rem, 5.2vw, 3.6rem); line-height: 1.05; color: var(--ink);
+    }
+    .scene-rule {
+      width: 46px; height: 1px; background: var(--accent); opacity: 0.5;
+      margin: 26px auto 0;
+    }
+
+    /* Grille justifiée (rangées de hauteur égale, pleine largeur) */
+    .rows { max-width: 1640px; margin: 0 auto; }
+    .row { display: flex; gap: var(--gap); margin-bottom: var(--gap); }
+    .row:last-child { margin-bottom: 0; }
+
+    .cell {
+      position: relative; overflow: hidden; cursor: zoom-in;
+      background: var(--bg-elev); border-radius: 1px; flex: 0 0 auto;
+    }
+    .cell::before {
+      content: ""; position: absolute; inset: 0; z-index: 0;
+      background: linear-gradient(110deg,
+        color-mix(in srgb, var(--bg-elev) 92%, #000) 8%,
+        color-mix(in srgb, var(--bg-elev) 70%, var(--accent)) 18%,
+        color-mix(in srgb, var(--bg-elev) 92%, #000) 33%);
+      background-size: 220% 100%; animation: shimmer 2.6s linear infinite; opacity: 0.5;
+    }
+    .cell.ready::before { animation: none; opacity: 0; }
+    @keyframes shimmer { from { background-position: 220% 0; } to { background-position: -220% 0; } }
+
+    .cell img {
+      position: relative; z-index: 1;
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      opacity: 0; transform: scale(1.04);
+      transition: opacity 1s var(--ease), transform 1.4s var(--ease), filter 0.6s ease;
+      filter: brightness(0.94);
+    }
+    .cell img.on { opacity: 1; transform: scale(1); }
+    .cell:hover img { transform: scale(1.045); filter: brightness(1.02); }
+
+    .cell-grad {
+      position: absolute; inset: 0; z-index: 2; pointer-events: none;
+      background: linear-gradient(to top, rgba(0,0,0,0.42) 0%, transparent 38%);
+      opacity: 0; transition: opacity 0.5s var(--ease);
+    }
+    .cell:hover .cell-grad { opacity: 1; }
+
+    .cell-tools {
+      position: absolute; right: 12px; bottom: 12px; z-index: 3;
+      display: flex; gap: 7px; opacity: 0; transform: translateY(6px);
+      transition: opacity 0.45s var(--ease), transform 0.45s var(--ease);
+    }
+    .cell:hover .cell-tools, .cell:focus-visible .cell-tools { opacity: 1; transform: none; }
+    .ctool {
+      width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; background: rgba(12,11,9,0.55); color: #fff;
+      border: 1px solid rgba(255,255,255,0.16); cursor: pointer;
+      -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+      transition: all 0.3s var(--ease); text-decoration: none;
+    }
+    .ctool svg { width: 15px; height: 15px; stroke-width: 1.7; fill: none; stroke: currentColor; }
+    .ctool:hover { background: var(--accent); border-color: var(--accent); transform: scale(1.08); }
+    .ctool.heart.fav { background: var(--accent); border-color: var(--accent); }
+    .ctool.heart.fav svg { fill: #fff; stroke: #fff; }
+
+    .cell-fav-badge {
+      position: absolute; left: 12px; top: 12px; z-index: 3;
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      display: none; align-items: center; justify-content: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+    }
+    .cell-fav-badge svg { width: 13px; height: 13px; fill: #fff; }
+    .cell.is-fav .cell-fav-badge { display: flex; }
+
+    .empty {
+      text-align: center; padding: 130px 20px; color: var(--ink-dim);
+      font-family: "Cormorant Garamond", serif; font-style: italic; font-size: 1.4rem;
+    }
+
+    /* ════════════════════════ DRAWER SCÈNES ════════════════════════ */
+    .drawer {
+      position: fixed; inset: 0; z-index: 500;
+      background: color-mix(in srgb, var(--bg-deep) 96%, transparent);
+      -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
+      opacity: 0; visibility: hidden; transition: opacity 0.6s var(--ease), visibility 0.6s var(--ease);
+      display: flex; flex-direction: column; padding: clamp(28px, 6vw, 70px);
+      overflow-y: auto;
+    }
+    .drawer.open { opacity: 1; visibility: visible; }
+    .drawer-top {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: clamp(36px, 6vw, 64px);
+    }
+    .drawer-title {
+      font-family: "Cormorant Garamond", serif; font-style: italic;
+      font-size: clamp(1.4rem, 4vw, 2.2rem); color: var(--ink);
+    }
+    .drawer-close {
+      width: 46px; height: 46px; border-radius: 50%; cursor: pointer;
+      background: none; border: 1px solid var(--line); color: var(--ink-soft);
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.4s var(--ease);
+    }
+    .drawer-close:hover { color: var(--ink); border-color: var(--accent); transform: rotate(90deg); }
+    .drawer-close svg { width: 18px; height: 18px; stroke-width: 1.8; }
+
+    .scene-list {
+      flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: clamp(16px, 2.5vw, 30px); align-content: start;
+    }
+    .scene-card {
+      position: relative; cursor: pointer; overflow: hidden; border-radius: 2px;
+      aspect-ratio: 4 / 3; background: var(--bg-elev); border: 1px solid var(--line-soft);
+    }
+    .scene-card img {
+      width: 100%; height: 100%; object-fit: cover;
+      filter: brightness(0.55) saturate(1.05);
+      transition: transform 1.1s var(--ease), filter 0.6s ease;
+    }
+    .scene-card:hover img { transform: scale(1.07); filter: brightness(0.72); }
+    .scene-card-cap {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center; gap: 9px;
+      padding: 16px; pointer-events: none;
+    }
+    .scene-card-no {
+      font-family: "Cormorant Garamond", serif; font-style: italic; font-size: 11px;
+      letter-spacing: 0.42em; color: var(--accent); text-transform: uppercase;
+    }
+    .scene-card-name {
+      font-family: "Cormorant Garamond", serif; font-style: italic;
+      font-size: clamp(1.3rem, 2.6vw, 1.9rem); color: #fff; line-height: 1.1;
+    }
+    .scene-card-count {
+      font-size: 9.5px; letter-spacing: 0.28em; text-transform: uppercase;
+      color: rgba(255,255,255,0.62);
+    }
+    [data-theme="creme"] .scene-card-name,
+    [data-theme="creme"] .scene-card-count { text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+
+    /* ════════════════════════ LIGHTBOX ════════════════════════ */
+    .lb {
+      position: fixed; inset: 0; z-index: 800;
+      background: color-mix(in srgb, var(--bg-deep) 0%, transparent);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; visibility: hidden;
+      transition: opacity 0.55s var(--ease), visibility 0.55s var(--ease),
+                  background 0.55s var(--ease);
+    }
+    .lb.open { opacity: 1; visibility: visible; background: color-mix(in srgb, var(--bg-deep) 97%, transparent); }
+
+    .lb-stage {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      padding: clamp(46px, 8vh, 96px) clamp(48px, 9vw, 130px);
+    }
+    .lb-stage img {
+      max-width: 100%; max-height: 100%; object-fit: contain; display: block;
+      box-shadow: var(--shadow);
+      opacity: 0; transform: scale(0.97);
+      transition: opacity 0.5s var(--ease), transform 0.6s var(--ease);
+      cursor: zoom-in;
+    }
+    .lb.open .lb-stage img.on { opacity: 1; transform: scale(1); }
+    .lb-stage img.zoomed { cursor: zoom-out; max-width: none; max-height: none; }
+
+    .lb-bar {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 2;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 22px clamp(20px, 4vw, 40px);
+      background: linear-gradient(to bottom, color-mix(in srgb, var(--bg-deep) 75%, transparent), transparent);
+    }
+    .lb-count {
+      font-family: "Cormorant Garamond", serif; font-style: italic;
+      font-size: 1rem; color: var(--ink-soft); letter-spacing: 0.16em;
+    }
+    .lb-count b { color: var(--ink); font-weight: 400; }
+    .lb-bar-r { display: flex; gap: 6px; }
+    .lb-ic {
+      width: 42px; height: 42px; border-radius: 50%; cursor: pointer;
+      background: none; border: 1px solid transparent; color: var(--ink-soft);
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.35s var(--ease); text-decoration: none;
+    }
+    .lb-ic svg { width: 18px; height: 18px; stroke-width: 1.7; fill: none; stroke: currentColor; }
+    .lb-ic:hover { color: var(--ink); background: var(--accent-gl); }
+    .lb-ic.heart.fav { color: var(--accent); }
+    .lb-ic.heart.fav svg { fill: var(--accent); stroke: var(--accent); }
+
+    .lb-nav {
+      position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+      width: 56px; height: 56px; border-radius: 50%; cursor: pointer;
+      background: none; border: 1px solid var(--line); color: var(--ink-soft);
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.4s var(--ease);
+    }
+    .lb-nav svg { width: 20px; height: 20px; stroke-width: 1.6; fill: none; stroke: currentColor; }
+    .lb-nav:hover { color: var(--ink); border-color: var(--accent); background: var(--accent-gl); }
+    .lb-nav.prev { left: clamp(14px, 3vw, 34px); }
+    .lb-nav.next { right: clamp(14px, 3vw, 34px); }
+
+    .lb-cap {
+      position: absolute; bottom: 0; left: 0; right: 0; z-index: 2;
+      text-align: center; padding: 26px 20px 30px;
+      background: linear-gradient(to top, color-mix(in srgb, var(--bg-deep) 72%, transparent), transparent);
+      font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.34em; color: var(--ink-soft);
+    }
+
+    /* ════════════════════════ SCROLL TOP ════════════════════════ */
+    .totop {
+      position: fixed; right: 24px; bottom: 24px; z-index: 150;
+      width: 46px; height: 46px; border-radius: 50%; cursor: pointer;
+      background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
+      border: 1px solid var(--line); color: var(--ink-soft);
+      display: flex; align-items: center; justify-content: center;
+      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+      opacity: 0; visibility: hidden; transform: translateY(10px);
+      transition: all 0.45s var(--ease);
+    }
+    .totop.show { opacity: 1; visibility: visible; transform: none; }
+    .totop:hover { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+    .totop svg { width: 17px; height: 17px; stroke-width: 1.8; }
+
+    footer {
+      text-align: center; padding: 52px 20px 60px; position: relative; z-index: 2;
+      font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.32em; color: var(--ink-dim);
+      border-top: 1px solid var(--line-soft);
+    }
+    footer .fmark { font-family: "Cormorant Garamond", serif; font-style: italic; color: var(--accent); text-transform: none; letter-spacing: 0.04em; font-size: 1rem; }
+
+    /* ════════════════════════ RESPONSIVE ════════════════════════ */
+    @media (max-width: 760px) {
+      .tb-btn .lbl-full { display: none; }
+      .tb-btn .lbl-short { display: inline; }
+      .tb-btn { padding: 9px 13px; }
+      .scene { padding-left: 8px; padding-right: 8px; }
+      .lb-nav { width: 46px; height: 46px; }
+      .lb-stage { padding: 70px 14px 60px; }
+      :root { --gap: 6px; }
+    }
+    @media (max-width: 480px) {
+      .cover-meta { gap: 12px; font-size: 9.5px; }
+      .scene-list { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .cover-bg { animation: none; }
+      * { animation-duration: 0.01ms !important; transition-duration: 0.1ms !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="grain" aria-hidden="true"></div>
+
+  <div class="boot" id="boot" aria-hidden="true">
+    <div>
+      <div class="boot-mark">TimelessHouse</div>
+      <div class="boot-line"></div>
+    </div>
+  </div>
+
+  <!-- TOP BAR -->
+  <header class="topbar" id="topbar">
+    <a href="#" class="topbar-name" id="tbName">—</a>
+    <div class="topbar-actions">
+      <button class="tb-btn" id="tbScenes" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <span class="lbl-full">Scènes</span><span class="lbl-short">Scènes</span>
+      </button>
+      <a href="#" class="tb-btn" id="tbVideo" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+        <span class="lbl-full">Le Film</span><span class="lbl-short">Film</span>
+      </a>
+      <a href="#" class="tb-btn solid" id="tbDownload" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span class="lbl-full">Tout télécharger</span><span class="lbl-short">ZIP</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- COVER -->
+  <section class="cover" id="cover">
+    <div class="cover-bg" id="coverBg" aria-hidden="true"></div>
+    <div class="cover-inner">
+      <a href="#" class="cover-photog" id="coverPhotog">TimelessHouse</a>
+      <h1 id="coverTitle">—</h1>
+      <div class="cover-meta" id="coverMeta"></div>
+    </div>
+    <button class="cover-scroll" id="coverScroll" aria-label="Découvrir la galerie">
+      <span>Découvrir</span>
+      <span class="ln" aria-hidden="true"></span>
+    </button>
+  </section>
+
+  <!-- STAGE (scènes) -->
+  <main class="stage" id="stage"></main>
+
+  <footer>
+    <div class="fmark" id="footMark">TimelessHouse</div>
+    <div style="margin-top:10px">&copy; <span id="footYear"></span> — Private Collection</div>
+  </footer>
+
+  <button class="totop" id="toTop" aria-label="Remonter en haut">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+  </button>
+
+  <!-- DRAWER SCÈNES -->
+  <div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Navigation des scènes">
+    <div class="drawer-top">
+      <div class="drawer-title" id="drawerTitle">Les Scènes</div>
+      <button class="drawer-close" id="drawerClose" aria-label="Fermer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="scene-list" id="sceneList"></div>
+  </div>
+
+  <!-- LIGHTBOX -->
+  <div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Visionneuse">
+    <div class="lb-bar">
+      <div class="lb-count"><b id="lbI">1</b> / <span id="lbN">1</span></div>
+      <div class="lb-bar-r">
+        <button class="lb-ic heart" id="lbHeart" aria-label="Ajouter aux favoris" title="Favori">
+          <svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+        </button>
+        <a class="lb-ic" id="lbDl" download title="Télécharger" aria-label="Télécharger">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </a>
+        <button class="lb-ic" id="lbClose" title="Fermer (Échap)" aria-label="Fermer">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <button class="lb-nav prev" id="lbPrev" aria-label="Précédente">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <button class="lb-nav next" id="lbNext" aria-label="Suivante">
+      <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <div class="lb-stage" id="lbStage"><img id="lbImg" src="" alt="" /></div>
+    <div class="lb-cap" id="lbCap"></div>
+  </div>
+
+  <script>
+  function __run() {
+    const C = window.WEDDING_CONFIG;
+    const $ = (id) => document.getElementById(id);
+
+    /* ── Config visuelle ── */
+    if (C.theme && C.theme !== 'noir') document.body.setAttribute('data-theme', C.theme);
+    document.title = C.couple + ' — Galerie Photos';
+    document.querySelector('meta[property="og:title"]').setAttribute('content', C.couple + ' — Galerie Photos');
+    document.querySelector('meta[name="description"]').setAttribute('content',
+      'Galerie photos de ' + C.couple + (C.date ? ' — ' + C.date : '') + (C.lieu ? ', ' + C.lieu : '') + '.');
+
+    $('coverTitle').textContent = C.couple;
+    $('tbName').textContent = C.couple;
+    $('tbName').href = C.accueilUrl;
+    $('coverPhotog').href = C.accueilUrl;
+    $('footYear').textContent = new Date().getFullYear();
+
+    const meta = [];
+    if (C.date) meta.push('<span>' + C.date + '</span>');
+    if (C.lieu) meta.push('<span>' + C.lieu + '</span>');
+    $('coverMeta').innerHTML = meta.join('<i>&middot;</i>');
+
+    if (C.videoUrl && C.videoUrl.trim() !== '') $('tbVideo').href = C.videoUrl;
+    else $('tbVideo').style.display = 'none';
+    $('tbDownload').href = C.zipDriveId
+      ? 'https://drive.google.com/uc?export=download&id=' + C.zipDriveId : '#';
+    if (!C.zipDriveId) $('tbDownload').style.display = 'none';
+
+    /* ── Loader d'entrée ── */
+    setTimeout(() => $('boot').classList.add('gone'), 1500);
+
+    /* ── Cloudinary helpers ── */
+    const CLOUD = C.cloudName, ROOT = C.rootFolder;
+    const url = (id, t) => 'https://res.cloudinary.com/' + CLOUD + '/image/upload/' + t + '/' + id;
+    const HD    = id => url(id, 'q_auto:best,f_auto');
+    const VIEW  = id => url(id, 'c_limit,w_2000,q_auto:good,f_auto');
+    const GRID  = id => url(id, 'c_scale,w_1000,q_auto:good,f_auto');
+    const BLUR  = id => url(id, 'c_scale,w_36,e_blur:900,q_auto:low,f_auto');
+
+    /* ── Favoris (persistés localement, sans casser en privé) ── */
+    const FAV_KEY = 'th_fav_' + (sessionStorage.getItem('access_granted') || 'x');
+    let favs = new Set();
+    try { favs = new Set(JSON.parse(localStorage.getItem(FAV_KEY) || '[]')); } catch (e) {}
+    const saveFavs = () => { try { localStorage.setItem(FAV_KEY, JSON.stringify([...favs])); } catch (e) {} };
+
+    /* ── Données ── */
+    let SCENES = [];     // [{ folder, name, photos:[{id, w, h, fileName}] }]
+    let FLAT = [];       // toutes les photos à plat (ordre d'affichage) pour la lightbox
+
+    async function loadDynamic() {
+      const code = sessionStorage.getItem('access_granted');
+      const base = (window.SUPABASE_URL || '').replace(/\/+$/, '');
+      if (!code || !base) throw new Error('Contexte Supabase manquant');
+      const resp = await fetch(base + '/functions/v1/list-gallery', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': window.SUPABASE_ANON_KEY || '',
+          'Authorization': 'Bearer ' + (window.SUPABASE_ANON_KEY || ''),
+        },
+        body: JSON.stringify({ code }),
+      });
+      if (!resp.ok) throw new Error('list-gallery HTTP ' + resp.status);
+      const data = await resp.json();
+      if (!data || !Array.isArray(data.categories)) throw new Error('Réponse invalide');
+
+      const cfgCats = Array.isArray(C.categories) ? C.categories : [];
+      const byFolder = new Map(data.categories.map(c => [c.folder, c]));
+      let ordered = [];
+      if (cfgCats.length) {
+        cfgCats.forEach(cc => {
+          const api = byFolder.get(cc.folder);
+          if (api && api.count > 0) {
+            ordered.push({ folder: cc.folder, name: cc.name || api.name, images: api.images });
+            byFolder.delete(cc.folder);
+          }
+        });
+        byFolder.forEach(api => { if (api.count > 0) ordered.push(api); });
+      } else {
+        ordered = data.categories.filter(c => c.count > 0);
+      }
+      SCENES = ordered.map(c => ({
+        folder: c.folder,
+        name: c.name,
+        photos: c.images.map(im => ({
+          id: im.publicId, w: im.width || null, h: im.height || null,
+          fileName: (im.publicId.split('/').pop() || 'photo') + '.jpg',
+        })),
+      }));
+    }
+
+    function loadLegacy() {
+      const cats = Array.isArray(C.categories) ? C.categories : [];
+      SCENES = cats.filter(c => c.count > 0).map(c => ({
+        folder: c.folder, name: c.name,
+        photos: Array.from({ length: c.count }, (_, i) => {
+          const id = ROOT + '/' + c.folder + '/0' + (i + 1);
+          return { id, w: null, h: null, fileName: c.name + '-0' + (i + 1) + '.jpg' };
+        }),
+      }));
+    }
+
+    /* ── Layout justifié : rangées de hauteur égale, pleine largeur ── */
+    function justify(photos, containerW, targetH, gap) {
+      const rows = [];
+      let row = [], arSum = 0;
+      const maxH = targetH * 1.45;
+      photos.forEach((p) => {
+        const ar = (p.w && p.h) ? (p.w / p.h) : 1.5;
+        row.push({ p, ar });
+        arSum += ar;
+        const rowW = arSum * targetH + (row.length - 1) * gap;
+        if (rowW >= containerW && row.length >= 1) {
+          rows.push(closeRow(row, arSum, containerW, gap, targetH, maxH));
+          row = []; arSum = 0;
+        }
+      });
+      if (row.length) {
+        // Dernière rangée : ne pas étirer démesurément
+        const naturalH = (containerW - (row.length - 1) * gap) / arSum;
+        const h = Math.min(naturalH, targetH * 1.12);
+        rows.push(row.map(it => ({ p: it.p, w: it.ar * h, h })));
+      }
+      return rows;
+    }
+    function closeRow(row, arSum, containerW, gap, targetH, maxH) {
+      let h = (containerW - (row.length - 1) * gap) / arSum;
+      h = Math.max(targetH * 0.7, Math.min(h, maxH));
+      return row.map(it => ({ p: it.p, w: it.ar * h, h }));
+    }
+
+    /* ── Lazy loader (blur-up) ── */
+    const io = new IntersectionObserver((ents) => {
+      ents.forEach(e => { if (e.isIntersecting) { hydrate(e.target); io.unobserve(e.target); } });
+    }, { rootMargin: '600px 0px', threshold: 0.01 });
+
+    function hydrate(cell) {
+      const id = cell.dataset.id;
+      const img = document.createElement('img');
+      img.alt = cell.dataset.alt; img.loading = 'lazy'; img.decoding = 'async';
+      img.src = BLUR(id);
+      cell.appendChild(img);
+      img.onload = () => {
+        cell.classList.add('ready');
+        const hd = new Image();
+        hd.src = GRID(id);
+        hd.onload = () => { img.src = GRID(id); requestAnimationFrame(() => img.classList.add('on')); };
+        hd.onerror = () => img.classList.add('on');
+      };
+      img.onerror = () => { cell.style.display = 'none'; };
+    }
+
+    /* ── Construction des scènes ── */
+    const stage = $('stage');
+    let sceneEls = [];
+
+    function build() {
+      stage.innerHTML = '';
+      FLAT = [];
+      sceneEls = [];
+
+      const multi = SCENES.length > 1
+        || (SCENES[0] && SCENES[0].folder !== '_racine_');
+      const showHeads = (C.galleryMode || 'categorized') === 'categorized' && multi;
+
+      let gIdx = 0;
+      SCENES.forEach((sc, sIdx) => {
+        const sec = document.createElement('section');
+        sec.className = 'scene';
+        sec.id = 'scene-' + sIdx;
+
+        if (showHeads) {
+          const head = document.createElement('div');
+          head.className = 'scene-head';
+          head.innerHTML =
+            '<span class="scene-no">Scène ' + String(sIdx + 1).padStart(2, '0') + '</span>' +
+            '<div class="scene-name">' + sc.name + '</div>' +
+            '<div class="scene-rule"></div>';
+          sec.appendChild(head);
+        }
+
+        const rowsWrap = document.createElement('div');
+        rowsWrap.className = 'rows';
+        sec.appendChild(rowsWrap);
+        stage.appendChild(sec);
+
+        sc._gStart = gIdx;
+        sc.photos.forEach(p => {
+          FLAT.push({ ...p, scene: sc.name });
+          gIdx++;
+        });
+        sceneEls.push({ sec, rowsWrap, sc });
+      });
+
+      if (!FLAT.length) {
+        stage.innerHTML = '<div class="empty">Galerie en cours de préparation</div>';
+        return;
+      }
+      layoutAll();
+      observeScenes();
+      buildDrawer();
+    }
+
+    function layoutAll() {
+      const vw = Math.min(window.innerWidth, 1640) - (window.innerWidth > 760 ? 0 : 0);
+      const containerW = Math.min(
+        document.querySelector('.scene').clientWidth, 1640
+      ) - 1;
+      const gap = parseInt(getComputedStyle(document.body).getPropertyValue('--gap')) ||
+                  (window.innerWidth <= 760 ? 6 : 10);
+      const targetH = window.innerWidth <= 480 ? 200
+                    : window.innerWidth <= 760 ? 240
+                    : window.innerWidth <= 1200 ? 320 : 380;
+
+      sceneEls.forEach(({ rowsWrap, sc }) => {
+        rowsWrap.innerHTML = '';
+        const rows = justify(sc.photos, rowsWrap.clientWidth || containerW, targetH, gap);
+        rows.forEach(r => {
+          const rowEl = document.createElement('div');
+          rowEl.className = 'row';
+          r.forEach(({ p, w, h }) => {
+            const gi = FLAT.findIndex(f => f.id === p.id && f.scene === sc.name);
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.style.width = w + 'px';
+            cell.style.height = h + 'px';
+            cell.dataset.id = p.id;
+            cell.dataset.gi = gi;
+            cell.dataset.alt = sc.name + ' — ' + C.couple;
+            cell.tabIndex = 0;
+            cell.setAttribute('role', 'button');
+            cell.setAttribute('aria-label', 'Ouvrir la photo en grand');
+            if (favs.has(p.id)) cell.classList.add('is-fav');
+
+            cell.innerHTML =
+              '<div class="cell-fav-badge"><svg viewBox="0 0 24 24"><path d="M12 21l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.18L12 21z"/></svg></div>' +
+              '<div class="cell-grad"></div>' +
+              '<div class="cell-tools">' +
+                '<button class="ctool heart' + (favs.has(p.id) ? ' fav' : '') + '" data-act="fav" aria-label="Favori"><svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg></button>' +
+                '<a class="ctool" data-act="dl" href="' + HD(p.id) + '" download="' + p.fileName + '" aria-label="Télécharger"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>' +
+              '</div>';
+
+            cell.addEventListener('click', (e) => {
+              const act = e.target.closest('[data-act]');
+              if (act) {
+                e.stopPropagation();
+                if (act.dataset.act === 'fav') { e.preventDefault(); toggleFav(p.id, cell); }
+                return;
+              }
+              openLb(parseInt(cell.dataset.gi));
+            });
+            cell.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLb(parseInt(cell.dataset.gi)); }
+            });
+
+            rowEl.appendChild(cell);
+            io.observe(cell);
+          });
+          rowsWrap.appendChild(rowEl);
+        });
+      });
+    }
+
+    let rsT;
+    window.addEventListener('resize', () => {
+      clearTimeout(rsT);
+      rsT = setTimeout(() => { if (FLAT.length) layoutAll(); }, 220);
+    }, { passive: true });
+
+    /* ── Favoris ── */
+    function toggleFav(id, cell) {
+      if (favs.has(id)) favs.delete(id); else favs.add(id);
+      saveFavs();
+      const on = favs.has(id);
+      document.querySelectorAll('.cell[data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]').forEach(c => {
+        c.classList.toggle('is-fav', on);
+        const h = c.querySelector('.ctool.heart');
+        if (h) h.classList.toggle('fav', on);
+      });
+      if (lbOpen && FLAT[lbIdx] && FLAT[lbIdx].id === id) syncLbHeart();
+    }
+
+    /* ── Drawer scènes ── */
+    function buildDrawer() {
+      const list = $('sceneList');
+      const multi = SCENES.length > 1 || (SCENES[0] && SCENES[0].folder !== '_racine_');
+      if (!multi) { $('tbScenes').style.display = 'none'; return; }
+      list.innerHTML = '';
+      SCENES.forEach((sc, i) => {
+        const card = document.createElement('div');
+        card.className = 'scene-card';
+        const cover = sc.photos[0] ? sc.photos[0].id : '';
+        card.innerHTML =
+          '<img src="' + (cover ? GRID(cover) : '') + '" alt="" loading="lazy" />' +
+          '<div class="scene-card-cap">' +
+            '<span class="scene-card-no">Scène ' + String(i + 1).padStart(2, '0') + '</span>' +
+            '<span class="scene-card-name">' + sc.name + '</span>' +
+            '<span class="scene-card-count">' + sc.photos.length + ' photo' + (sc.photos.length > 1 ? 's' : '') + '</span>' +
+          '</div>';
+        card.addEventListener('click', () => {
+          closeDrawer();
+          const el = $('scene-' + i);
+          setTimeout(() => {
+            window.scrollTo({ top: el.offsetTop - 70, behavior: 'smooth' });
+          }, 220);
+        });
+        list.appendChild(card);
+      });
+    }
+    const drawer = $('drawer');
+    function openDrawer() { drawer.classList.add('open'); document.body.classList.add('no-scroll'); }
+    function closeDrawer() { drawer.classList.remove('open'); if (!lbOpen) document.body.classList.remove('no-scroll'); }
+    $('tbScenes').addEventListener('click', openDrawer);
+    $('drawerClose').addEventListener('click', closeDrawer);
+    drawer.addEventListener('click', (e) => { if (e.target === drawer) closeDrawer(); });
+
+    /* ── Reveal scènes au scroll ── */
+    function observeScenes() {
+      const so = new IntersectionObserver((ents) => {
+        ents.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); so.unobserve(e.target); } });
+      }, { rootMargin: '-8% 0px', threshold: 0.04 });
+      document.querySelectorAll('.scene').forEach(s => so.observe(s));
+    }
+
+    /* ── Cover → scroll vers galerie ── */
+    $('coverScroll').addEventListener('click', () => {
+      window.scrollTo({ top: window.innerHeight * 0.96, behavior: 'smooth' });
+    });
+
+    /* ── Top bar + scroll-top ── */
+    const topbar = $('topbar'), toTop = $('toTop'), cover = $('cover');
+    window.addEventListener('scroll', () => {
+      const y = window.scrollY;
+      const past = y > window.innerHeight * 0.72;
+      topbar.classList.toggle('show', past);
+      toTop.classList.toggle('show', y > window.innerHeight * 1.3);
+    }, { passive: true });
+    toTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+    /* ════════════════ LIGHTBOX ════════════════ */
+    const lb = $('lb'), lbImg = $('lbImg'), lbStage = $('lbStage');
+    let lbOpen = false, lbIdx = 0, zoom = false;
+
+    function openLb(i) {
+      lbIdx = i; lbOpen = true;
+      lb.classList.add('open');
+      document.body.classList.add('no-scroll');
+      renderLb(true);
+    }
+    function closeLb() {
+      lbOpen = false; lb.classList.remove('open');
+      if (!drawer.classList.contains('open')) document.body.classList.remove('no-scroll');
+      resetZoom();
+    }
+    function renderLb(first) {
+      const p = FLAT[lbIdx];
+      if (!p) return;
+      resetZoom();
+      lbImg.classList.remove('on');
+      const pic = new Image();
+      pic.onload = () => {
+        lbImg.src = pic.src; lbImg.alt = p.scene + ' — ' + C.couple;
+        requestAnimationFrame(() => lbImg.classList.add('on'));
+      };
+      pic.src = VIEW(p.id);
+      if (first) lbImg.src = GRID(p.id);
+      $('lbI').textContent = lbIdx + 1;
+      $('lbN').textContent = FLAT.length;
+      $('lbCap').textContent = p.scene;
+      const dl = $('lbDl'); dl.href = HD(p.id); dl.setAttribute('download', p.fileName);
+      syncLbHeart();
+      // précharge voisins
+      [lbIdx + 1, lbIdx - 1].forEach(j => {
+        if (FLAT[j]) { const im = new Image(); im.src = VIEW(FLAT[j].id); }
+      });
+    }
+    function syncLbHeart() {
+      const p = FLAT[lbIdx];
+      $('lbHeart').classList.toggle('fav', p && favs.has(p.id));
+    }
+    function step(d) {
+      lbIdx = (lbIdx + d + FLAT.length) % FLAT.length;
+      renderLb(false);
+    }
+    function resetZoom() {
+      zoom = false; lbImg.classList.remove('zoomed');
+      lbImg.style.transform = ''; lbStage.style.overflow = '';
+    }
+    lbImg.addEventListener('click', (e) => {
+      e.stopPropagation();
+      zoom = !zoom;
+      lbImg.classList.toggle('zoomed', zoom);
+      lbStage.style.overflow = zoom ? 'auto' : '';
+      if (zoom) lbImg.scrollIntoView({ block: 'center', inline: 'center' });
+    });
+    $('lbClose').addEventListener('click', closeLb);
+    $('lbPrev').addEventListener('click', (e) => { e.stopPropagation(); step(-1); });
+    $('lbNext').addEventListener('click', (e) => { e.stopPropagation(); step(1); });
+    $('lbHeart').addEventListener('click', () => {
+      const p = FLAT[lbIdx]; if (!p) return;
+      toggleFav(p.id);
+      $('lbHeart').classList.toggle('fav', favs.has(p.id));
+    });
+    lb.addEventListener('click', (e) => { if (e.target === lb || e.target === lbStage) closeLb(); });
+
+    document.addEventListener('keydown', (e) => {
+      if (drawer.classList.contains('open') && e.key === 'Escape') return closeDrawer();
+      if (!lbOpen) return;
+      if (e.key === 'Escape') zoom ? resetZoom() : closeLb();
+      else if (e.key === 'ArrowRight') step(1);
+      else if (e.key === 'ArrowLeft') step(-1);
+      else if (e.key === 'f' || e.key === 'F') { const p = FLAT[lbIdx]; if (p) { toggleFav(p.id); syncLbHeart(); } }
+    });
+
+    // Swipe mobile
+    let sx = 0, sy = 0, st = 0;
+    lbStage.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1 || zoom) return;
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now();
+    }, { passive: true });
+    lbStage.addEventListener('touchend', (e) => {
+      if (zoom || !e.changedTouches.length) return;
+      const dx = e.changedTouches[0].clientX - sx;
+      const dy = e.changedTouches[0].clientY - sy;
+      const dt = Date.now() - st;
+      if (Math.abs(dy) > Math.abs(dx) && dy > 90 && dt < 600) return closeLb();
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
+    }, { passive: true });
+
+    document.addEventListener('contextmenu', (e) => {
+      if (e.target.tagName === 'IMG') e.preventDefault();
+    });
+
+    /* ════════════════ BOOT ════════════════ */
+    (async function start() {
+      try { await loadDynamic(); }
+      catch (err) { console.warn('[galerie] fallback legacy :', err); loadLegacy(); }
+
+      if (!SCENES.length || SCENES.every(s => !s.photos.length)) {
+        stage.innerHTML = '<div class="empty">Galerie en cours de préparation</div>';
+        return;
+      }
+
+      // Image de couverture : configurée, sinon 1ère photo de la galerie
+      const coverId = C.coverPublicId
+        || (SCENES[0] && SCENES[0].photos[0] && SCENES[0].photos[0].id);
+      if (coverId) {
+        const big = new Image();
+        big.onload = () => { $('coverBg').style.backgroundImage = "url('" + big.src + "')"; };
+        big.src = url(coverId, 'c_fill,w_2200,q_auto:good,f_auto');
+        $('coverBg').style.backgroundImage = "url('" + url(coverId, 'c_fill,w_60,e_blur:1000,q_auto:low,f_auto') + "')";
+      }
+      build();
+    })();
+
+  } // __run
+
+  if (window.WEDDING_CONFIG) __run();
+  else window.addEventListener('config-ready', __run);
+  </script>
+</body>
+</html>

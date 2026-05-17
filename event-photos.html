@@ -124,7 +124,16 @@
       layout: 'masonry',
       theme: 'noir',
       galleryMode: 'categorized',
+      style: 'classic',          // 'classic' | 'cinematic'
     }, photosPage.config || {});
+
+    // 🎞️ Routage de style : si l'admin a choisi la galerie cinématique
+    // (pic-time), on bascule vers le template dédié. Le template cible
+    // recharge la config tout seul (même flux d'accès Supabase).
+    if (cfg.style === 'cinematic') {
+      window.location.replace('event-photos-cinematic.html');
+      throw new Error('redirect → cinematic');
+    }
 
     cfg.videoUrl = videoPage
       ? (client.universe === 'anniversaire-mariage' ? 'event-anniversary.html'

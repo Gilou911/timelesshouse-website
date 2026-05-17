@@ -1192,11 +1192,16 @@
     // ============================================
     // LOADER CINÉMA D'ENTRÉE
     // ============================================
-    window.addEventListener('load', () => {
+    // ⚠️ On ne peut pas utiliser window.addEventListener('load') ici
+    // car __runApp() s'exécute après un fetch Supabase asynchrone —
+    // l'événement 'load' est donc déjà passé quand on arrive ici.
+    // On déclenche directement les timeouts.
+    (function revealCinemaLoader() {
       const cinemaLoader = document.getElementById('cinemaLoader');
-      setTimeout(() => cinemaLoader.classList.add('reveal'), 1800);
-      setTimeout(() => cinemaLoader.classList.add('hidden'), 3200);
-    });
+      if (!cinemaLoader) return;
+      setTimeout(() => cinemaLoader.classList.add('reveal'), 300);
+      setTimeout(() => cinemaLoader.classList.add('hidden'), 1700);
+    })();
 
     // ============================================
     // GALERIE

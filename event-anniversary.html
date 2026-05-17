@@ -1062,13 +1062,13 @@
     // ============================================
     // LOADER
     // ============================================
-    window.addEventListener('load', () => {
+    // ⚠️ Pas de window.addEventListener('load') — déjà passé quand __runApp() s'exécute
+    (function revealLoader() {
       const loader = document.getElementById('loader');
-      if(loader) {
-        setTimeout(() => loader.classList.add('reveal'), 1800);
-        setTimeout(() => loader.classList.add('hidden'), 3200);
-      }
-    });
+      if (!loader) return;
+      setTimeout(() => loader.classList.add('reveal'), 300);
+      setTimeout(() => loader.classList.add('hidden'), 1700);
+    })();
 
     // ============================================
     // SÉLECTEUR VIDÉO (Teaser vs Film Complet)

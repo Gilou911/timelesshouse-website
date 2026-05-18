@@ -835,8 +835,11 @@
        ════════════════════════════════════════════════ */
 
     /* A — Anti-débordement & confort tactile global */
-    html, body { max-width: 100%; }
+    html, body { max-width: 100%; overflow-x: hidden; }
     *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
+    /* Filet de sécurité : absorbe les erreurs d'arrondi px des rangées justifiées */
+    .rows { overflow-x: hidden; }
+    .row  { flex-wrap: nowrap; }
     @supports (height: 100dvh) {
       .cover { min-height: 100dvh; }
     }
@@ -1189,9 +1192,13 @@
       return rows;
     }
     function closeRow(row, arSum, containerW, gap, targetH, maxH) {
+      // Hauteur de remplissage exacte : garantit que la somme des largeurs
+      // de cellule + espaces = containerW (pas de débordement).
+      // On ne plancher PAS à targetH*0.7 : ce plancher causerait un dépassement
+      // quand arSum est grand (rangée avec beaucoup de paysages).
       let h = (containerW - (row.length - 1) * gap) / arSum;
-      h = Math.max(targetH * 0.7, Math.min(h, maxH));
-      return row.map(it => ({ p: it.p, w: it.ar * h, h }));
+      h = Math.min(h, maxH);
+      return row.map(it => ({ p: it.p, w: Math.floor(it.ar * h), h }));
     }
 
     /* ── Lazy loader (blur-up) ── */
@@ -1267,10 +1274,6 @@
     }
 
     function layoutAll() {
-      const vw = Math.min(window.innerWidth, 1640) - (window.innerWidth > 760 ? 0 : 0);
-      const containerW = Math.min(
-        document.querySelector('.scene').clientWidth, 1640
-      ) - 1;
       const gap = parseInt(getComputedStyle(document.body).getPropertyValue('--gap')) ||
                   (window.innerWidth <= 760 ? 6 : 10);
       const targetH = window.innerWidth <= 480 ? 200
@@ -1279,7 +1282,15 @@
 
       sceneEls.forEach(({ rowsWrap, sc }) => {
         rowsWrap.innerHTML = '';
-        const rows = justify(sc.photos, rowsWrap.clientWidth || containerW, targetH, gap);
+        // Mesure précise après vidage : getBoundingClientRect() donne la largeur
+        // sous-pixel exacte du contenu disponible (padding de .scene déjà déduit).
+        // Math.floor + 1 px de marge absorbent les erreurs d'arrondi float → px.
+        const bcr = rowsWrap.getBoundingClientRect();
+        const containerW = Math.min(
+          Math.max(Math.floor(bcr.width > 1 ? bcr.width : rowsWrap.offsetWidth) - 1, 80),
+          1640
+        );
+        const rows = justify(sc.photos, containerW, targetH, gap);
         rows.forEach(r => {
           const rowEl = document.createElement('div');
           rowEl.className = 'row';

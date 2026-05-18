@@ -384,12 +384,151 @@
       transition: color 0.4s var(--ease);
     }
     .cover-scroll:hover { color: #fff; }
+    /* Compense l'espace de chasse (letter-spacing) ajouté APRÈS la dernière
+       lettre : sans cela le mot paraît décalé vers la gauche par rapport au
+       trait centré juste en dessous. */
+    .cover-scroll span:not(.ln) { margin-right: -0.34em; }
     .cover-scroll .ln { width: 1px; height: 46px; background: rgba(255,255,255,0.4); position: relative; overflow: hidden; }
     .cover-scroll .ln::after {
       content: ""; position: absolute; left: 0; top: -60%; width: 100%; height: 60%;
       background: #fff; animation: scrollPulse 2.2s var(--ease) infinite;
     }
     @keyframes scrollPulse { 0%{ top:-60%; } 60%,100%{ top:120%; } }
+
+    /* ════════════════ COUVERTURE — DISPOSITIONS ÉDITORIALES ════════════════ */
+
+    /* Tronc commun aux dispositions "deux volets" (split & éditorial) :
+       plein écran, fond palette, pas de voile sombre. */
+    .cover.mode-split,
+    .cover.mode-editorial {
+      flex-direction: row; align-items: stretch; gap: 0; padding: 0;
+      text-align: left; background: var(--bg);
+    }
+    .cover.mode-split::after,
+    .cover.mode-editorial::after,
+    .cover.mode-portrait::after { display: none; }
+    .cover.mode-split  .cover-bg,
+    .cover.mode-editorial .cover-bg,
+    .cover.mode-portrait .cover-bg { display: none; }
+
+    /* — Volet PHOTO — */
+    .cover.mode-split .cover-frame,
+    .cover.mode-editorial .cover-frame {
+      display: flex; position: relative; z-index: 2;
+      max-width: none; margin: 0; height: 100%; align-self: stretch;
+      opacity: 0; animation: rise 1.5s var(--ease) 0.45s forwards;
+    }
+    .cover.mode-split .cover-frame     { flex: 0 0 46%; padding: clamp(26px,4vw,68px); }
+    .cover.mode-editorial              { flex-direction: row-reverse; }
+    .cover.mode-editorial .cover-frame { flex: 0 0 54%; }
+    .cover.mode-split .cover-photo,
+    .cover.mode-editorial .cover-photo {
+      width: 100%; height: 100%; max-width: none; max-height: none;
+      object-fit: cover;
+    }
+    .cover.mode-split .cover-photo     { box-shadow: var(--shadow); }
+    .cover.mode-editorial .cover-photo { box-shadow: none; }
+
+    /* — Volet TEXTE — */
+    .cover.mode-split .cover-inner {
+      flex: 1; display: flex; flex-direction: column; justify-content: center;
+      padding: clamp(36px,6vw,104px); color: var(--ink);
+    }
+    .cover.mode-editorial .cover-inner {
+      flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+      padding: clamp(92px,14vh,152px) clamp(36px,6vw,92px) clamp(40px,7vh,82px);
+      color: var(--ink);
+    }
+    .cover.mode-split h1,
+    .cover.mode-editorial h1 { color: var(--ink); text-shadow: none; }
+    .cover.mode-split h1 { font-size: clamp(2.4rem,5.5vw,4.6rem); letter-spacing: 0; }
+    .cover.mode-editorial h1 {
+      font-style: normal; font-weight: 400; letter-spacing: 0.005em;
+      font-size: clamp(3.2rem,9vw,9rem); line-height: 0.92;
+      text-transform: uppercase; margin: 0;
+    }
+    .cover.mode-split .cover-meta,
+    .cover.mode-editorial .cover-meta {
+      color: var(--ink-soft); justify-content: flex-start;
+    }
+    .cover.mode-editorial .cover-meta { order: -1; margin: 0; }
+
+    /* — Disposition PORTRAIT (photo arquée centrée, texte dessous) — */
+    .cover.mode-portrait {
+      background: var(--bg); justify-content: center;
+      gap: clamp(28px,4.5vh,56px);
+      padding: clamp(92px,12vh,148px) 24px clamp(70px,9vh,112px);
+    }
+    .cover.mode-portrait .cover-frame {
+      display: flex; position: relative; z-index: 2; margin: 0;
+      max-width: min(78vw, 500px);
+      opacity: 0; animation: rise 1.5s var(--ease) 0.5s forwards;
+    }
+    .cover.mode-portrait .cover-photo {
+      width: 100%; height: auto; max-width: 100%; max-height: 58vh;
+      object-fit: cover;
+      border-radius: clamp(110px,22vw,250px) clamp(110px,22vw,250px) 14px 14px;
+      box-shadow: var(--shadow);
+    }
+    .cover.mode-portrait .cover-inner { padding-top: 0; }
+    .cover.mode-portrait h1 {
+      color: var(--ink); text-shadow: none; font-size: clamp(2.4rem,7vw,5rem);
+    }
+    .cover.mode-portrait .cover-meta { color: var(--ink-soft); }
+
+    /* Crédit photographe selon la disposition */
+    .cover.mode-editorial .cover-photog,
+    .cover.mode-portrait .cover-photog {
+      position: absolute; top: clamp(26px,5vh,54px); left: clamp(26px,5vw,56px);
+      margin: 0; color: var(--ink-soft);
+    }
+    .cover.mode-split .cover-photog {
+      position: absolute; bottom: clamp(24px,5vh,46px); right: clamp(26px,5vw,56px);
+      top: auto; left: auto; margin: 0; color: var(--ink-soft);
+    }
+    .cover.mode-split .cover-photog:hover,
+    .cover.mode-editorial .cover-photog:hover,
+    .cover.mode-portrait .cover-photog:hover { color: var(--ink); }
+
+    /* Indicateur de défilement adapté aux fonds palette */
+    .cover.mode-split  .cover-scroll,
+    .cover.mode-editorial .cover-scroll,
+    .cover.mode-portrait .cover-scroll { color: var(--ink-soft); }
+    .cover.mode-split  .cover-scroll:hover,
+    .cover.mode-editorial .cover-scroll:hover,
+    .cover.mode-portrait .cover-scroll:hover { color: var(--ink); }
+    .cover.mode-split  .cover-scroll .ln,
+    .cover.mode-editorial .cover-scroll .ln,
+    .cover.mode-portrait .cover-scroll .ln { background: var(--line); }
+    .cover.mode-split  .cover-scroll .ln::after,
+    .cover.mode-editorial .cover-scroll .ln::after,
+    .cover.mode-portrait .cover-scroll .ln::after { background: var(--accent); }
+
+    /* Empilement mobile des dispositions à deux volets */
+    @media (max-width: 880px) {
+      .cover.mode-split,
+      .cover.mode-editorial { flex-direction: column; }
+      .cover.mode-split .cover-frame,
+      .cover.mode-editorial .cover-frame {
+        flex: 0 0 auto; width: 100%; height: 46svh; padding: 0;
+      }
+      .cover.mode-split .cover-inner,
+      .cover.mode-editorial .cover-inner {
+        flex: 1; justify-content: center; align-items: center;
+        text-align: center; padding: clamp(34px,8vw,60px);
+      }
+      .cover.mode-split .cover-meta,
+      .cover.mode-editorial .cover-meta { justify-content: center; }
+      .cover.mode-editorial .cover-meta { order: 0; margin-top: 26px; }
+      .cover.mode-editorial h1 { font-size: clamp(2.6rem,11vw,4.4rem); }
+      .cover.mode-split .cover-photog,
+      .cover.mode-editorial .cover-photog,
+      .cover.mode-portrait .cover-photog {
+        position: static; bottom: auto; right: auto; top: auto; left: auto;
+        align-self: center; margin: 0 0 20px;
+      }
+      .cover.mode-portrait .cover-photo { max-height: 50vh; }
+    }
 
     /* ════════════════════════ TOP BAR (apparaît au scroll) ════════════════════════ */
     .topbar {
@@ -862,7 +1001,8 @@
     }
     document.body.classList.toggle('is-light', isLight);
 
-    const COVER_MODE = C.coverMode === 'fit' ? 'fit' : 'fill';
+    const COVER_MODE = ['fill','fit','split','editorial','portrait'].includes(C.coverMode)
+      ? C.coverMode : 'fill';
     document.title = C.couple + ' — Galerie Photos';
     document.querySelector('meta[property="og:title"]').setAttribute('content', C.couple + ' — Galerie Photos');
     document.querySelector('meta[name="description"]').setAttribute('content',
@@ -1304,31 +1444,47 @@
       const coverId = C.coverPublicId
         || (SCENES[0] && SCENES[0].photos[0] && SCENES[0].photos[0].id);
 
-      if (COVER_MODE === 'fit') {
-        // Couverture CADRÉE : la photo garde son ratio naturel sur le fond palette
-        $('cover').classList.add('mode-fit');
+      if (COVER_MODE === 'fill') {
+        // Couverture PLEIN ÉCRAN : recadrée + Ken Burns
+        if (coverId) {
+          const big = new Image();
+          big.onload = () => { $('coverBg').style.backgroundImage = "url('" + big.src + "')"; };
+          big.src = url(coverId, 'c_fill,w_2200,q_auto:good,f_auto');
+          $('coverBg').style.backgroundImage = "url('" + url(coverId, 'c_fill,w_60,e_blur:1000,q_auto:low,f_auto') + "')";
+        }
+      } else {
+        // Dispositions utilisant l'élément <img> : Cadrée, Split, Éditorial, Portrait
+        $('cover').classList.add('mode-' + COVER_MODE);
         if (coverId) {
           const ph = $('coverPhoto');
-          ph.src = url(coverId, 'c_limit,w_40,e_blur:900,q_auto:low,f_auto');
+          const HI = {
+            fit:       'c_limit,w_2400,q_auto:good,f_auto',
+            split:     'c_fill,w_1700,q_auto:good,f_auto',
+            editorial: 'c_fill,w_2000,q_auto:good,f_auto',
+            portrait:  'c_fill,ar_4:5,w_1400,q_auto:good,f_auto',
+          }[COVER_MODE];
+          const LO = {
+            fit:       'c_limit,w_40,e_blur:900,q_auto:low,f_auto',
+            split:     'c_fill,w_50,e_blur:900,q_auto:low,f_auto',
+            editorial: 'c_fill,w_50,e_blur:900,q_auto:low,f_auto',
+            portrait:  'c_fill,ar_4:5,w_50,e_blur:900,q_auto:low,f_auto',
+          }[COVER_MODE];
+          ph.src = url(coverId, LO);
           const big = new Image();
           big.onload = () => {
-            const r = big.naturalWidth / big.naturalHeight;
-            $('cover').classList.add(r >= 1.15 ? 'is-landscape' : (r <= 0.85 ? 'is-portrait' : 'is-square'));
+            if (COVER_MODE === 'fit') {
+              const r = big.naturalWidth / big.naturalHeight;
+              $('cover').classList.add(r >= 1.15 ? 'is-landscape' : (r <= 0.85 ? 'is-portrait' : 'is-square'));
+            }
             ph.src = big.src;
             requestAnimationFrame(() => ph.classList.add('on'));
           };
           big.onerror = () => ph.classList.add('on');
-          big.src = url(coverId, 'c_limit,w_2400,q_auto:good,f_auto');
+          big.src = url(coverId, HI);
         } else {
           // Pas de photo → couverture purement typographique
           $('coverFrame').style.display = 'none';
         }
-      } else if (coverId) {
-        // Couverture PLEIN ÉCRAN : recadrée + Ken Burns
-        const big = new Image();
-        big.onload = () => { $('coverBg').style.backgroundImage = "url('" + big.src + "')"; };
-        big.src = url(coverId, 'c_fill,w_2200,q_auto:good,f_auto');
-        $('coverBg').style.backgroundImage = "url('" + url(coverId, 'c_fill,w_60,e_blur:1000,q_auto:low,f_auto') + "')";
       }
       build();
     })();

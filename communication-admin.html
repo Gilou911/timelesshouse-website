@@ -938,8 +938,10 @@
 
         setNotifying(true);
         try {
-          // Mène au login de l'espace client (la modale s'ouvre via le hash #clients)
-          const deliveryUrl = window.location.origin + '/index.html#clients';
+          // URL de livraison directe selon univers
+          const deliveryUrl = client.redirect_url
+            ? (window.location.origin + '/' + client.redirect_url)
+            : (window.location.origin + '/mariage.html');
 
           const url = `${window.SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {
@@ -1011,20 +1013,11 @@
                           : `${(photosPage.config?.categories || []).length} catégorie(s) · `}
                         Cloudinary "{photosPage.config?.cloudName || '—'}"
                       </span>
-                      {photosPage.config?.style === 'cinematic' && (
-                        <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] uppercase tracking-wide font-semibold">Cinématique</span>
-                      )}
-                      {photosPage.config?.style === 'cinematic' && (photosPage.config?.palette || photosPage.config?.theme || 'noir') !== 'noir' && (
+                      {(photosPage.config?.palette || photosPage.config?.theme || 'noir') !== 'noir' && (
                         <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">{(photosPage.config.palette || photosPage.config.theme) === 'custom' ? 'Sur mesure' : (photosPage.config.palette || photosPage.config.theme)}</span>
                       )}
-                      {photosPage.config?.style === 'cinematic' && photosPage.config?.coverMode === 'fit' && (
-                        <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">Cadrée</span>
-                      )}
-                      {photosPage.config?.layout && photosPage.config.layout !== 'masonry' && photosPage.config?.style !== 'cinematic' && (
-                        <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">{photosPage.config.layout}</span>
-                      )}
-                      {photosPage.config?.theme && photosPage.config.theme !== 'noir' && photosPage.config?.style !== 'cinematic' && (
-                        <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">{photosPage.config.theme}</span>
+                      {photosPage.config?.coverMode && photosPage.config.coverMode !== 'fill' && (
+                        <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">{({ fit: 'Cadrée', split: 'Split', editorial: 'Éditorial', portrait: 'Portrait' })[photosPage.config.coverMode] || photosPage.config.coverMode}</span>
                       )}
                       {photosPage.config?.galleryMode && photosPage.config.galleryMode !== 'categorized' && (
                         <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[9px] uppercase tracking-wide">{photosPage.config.galleryMode}</span>
@@ -1133,16 +1126,14 @@
         rootFolder: 'Photos_' + (client.code || ''),
         categories: [],
         zipDriveId: '',
-        layout: 'masonry',
-        theme: 'noir',
+        style: 'cinematic',
         galleryMode: 'categorized',  // 'categorized' | 'flat'
-        style: 'classic',            // 'classic' | 'cinematic'
-        coverPublicId: '',           // cinématique : photo de couverture (optionnel)
-        palette: 'noir',             // cinématique : palette de couleurs (ou 'custom')
-        coverMode: 'fill',           // cinématique : 'fill' (plein écran) | 'fit' (cadrée)
-        customBg: '#1a1714',         // palette sur mesure : couleur de fond
-        customAccent: '#b08968',     // palette sur mesure : couleur d'accent
-        customMode: 'dark',          // palette sur mesure : 'dark' | 'light'
+        coverPublicId: '',
+        palette: 'noir',             // palette : 'noir' | 'fumee' | 'encre' | 'sapin' | ... | 'custom'
+        coverMode: 'fill',           // 'fill' (plein écran) | 'fit' (cadrée)
+        customBg: '#1a1714',
+        customAccent: '#b08968',
+        customMode: 'dark',          // 'dark' | 'light'
       };
     }
 
@@ -1348,61 +1339,15 @@
                   <Input value={c.zipDriveId || ''} onChange={e => updateConfig('zipDriveId', e.target.value)} placeholder="abcXYZ123" />
                 </Field>
 
-                {/* ── Sélecteur de Style de galerie ── */}
-                <div className="mt-6">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Style de galerie</div>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {[
-                      { id: 'classic', label: 'Classique', desc: 'En-tête + filtres, grille configurable', icon: (
-                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-                          <rect x="9" y="2" width="22" height="3" rx="1.5" fill="currentColor" opacity="0.7"/>
-                          <rect x="13" y="7" width="14" height="2" rx="1" fill="currentColor" opacity="0.4"/>
-                          <rect x="1" y="12" width="12" height="7" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="15" y="12" width="10" height="7" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="27" y="12" width="12" height="7" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="1" y="21" width="12" height="6" rx="1" fill="currentColor" opacity="0.4"/>
-                          <rect x="15" y="21" width="10" height="6" rx="1" fill="currentColor" opacity="0.4"/>
-                          <rect x="27" y="21" width="12" height="6" rx="1" fill="currentColor" opacity="0.4"/>
-                        </svg>
-                      )},
-                      { id: 'cinematic', label: 'Cinématique', desc: 'Couverture plein écran + scènes (pic-time)', icon: (
-                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-                          <rect x="1" y="1" width="38" height="14" rx="1" fill="currentColor" opacity="0.85"/>
-                          <rect x="13" y="6" width="14" height="2.5" rx="1.25" fill="#fff" opacity="0.6"/>
-                          <rect x="1" y="18" width="18" height="9" rx="1" fill="currentColor" opacity="0.6"/>
-                          <rect x="21" y="18" width="8" height="9" rx="1" fill="currentColor" opacity="0.6"/>
-                          <rect x="31" y="18" width="8" height="9" rx="1" fill="currentColor" opacity="0.6"/>
-                        </svg>
-                      )},
-                    ].map(opt => {
-                      const isActive = (c.style || 'classic') === opt.id;
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => updateConfig('style', opt.id)}
-                          style={isActive ? neu.pressedSm : neu.raisedXs}
-                          className={`rounded-xl p-3.5 flex flex-col items-center gap-2 transition-all active:scale-[0.97] ${isActive ? 'text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
-                        >
-                          <div className={`w-2/3 ${isActive ? 'text-stone-700' : 'text-stone-400'}`}>{opt.icon}</div>
-                          <div className="text-[12px] font-semibold">{opt.label}</div>
-                          <div className="text-[9.5px] text-stone-400 text-center leading-tight">{opt.desc}</div>
-                          {isActive && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5"/>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
 
-                {(c.style || 'classic') === 'cinematic' && (
-                  <>
-                    <Field label="Photo de couverture — public_id Cloudinary (optionnel)">
+                <>
+                  <Field label="Photo de couverture — public_id Cloudinary (optionnel)">
                       <Input value={c.coverPublicId || ''} onChange={e => updateConfig('coverPublicId', e.target.value)} placeholder="Photos_xxx/ceremonie/IMG_2841" />
                     </Field>
 
                     <div className="mt-1">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Couverture</div>
-                      <div className="grid grid-cols-2 gap-2.5">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Disposition de la couverture</div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                         {[
                           { id: 'fill', label: 'Plein écran', desc: 'Photo recadrée + zoom lent', icon: (
                             <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
@@ -1410,11 +1355,34 @@
                               <rect x="12" y="12" width="16" height="2.5" rx="1.25" fill="#fff" opacity="0.6"/>
                             </svg>
                           )},
-                          { id: 'fit', label: 'Cadrée à la photo', desc: 'Ratio naturel sur fond palette', icon: (
+                          { id: 'fit', label: 'Cadrée', desc: 'Ratio naturel sur fond palette', icon: (
                             <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
                               <rect x="1" y="1" width="38" height="26" rx="1" fill="currentColor" opacity="0.18"/>
                               <rect x="11" y="5" width="18" height="13" rx="1" fill="currentColor" opacity="0.85"/>
                               <rect x="14" y="21" width="12" height="2.5" rx="1.25" fill="currentColor" opacity="0.5"/>
+                            </svg>
+                          )},
+                          { id: 'split', label: 'Split', desc: 'Photo encadrée à gauche, titre à droite', icon: (
+                            <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                              <rect x="1" y="1" width="38" height="26" rx="1" fill="currentColor" opacity="0.12"/>
+                              <rect x="4" y="5" width="16" height="18" rx="1" fill="currentColor" opacity="0.85"/>
+                              <rect x="25" y="11" width="11" height="2.5" rx="1.25" fill="currentColor" opacity="0.55"/>
+                              <rect x="26" y="16" width="9" height="2" rx="1" fill="currentColor" opacity="0.35"/>
+                            </svg>
+                          )},
+                          { id: 'editorial', label: 'Éditorial', desc: 'Grande typo à gauche, photo à droite', icon: (
+                            <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                              <rect x="1" y="1" width="38" height="26" rx="1" fill="currentColor" opacity="0.12"/>
+                              <rect x="21" y="1" width="18" height="26" rx="1" fill="currentColor" opacity="0.85"/>
+                              <rect x="4" y="4" width="7" height="2" rx="1" fill="currentColor" opacity="0.45"/>
+                              <rect x="4" y="17" width="14" height="6" rx="1" fill="currentColor" opacity="0.7"/>
+                            </svg>
+                          )},
+                          { id: 'portrait', label: 'Portrait', desc: 'Photo arquée centrée, titre dessous', icon: (
+                            <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                              <rect x="1" y="1" width="38" height="26" rx="1" fill="currentColor" opacity="0.12"/>
+                              <rect x="15" y="4" width="10" height="16" rx="5" fill="currentColor" opacity="0.85"/>
+                              <rect x="14" y="22" width="12" height="2.5" rx="1.25" fill="currentColor" opacity="0.5"/>
                             </svg>
                           )},
                         ].map(opt => {
@@ -1438,87 +1406,10 @@
                     </div>
 
                     <div className="text-[10.5px] text-stone-500 mt-1 mb-1 leading-relaxed">
-                      Couverture vide → la 1ʳᵉ photo de la galerie est utilisée.
-                      Le choix de <strong>Disposition</strong> est ignoré en mode cinématique
-                      (rangées justifiées par scène) ; la <strong>Palette</strong>, la <strong>Couverture</strong> et le <strong>Mode galerie</strong> s'appliquent.
+                      Couverture vide → la 1ʳᵉ photo de la galerie est utilisée automatiquement.
                     </div>
                   </>
-                )}
 
-                {(c.style || 'classic') !== 'cinematic' && (
-                <>
-                {/* ── Sélecteur de Layout ── */}
-                <div className="mt-6">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Disposition de la galerie</div>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-                    {[
-                      { id: 'masonry', label: 'Masonry', desc: 'Rangées justifiées', icon: (
-                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-                          <rect x="1" y="1" width="17" height="8" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="20" y="1" width="11" height="8" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="33" y="1" width="6" height="8" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="1" y="11" width="10" height="8" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="13" y="11" width="16" height="8" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="31" y="11" width="8" height="8" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="1" y="21" width="14" height="6" rx="1" fill="currentColor" opacity="0.4"/>
-                          <rect x="17" y="21" width="9" height="6" rx="1" fill="currentColor" opacity="0.4"/>
-                          <rect x="28" y="21" width="11" height="6" rx="1" fill="currentColor" opacity="0.4"/>
-                        </svg>
-                      )},
-                      { id: 'grid', label: 'Grille', desc: 'Carrés uniformes', icon: (
-                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-                          <rect x="1" y="1" width="11" height="8" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="14" y="1" width="12" height="8" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="28" y="1" width="11" height="8" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="1" y="11" width="11" height="8" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="14" y="11" width="12" height="8" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="28" y="11" width="11" height="8" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="1" y="21" width="11" height="6" rx="1" fill="currentColor" opacity="0.4"/>
-                          <rect x="14" y="21" width="12" height="6" rx="1" fill="currentColor" opacity="0.4"/>
-                          <rect x="28" y="21" width="11" height="6" rx="1" fill="currentColor" opacity="0.4"/>
-                        </svg>
-                      )},
-                      { id: 'columns', label: 'Colonnes', desc: 'Masonry vertical', icon: (
-                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-                          <rect x="1" y="1" width="11" height="12" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="14" y="1" width="12" height="7" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="28" y="1" width="11" height="10" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="1" y="15" width="11" height="7" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="14" y="10" width="12" height="11" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="28" y="13" width="11" height="9" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="1" y="24" width="11" height="3" rx="1" fill="currentColor" opacity="0.3"/>
-                          <rect x="14" y="23" width="12" height="4" rx="1" fill="currentColor" opacity="0.3"/>
-                          <rect x="28" y="24" width="11" height="3" rx="1" fill="currentColor" opacity="0.3"/>
-                        </svg>
-                      )},
-                      { id: 'editorial', label: 'Éditorial', desc: 'Pleine largeur', icon: (
-                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-                          <rect x="1" y="1" width="38" height="7" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="1" y="10" width="38" height="7" rx="1" fill="currentColor" opacity="0.8"/>
-                          <rect x="1" y="19" width="38" height="8" rx="1" fill="currentColor" opacity="0.4"/>
-                        </svg>
-                      )},
-                    ].map(opt => {
-                      const isActive = (c.layout || 'masonry') === opt.id;
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => updateConfig('layout', opt.id)}
-                          style={isActive ? neu.pressedSm : neu.raisedXs}
-                          className={`rounded-xl p-3 flex flex-col items-center gap-2 transition-all active:scale-[0.97] ${isActive ? 'text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
-                        >
-                          <div className={`w-full ${isActive ? 'text-stone-700' : 'text-stone-400'}`}>{opt.icon}</div>
-                          <div className="text-[11px] font-semibold">{opt.label}</div>
-                          <div className="text-[9.5px] text-stone-400 text-center leading-tight">{opt.desc}</div>
-                          {isActive && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5"/>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                </>
-                )}
 
                 {/* ── Sélecteur de Mode Galerie ── */}
                 <div className="mt-5">
@@ -1547,48 +1438,7 @@
                   </div>
                 </div>
 
-                {/* ── Sélecteur de Thème (style CLASSIQUE) ── */}
-                {(c.style || 'classic') !== 'cinematic' && (
-                <div className="mt-5">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Thème visuel</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    {[
-                      { id: 'noir', label: 'Noir', sub: 'Fond sombre', bg: '#0a0a0a', accent: '#b08968' },
-                      { id: 'creme', label: 'Crème', sub: 'Fond clair', bg: '#f2ede6', accent: '#8b6a48' },
-                      { id: 'ardoise', label: 'Ardoise', sub: 'Bleu nuit', bg: '#13161c', accent: '#7a9bb8' },
-                    ].map(t => {
-                      const isActive = (c.theme || 'noir') === t.id;
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => updateConfig('theme', t.id)}
-                          style={isActive ? neu.pressedSm : neu.raisedXs}
-                          className={`rounded-xl p-3 flex items-center gap-3 transition-all active:scale-[0.98] ${isActive ? '' : 'opacity-70 hover:opacity-90'}`}
-                        >
-                          <div className="relative flex-shrink-0">
-                            <div style={{ background: t.bg, width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <div style={{ width: 14, height: 2, background: t.accent, borderRadius: 2 }}/>
-                            </div>
-                            {isActive && (
-                              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
-                                <Check size={7} color="white"/>
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-left">
-                            <div className="text-[11.5px] font-semibold">{t.label}</div>
-                            <div className="text-[9.5px] text-stone-400">{t.sub}</div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                )}
-
-                {/* ── Sélecteur de Palette (style CINÉMATIQUE) ── */}
-                {(c.style || 'classic') === 'cinematic' && (
+                {/* ── Palette de couleurs (tous styles) ── */}
                 <div className="mt-5">
                   <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-1">Palette de couleurs</div>
                   <div className="text-[10px] text-stone-400 mb-3">Sourdes, riches ou sur mesure — la galerie s'adapte pour mettre les photos en valeur.</div>
@@ -1725,7 +1575,6 @@
                     );
                   })()}
                 </div>
-                )}
               </>
             )}
 

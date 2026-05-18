@@ -625,6 +625,63 @@
       *:hover { transition: none !important; }
     }
 
+    /* ════════════════════════════════════════════════
+       AFFINAGE SYMÉTRIE & MOBILE — TimelessHouse
+       Additif, non destructif : équilibre visuel +
+       confort smartphone (priorité de cascade tardive)
+       ════════════════════════════════════════════════ */
+
+    /* A — Sélecteur : deux colonnes RIGOUREUSEMENT égales.
+       Le curseur coulissant reste parfaitement aligné quel
+       que soit le libellé ou la largeur de l'écran. */
+    .selector-track {
+      display: flex;
+      width: clamp(260px, 44vw, 420px);
+    }
+    .selector-btn {
+      flex: 1 1 50%;
+      min-width: 0;
+      text-align: center;
+      padding: 13px 16px;
+    }
+    .selector-indicator { width: calc(50% - 4px); }
+
+    /* B — Rythme vertical équilibré sur smartphone */
+    @media (max-width: 768px) {
+      header { padding: 64px 20px 32px; }
+      .video-selector { padding: 0 16px; margin-bottom: 24px; }
+      .selector-track { width: 100%; max-width: 440px; }
+      .selector-btn { padding: 13px 10px; font-size: 9px; letter-spacing: 0.2em; }
+      .cinema-container { margin-bottom: 28px; }
+      .now-playing { margin-bottom: 52px; }
+      .download-desc { margin-bottom: 36px; }
+      .share-section { margin-top: 48px; }
+      footer { margin-top: 72px; }
+    }
+    @media (max-width: 480px) {
+      header { padding: 52px 16px 26px; }
+      .video-selector { width: auto; padding: 0 16px; }
+      .selector-btn { font-size: 8.5px; letter-spacing: 0.16em; }
+      .btn-download { padding: 16px 18px; gap: 16px; }
+      .now-playing { margin-bottom: 40px; }
+      footer { margin-top: 56px; }
+    }
+    @media (max-width: 380px) {
+      .selector-btn { letter-spacing: 0.12em; }
+    }
+
+    /* C — Cibles tactiles confortables (≥ 44px) */
+    @media (hover: none) and (pointer: coarse) {
+      .selector-btn { min-height: 46px; }
+      .share-btn { width: 50px; height: 50px; }
+      .quality-btn { min-height: 36px; }
+    }
+
+    /* D — Marge basse sûre (encoche / barre gestuelle iPhone) */
+    @supports (padding: max(0px)) {
+      footer { padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+    }
+
   </style>
 </head>
 

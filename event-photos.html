@@ -828,6 +828,72 @@
       .cover-bg { animation: none; }
       * { animation-duration: 0.01ms !important; transition-duration: 0.1ms !important; }
     }
+
+    /* ════════════════════════════════════════════════
+       AFFINAGE SYMÉTRIE & MOBILE — TimelessHouse
+       Additif, non destructif. Aucune règle ne touche
+       le dimensionnement JS des vignettes/couverture.
+       ════════════════════════════════════════════════ */
+
+    /* A — Anti-débordement & confort tactile global */
+    html, body { max-width: 100%; }
+    *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
+    @supports (height: 100dvh) {
+      .cover { min-height: 100dvh; }
+    }
+
+    /* B — Barre du haut : grappe d'actions équilibrée,
+       toujours sur une seule ligne, sans collision avec
+       le nom du couple. */
+    .topbar-name { max-width: 42vw; }
+    @media (max-width: 600px) {
+      .topbar { padding: 13px clamp(14px, 4vw, 28px); }
+      .topbar-actions { gap: 5px; }
+      .topbar-name { max-width: 38vw; font-size: 1.02rem; }
+      .tb-btn { padding: 9px 12px; letter-spacing: 0.18em; }
+    }
+    /* Très petits écrans : Scènes & Film en pictogramme seul,
+       seul le bouton ZIP conserve son libellé. Cluster net. */
+    @media (max-width: 440px) {
+      .topbar-name { max-width: 34vw; font-size: 0.98rem; }
+      #tbScenes .lbl-full, #tbScenes .lbl-short,
+      #tbVideo  .lbl-full, #tbVideo  .lbl-short { display: none; }
+      #tbScenes, #tbVideo {
+        gap: 0; width: 40px; height: 40px;
+        padding: 0; justify-content: center; border-radius: 50%;
+      }
+      #tbScenes svg, #tbVideo svg { width: 16px; height: 16px; }
+      .tb-btn.solid { padding: 10px 14px; }
+    }
+
+    /* C — Scènes : marges latérales symétriques resserrées */
+    @media (max-width: 480px) {
+      .scene { padding-left: 6px; padding-right: 6px; }
+      .scene:last-child { padding-bottom: clamp(64px, 16vw, 110px); }
+      .cover-meta { gap: 12px; }
+    }
+
+    /* D — Cibles tactiles ≥ 44px sur écrans tactiles */
+    @media (hover: none) and (pointer: coarse) {
+      .lb-ic { width: 46px; height: 46px; }
+      .lb-nav { width: 50px; height: 50px; }
+      .drawer-close { width: 48px; height: 48px; }
+      .ctool { width: 40px; height: 40px; }
+      .tb-btn { min-height: 40px; }
+      /* Pas de survol « collant » : l'état hover ne doit pas
+         rester figé après un tap sur mobile. */
+      .cell:hover img { transform: scale(1); filter: brightness(0.94); }
+      .cell:hover .cell-grad { opacity: 0; }
+      .cell:hover .cell-tools { opacity: 0; transform: translateY(6px); }
+    }
+
+    /* E — Zones sûres : encoche & barre gestuelle iPhone */
+    @supports (padding: max(0px)) {
+      .topbar { padding-right: max(clamp(18px,4vw,44px), env(safe-area-inset-right)); }
+      .totop  { right: max(24px, calc(env(safe-area-inset-right) + 16px));
+                 bottom: max(24px, calc(env(safe-area-inset-bottom) + 16px)); }
+      footer  { padding-bottom: max(60px, calc(env(safe-area-inset-bottom) + 36px)); }
+    }
   </style>
 </head>
 <body>

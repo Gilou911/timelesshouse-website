@@ -938,10 +938,8 @@
 
         setNotifying(true);
         try {
-          // URL de livraison directe selon univers
-          const deliveryUrl = client.redirect_url
-            ? (window.location.origin + '/' + client.redirect_url)
-            : (window.location.origin + '/mariage.html');
+          // Mène toujours au login de l'espace client (modale auto-ouverte via #clients)
+          const deliveryUrl = window.location.origin + '/index.html#clients';
 
           const url = `${window.SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {
@@ -1733,7 +1731,7 @@
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}`,
             },
-            body: JSON.stringify({ client_id: clientId, media_id: media.id, kind: 'new_media' }),
+            body: JSON.stringify({ client_id: clientId, media_id: media.id, kind: 'new_media', extra: { loginUrl: window.location.origin + '/index.html#clients' } }),
           });
           if (res.ok) {
             alert(`✓ Email envoyé à ${client.client_email}`);

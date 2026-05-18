@@ -376,7 +376,9 @@
     @keyframes rise { from { opacity:0; transform: translateY(26px); } to { opacity:1; transform:none; } }
 
     .cover-scroll {
-      position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%);
+      /* Pleine largeur → align-items:center centre le contenu sur l'axe exact
+         du viewport, sans hack letter-spacing ni translateX approximatif. */
+      position: absolute; bottom: 34px; left: 0; right: 0;
       z-index: 2; background: none; border: none; cursor: pointer;
       display: flex; flex-direction: column; align-items: center; gap: 12px;
       color: rgba(255,255,255,0.75); font-family: "Jost", sans-serif;
@@ -385,10 +387,9 @@
       transition: color 0.4s var(--ease);
     }
     .cover-scroll:hover { color: #fff; }
-    /* Compense l'espace de chasse (letter-spacing) ajouté APRÈS la dernière
-       lettre : sans cela le mot paraît décalé vers la gauche par rapport au
-       trait centré juste en dessous. */
-    .cover-scroll span:not(.ln) { margin-right: -0.34em; }
+    /* Compense le demi-chasse final du letter-spacing pour un centrage optique
+       parfait : le centre visuel du mot s'aligne sur le trait de 1 px. */
+    .cover-scroll span:not(.ln) { margin-left: 0.34em; }
     .cover-scroll .ln { width: 1px; height: 46px; background: rgba(255,255,255,0.4); position: relative; overflow: hidden; }
     .cover-scroll .ln::after {
       content: ""; position: absolute; left: 0; top: -60%; width: 100%; height: 60%;

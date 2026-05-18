@@ -938,10 +938,8 @@
 
         setNotifying(true);
         try {
-          // URL de livraison directe selon univers
-          const deliveryUrl = client.redirect_url
-            ? (window.location.origin + '/' + client.redirect_url)
-            : (window.location.origin + '/mariage.html');
+          // Mène au login de l'espace client (la modale s'ouvre via le hash #clients)
+          const deliveryUrl = window.location.origin + '/index.html#clients';
 
           const url = `${window.SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {

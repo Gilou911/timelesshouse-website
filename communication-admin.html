@@ -1016,10 +1016,16 @@
                       {photosPage.config?.style === 'cinematic' && (
                         <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] uppercase tracking-wide font-semibold">Cinématique</span>
                       )}
+                      {photosPage.config?.style === 'cinematic' && (photosPage.config?.palette || photosPage.config?.theme || 'noir') !== 'noir' && (
+                        <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">{photosPage.config.palette || photosPage.config.theme}</span>
+                      )}
+                      {photosPage.config?.style === 'cinematic' && photosPage.config?.coverMode === 'fit' && (
+                        <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">Cadrée</span>
+                      )}
                       {photosPage.config?.layout && photosPage.config.layout !== 'masonry' && photosPage.config?.style !== 'cinematic' && (
                         <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">{photosPage.config.layout}</span>
                       )}
-                      {photosPage.config?.theme && photosPage.config.theme !== 'noir' && (
+                      {photosPage.config?.theme && photosPage.config.theme !== 'noir' && photosPage.config?.style !== 'cinematic' && (
                         <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">{photosPage.config.theme}</span>
                       )}
                       {photosPage.config?.galleryMode && photosPage.config.galleryMode !== 'categorized' && (
@@ -1111,6 +1117,8 @@
         galleryMode: 'categorized',  // 'categorized' | 'flat'
         style: 'classic',            // 'classic' | 'cinematic'
         coverPublicId: '',           // cinématique : photo de couverture (optionnel)
+        palette: 'noir',             // cinématique : palette de couleurs
+        coverMode: 'fill',           // cinématique : 'fill' (plein écran) | 'fit' (cadrée)
       };
     }
 
@@ -1367,10 +1375,48 @@
                     <Field label="Photo de couverture — public_id Cloudinary (optionnel)">
                       <Input value={c.coverPublicId || ''} onChange={e => updateConfig('coverPublicId', e.target.value)} placeholder="Photos_xxx/ceremonie/IMG_2841" />
                     </Field>
-                    <div className="text-[10.5px] text-stone-500 -mt-2 mb-1 leading-relaxed">
-                      Laissez vide → la 1ʳᵉ photo de la galerie sert de couverture plein écran.
-                      Le choix de <strong>Disposition</strong> ci-dessous est ignoré en mode cinématique
-                      (les photos sont toujours en rangées justifiées par scène) ; le <strong>Thème</strong> et le <strong>Mode galerie</strong> s'appliquent normalement.
+
+                    <div className="mt-1">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Couverture</div>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {[
+                          { id: 'fill', label: 'Plein écran', desc: 'Photo recadrée + zoom lent', icon: (
+                            <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                              <rect x="1" y="1" width="38" height="26" rx="1" fill="currentColor" opacity="0.8"/>
+                              <rect x="12" y="12" width="16" height="2.5" rx="1.25" fill="#fff" opacity="0.6"/>
+                            </svg>
+                          )},
+                          { id: 'fit', label: 'Cadrée à la photo', desc: 'Ratio naturel sur fond palette', icon: (
+                            <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                              <rect x="1" y="1" width="38" height="26" rx="1" fill="currentColor" opacity="0.18"/>
+                              <rect x="11" y="5" width="18" height="13" rx="1" fill="currentColor" opacity="0.85"/>
+                              <rect x="14" y="21" width="12" height="2.5" rx="1.25" fill="currentColor" opacity="0.5"/>
+                            </svg>
+                          )},
+                        ].map(opt => {
+                          const isActive = (c.coverMode || 'fill') === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => updateConfig('coverMode', opt.id)}
+                              style={isActive ? neu.pressedSm : neu.raisedXs}
+                              className={`rounded-xl p-3 flex flex-col items-center gap-2 transition-all active:scale-[0.97] ${isActive ? 'text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                            >
+                              <div className={`w-2/3 ${isActive ? 'text-stone-700' : 'text-stone-400'}`}>{opt.icon}</div>
+                              <div className="text-[11px] font-semibold">{opt.label}</div>
+                              <div className="text-[9.5px] text-stone-400 text-center leading-tight">{opt.desc}</div>
+                              {isActive && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5"/>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="text-[10.5px] text-stone-500 mt-1 mb-1 leading-relaxed">
+                      Couverture vide → la 1ʳᵉ photo de la galerie est utilisée.
+                      Le choix de <strong>Disposition</strong> est ignoré en mode cinématique
+                      (rangées justifiées par scène) ; la <strong>Palette</strong>, la <strong>Couverture</strong> et le <strong>Mode galerie</strong> s'appliquent.
                     </div>
                   </>
                 )}
@@ -1477,7 +1523,8 @@
                   </div>
                 </div>
 
-                {/* ── Sélecteur de Thème ── */}
+                {/* ── Sélecteur de Thème (style CLASSIQUE) ── */}
+                {(c.style || 'classic') !== 'cinematic' && (
                 <div className="mt-5">
                   <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Thème visuel</div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -1514,6 +1561,54 @@
                     })}
                   </div>
                 </div>
+                )}
+
+                {/* ── Sélecteur de Palette (style CINÉMATIQUE) ── */}
+                {(c.style || 'classic') === 'cinematic' && (
+                <div className="mt-5">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-1">Palette de couleurs</div>
+                  <div className="text-[10px] text-stone-400 mb-3">Tons sourds & cinématiques — pensés pour ne pas voler la vedette aux photos.</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {[
+                      { id: 'noir',    label: 'Noir',    sub: 'Or chaud',     bg: '#0a0a0a', accent: '#b08968', dark: true },
+                      { id: 'fumee',   label: 'Fumée',   sub: 'Bronze doux',  bg: '#1a1714', accent: '#b1916f', dark: true },
+                      { id: 'encre',   label: 'Encre',   sub: 'Bleu-nuit',    bg: '#0d0f14', accent: '#8a93a6', dark: true },
+                      { id: 'sapin',   label: 'Sapin',   sub: 'Vert profond', bg: '#0c0f0d', accent: '#8a9c84', dark: true },
+                      { id: 'ardoise', label: 'Ardoise', sub: 'Bleu acier',   bg: '#13161c', accent: '#7fa0bd', dark: true },
+                      { id: 'creme',   label: 'Crème',   sub: 'Sable clair',  bg: '#f3eee7', accent: '#8b6a48', dark: false },
+                      { id: 'lin',     label: 'Lin',     sub: 'Taupe chaud',  bg: '#f1ece3', accent: '#8a7458', dark: false },
+                      { id: 'sauge',   label: 'Sauge',   sub: 'Vert pâle',    bg: '#e8ebe4', accent: '#6e7d63', dark: false },
+                      { id: 'brume',   label: 'Brume',   sub: 'Gris-bleu',    bg: '#e9ebee', accent: '#6b7785', dark: false },
+                    ].map(t => {
+                      const isActive = (c.palette || c.theme || 'noir') === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => updateConfig('palette', t.id)}
+                          style={isActive ? neu.pressedSm : neu.raisedXs}
+                          className={`rounded-xl p-2.5 flex items-center gap-2.5 transition-all active:scale-[0.98] ${isActive ? '' : 'opacity-70 hover:opacity-90'}`}
+                        >
+                          <div className="relative flex-shrink-0">
+                            <div style={{ background: t.bg, width: 34, height: 34, borderRadius: 8, border: '1px solid rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <div style={{ width: 13, height: 2, background: t.accent, borderRadius: 2 }}/>
+                            </div>
+                            {isActive && (
+                              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+                                <Check size={7} color="white"/>
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <div className="text-[11px] font-semibold">{t.label}</div>
+                            <div className="text-[9px] text-stone-400">{t.sub}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                )}
               </>
             )}
 

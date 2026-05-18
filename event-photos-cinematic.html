@@ -182,6 +182,46 @@
       --accent: #7fa0bd; --accent-dk: #6585a0; --accent-gl: rgba(127,160,189,0.15);
       --line: rgba(232,234,239,0.09); --line-soft: rgba(232,234,239,0.05);
     }
+    /* ── Palettes sourdes & cinématiques (laissent les photos parler) ── */
+    [data-theme="fumee"] {            /* charcoal chaud · bronze doux */
+      --bg: #1a1714; --bg-deep: #131110; --bg-elev: #221e1a;
+      --ink: #ece5da; --ink-soft: #9c9286; --ink-dim: #5d5549;
+      --accent: #b1916f; --accent-dk: #957653; --accent-gl: rgba(177,145,111,0.13);
+      --line: rgba(236,229,218,0.09); --line-soft: rgba(236,229,218,0.05);
+    }
+    [data-theme="encre"] {            /* encre bleu-nuit · gris-bleu poudré */
+      --bg: #0d0f14; --bg-deep: #090a0e; --bg-elev: #161922;
+      --ink: #e6e8ee; --ink-soft: #8b909e; --ink-dim: #4d525e;
+      --accent: #8a93a6; --accent-dk: #6f7889; --accent-gl: rgba(138,147,166,0.14);
+      --line: rgba(230,232,238,0.09); --line-soft: rgba(230,232,238,0.05);
+    }
+    [data-theme="sapin"] {            /* vert sapin profond · sauge */
+      --bg: #0c0f0d; --bg-deep: #080a09; --bg-elev: #141813;
+      --ink: #e7ebe4; --ink-soft: #8a9387; --ink-dim: #4e564b;
+      --accent: #8a9c84; --accent-dk: #6f8169; --accent-gl: rgba(138,156,132,0.13);
+      --line: rgba(231,235,228,0.08); --line-soft: rgba(231,235,228,0.05);
+    }
+    [data-theme="lin"] {              /* lin chaud · taupe */
+      --bg: #f1ece3; --bg-deep: #e9e2d6; --bg-elev: #e5ddcf;
+      --ink: #2b2620; --ink-soft: #7a7164; --ink-dim: #a89e8d;
+      --accent: #8a7458; --accent-dk: #6f5b41; --accent-gl: rgba(138,116,88,0.12);
+      --line: rgba(43,38,32,0.10); --line-soft: rgba(43,38,32,0.05);
+      --shadow: 0 30px 90px rgba(0,0,0,0.16);
+    }
+    [data-theme="sauge"] {            /* sauge pâle · vert profond */
+      --bg: #e8ebe4; --bg-deep: #dfe3d9; --bg-elev: #dbe0d3;
+      --ink: #242821; --ink-soft: #6f766a; --ink-dim: #9aa090;
+      --accent: #6e7d63; --accent-dk: #58654f; --accent-gl: rgba(110,125,99,0.12);
+      --line: rgba(36,40,33,0.10); --line-soft: rgba(36,40,33,0.05);
+      --shadow: 0 30px 90px rgba(0,0,0,0.14);
+    }
+    [data-theme="brume"] {            /* brume gris-bleu · ardoise douce */
+      --bg: #e9ebee; --bg-deep: #e0e3e7; --bg-elev: #dde0e5;
+      --ink: #21252b; --ink-soft: #6c7480; --ink-dim: #97a0ac;
+      --accent: #6b7785; --accent-dk: #56616e; --accent-gl: rgba(107,119,133,0.12);
+      --line: rgba(33,37,43,0.10); --line-soft: rgba(33,37,43,0.05);
+      --shadow: 0 30px 90px rgba(0,0,0,0.14);
+    }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
@@ -229,7 +269,7 @@
     /* ════════════════════════ COVER / HÉRO ════════════════════════ */
     .cover {
       position: relative; height: 100svh; min-height: 560px;
-      display: flex; align-items: center; justify-content: center;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
       overflow: hidden; text-align: center;
     }
     .cover-bg {
@@ -249,12 +289,47 @@
         radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.45) 100%),
         linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 25%, transparent 60%, rgba(0,0,0,0.55) 100%);
     }
-    [data-theme="creme"] .cover-bg { filter: brightness(0.72) saturate(1.05); }
-    [data-theme="creme"] .cover::after {
+    /* Palettes claires : voile plus doux sur la couverture plein écran */
+    [data-theme="creme"] .cover-bg, [data-theme="lin"] .cover-bg,
+    [data-theme="sauge"] .cover-bg, [data-theme="brume"] .cover-bg { filter: brightness(0.72) saturate(1.04); }
+    [data-theme="creme"] .cover::after, [data-theme="lin"] .cover::after,
+    [data-theme="sauge"] .cover::after, [data-theme="brume"] .cover::after {
       background:
         radial-gradient(ellipse at center, transparent 35%, rgba(20,16,12,0.32) 100%),
         linear-gradient(to bottom, rgba(20,16,12,0.30) 0%, transparent 30%, transparent 62%, rgba(20,16,12,0.42) 100%);
     }
+
+    /* ── Couverture CADRÉE (s'adapte au ratio de la photo) ── */
+    .cover-frame {
+      display: none; position: relative; z-index: 2;
+      align-items: center; justify-content: center;
+      max-width: min(88vw, 1180px);
+      opacity: 0; animation: rise 1.5s var(--ease) 0.55s forwards;
+    }
+    .cover-photo {
+      display: block; width: auto; height: auto;
+      max-width: 100%; max-height: 58vh; object-fit: contain;
+      box-shadow: var(--shadow);
+      opacity: 0; transform: scale(0.985);
+      transition: opacity 1.1s var(--ease), transform 1.4s var(--ease);
+    }
+    .cover-photo.on { opacity: 1; transform: scale(1); }
+    .cover.mode-fit { justify-content: center; gap: clamp(24px, 4.2vh, 50px);
+      padding: clamp(64px, 9vh, 104px) clamp(20px, 5vw, 56px) clamp(74px, 10vh, 116px); }
+    .cover.mode-fit .cover-bg { display: none; }
+    .cover.mode-fit::after { display: none; }
+    .cover.mode-fit .cover-frame { display: flex; }
+    .cover.mode-fit.is-portrait  .cover-photo { max-height: 68vh; }
+    .cover.mode-fit.is-landscape .cover-photo { max-height: 56vh; }
+    .cover.mode-fit .cover-photog { color: var(--ink-soft); margin-bottom: 0; }
+    .cover.mode-fit .cover-photog:hover { color: var(--ink); }
+    .cover.mode-fit h1 { color: var(--ink); text-shadow: none; }
+    .cover.mode-fit .cover-meta { color: var(--ink-soft); }
+    .cover.mode-fit .cover-scroll { color: var(--ink-soft); }
+    .cover.mode-fit .cover-scroll:hover { color: var(--ink); }
+    .cover.mode-fit .cover-scroll .ln { background: var(--line); }
+    .cover.mode-fit .cover-scroll .ln::after { background: var(--accent); }
+    .cover.mode-fit .cover-inner { padding-top: 0; }
 
     .cover-inner { position: relative; z-index: 2; padding: 0 24px; color: #fff; }
     .cover-photog {
@@ -271,12 +346,14 @@
       margin: 0; text-shadow: 0 4px 40px rgba(0,0,0,0.4);
       opacity: 0; animation: rise 1.5s var(--ease) 0.9s forwards;
     }
+    .cover.mode-fit h1 { font-size: clamp(2.4rem, 7vw, 5.4rem); }
     .cover-meta {
       margin-top: 30px; font-size: 10.5px; text-transform: uppercase;
       letter-spacing: 0.4em; color: rgba(255,255,255,0.82);
       display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap;
       opacity: 0; animation: rise 1.3s var(--ease) 1.25s forwards;
     }
+    .cover.mode-fit .cover-meta { margin-top: 18px; }
     .cover-meta i { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); font-style: normal; }
     @keyframes rise { from { opacity:0; transform: translateY(26px); } to { opacity:1; transform:none; } }
 
@@ -629,8 +706,11 @@
   <!-- COVER -->
   <section class="cover" id="cover">
     <div class="cover-bg" id="coverBg" aria-hidden="true"></div>
+    <a href="#" class="cover-photog" id="coverPhotog">TimelessHouse</a>
+    <figure class="cover-frame" id="coverFrame">
+      <img class="cover-photo" id="coverPhoto" alt="" />
+    </figure>
     <div class="cover-inner">
-      <a href="#" class="cover-photog" id="coverPhotog">TimelessHouse</a>
       <h1 id="coverTitle">—</h1>
       <div class="cover-meta" id="coverMeta"></div>
     </div>
@@ -695,7 +775,11 @@
     const $ = (id) => document.getElementById(id);
 
     /* ── Config visuelle ── */
-    if (C.theme && C.theme !== 'noir') document.body.setAttribute('data-theme', C.theme);
+    // Palette : nouveau champ `palette` prioritaire, repli sur l'ancien
+    // `theme` (clients cinématiques existants), défaut "noir".
+    const PAL = C.palette || C.theme || 'noir';
+    if (PAL && PAL !== 'noir') document.body.setAttribute('data-theme', PAL);
+    const COVER_MODE = C.coverMode === 'fit' ? 'fit' : 'fill';
     document.title = C.couple + ' — Galerie Photos';
     document.querySelector('meta[property="og:title"]').setAttribute('content', C.couple + ' — Galerie Photos');
     document.querySelector('meta[name="description"]').setAttribute('content',
@@ -1136,7 +1220,28 @@
       // Image de couverture : configurée, sinon 1ère photo de la galerie
       const coverId = C.coverPublicId
         || (SCENES[0] && SCENES[0].photos[0] && SCENES[0].photos[0].id);
-      if (coverId) {
+
+      if (COVER_MODE === 'fit') {
+        // Couverture CADRÉE : la photo garde son ratio naturel sur le fond palette
+        $('cover').classList.add('mode-fit');
+        if (coverId) {
+          const ph = $('coverPhoto');
+          ph.src = url(coverId, 'c_limit,w_40,e_blur:900,q_auto:low,f_auto');
+          const big = new Image();
+          big.onload = () => {
+            const r = big.naturalWidth / big.naturalHeight;
+            $('cover').classList.add(r >= 1.15 ? 'is-landscape' : (r <= 0.85 ? 'is-portrait' : 'is-square'));
+            ph.src = big.src;
+            requestAnimationFrame(() => ph.classList.add('on'));
+          };
+          big.onerror = () => ph.classList.add('on');
+          big.src = url(coverId, 'c_limit,w_2400,q_auto:good,f_auto');
+        } else {
+          // Pas de photo → couverture purement typographique
+          $('coverFrame').style.display = 'none';
+        }
+      } else if (coverId) {
+        // Couverture PLEIN ÉCRAN : recadrée + Ken Burns
         const big = new Image();
         big.onload = () => { $('coverBg').style.backgroundImage = "url('" + big.src + "')"; };
         big.src = url(coverId, 'c_fill,w_2200,q_auto:good,f_auto');

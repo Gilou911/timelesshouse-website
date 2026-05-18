@@ -222,6 +222,25 @@
       --line: rgba(33,37,43,0.10); --line-soft: rgba(33,37,43,0.05);
       --shadow: 0 30px 90px rgba(0,0,0,0.14);
     }
+    /* ── Palettes RICHES & profondes (couleurs saturées, non sourdes) ── */
+    [data-theme="bordeaux"] {         /* vin profond · tan doux */
+      --bg: #45100f; --bg-deep: #2c0a0a; --bg-elev: #531818;
+      --ink: #f3e7e0; --ink-soft: #b89a90; --ink-dim: #7a5953;
+      --accent: #d2b48c; --accent-dk: #b2916a; --accent-gl: rgba(210,180,140,0.16);
+      --line: rgba(243,231,224,0.10); --line-soft: rgba(243,231,224,0.05);
+    }
+    [data-theme="acajou"] {           /* acajou profond · caramel */
+      --bg: #2a1812; --bg-deep: #1a0f0b; --bg-elev: #3a241b;
+      --ink: #efe4d9; --ink-soft: #b59a88; --ink-dim: #745b4b;
+      --accent: #c98a5e; --accent-dk: #a96f47; --accent-gl: rgba(201,138,94,0.15);
+      --line: rgba(239,228,217,0.09); --line-soft: rgba(239,228,217,0.05);
+    }
+    [data-theme="foret"] {            /* vert forêt riche · tan chaud */
+      --bg: #0e2118; --bg-deep: #07140e; --bg-elev: #173025;
+      --ink: #e7efe7; --ink-soft: #8fa596; --ink-dim: #4f6356;
+      --accent: #c2a878; --accent-dk: #a48a5b; --accent-gl: rgba(194,168,120,0.15);
+      --line: rgba(231,239,231,0.08); --line-soft: rgba(231,239,231,0.05);
+    }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
@@ -290,10 +309,8 @@
         linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 25%, transparent 60%, rgba(0,0,0,0.55) 100%);
     }
     /* Palettes claires : voile plus doux sur la couverture plein écran */
-    [data-theme="creme"] .cover-bg, [data-theme="lin"] .cover-bg,
-    [data-theme="sauge"] .cover-bg, [data-theme="brume"] .cover-bg { filter: brightness(0.72) saturate(1.04); }
-    [data-theme="creme"] .cover::after, [data-theme="lin"] .cover::after,
-    [data-theme="sauge"] .cover::after, [data-theme="brume"] .cover::after {
+    .is-light .cover-bg { filter: brightness(0.72) saturate(1.04); }
+    .is-light .cover::after {
       background:
         radial-gradient(ellipse at center, transparent 35%, rgba(20,16,12,0.32) 100%),
         linear-gradient(to bottom, rgba(20,16,12,0.30) 0%, transparent 30%, transparent 62%, rgba(20,16,12,0.42) 100%);
@@ -561,8 +578,8 @@
       font-size: 9.5px; letter-spacing: 0.28em; text-transform: uppercase;
       color: rgba(255,255,255,0.62);
     }
-    [data-theme="creme"] .scene-card-name,
-    [data-theme="creme"] .scene-card-count { text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+    .is-light .scene-card-name,
+    .is-light .scene-card-count { text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
 
     /* ════════════════════════ LIGHTBOX ════════════════════════ */
     .lb {
@@ -775,10 +792,76 @@
     const $ = (id) => document.getElementById(id);
 
     /* ── Config visuelle ── */
-    // Palette : nouveau champ `palette` prioritaire, repli sur l'ancien
-    // `theme` (clients cinématiques existants), défaut "noir".
+    // Palette : `palette` prioritaire, repli `theme` (clients existants),
+    // défaut "noir". Valeur spéciale "custom" → couleurs dérivées du
+    // sélecteur de l'admin (fond + accent + base sombre/claire).
     const PAL = C.palette || C.theme || 'noir';
-    if (PAL && PAL !== 'noir') document.body.setAttribute('data-theme', PAL);
+    const LIGHT_PRESETS = ['creme', 'lin', 'sauge', 'brume'];
+    let isLight = LIGHT_PRESETS.includes(PAL);
+
+    if (PAL === 'custom') {
+      // — moteur de palette dynamique —
+      const hx = (h) => {
+        h = (h || '').replace('#', '').trim();
+        if (h.length === 3) h = h.split('').map(c => c + c).join('');
+        if (!/^[0-9a-fA-F]{6}$/.test(h)) h = '1a1714';
+        return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+      };
+      const cl = (v) => Math.max(0, Math.min(255, Math.round(v)));
+      const hex = (c) => '#' + c.map(v => cl(v).toString(16).padStart(2,'0')).join('');
+      const mix = (a, b, t) => a.map((v,i) => v + (b[i]-v)*t);
+      const rgba = (c, a) => 'rgba(' + c.map(v => cl(v)).join(',') + ',' + a + ')';
+      const W = [255,255,255], K = [0,0,0];
+
+      const bg  = hx(C.customBg || '#1a1714');
+      const acc = hx(C.customAccent || '#b08968');
+      const mode = C.customMode === 'light' ? 'light' : 'dark';
+      isLight = (mode === 'light');
+
+      let v;
+      if (mode === 'light') {
+        const ink = mix(K, bg, 0.13);
+        v = {
+          '--bg': hex(bg),
+          '--bg-deep': hex(mix(bg, K, 0.06)),
+          '--bg-elev': hex(mix(bg, K, 0.045)),
+          '--ink': hex(ink),
+          '--ink-soft': hex(mix(ink, bg, 0.46)),
+          '--ink-dim': hex(mix(ink, bg, 0.66)),
+          '--accent': hex(acc),
+          '--accent-dk': hex(mix(acc, K, 0.22)),
+          '--accent-gl': rgba(acc, 0.12),
+          '--line': rgba(ink, 0.10),
+          '--line-soft': rgba(ink, 0.05),
+          '--shadow': '0 30px 90px rgba(0,0,0,0.15)',
+        };
+      } else {
+        const ink = mix(W, bg, 0.07);
+        v = {
+          '--bg': hex(bg),
+          '--bg-deep': hex(mix(bg, K, 0.42)),
+          '--bg-elev': hex(mix(bg, W, 0.07)),
+          '--ink': hex(ink),
+          '--ink-soft': hex(mix(ink, bg, 0.44)),
+          '--ink-dim': hex(mix(ink, bg, 0.68)),
+          '--accent': hex(acc),
+          '--accent-dk': hex(mix(acc, K, 0.22)),
+          '--accent-gl': rgba(acc, 0.14),
+          '--line': rgba(ink, 0.10),
+          '--line-soft': rgba(ink, 0.06),
+          '--shadow': '0 30px 90px rgba(0,0,0,0.7)',
+        };
+      }
+      const st = document.createElement('style');
+      st.textContent = 'body[data-theme="custom"]{' +
+        Object.entries(v).map(([k, val]) => k + ':' + val).join(';') + '}';
+      document.head.appendChild(st);
+      document.body.setAttribute('data-theme', 'custom');
+    } else if (PAL !== 'noir') {
+      document.body.setAttribute('data-theme', PAL);
+    }
+    document.body.classList.toggle('is-light', isLight);
+
     const COVER_MODE = C.coverMode === 'fit' ? 'fit' : 'fill';
     document.title = C.couple + ' — Galerie Photos';
     document.querySelector('meta[property="og:title"]').setAttribute('content', C.couple + ' — Galerie Photos');

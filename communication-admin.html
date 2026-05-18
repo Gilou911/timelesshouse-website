@@ -1017,7 +1017,7 @@
                         <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] uppercase tracking-wide font-semibold">Cinématique</span>
                       )}
                       {photosPage.config?.style === 'cinematic' && (photosPage.config?.palette || photosPage.config?.theme || 'noir') !== 'noir' && (
-                        <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">{photosPage.config.palette || photosPage.config.theme}</span>
+                        <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">{(photosPage.config.palette || photosPage.config.theme) === 'custom' ? 'Sur mesure' : (photosPage.config.palette || photosPage.config.theme)}</span>
                       )}
                       {photosPage.config?.style === 'cinematic' && photosPage.config?.coverMode === 'fit' && (
                         <span className="px-1.5 py-0.5 rounded bg-stone-200 text-[9px] uppercase tracking-wide">Cadrée</span>
@@ -1102,6 +1102,29 @@
       return client.name || '';
     }
 
+    // Aperçu palette sur mesure — réplique la dérivation de la galerie
+    function previewVars(bgHex, accHex, mode) {
+      const hx = (h) => {
+        h = (h || '').replace('#', '').trim();
+        if (h.length === 3) h = h.split('').map(c => c + c).join('');
+        if (!/^[0-9a-fA-F]{6}$/.test(h)) h = '1a1714';
+        return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+      };
+      const cl = (v) => Math.max(0, Math.min(255, Math.round(v)));
+      const hex = (c) => '#' + c.map(v => cl(v).toString(16).padStart(2,'0')).join('');
+      const mix = (a, b, t) => a.map((v,i) => v + (b[i]-v)*t);
+      const W = [255,255,255], K = [0,0,0];
+      const bg = hx(bgHex), acc = hx(accHex);
+      if (mode === 'light') {
+        const ink = mix(K, bg, 0.13);
+        return { bg: hex(bg), ink: hex(ink), soft: hex(mix(ink, bg, 0.46)),
+                 accent: hex(acc), elev: hex(mix(bg, K, 0.045)) };
+      }
+      const ink = mix(W, bg, 0.07);
+      return { bg: hex(bg), ink: hex(ink), soft: hex(mix(ink, bg, 0.44)),
+               accent: hex(acc), elev: hex(mix(bg, W, 0.07)) };
+    }
+
     function defaultPhotosConfig(client) {
       return {
         couple: clientCouple(client),
@@ -1117,8 +1140,11 @@
         galleryMode: 'categorized',  // 'categorized' | 'flat'
         style: 'classic',            // 'classic' | 'cinematic'
         coverPublicId: '',           // cinématique : photo de couverture (optionnel)
-        palette: 'noir',             // cinématique : palette de couleurs
+        palette: 'noir',             // cinématique : palette de couleurs (ou 'custom')
         coverMode: 'fill',           // cinématique : 'fill' (plein écran) | 'fit' (cadrée)
+        customBg: '#1a1714',         // palette sur mesure : couleur de fond
+        customAccent: '#b08968',     // palette sur mesure : couleur d'accent
+        customMode: 'dark',          // palette sur mesure : 'dark' | 'light'
       };
     }
 
@@ -1567,18 +1593,21 @@
                 {(c.style || 'classic') === 'cinematic' && (
                 <div className="mt-5">
                   <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-1">Palette de couleurs</div>
-                  <div className="text-[10px] text-stone-400 mb-3">Tons sourds & cinématiques — pensés pour ne pas voler la vedette aux photos.</div>
+                  <div className="text-[10px] text-stone-400 mb-3">Sourdes, riches ou sur mesure — la galerie s'adapte pour mettre les photos en valeur.</div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                     {[
-                      { id: 'noir',    label: 'Noir',    sub: 'Or chaud',     bg: '#0a0a0a', accent: '#b08968', dark: true },
-                      { id: 'fumee',   label: 'Fumée',   sub: 'Bronze doux',  bg: '#1a1714', accent: '#b1916f', dark: true },
-                      { id: 'encre',   label: 'Encre',   sub: 'Bleu-nuit',    bg: '#0d0f14', accent: '#8a93a6', dark: true },
-                      { id: 'sapin',   label: 'Sapin',   sub: 'Vert profond', bg: '#0c0f0d', accent: '#8a9c84', dark: true },
-                      { id: 'ardoise', label: 'Ardoise', sub: 'Bleu acier',   bg: '#13161c', accent: '#7fa0bd', dark: true },
-                      { id: 'creme',   label: 'Crème',   sub: 'Sable clair',  bg: '#f3eee7', accent: '#8b6a48', dark: false },
-                      { id: 'lin',     label: 'Lin',     sub: 'Taupe chaud',  bg: '#f1ece3', accent: '#8a7458', dark: false },
-                      { id: 'sauge',   label: 'Sauge',   sub: 'Vert pâle',    bg: '#e8ebe4', accent: '#6e7d63', dark: false },
-                      { id: 'brume',   label: 'Brume',   sub: 'Gris-bleu',    bg: '#e9ebee', accent: '#6b7785', dark: false },
+                      { id: 'noir',     label: 'Noir',     sub: 'Or chaud',     bg: '#0a0a0a', accent: '#b08968' },
+                      { id: 'fumee',    label: 'Fumée',    sub: 'Bronze doux',  bg: '#1a1714', accent: '#b1916f' },
+                      { id: 'encre',    label: 'Encre',    sub: 'Bleu-nuit',    bg: '#0d0f14', accent: '#8a93a6' },
+                      { id: 'sapin',    label: 'Sapin',    sub: 'Vert profond', bg: '#0c0f0d', accent: '#8a9c84' },
+                      { id: 'ardoise',  label: 'Ardoise',  sub: 'Bleu acier',   bg: '#13161c', accent: '#7fa0bd' },
+                      { id: 'bordeaux', label: 'Bordeaux', sub: 'Vin · tan',    bg: '#45100f', accent: '#d2b48c' },
+                      { id: 'acajou',   label: 'Acajou',   sub: 'Brun · caramel', bg: '#2a1812', accent: '#c98a5e' },
+                      { id: 'foret',    label: 'Forêt',    sub: 'Vert riche',   bg: '#0e2118', accent: '#c2a878' },
+                      { id: 'creme',    label: 'Crème',    sub: 'Sable clair',  bg: '#f3eee7', accent: '#8b6a48' },
+                      { id: 'lin',      label: 'Lin',      sub: 'Taupe chaud',  bg: '#f1ece3', accent: '#8a7458' },
+                      { id: 'sauge',    label: 'Sauge',    sub: 'Vert pâle',    bg: '#e8ebe4', accent: '#6e7d63' },
+                      { id: 'brume',    label: 'Brume',    sub: 'Gris-bleu',    bg: '#e9ebee', accent: '#6b7785' },
                     ].map(t => {
                       const isActive = (c.palette || c.theme || 'noir') === t.id;
                       return (
@@ -1606,7 +1635,97 @@
                         </button>
                       );
                     })}
+
+                    {/* Carte « Personnalisé » */}
+                    {(() => {
+                      const isActive = (c.palette || c.theme || 'noir') === 'custom';
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => updateConfig('palette', 'custom')}
+                          style={isActive ? neu.pressedSm : neu.raisedXs}
+                          className={`rounded-xl p-2.5 flex items-center gap-2.5 transition-all active:scale-[0.98] ${isActive ? '' : 'opacity-70 hover:opacity-90'}`}
+                        >
+                          <div className="relative flex-shrink-0">
+                            <div style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid rgba(0,0,0,0.12)', background: 'conic-gradient(from 210deg, #8B0000, #AA2704, #654321, #013220, #1f3a5f, #45100f, #8B0000)' }}/>
+                            {isActive && (
+                              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+                                <Check size={7} color="white"/>
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <div className="text-[11px] font-semibold">Personnalisé</div>
+                            <div className="text-[9px] text-stone-400">Couleur libre</div>
+                          </div>
+                        </button>
+                      );
+                    })()}
                   </div>
+
+                  {/* Éditeur sur mesure */}
+                  {(c.palette || c.theme || 'noir') === 'custom' && (() => {
+                    const pv = previewVars(c.customBg || '#1a1714', c.customAccent || '#b08968', c.customMode || 'dark');
+                    return (
+                    <div style={neu.pressedSm} className="rounded-xl p-4 mt-3 space-y-4">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold mb-2">Base</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[['dark','Sombre'],['light','Clair']].map(([m, lbl]) => {
+                            const a = (c.customMode || 'dark') === m;
+                            return (
+                              <button key={m} type="button" onClick={() => updateConfig('customMode', m)}
+                                style={a ? neu.dark : neu.raisedXs}
+                                className={`px-3 py-2.5 rounded-xl text-[11.5px] font-semibold transition active:scale-[0.98] ${a ? 'text-white' : 'text-stone-600'}`}>
+                                {lbl}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold mb-2">Fond</div>
+                          <div className="flex items-center gap-2">
+                            <input type="color" value={c.customBg || '#1a1714'} onChange={e => updateConfig('customBg', e.target.value)}
+                              className="w-10 h-10 rounded-lg cursor-pointer flex-shrink-0" style={{ border: '1px solid rgba(0,0,0,0.15)', padding: 0, background: 'none' }} />
+                            <Input value={c.customBg || ''} onChange={e => updateConfig('customBg', e.target.value)} placeholder="#1a1714" />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold mb-2">Accent</div>
+                          <div className="flex items-center gap-2">
+                            <input type="color" value={c.customAccent || '#b08968'} onChange={e => updateConfig('customAccent', e.target.value)}
+                              className="w-10 h-10 rounded-lg cursor-pointer flex-shrink-0" style={{ border: '1px solid rgba(0,0,0,0.15)', padding: 0, background: 'none' }} />
+                            <Input value={c.customAccent || ''} onChange={e => updateConfig('customAccent', e.target.value)} placeholder="#b08968" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold mb-2">Aperçu</div>
+                        <div style={{ background: pv.bg, borderRadius: 12, padding: '24px 20px', border: '1px solid rgba(0,0,0,0.10)' }}>
+                          <div style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontStyle: 'italic', color: pv.ink, fontSize: 24, lineHeight: 1 }}>
+                            {c.couple || 'Aurore & Tom'}
+                          </div>
+                          <div style={{ width: 36, height: 1, background: pv.accent, margin: '13px 0 15px', opacity: 0.6 }} />
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {[0.9, 1.3, 0.7, 1.1].map((r, i) => (
+                              <div key={i} style={{ flex: r, height: 46, background: pv.elev, borderRadius: 2 }} />
+                            ))}
+                          </div>
+                          <div style={{ marginTop: 14, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: pv.soft }}>
+                            22 juin 2025 · Toscane
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-stone-400 mt-2 leading-relaxed">
+                          Le texte, les nuances et les ombres sont calculés automatiquement à partir du fond et de l'accent — choisissez n'importe quelle couleur (riche ou sourde).
+                        </div>
+                      </div>
+                    </div>
+                    );
+                  })()}
                 </div>
                 )}
               </>

@@ -397,101 +397,129 @@ async function smartDownload(url, filename, type) {
 }
 
 // ────────────────────────────────────────────────────────────
-// 🎬 MEDIA CARD — carte grille avec preview vidéo au hover/tap
+// 🎬 MEDIA CARD
+// La vidéo est VISIBLE en pause (première frame = vignette naturelle).
+// Hover (desktop) → joue. Leave → pause sur la frame courante.
+// Mobile : 1er tap → joue, 2e tap → lightbox.
 //
-// Desktop : hover → joue la vidéo, leave → pause + libère buffer.
-//           Click → ouvre la lightbox.
-// Mobile  : 1er tap → joue la preview vidéo.
-//           2e tap  → ouvre la lightbox.
-//           Tap ailleurs → stoppe la preview.
-//
-// La mémoire est libérée dès qu'on quitte la carte (removeAttribute
-// + load) — un seul décodeur vidéo actif max dans toute la grille.
+// Mémoire : IntersectionObserver charge le src (preload=metadata)
+// quand la carte est proche du viewport, et le libère quand elle
+// s'en éloigne. Seules les cartes visibles occupent de la RAM.
 // ────────────────────────────────────────────────────────────
-const isTouch = typeof window !== 'undefined' &&
-  (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+const isHoverDevice = typeof window !== 'undefined' &&
+  window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
 const MediaCard = ({ media: m, thumb, previewVideo, onOpen, neu: neuStyle }) => {
   const videoRef = useRef(null);
-  const cardRef = useRef(null);
-  const [previewing, setPreviewing] = useState(false);
+  const cardRef  = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [loaded, setLoaded]   = useState(false); // première frame chargée
 
-  // ── Lecture / Arrêt ──
-  const startPreview = useCallback(() => {
-    const el = videoRef.current;
-    if (!el || !previewVideo) return;
-    if (!el.src || el.src !== previewVideo) { el.src = previewVideo; }
-    el.play().catch(() => {});
-    setPreviewing(true);
+  // ── Charger / décharger le src selon la visibilité (mémoire) ──
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card || !previewVideo) return;
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        const v = videoRef.current;
+        if (!v) return;
+        if (e.isIntersecting) {
+          // Charge juste la 1ère frame (metadata)
+          if (v.getAttribute('src') !== previewVideo) {
+            v.src = previewVideo;
+            v.load();
+            setLoaded(false);
+          }
+        } else {
+          // Hors viewport élargi → libère le buffer
+          v.pause();
+          v.removeAttribute('src');
+          v.load();
+          setPlaying(false);
+          setLoaded(false);
+        }
+      });
+    }, { rootMargin: '400px 0px' });
+    obs.observe(card);
+    return () => obs.disconnect();
   }, [previewVideo]);
 
-  const stopPreview = useCallback(() => {
-    const el = videoRef.current;
-    if (el) {
-      el.pause();
-      el.removeAttribute('src');
-      el.load(); // libère le décodeur vidéo
-    }
-    setPreviewing(false);
+  // ── Détecter quand la 1ère frame est prête ──
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const onData = () => setLoaded(true);
+    v.addEventListener('loadeddata', onData);
+    return () => v.removeEventListener('loadeddata', onData);
   }, []);
 
-  // ── Desktop : hover ──
-  const onMouseEnter = useCallback(() => { if (!isTouch) startPreview(); }, [startPreview]);
-  const onMouseLeave = useCallback(() => { if (!isTouch) stopPreview(); }, [stopPreview]);
+  const play = useCallback(() => {
+    const v = videoRef.current;
+    if (!v || !previewVideo) return;
+    v.play().catch(() => {});
+    setPlaying(true);
+  }, [previewVideo]);
 
-  // ── Mobile : 1er tap = preview, 2e tap = open ──
+  const stop = useCallback(() => {
+    const v = videoRef.current;
+    if (v) v.pause();
+    setPlaying(false);
+  }, []);
+
+  // Desktop : hover
+  const handleEnter = useCallback(() => { if (isHoverDevice) play(); }, [play]);
+  const handleLeave = useCallback(() => { if (isHoverDevice) stop(); }, [stop]);
+
+  // Click / tap
   const handleClick = useCallback((e) => {
-    if (isTouch && previewVideo) {
-      if (!previewing) {
+    if (!isHoverDevice && previewVideo) {
+      if (!playing) {
         e.preventDefault();
         e.stopPropagation();
-        // Stopper toute autre preview active (event custom)
-        window.dispatchEvent(new CustomEvent('th-stop-previews', { detail: m.id }));
-        startPreview();
+        window.dispatchEvent(new CustomEvent('th-card-preview', { detail: m.id }));
+        play();
         return;
       }
-      // 2e tap → on stoppe et on ouvre
-      stopPreview();
+      stop();
     }
     onOpen();
-  }, [previewing, previewVideo, startPreview, stopPreview, onOpen, m.id]);
+  }, [playing, previewVideo, play, stop, onOpen, m.id]);
 
-  // ── Mobile : stopper si un autre card démarre ou tap extérieur ──
+  // Mobile : stopper quand une autre carte démarre
   useEffect(() => {
-    if (!isTouch) return;
-    const onStopAll = (e) => {
-      if (e.detail !== m.id && previewing) stopPreview();
-    };
-    window.addEventListener('th-stop-previews', onStopAll);
-    return () => window.removeEventListener('th-stop-previews', onStopAll);
-  }, [m.id, previewing, stopPreview]);
+    if (isHoverDevice) return;
+    const h = (e) => { if (e.detail !== m.id) stop(); };
+    window.addEventListener('th-card-preview', h);
+    return () => window.removeEventListener('th-card-preview', h);
+  }, [m.id, stop]);
 
-  // ── Mobile : tap en dehors de la carte → stopper ──
+  // Mobile : stopper si tap en dehors
   useEffect(() => {
-    if (!isTouch || !previewing) return;
-    const onDocClick = (e) => {
-      if (cardRef.current && !cardRef.current.contains(e.target)) stopPreview();
-    };
-    document.addEventListener('click', onDocClick, true);
-    return () => document.removeEventListener('click', onDocClick, true);
-  }, [previewing, stopPreview]);
+    if (isHoverDevice || !playing) return;
+    const h = (e) => { if (!cardRef.current?.contains(e.target)) stop(); };
+    document.addEventListener('click', h, true);
+    return () => document.removeEventListener('click', h, true);
+  }, [playing, stop]);
 
   return (
-    <button ref={cardRef} onClick={handleClick}
-      onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}
+    <button ref={cardRef}
+      onClick={handleClick}
+      onMouseEnter={handleEnter}
+      onMouseLeave={handleLeave}
       style={neuStyle}
       className="rounded-[18px] lg:rounded-[20px] p-2 lg:p-2.5 group text-left active:scale-[0.98] transition-transform">
-      <div className="aspect-[4/3] rounded-xl relative overflow-hidden bg-black"
-        style={!previewVideo ? { background: thumb ? `url(${thumb}) center/cover` : m.thumb } : { background: thumb ? `url(${thumb}) center/cover` : m.thumb }}>
 
-        {/* Vidéo preview — invisible par défaut, apparaît au hover/tap */}
+      <div className="aspect-[4/3] rounded-xl relative overflow-hidden"
+        style={{ background: thumb ? `url(${thumb}) center/cover` : m.thumb }}>
+
+        {/* Vidéo toujours visible — en pause = affiche la 1ère frame comme vignette */}
         {previewVideo && (
-          <video ref={videoRef} muted loop playsInline preload="none"
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${previewing ? 'opacity-100' : 'opacity-0'}`} />
+          <video ref={videoRef} muted loop playsInline preload="metadata"
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`} />
         )}
 
-        {/* Bouton play (vidéos sans preview OU état repos) */}
-        {m.type === 'video' && !previewing && (
+        {/* Overlay play — visible uniquement au repos */}
+        {m.type === 'video' && !playing && (
           <>
             <div className="absolute inset-0 bg-black/30" />
             <div className="absolute inset-0 flex items-center justify-center">
@@ -503,10 +531,15 @@ const MediaCard = ({ media: m, thumb, previewVideo, onOpen, neu: neuStyle }) => 
         )}
 
         {m.type === 'video' && m.duration && (
-          <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-medium">{m.duration}</div>
+          <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-medium">
+            {m.duration}
+          </div>
         )}
-        <div className="absolute top-2 right-2 z-10"><ApprovalBadge status={m.approval_status} /></div>
+        <div className="absolute top-2 right-2 z-10">
+          <ApprovalBadge status={m.approval_status} />
+        </div>
       </div>
+
       <div className="px-1 pt-2.5 pb-1">
         <div className="font-medium text-[12.5px] lg:text-[13px] truncate leading-tight">{m.title}</div>
         <div className="text-[10.5px] text-stone-500 mt-1 truncate leading-none">

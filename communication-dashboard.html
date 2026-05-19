@@ -121,11 +121,9 @@
     [data-theme="dark"] .th-glow-accent { box-shadow: 0 0 24px rgba(232,216,190,0.28); }
     [data-theme="dark"] .th-glow-accent:hover { box-shadow: 0 0 32px rgba(232,216,190,0.45); }
 
-    /* — Transitions thème globales — */
-    body, .text-stone-900, .text-stone-800, .text-stone-700, .text-stone-600,
-    .text-stone-500, .text-stone-400, .text-stone-300, .bg-white, .bg-stone-50,
-    .bg-stone-100, .bg-stone-200, .bg-stone-300, .bg-stone-900,
-    .border-stone-200, .border-stone-300, .border-stone-900 {
+    /* — Transitions thème globales — restreint aux conteneurs principaux
+       pour éviter le layout thrashing lors des re-renders React */
+    body, header, aside, nav, main {
       transition: background-color 0.45s ease, color 0.45s ease, border-color 0.45s ease;
     }
 

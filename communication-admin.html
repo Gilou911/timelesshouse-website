@@ -67,9 +67,11 @@
     [data-theme="dark"] .border-stone-900 { border-color: #e8d8be !important; }
     [data-theme="dark"] hr { border-color: rgba(255,255,255,0.07) !important; }
 
-    /* Smooth theme transitions */
-    body, header, aside, main, button, input, textarea, select, div, span, h1, h2, h3, h4, p, a {
-      transition: background-color 0.45s ease, color 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease;
+    /* Smooth theme transitions — only on direct theme-relevant containers,
+       NOT on every single DOM element (that caused massive layout thrashing
+       with React re-renders and memory spikes). */
+    body, header, aside, nav, main {
+      transition: background-color 0.45s ease, color 0.45s ease, border-color 0.45s ease;
     }
   </style>
 </head>

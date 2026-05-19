@@ -1818,7 +1818,8 @@
             previewVideo.setAttribute('webkit-playsinline', '');
             previewVideo.setAttribute('muted', '');
             previewVideo.preload = 'none';   // ne charge RIEN tant qu'on n'a pas survolé / tapé
-            previewVideo.src = previewUrl;
+            // ⚡ On n'assigne PAS .src ici — il sera mis au moment du hover/tap
+            //    pour éviter que le navigateur pré-alloue un décodeur vidéo par vignette.
             wrap.appendChild(previewVideo);
 
             // Boucle d'un segment précis (start → end) si demandé via data-preview-start/end
@@ -1839,10 +1840,14 @@
                     if (other !== item) {
                         other.classList.remove('preview-active');
                         const v = other.querySelector('.gallery-preview');
-                        if (v) { try { v.pause(); v.currentTime = 0; } catch(e){} }
+                        if (v) { try { v.pause(); v.removeAttribute('src'); v.load(); } catch(e){} }
                     }
                 });
                 item.classList.add('preview-active');
+                // Assigner le src uniquement au moment de jouer
+                if (!previewVideo.src || previewVideo.src !== previewUrl) {
+                    previewVideo.src = previewUrl;
+                }
                 try { previewVideo.currentTime = startSec || 0; } catch(e) {}
                 const p = previewVideo.play();
                 if (p && typeof p.catch === 'function') { p.catch(function(){}); }
@@ -1852,7 +1857,9 @@
                 item.classList.remove('preview-active');
                 try {
                     previewVideo.pause();
-                    previewVideo.currentTime = startSec || 0;
+                    // ⚡ Libère le buffer vidéo décodé en mémoire
+                    previewVideo.removeAttribute('src');
+                    previewVideo.load();
                 } catch(e) {}
             }
 
@@ -1885,7 +1892,7 @@
                     document.querySelectorAll('.gallery-item.preview-active').forEach(function(it) {
                         it.classList.remove('preview-active');
                         const v = it.querySelector('.gallery-preview');
-                        if (v) { try { v.pause(); v.currentTime = 0; } catch(err) {} }
+                        if (v) { try { v.pause(); v.removeAttribute('src'); v.load(); } catch(err) {} }
                     });
                 }
             });
@@ -1900,7 +1907,7 @@
                         document.querySelectorAll('.gallery-item.preview-active').forEach(function(it) {
                             it.classList.remove('preview-active');
                             const v = it.querySelector('.gallery-preview');
-                            if (v) { try { v.pause(); } catch(err) {} }
+                            if (v) { try { v.pause(); v.removeAttribute('src'); v.load(); } catch(err) {} }
                         });
                     }
                 });

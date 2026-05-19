@@ -397,6 +397,127 @@ async function smartDownload(url, filename, type) {
 }
 
 // ────────────────────────────────────────────────────────────
+// 🎬 MEDIA CARD — carte grille avec preview vidéo au hover/tap
+//
+// Desktop : hover → joue la vidéo, leave → pause + libère buffer.
+//           Click → ouvre la lightbox.
+// Mobile  : 1er tap → joue la preview vidéo.
+//           2e tap  → ouvre la lightbox.
+//           Tap ailleurs → stoppe la preview.
+//
+// La mémoire est libérée dès qu'on quitte la carte (removeAttribute
+// + load) — un seul décodeur vidéo actif max dans toute la grille.
+// ────────────────────────────────────────────────────────────
+const isTouch = typeof window !== 'undefined' &&
+  (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+
+const MediaCard = ({ media: m, thumb, previewVideo, onOpen, neu: neuStyle }) => {
+  const videoRef = useRef(null);
+  const cardRef = useRef(null);
+  const [previewing, setPreviewing] = useState(false);
+
+  // ── Lecture / Arrêt ──
+  const startPreview = useCallback(() => {
+    const el = videoRef.current;
+    if (!el || !previewVideo) return;
+    if (!el.src || el.src !== previewVideo) { el.src = previewVideo; }
+    el.play().catch(() => {});
+    setPreviewing(true);
+  }, [previewVideo]);
+
+  const stopPreview = useCallback(() => {
+    const el = videoRef.current;
+    if (el) {
+      el.pause();
+      el.removeAttribute('src');
+      el.load(); // libère le décodeur vidéo
+    }
+    setPreviewing(false);
+  }, []);
+
+  // ── Desktop : hover ──
+  const onMouseEnter = useCallback(() => { if (!isTouch) startPreview(); }, [startPreview]);
+  const onMouseLeave = useCallback(() => { if (!isTouch) stopPreview(); }, [stopPreview]);
+
+  // ── Mobile : 1er tap = preview, 2e tap = open ──
+  const handleClick = useCallback((e) => {
+    if (isTouch && previewVideo) {
+      if (!previewing) {
+        e.preventDefault();
+        e.stopPropagation();
+        // Stopper toute autre preview active (event custom)
+        window.dispatchEvent(new CustomEvent('th-stop-previews', { detail: m.id }));
+        startPreview();
+        return;
+      }
+      // 2e tap → on stoppe et on ouvre
+      stopPreview();
+    }
+    onOpen();
+  }, [previewing, previewVideo, startPreview, stopPreview, onOpen, m.id]);
+
+  // ── Mobile : stopper si un autre card démarre ou tap extérieur ──
+  useEffect(() => {
+    if (!isTouch) return;
+    const onStopAll = (e) => {
+      if (e.detail !== m.id && previewing) stopPreview();
+    };
+    window.addEventListener('th-stop-previews', onStopAll);
+    return () => window.removeEventListener('th-stop-previews', onStopAll);
+  }, [m.id, previewing, stopPreview]);
+
+  // ── Mobile : tap en dehors de la carte → stopper ──
+  useEffect(() => {
+    if (!isTouch || !previewing) return;
+    const onDocClick = (e) => {
+      if (cardRef.current && !cardRef.current.contains(e.target)) stopPreview();
+    };
+    document.addEventListener('click', onDocClick, true);
+    return () => document.removeEventListener('click', onDocClick, true);
+  }, [previewing, stopPreview]);
+
+  return (
+    <button ref={cardRef} onClick={handleClick}
+      onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}
+      style={neuStyle}
+      className="rounded-[18px] lg:rounded-[20px] p-2 lg:p-2.5 group text-left active:scale-[0.98] transition-transform">
+      <div className="aspect-[4/3] rounded-xl relative overflow-hidden bg-black"
+        style={!previewVideo ? { background: thumb ? `url(${thumb}) center/cover` : m.thumb } : { background: thumb ? `url(${thumb}) center/cover` : m.thumb }}>
+
+        {/* Vidéo preview — invisible par défaut, apparaît au hover/tap */}
+        {previewVideo && (
+          <video ref={videoRef} muted loop playsInline preload="none"
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${previewing ? 'opacity-100' : 'opacity-0'}`} />
+        )}
+
+        {/* Bouton play (vidéos sans preview OU état repos) */}
+        {m.type === 'video' && !previewing && (
+          <>
+            <div className="absolute inset-0 bg-black/30" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-11 h-11 lg:w-12 lg:h-12 rounded-full bg-white/95 flex items-center justify-center group-hover:scale-110 transition">
+                <Play size={14} className="text-stone-900 ml-0.5" fill="#2a2620" />
+              </div>
+            </div>
+          </>
+        )}
+
+        {m.type === 'video' && m.duration && (
+          <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-medium">{m.duration}</div>
+        )}
+        <div className="absolute top-2 right-2 z-10"><ApprovalBadge status={m.approval_status} /></div>
+      </div>
+      <div className="px-1 pt-2.5 pb-1">
+        <div className="font-medium text-[12.5px] lg:text-[13px] truncate leading-tight">{m.title}</div>
+        <div className="text-[10.5px] text-stone-500 mt-1 truncate leading-none">
+          {m.date}{m.tag ? ` · ${m.tag}` : ''}
+        </div>
+      </div>
+    </button>
+  );
+};
+
+// ────────────────────────────────────────────────────────────
 // 🧱 ATOMS UI
 // ────────────────────────────────────────────────────────────
 const Pill = ({ active, children, onClick }) => (
@@ -1216,37 +1337,14 @@ const Media = () => {
                   const thumb = getThumbUrl(m);
                   const previewVideo = !m.thumb_url ? getPreviewVideoUrl(m) : null;
                   return (
-                    <button key={m.id} onClick={() => openLightbox(g.items, m)}
-                      style={neu.raisedSm}
-                      className="rounded-[18px] lg:rounded-[20px] p-2 lg:p-2.5 group text-left active:scale-[0.98] transition-transform">
-                      <div className="aspect-[4/3] rounded-xl relative overflow-hidden bg-black"
-                        style={!previewVideo ? { background: thumb ? `url(${thumb}) center/cover` : m.thumb } : undefined}>
-                        {previewVideo && (
-                          <video src={previewVideo} autoPlay muted loop playsInline preload="metadata"
-                            className="absolute inset-0 w-full h-full object-cover" />
-                        )}
-                        {m.type === 'video' && !previewVideo && (
-                          <>
-                            <div className="absolute inset-0 bg-black/30" />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-11 h-11 lg:w-12 lg:h-12 rounded-full bg-white/95 flex items-center justify-center group-hover:scale-110 transition">
-                                <Play size={14} className="text-stone-900 ml-0.5" fill="#2a2620" />
-                              </div>
-                            </div>
-                          </>
-                        )}
-                        {m.type === 'video' && m.duration && (
-                          <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-medium">{m.duration}</div>
-                        )}
-                        <div className="absolute top-2 right-2 z-10"><ApprovalBadge status={m.approval_status} /></div>
-                      </div>
-                      <div className="px-1 pt-2.5 pb-1">
-                        <div className="font-medium text-[12.5px] lg:text-[13px] truncate leading-tight">{m.title}</div>
-                        <div className="text-[10.5px] text-stone-500 mt-1 truncate leading-none">
-                          {m.date}{m.tag ? ` · ${m.tag}` : ''}
-                        </div>
-                      </div>
-                    </button>
+                    <MediaCard
+                      key={m.id}
+                      media={m}
+                      thumb={thumb}
+                      previewVideo={previewVideo}
+                      onOpen={() => openLightbox(g.items, m)}
+                      neu={neu.raisedSm}
+                    />
                   );
                 })}
               </div>

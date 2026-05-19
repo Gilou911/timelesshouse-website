@@ -568,7 +568,7 @@
     /* ════════════════════════ SCÈNES ════════════════════════ */
     .stage { position: relative; z-index: 2; }
 
-    .scene { padding: clamp(70px, 11vw, 140px) clamp(14px, 4vw, 56px) 0; }
+    .scene { padding: clamp(70px, 11vw, 140px) clamp(14px, 4vw, 56px) 0; content-visibility: auto; contain-intrinsic-size: auto 800px; }
     .scene:last-child { padding-bottom: clamp(90px, 12vw, 150px); }
 
     .scene-head {
@@ -1202,10 +1202,23 @@
       return row.map(it => ({ p: it.p, w: Math.floor(it.ar * h), h }));
     }
 
-    /* ── Lazy loader (blur-up) ── */
+    /* ── Lazy loader BIDIRECTIONNEL (blur-up + recyclage mémoire) ──
+       Les images qui sortent du viewport sont rétrogradées au blur (36px)
+       pour libérer la RAM. Quand elles reviennent, la HD est rechargée
+       depuis le cache HTTP du navigateur — instantané, pas de re-download.
+       L'utilisateur ne voit jamais la différence : les images hors écran
+       sont… hors écran. ── */
     const io = new IntersectionObserver((ents) => {
-      ents.forEach(e => { if (e.isIntersecting) { hydrate(e.target); io.unobserve(e.target); } });
-    }, { rootMargin: '600px 0px', threshold: 0.01 });
+      ents.forEach(e => {
+        const cell = e.target;
+        if (e.isIntersecting) {
+          if (!cell._img) { hydrate(cell); }
+          else if (cell._recycled) { rehydrate(cell); }
+        } else if (cell._img && !cell._recycled && cell.classList.contains('on-grid')) {
+          recycle(cell);
+        }
+      });
+    }, { rootMargin: '400px 0px', threshold: 0.01 });
 
     function hydrate(cell) {
       const id = cell.dataset.id;
@@ -1213,14 +1226,36 @@
       img.alt = cell.dataset.alt; img.loading = 'lazy'; img.decoding = 'async';
       img.src = BLUR(id);
       cell.appendChild(img);
+      cell._img = img;
+      cell._recycled = false;
       img.onload = () => {
         cell.classList.add('ready');
         const hd = new Image();
         hd.src = GRID(id);
-        hd.onload = () => { img.src = GRID(id); requestAnimationFrame(() => img.classList.add('on')); };
+        hd.onload = () => {
+          img.src = GRID(id);
+          cell.classList.add('on-grid');
+          requestAnimationFrame(() => img.classList.add('on'));
+        };
         hd.onerror = () => img.classList.add('on');
       };
       img.onerror = () => { cell.style.display = 'none'; };
+    }
+
+    function recycle(cell) {
+      const img = cell._img;
+      if (img) { img.src = BLUR(cell.dataset.id); }
+      cell._recycled = true;
+    }
+
+    function rehydrate(cell) {
+      const id = cell.dataset.id;
+      const img = cell._img;
+      if (!img) return;
+      const hd = new Image();
+      hd.src = GRID(id);
+      hd.onload = () => { img.src = GRID(id); };
+      cell._recycled = false;
     }
 
     /* ── Construction des scènes ── */
@@ -1446,11 +1481,13 @@
       $('lbCap').textContent = p.scene;
       const dl = $('lbDl'); dl.href = HD(p.id); dl.setAttribute('download', p.fileName);
       syncLbHeart();
-      // précharge voisins
+      // précharge voisins — cache circulaire de 3 slots max
+      lbPreCache.length = 0;
       [lbIdx + 1, lbIdx - 1].forEach(j => {
-        if (FLAT[j]) { const im = new Image(); im.src = VIEW(FLAT[j].id); }
+        if (FLAT[j]) { const im = new Image(); im.src = VIEW(FLAT[j].id); lbPreCache.push(im); }
       });
     }
+    const lbPreCache = [];
     function syncLbHeart() {
       const p = FLAT[lbIdx];
       $('lbHeart').classList.toggle('fav', p && favs.has(p.id));

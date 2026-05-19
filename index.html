@@ -949,6 +949,9 @@
       setTimeout(() => {
         if (!previewEl.classList.contains('active') && !previewEl.paused) {
           previewEl.pause();
+          // ⚡ Libère le buffer vidéo décodé
+          previewEl.removeAttribute('src');
+          previewEl.load();
         }
       }, 900);
     }

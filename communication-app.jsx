@@ -196,17 +196,31 @@ function getEmbed(url, type) {
   const path   = parsed.pathname;
   const search = parsed.search;
 
-  // ⚡ PRIORITÉ : fichier vidéo direct (mp4, webm, mov, m4v) — quel que soit l'hébergeur
-  // Couvre les liens Streamable /l/.../*.mp4, Cloudinary, S3, Google Drive direct, etc.
-  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(path)) {
-    return { kind: 'video', src: url };
-  }
-
-  // Streamable (page de partage standard, iframe embed)
+  // ⚡ Streamable EN PRIORITÉ — doit être avant le check .mp4 car les liens
+  // /l/ID/mp4-mobile.mp4 et /l/ID/mp4-high.mp4 finissent en .mp4 mais ne sont
+  // pas lisibles cross-origin dans un <video> (CORS / auth CDN Streamable).
+  // On détecte l'ID réel : /e/ID  →  ID direct
+  //                        /l/ID/fichier.mp4  →  ID = 2e segment
+  //                        /ID  →  page de partage
   if (host === 'streamable.com') {
     const parts = path.split('/').filter(Boolean);
-    const id = parts[parts.length - 1];
-    if (id) return { kind: 'iframe', src: `https://streamable.com/e/${id}${search}` };
+    let id;
+    if (parts[0] === 'e' && parts[1]) {
+      id = parts[1];                      // déjà un lien embed
+    } else if (parts[0] === 'l' && parts[1]) {
+      id = parts[1];                      // /l/ID/mp4-mobile.mp4 → ID = parts[1]
+    } else {
+      id = parts[parts.length - 1];       // /ID (page de partage standard)
+    }
+    // Sécurité : l'ID Streamable ne contient jamais de point
+    if (id && !id.includes('.')) {
+      return { kind: 'iframe', src: `https://streamable.com/e/${id}` };
+    }
+  }
+
+  // ⚡ Fichier vidéo direct (mp4, webm, mov, m4v) — Cloudinary, S3, Google Drive, etc.
+  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(path)) {
+    return { kind: 'video', src: url };
   }
 
   // YouTube (toutes les variantes : youtube.com/watch?v=, youtu.be/, /embed/, /shorts/)
@@ -260,11 +274,9 @@ function getPreviewVideoUrl(media) {
     if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(path)) return src;
     // Cloudinary
     if (/res\.cloudinary\.com\/.*\/video\/upload/.test(src)) return src;
-    // Streamable share URL → on dérive l'URL directe MP4
-    if (host === 'streamable.com') {
-      const id = path.split('/').filter(Boolean).pop();
-      if (id) return path.startsWith('/l/') ? src : `https://streamable.com/l/${id}/mp4-high.mp4`;
-    }
+    // Streamable : les URLs /l/.../mp4-xxx.mp4 sont bloquées cross-origin (CORS).
+    // Pour la galerie, on retourne null → la vignette statique est utilisée.
+    if (host === 'streamable.com') return null;
   } catch (e) {}
   return null;
 }

@@ -18,7 +18,7 @@ import {
   Play, X, MessageCircle, Check, AlertCircle, RefreshCw, ArrowUpRight,
   Instagram, Facebook, Youtube, Sparkles, ArrowRight, Clock, MapPin,
   Grid, List, Send, ThumbsUp, Loader2, Camera, Video as VideoIcon,
-  CheckCircle2, MessageSquare, Maximize2
+  CheckCircle2, MessageSquare, Maximize2, FolderOpen, FileText as FileTextIcon
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis,
@@ -46,9 +46,11 @@ const CLIENT = {
   mediaEnabled:     D.mediaEnabled    !== false,
   invoicesEnabled:  D.invoicesEnabled !== false,
   shootsEnabled:    D.shootsEnabled   !== false,
+  documentsEnabled: D.documentsEnabled !== false,
   media:      D.media      || [],
   invoices:   D.invoices   || [],
   shoots:     D.shoots     || [],
+  documents:  D.documents  || [],
   comments:   D.comments   || [],
   analytics:  D.analytics  || {},
 };
@@ -67,26 +69,34 @@ const ENGAGEMENT_DATA = A.engagementByDay && A.engagementByDay.length ? A.engage
 // ────────────────────────────────────────────────────────────
 // 🎨 STYLES NÉOMORPHIQUES
 // ────────────────────────────────────────────────────────────
+// 🎨 Palette LIGHT — cream warm (harmonisée avec communication.html)
 const NEU_LIGHT = {
-  base:      { backgroundColor: '#e8e9ec' },
-  raised:    { backgroundColor: '#f1f2f5', boxShadow: '10px 10px 24px rgba(166,171,189,0.45), -10px -10px 24px rgba(255,255,255,0.95)' },
-  raisedSm:  { backgroundColor: '#f1f2f5', boxShadow: '5px 5px 12px rgba(166,171,189,0.35), -5px -5px 12px rgba(255,255,255,0.9)' },
-  raisedXs:  { backgroundColor: '#f1f2f5', boxShadow: '3px 3px 7px rgba(166,171,189,0.3), -3px -3px 7px rgba(255,255,255,0.85)' },
-  pressed:   { backgroundColor: '#e8e9ec', boxShadow: 'inset 5px 5px 10px rgba(166,171,189,0.35), inset -5px -5px 10px rgba(255,255,255,0.9)' },
-  pressedSm: { backgroundColor: '#e8e9ec', boxShadow: 'inset 3px 3px 6px rgba(166,171,189,0.3), inset -3px -3px 6px rgba(255,255,255,0.85)' },
-  dark:      { backgroundColor: '#1a1a1d', boxShadow: '8px 8px 18px rgba(166,171,189,0.4), -3px -3px 8px rgba(255,255,255,0.6), inset 1px 1px 2px rgba(255,255,255,0.1)' },
-  darkSm:    { backgroundColor: '#1a1a1d', boxShadow: '4px 4px 10px rgba(166,171,189,0.4), -2px -2px 6px rgba(255,255,255,0.5)' },
+  base:      { backgroundColor: '#e9e4d9' },
+  raised:    { backgroundColor: '#efeae0', boxShadow: '10px 10px 24px rgba(168,156,134,0.32), -10px -10px 24px rgba(255,253,247,0.92)' },
+  raisedSm:  { backgroundColor: '#efeae0', boxShadow: '5px 5px 12px rgba(168,156,134,0.26), -5px -5px 12px rgba(255,253,247,0.88)' },
+  raisedXs:  { backgroundColor: '#efeae0', boxShadow: '3px 3px 7px rgba(168,156,134,0.22), -3px -3px 7px rgba(255,253,247,0.82)' },
+  pressed:   { backgroundColor: '#e3ddd0', boxShadow: 'inset 5px 5px 10px rgba(168,156,134,0.32), inset -5px -5px 10px rgba(255,253,247,0.9)' },
+  pressedSm: { backgroundColor: '#e3ddd0', boxShadow: 'inset 3px 3px 6px rgba(168,156,134,0.26), inset -3px -3px 6px rgba(255,253,247,0.85)' },
+  dark:      { backgroundColor: '#2a2620', boxShadow: '8px 8px 18px rgba(168,156,134,0.36), -3px -3px 8px rgba(255,253,247,0.6), inset 1px 1px 2px rgba(255,255,255,0.08)' },
+  darkSm:    { backgroundColor: '#2a2620', boxShadow: '4px 4px 10px rgba(168,156,134,0.36), -2px -2px 6px rgba(255,253,247,0.5)' },
+  accent:    '#2a2620',
+  accentText:'#f5f1e6',
+  textChart: '#2a2620',
 };
 
+// 🎨 Palette DARK — graphite bleuté + accent ivoire chaud
 const NEU_DARK = {
-  base:      { backgroundColor: '#1c1d21' },
-  raised:    { backgroundColor: '#23242a', boxShadow: '10px 10px 24px rgba(0,0,0,0.55), -5px -5px 15px rgba(45,47,58,0.28)' },
-  raisedSm:  { backgroundColor: '#23242a', boxShadow: '5px 5px 12px rgba(0,0,0,0.48), -3px -3px 8px rgba(45,47,58,0.22)' },
-  raisedXs:  { backgroundColor: '#23242a', boxShadow: '3px 3px 7px rgba(0,0,0,0.42), -2px -2px 5px rgba(45,47,58,0.18)' },
-  pressed:   { backgroundColor: '#18191e', boxShadow: 'inset 5px 5px 10px rgba(0,0,0,0.55), inset -3px -3px 8px rgba(45,47,58,0.2)' },
-  pressedSm: { backgroundColor: '#18191e', boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.48), inset -2px -2px 5px rgba(45,47,58,0.15)' },
-  dark:      { backgroundColor: '#2d2e36', boxShadow: '8px 8px 18px rgba(0,0,0,0.65), -3px -3px 8px rgba(45,47,58,0.22), inset 1px 1px 2px rgba(255,255,255,0.04)' },
-  darkSm:    { backgroundColor: '#2d2e36', boxShadow: '4px 4px 10px rgba(0,0,0,0.55), -2px -2px 6px rgba(45,47,58,0.18)' },
+  base:      { backgroundColor: '#181b20' },
+  raised:    { backgroundColor: '#22262d', boxShadow: '10px 10px 24px rgba(0,0,0,0.55), -5px -5px 15px rgba(54,60,72,0.28)' },
+  raisedSm:  { backgroundColor: '#22262d', boxShadow: '5px 5px 12px rgba(0,0,0,0.48), -3px -3px 8px rgba(54,60,72,0.22)' },
+  raisedXs:  { backgroundColor: '#22262d', boxShadow: '3px 3px 7px rgba(0,0,0,0.42), -2px -2px 5px rgba(54,60,72,0.18)' },
+  pressed:   { backgroundColor: '#14171c', boxShadow: 'inset 5px 5px 10px rgba(0,0,0,0.55), inset -3px -3px 8px rgba(54,60,72,0.2)' },
+  pressedSm: { backgroundColor: '#14171c', boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.48), inset -2px -2px 5px rgba(54,60,72,0.15)' },
+  dark:      { backgroundColor: '#e8d8be', boxShadow: '8px 8px 18px rgba(0,0,0,0.62), -3px -3px 8px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.35), 0 0 24px rgba(232,216,190,0.25)' },
+  darkSm:    { backgroundColor: '#e8d8be', boxShadow: '4px 4px 10px rgba(0,0,0,0.55), -2px -2px 6px rgba(54,60,72,0.18), 0 0 0 1px rgba(232,216,190,0.3), 0 0 16px rgba(232,216,190,0.2)' },
+  accent:    '#e8d8be',
+  accentText:'#1a1410',
+  textChart: '#e8d8be',
 };
 
 // Mutable pointer — reassigned by App on theme change
@@ -106,9 +116,10 @@ const useDarkMode = () => {
   return [isDark, toggleDark];
 };
 
-// ---------- DarkToggle (refined SVG arc travelling top↔bottom) ----------
+// ---------- DarkToggle (fin + arc SVG qui voyage — version raffinée) ----------
 const C_STEP = 50;
 const C_INITIAL = -9.8;
+
 const DarkToggle = ({ isDark, onToggle }) => {
   const [offset, setOffset] = useState(() => {
     try {
@@ -117,6 +128,7 @@ const DarkToggle = ({ isDark, onToggle }) => {
     } catch (e) { return C_INITIAL; }
   });
   const prevIsDark = useRef(isDark);
+
   useEffect(() => {
     if (prevIsDark.current !== isDark) {
       setOffset(o => {
@@ -127,24 +139,43 @@ const DarkToggle = ({ isDark, onToggle }) => {
       prevIsDark.current = isDark;
     }
   }, [isDark]);
+
   return (
-    <button onClick={onToggle} role="switch" aria-checked={isDark}
+    <button
+      onClick={onToggle}
+      role="switch"
+      aria-checked={isDark}
       aria-label={isDark ? 'Passer en mode jour' : 'Passer en mode nuit'}
       title={isDark ? 'Mode jour' : 'Mode nuit'}
       style={{
-        display: 'inline-block', width: 42, height: 22, borderRadius: 11,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flex: '0 0 auto',
+        alignSelf: 'center',
+        width: 42, height: 22,
+        minWidth: 42, minHeight: 22,
+        maxWidth: 42, maxHeight: 22,
+        boxSizing: 'border-box',
+        borderRadius: 11,
         background: 'linear-gradient(145deg, #28282c, #323236)',
-        position: 'relative', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0,
+        border: 'none', cursor: 'pointer', padding: 0,
         boxShadow: 'inset 0 1.5px 4px rgba(0,0,0,0.6), inset 0 -1px 1px rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.25)',
-        WebkitTapHighlightColor: 'transparent', outline: 'none', transition: 'box-shadow 0.4s ease',
-      }}>
-      <svg viewBox="0 0 42 22" preserveAspectRatio="none"
-           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none', display: 'block' }}>
+        WebkitTapHighlightColor: 'transparent',
+        outline: 'none',
+        overflow: 'visible',
+        transition: 'box-shadow 0.4s ease',
+      }}
+    >
+      <svg width="42" height="22" viewBox="0 0 42 22" preserveAspectRatio="none"
+           style={{ display: 'block', width: 42, height: 22, flex: '0 0 auto', overflow: 'visible', pointerEvents: 'none' }}>
         <rect x="1.2" y="1.2" width="39.6" height="19.6" rx="9.8" ry="9.8" pathLength="100"
-          fill="none"
-          stroke={isDark ? 'rgba(255,255,255,0.92)' : 'rgba(135,135,140,0.75)'}
-          strokeWidth="2.4" strokeDasharray="50 50" strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 0.7s cubic-bezier(0.65,0.05,0.35,1), stroke 0.7s cubic-bezier(0.65,0.05,0.35,1)' }} />
+              fill="none"
+              stroke={isDark ? 'rgba(255,255,255,0.92)' : 'rgba(135,135,140,0.75)'}
+              strokeWidth="2.4"
+              strokeDasharray="50 50"
+              strokeDashoffset={offset}
+              style={{ transition: 'stroke-dashoffset 0.7s cubic-bezier(0.65,0.05,0.35,1), stroke 0.7s cubic-bezier(0.65,0.05,0.35,1)' }} />
       </svg>
     </button>
   );
@@ -165,17 +196,31 @@ function getEmbed(url, type) {
   const path   = parsed.pathname;
   const search = parsed.search;
 
-  // ⚡ PRIORITÉ : fichier vidéo direct (mp4, webm, mov, m4v) — quel que soit l'hébergeur
-  // Couvre les liens Streamable /l/.../*.mp4, Cloudinary, S3, Google Drive direct, etc.
-  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(path)) {
-    return { kind: 'video', src: url };
-  }
-
-  // Streamable (page de partage standard, iframe embed)
+  // ⚡ Streamable EN PRIORITÉ — doit être avant le check .mp4 car les liens
+  // /l/ID/mp4-mobile.mp4 et /l/ID/mp4-high.mp4 finissent en .mp4 mais ne sont
+  // pas lisibles cross-origin dans un <video> (CORS / auth CDN Streamable).
+  // On détecte l'ID réel : /e/ID  →  ID direct
+  //                        /l/ID/fichier.mp4  →  ID = 2e segment
+  //                        /ID  →  page de partage
   if (host === 'streamable.com') {
     const parts = path.split('/').filter(Boolean);
-    const id = parts[parts.length - 1];
-    if (id) return { kind: 'iframe', src: `https://streamable.com/e/${id}${search}` };
+    let id;
+    if (parts[0] === 'e' && parts[1]) {
+      id = parts[1];                      // déjà un lien embed
+    } else if (parts[0] === 'l' && parts[1]) {
+      id = parts[1];                      // /l/ID/mp4-mobile.mp4 → ID = parts[1]
+    } else {
+      id = parts[parts.length - 1];       // /ID (page de partage standard)
+    }
+    // Sécurité : l'ID Streamable ne contient jamais de point
+    if (id && !id.includes('.')) {
+      return { kind: 'iframe', src: `https://streamable.com/e/${id}` };
+    }
+  }
+
+  // ⚡ Fichier vidéo direct (mp4, webm, mov, m4v) — Cloudinary, S3, Google Drive, etc.
+  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(path)) {
+    return { kind: 'video', src: url };
   }
 
   // YouTube (toutes les variantes : youtube.com/watch?v=, youtu.be/, /embed/, /shorts/)
@@ -214,22 +259,24 @@ function getThumbUrl(media) {
 }
 
 // Renvoie une URL vidéo directe utilisable dans <video autoplay> pour l'aperçu
-// dans la galerie. Renvoie null si la vidéo nécessite un iframe (YouTube, Vimeo…)
+// dans la galerie. Privilégie preview_url (allégée) si dispo, sinon url.
+// Renvoie null si la vidéo nécessite un iframe (YouTube, Vimeo…)
 function getPreviewVideoUrl(media) {
-  if (media.type !== 'video' || !media.url) return null;
+  if (media.type !== 'video') return null;
+  // Privilégier la version allégée pour la fluidité de l'autoplay galerie
+  const src = media.preview_url || media.url;
+  if (!src) return null;
   try {
-    const u = new URL(media.url);
+    const u = new URL(src);
     const host = u.hostname.replace(/^www\./, '');
     const path = u.pathname;
     // Fichier vidéo direct
-    if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(path)) return media.url;
+    if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(path)) return src;
     // Cloudinary
-    if (/res\.cloudinary\.com\/.*\/video\/upload/.test(media.url)) return media.url;
-    // Streamable share URL → on dérive l'URL directe MP4
-    if (host === 'streamable.com') {
-      const id = path.split('/').filter(Boolean).pop();
-      if (id) return path.startsWith('/l/') ? media.url : `https://streamable.com/l/${id}/mp4-high.mp4`;
-    }
+    if (/res\.cloudinary\.com\/.*\/video\/upload/.test(src)) return src;
+    // Streamable : les URLs /l/.../mp4-xxx.mp4 sont bloquées cross-origin (CORS).
+    // Pour la galerie, on retourne null → la vignette statique est utilisée.
+    if (host === 'streamable.com') return null;
   } catch (e) {}
   return null;
 }
@@ -354,26 +401,26 @@ async function smartDownload(url, filename, type) {
 // ────────────────────────────────────────────────────────────
 const Pill = ({ active, children, onClick }) => (
   <button onClick={onClick} style={active ? neu.dark : {}}
-    className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${active ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`}>
+    className={`px-5 py-3 rounded-full text-[13px] font-medium tracking-tight transition-all whitespace-nowrap min-h-[44px] ${active ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`}>
     {children}
   </button>
 );
 
 const NavItem = ({ icon: Icon, label, active, onClick }) => (
   <button onClick={onClick} style={active ? neu.pressedSm : {}}
-    className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-left transition-all ${active ? 'text-stone-900' : 'text-stone-500 hover:text-stone-800'}`}>
+    className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-left transition-all min-h-[48px] ${active ? 'text-stone-900' : 'text-stone-500 hover:text-stone-800'}`}>
     <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
     <span className="text-[14px] font-medium tracking-tight">{label}</span>
   </button>
 );
 
 const StatCard = ({ label, value, delta, deltaUp, dark }) => (
-  <div style={dark ? neu.dark : neu.raisedSm} className={`rounded-2xl lg:rounded-3xl p-4 lg:p-6 ${dark ? 'text-white' : 'text-stone-900'}`}>
-    <div className={`text-[11px] lg:text-[13px] ${dark ? 'text-stone-400' : 'text-stone-500'} font-medium`}>{label}</div>
-    <div className="text-[24px] lg:text-[32px] tracking-tight mt-1.5 lg:mt-2 leading-none" style={SERIF}>{value}</div>
+  <div style={dark ? neu.dark : neu.raisedSm} className={`rounded-[22px] lg:rounded-3xl p-5 lg:p-6 ${dark ? 'text-white' : 'text-stone-900'}`}>
+    <div className={`text-[12px] lg:text-[13px] ${dark ? 'text-stone-400' : 'text-stone-500'} font-medium leading-none`}>{label}</div>
+    <div className="text-[28px] lg:text-[34px] tracking-tight mt-3 leading-none" style={SERIF}>{value}</div>
     {delta && (
-      <div className="flex items-center gap-1.5 mt-2 lg:mt-3 text-[11px] lg:text-[12px]">
-        <span className={deltaUp ? 'text-emerald-500 font-semibold' : 'text-rose-400 font-semibold'}>{delta}</span>
+      <div className="flex items-center gap-1.5 mt-3 text-[11.5px] lg:text-[12px] leading-none">
+        <span className={deltaUp ? 'text-emerald-500 font-semibold' : (dark ? 'text-stone-400 font-medium' : 'text-stone-500 font-medium')}>{delta}</span>
       </div>
     )}
   </div>
@@ -401,6 +448,7 @@ const Sidebar = ({ section, setSection, onLogout, isDark, toggleDark }) => {
     { id: 'dashboard', icon: Home, label: 'Accueil' },
     ...(CLIENT.mediaEnabled    ? [{ id: 'media',    icon: ImageIcon,    label: 'Médias' }]      : []),
     ...(CLIENT.invoicesEnabled ? [{ id: 'invoices', icon: FileText,     label: 'Factures' }]    : []),
+    ...(CLIENT.documentsEnabled ? [{ id: 'documents', icon: FolderOpen,  label: 'Documents' }]   : []),
     ...(CLIENT.analyticsEnabled ? [{ id: 'analytics', icon: BarChart3,  label: 'Analyses' }]    : []),
     ...(CLIENT.shootsEnabled   ? [{ id: 'calendar', icon: CalendarIcon, label: 'Calendrier' }]  : []),
   ];
@@ -436,43 +484,71 @@ const Sidebar = ({ section, setSection, onLogout, isDark, toggleDark }) => {
 };
 
 const MobileHeader = ({ onLogout, isDark, toggleDark }) => (
-  <header className="lg:hidden flex items-center justify-between px-5 py-4 sticky top-0 z-30" style={{ backgroundColor: isDark ? '#1c1d21' : '#e8e9ec' }}>
-    <div>
-      <div className="text-[20px] tracking-tight leading-none" style={{ ...SERIF, fontStyle: 'italic' }}>
-        {CLIENT.agencyName}<span className="text-stone-400">.</span>
+  <header
+    className="lg:hidden flex items-center justify-between px-5 py-3.5 sticky top-0 z-30"
+    style={{
+      backgroundColor: isDark ? 'rgba(28,29,33,0.85)' : 'rgba(232,233,236,0.85)',
+      backdropFilter: 'saturate(180%) blur(20px)',
+      WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+      borderBottom: isDark ? '0.5px solid rgba(255,255,255,0.06)' : '0.5px solid rgba(0,0,0,0.06)',
+    }}>
+    <div className="flex items-center gap-3 min-w-0">
+      <div style={neu.darkSm} className="w-11 h-11 rounded-full flex items-center justify-center text-white text-[12px] font-semibold shrink-0">
+        {CLIENT.initials}
       </div>
-      <div className="text-[9px] uppercase tracking-[0.18em] text-stone-400 mt-0.5 font-medium">Espace client</div>
+      <div className="min-w-0">
+        <div className="text-[17px] tracking-tight leading-none truncate" style={{ ...SERIF, fontStyle: 'italic' }}>
+          {CLIENT.agencyName}<span className="text-stone-400">.</span>
+        </div>
+        <div className="text-[10px] uppercase tracking-[0.16em] text-stone-400 mt-1 font-medium truncate">
+          {CLIENT.name}
+        </div>
+      </div>
     </div>
-    <div className="flex gap-2 items-center">
-      <div style={neu.raisedXs} className="h-10 px-2.5 rounded-full flex items-center justify-center">
+    <div className="flex gap-2 items-center shrink-0">
+      <div style={neu.raisedXs} className="h-11 px-3 rounded-full flex items-center justify-center">
         <DarkToggle isDark={isDark} onToggle={toggleDark} />
       </div>
-      <button onClick={onLogout} style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center text-stone-600">
-        <LogOut size={15} />
+      <button onClick={onLogout} aria-label="Déconnexion" style={neu.raisedXs}
+        className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
+        <LogOut size={16} />
       </button>
     </div>
   </header>
 );
 
-const BottomNav = ({ section, setSection }) => {
+const BottomNav = ({ section, setSection, isDark }) => {
   const nav = [
     { id: 'dashboard', icon: Home, label: 'Accueil' },
     ...(CLIENT.mediaEnabled    ? [{ id: 'media',    icon: ImageIcon,    label: 'Médias' }]      : []),
     ...(CLIENT.invoicesEnabled ? [{ id: 'invoices', icon: FileText,     label: 'Factures' }]    : []),
+    ...(CLIENT.documentsEnabled ? [{ id: 'documents', icon: FolderOpen,  label: 'Docs' }]        : []),
     ...(CLIENT.analyticsEnabled ? [{ id: 'analytics', icon: BarChart3,  label: 'Analyses' }]    : []),
-    ...(CLIENT.shootsEnabled   ? [{ id: 'calendar', icon: CalendarIcon, label: 'Calendrier' }]  : []),
+    ...(CLIENT.shootsEnabled   ? [{ id: 'calendar', icon: CalendarIcon, label: 'Agenda' }]      : []),
   ];
   return (
-    <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-30 rounded-3xl px-2 py-2 flex items-center justify-around" style={neu.raised}>
+    <nav
+      className="lg:hidden fixed bottom-4 left-4 right-4 z-30 rounded-[28px] px-2 py-2 flex items-center justify-around"
+      style={{
+        boxShadow: neu.raised.boxShadow,
+        background: isDark ? 'rgba(34,38,45,0.5)' : 'rgba(239,234,224,0.5)',
+        border: isDark ? '0.5px solid rgba(255,255,255,0.06)' : '0.5px solid rgba(255,255,255,0.55)',
+        backdropFilter: 'saturate(180%) blur(22px)',
+        WebkitBackdropFilter: 'saturate(180%) blur(22px)',
+      }}>
       {nav.map(n => {
         const Icon = n.icon;
         const active = section === n.id;
         return (
-          <button key={n.id} onClick={() => setSection(n.id)}
+          <button
+            key={n.id}
+            onClick={() => setSection(n.id)}
             style={active ? neu.darkSm : {}}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-2xl transition ${active ? 'text-white' : 'text-stone-500'}`}>
-            <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
-            <span className="text-[9px] font-semibold tracking-tight">{n.label}</span>
+            aria-label={n.label}
+            aria-current={active ? 'page' : undefined}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[52px] py-2 px-1 rounded-2xl transition-all active:scale-95 ${active ? 'text-white' : 'text-stone-500'}`}>
+            <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
+            <span className="text-[10px] font-semibold tracking-tight leading-none">{n.label}</span>
           </button>
         );
       })}
@@ -484,23 +560,28 @@ const BottomNav = ({ section, setSection }) => {
 // TOPBAR
 // ────────────────────────────────────────────────────────────
 const TopBar = ({ title, subtitle }) => (
-  <div className="flex items-start lg:items-center justify-between mb-5 lg:mb-7 gap-3">
+  <div className="flex items-center justify-between mb-6 lg:mb-8 gap-4 pt-4 lg:pt-0">
     <div className="min-w-0 flex-1">
-      <h1 className="text-[26px] lg:text-[34px] tracking-tight leading-[1.05]" style={SERIF}>{title}</h1>
-      {subtitle && <div className="text-[12px] lg:text-[13px] text-stone-500 mt-1 hidden sm:block">{subtitle}</div>}
+      <h1 className="text-[28px] lg:text-[34px] tracking-tight leading-[1.05]" style={SERIF}>{title}</h1>
+      {subtitle && (
+        <div className="text-[13px] lg:text-[13px] text-stone-500 mt-1.5 leading-relaxed">{subtitle}</div>
+      )}
     </div>
-    <div className="hidden lg:flex items-center gap-3">
+    <div className="hidden lg:flex items-center gap-3 shrink-0">
       <div style={neu.raisedXs} className="rounded-full pl-2 pr-4 py-1.5 flex items-center gap-2.5">
         <div style={neu.darkSm} className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-semibold">{CLIENT.initials}</div>
         <span className="text-[13px] font-medium">{CLIENT.name}</span>
       </div>
     </div>
-    <div style={neu.darkSm} className="lg:hidden w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0">{CLIENT.initials}</div>
   </div>
 );
 
 // ────────────────────────────────────────────────────────────
-// 🏠 DASHBOARD (sans bloc stockage)
+// 🏠 DASHBOARD — Refonte Apple-style (mai 2026)
+//   • Une hiérarchie claire par bloc, suppression des "kickers" uppercase
+//   • Cartes quick-action 56px tactile sur mobile, alignées dans une grille 2 col
+//   • Espacement vertical cohérent (gap-4 mobile, gap-5 desktop)
+//   • Plus de respiration, moins de décorations parasites
 // ────────────────────────────────────────────────────────────
 const Dashboard = ({ goTo }) => {
   const totalSpent = CLIENT.invoices.reduce((a, b) => a + b.amount, 0);
@@ -508,161 +589,162 @@ const Dashboard = ({ goTo }) => {
   const engagement = (A.kpis && A.kpis.engagement) || '—';
   const pending = CLIENT.media.filter(m => m.approval_status === 'pending').length;
 
+  // Build stat list dynamically (max 4)
+  const stats = [];
+  if (CLIENT.invoicesEnabled) stats.push({ key: 'spent', dark: true, label: 'Total facturé', value: `${totalSpent.toLocaleString('fr-FR')} €`, delta: A.kpis?.spentDelta, deltaUp: true });
+  if (CLIENT.mediaEnabled)    stats.push({ key: 'media', label: 'Médias livrés', value: CLIENT.media.length, delta: A.kpis?.mediaDelta, deltaUp: true });
+  if (CLIENT.mediaEnabled)    stats.push({ key: 'valid', label: 'À valider', value: pending, delta: pending > 0 ? 'en attente' : 'tout est OK' });
+  if (CLIENT.analyticsEnabled) stats.push({ key: 'eng', label: 'Engagement', value: engagement, delta: A.kpis?.engagementDelta, deltaUp: true });
+  else if (CLIENT.shootsEnabled) stats.push({ key: 'shoots', label: 'Tournages', value: upcomingShoots, delta: upcomingShoots > 0 ? 'planifiés' : '—' });
+
+  // Quick actions
+  const actions = [];
+  if (CLIENT.mediaEnabled)     actions.push({ id: 'media',     icon: ImageIcon,    title: 'Mes médias',  sub: `${CLIENT.media.length} fichiers · ${pending} à valider` });
+  if (CLIENT.analyticsEnabled) actions.push({ id: 'analytics', icon: BarChart3,    title: 'Analyses',    sub: 'Mise à jour temps réel' });
+  else if (CLIENT.shootsEnabled) actions.push({ id: 'calendar', icon: CalendarIcon, title: 'Calendrier',  sub: `${upcomingShoots} tournage${upcomingShoots > 1 ? 's' : ''} à venir` });
+  else if (CLIENT.invoicesEnabled) actions.push({ id: 'invoices', icon: FileText,   title: 'Factures',    sub: `${CLIENT.invoices.length} facture${CLIENT.invoices.length > 1 ? 's' : ''}` });
+  if (CLIENT.documentsEnabled) actions.push({ id: 'documents', icon: FolderOpen, title: 'Documents', sub: `${CLIENT.documents.length} document${CLIENT.documents.length > 1 ? 's' : ''}` });
+
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-5">
-      {CLIENT.invoicesEnabled && <div className="lg:col-span-3"><StatCard dark label="Total facturé" value={`${totalSpent.toLocaleString('fr-FR')} €`} delta={A.kpis?.spentDelta} deltaUp /></div>}
-      {CLIENT.mediaEnabled && <div className="lg:col-span-3"><StatCard label="Médias livrés" value={CLIENT.media.length} delta={A.kpis?.mediaDelta} deltaUp /></div>}
-      {CLIENT.mediaEnabled && <div className="lg:col-span-3"><StatCard label="À valider" value={pending} delta={pending > 0 ? 'en attente' : 'tout est OK'} /></div>}
-      <div className="lg:col-span-3">
-        {CLIENT.analyticsEnabled
-          ? <StatCard label="Engagement moy." value={engagement} delta={A.kpis?.engagementDelta} deltaUp />
-          : CLIENT.shootsEnabled
-            ? <StatCard label="Tournages à venir" value={upcomingShoots} delta={upcomingShoots > 0 ? 'planifiés' : '—'} />
-            : null}
+    <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-5">
+      {/* ── Stats ── 2 col mobile, 4 col desktop ── */}
+      <div className="grid grid-cols-2 gap-3 lg:col-span-12 lg:grid-cols-4 lg:gap-5">
+        {stats.slice(0, 4).map(s => (
+          <StatCard key={s.key} dark={s.dark} label={s.label} value={s.value} delta={s.delta} deltaUp={s.deltaUp} />
+        ))}
       </div>
 
+      {/* ── Bloc principal : Analytics ou CTA Option ── */}
       {CLIENT.analyticsEnabled ? (
-        <div style={neu.raised} className="col-span-2 lg:col-span-8 rounded-[24px] lg:rounded-[28px] p-5 lg:p-7 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #1a1a1d 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
-          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Performance globale</div>
-          <h2 className="text-[22px] lg:text-[28px] tracking-tight mt-2 leading-[1.1] max-w-md" style={SERIF}>Évolution de votre audience.</h2>
-          <div className="mt-5 h-[160px] lg:h-[180px]">
+        <div style={neu.raised} className="lg:col-span-8 rounded-[24px] lg:rounded-[28px] p-6 lg:p-7 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-[0.08] pointer-events-none" style={{ background: `radial-gradient(circle, ${neu.accent} 0%, transparent 70%)`, transform: 'translate(30%, -30%)' }} />
+          <h2 className="text-[22px] lg:text-[28px] tracking-tight leading-[1.1] max-w-md" style={SERIF}>Évolution de votre audience</h2>
+          <div className="text-[13px] text-stone-500 mt-1.5 leading-relaxed">Sur les 4 dernières semaines.</div>
+          <div className="mt-6 h-[180px] lg:h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={REVENUE_DATA}>
                 <defs>
                   <linearGradient id="cgrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#1a1a1d" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#1a1a1d" stopOpacity={0} />
+                    <stop offset="0%" stopColor={neu.textChart} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={neu.textChart} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <Area type="monotone" dataKey="value" stroke="#1a1a1d" strokeWidth={2.2} fill="url(#cgrad)" />
+                <Area type="monotone" dataKey="value" stroke={neu.textChart} strokeWidth={2.2} fill="url(#cgrad)" />
                 <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
       ) : (
-        <div style={neu.raised} className="col-span-2 lg:col-span-8 rounded-[24px] lg:rounded-[28px] p-5 lg:p-7 relative overflow-hidden flex flex-col justify-between min-h-[220px] lg:min-h-[260px]">
-          <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #b08968 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
+        <div style={neu.raised} className="lg:col-span-8 rounded-[24px] lg:rounded-[28px] p-6 lg:p-7 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-[0.08] pointer-events-none" style={{ background: 'radial-gradient(circle, #b08968 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
           <div className="relative">
-            <div className="flex items-center gap-2">
-              <Sparkles size={13} className="text-stone-400" />
-              <span className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Option disponible</span>
-            </div>
-            <h2 className="text-[22px] lg:text-[28px] tracking-tight mt-2 leading-[1.1] max-w-md" style={SERIF}>
-              Suivez vos réseaux<br/><em className="italic text-stone-500">en temps réel.</em>
+            <h2 className="text-[22px] lg:text-[28px] tracking-tight leading-[1.1] max-w-md" style={SERIF}>
+              Suivez vos réseaux <em className="italic text-stone-500">en temps réel</em>
             </h2>
-            <p className="text-[12px] lg:text-[13px] text-stone-500 mt-3 max-w-md leading-relaxed">
-              Analyses Instagram, Facebook & TikTok intégrées : audience, engagement, démographie et synthèse hebdomadaire — directement dans votre tableau de bord.
+            <p className="text-[13px] lg:text-[13.5px] text-stone-500 mt-3 max-w-md leading-relaxed">
+              Analyses Instagram, Facebook & TikTok intégrées : audience, engagement et synthèse hebdomadaire — directement dans votre tableau de bord.
             </p>
-          </div>
-          <div className="relative mt-5 flex items-center gap-3 flex-wrap">
-            <a href="mailto:contact@timelesshouse.org?subject=Activer%20les%20analyses%20réseaux%20sociaux"
-               style={neu.darkSm} className="px-5 py-2.5 rounded-full text-white text-[12px] font-semibold flex items-center gap-2">
-              <ArrowUpRight size={13} /> Activer cette option
-            </a>
-            <span className="text-[11px] text-stone-400">À partir de 49 €/mois</span>
+            <div className="mt-6 flex items-center gap-3 flex-wrap">
+              <a href="mailto:contact@timelesshouse.org?subject=Activer%20les%20analyses%20réseaux%20sociaux"
+                style={neu.darkSm} className="px-5 py-3 rounded-full text-white text-[13px] font-semibold flex items-center gap-2 min-h-[44px] active:scale-95 transition-transform">
+                <ArrowUpRight size={14} /> Activer cette option
+              </a>
+              <span className="text-[12px] text-stone-400">À partir de 49 €/mois</span>
+            </div>
           </div>
         </div>
       )}
 
-      <div className="col-span-2 lg:col-span-4 grid grid-cols-2 lg:grid-cols-1 gap-3 lg:gap-4">
-        {CLIENT.mediaEnabled && (
-          <button onClick={() => goTo('media')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
-            <div>
-              <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><ImageIcon size={16} /></div>
-              <div className="font-semibold text-[13px] lg:text-[15px]">Mes médias</div>
-              <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{CLIENT.media.length} fichiers · {pending} à valider</div>
-            </div>
-            <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
-          </button>
-        )}
-        {CLIENT.analyticsEnabled ? (
-          <button onClick={() => goTo('analytics')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
-            <div>
-              <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><BarChart3 size={16} /></div>
-              <div className="font-semibold text-[13px] lg:text-[15px]">Analyses live</div>
-              <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">Mise à jour temps réel</div>
-            </div>
-            <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
-          </button>
-        ) : CLIENT.shootsEnabled ? (
-          <button onClick={() => goTo('calendar')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
-            <div>
-              <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><CalendarIcon size={16} /></div>
-              <div className="font-semibold text-[13px] lg:text-[15px]">Calendrier</div>
-              <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{upcomingShoots} tournage{upcomingShoots > 1 ? 's' : ''} à venir</div>
-            </div>
-            <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
-          </button>
-        ) : CLIENT.invoicesEnabled ? (
-          <button onClick={() => goTo('invoices')} style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-5 text-left flex items-center justify-between group">
-            <div>
-              <div style={neu.darkSm} className="w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center text-white mb-2 lg:mb-3"><FileText size={16} /></div>
-              <div className="font-semibold text-[13px] lg:text-[15px]">Factures</div>
-              <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{CLIENT.invoices.length} facture{CLIENT.invoices.length > 1 ? 's' : ''}</div>
-            </div>
-            <ArrowUpRight size={16} className="text-stone-400 group-hover:text-stone-900 transition shrink-0 hidden sm:block" />
-          </button>
-        ) : null}
-      </div>
-
-      {CLIENT.shootsEnabled && (
-      <div style={neu.raised} className={`col-span-2 ${CLIENT.invoicesEnabled ? 'lg:col-span-7' : 'lg:col-span-12'} rounded-[24px] lg:rounded-[28px] p-5 lg:p-6`}>
-        <div className="flex items-center justify-between mb-4 lg:mb-5">
-          <div>
-            <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">À venir</div>
-            <h3 className="text-[18px] lg:text-[20px] tracking-tight mt-1" style={SERIF}>Prochains tournages</h3>
-          </div>
-          <button onClick={() => goTo('calendar')} className="text-[11px] lg:text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0">Voir tout <ArrowRight size={13} /></button>
-        </div>
-        <div className="space-y-3">
-          {CLIENT.shoots.slice(0, 3).map(s => (
-            <div key={s.id} style={neu.pressedSm} className="rounded-2xl p-3 lg:p-4 flex items-center gap-3 lg:gap-4">
-              <div style={neu.darkSm} className="w-11 h-11 lg:w-12 lg:h-12 rounded-2xl flex flex-col items-center justify-center text-white shrink-0">
-                <div className="text-[8px] lg:text-[9px] uppercase tracking-wider text-stone-400">{s.month}</div>
-                <div className="text-[15px] lg:text-[16px] font-semibold leading-none" style={SERIF}>{s.date}</div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-[13px] lg:text-[14px] truncate">{s.title}</div>
-                <div className="flex items-center gap-3 mt-1 text-[10.5px] lg:text-[11px] text-stone-500 flex-wrap">
-                  {s.time && <span className="flex items-center gap-1"><Clock size={11} /> {s.time}</span>}
-                  {s.location && <span className="flex items-center gap-1"><MapPin size={11} /> {s.location}</span>}
+      {/* ── Quick actions ── grille adaptative, cartes pleines hauteur ── */}
+      <div className="grid grid-cols-1 gap-3 lg:col-span-4 lg:gap-4">
+        {actions.map(a => {
+          const Icon = a.icon;
+          return (
+            <button
+              key={a.id}
+              onClick={() => goTo(a.id)}
+              style={neu.raised}
+              className="rounded-[22px] lg:rounded-[24px] p-5 text-left flex items-center justify-between gap-4 group min-h-[88px] active:scale-[0.99] transition-transform">
+              <div className="flex items-center gap-4 min-w-0">
+                <div style={neu.darkSm} className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shrink-0">
+                  <Icon size={18} />
+                </div>
+                <div className="min-w-0">
+                  <div className="font-semibold text-[15px] tracking-tight">{a.title}</div>
+                  <div className="text-[12px] text-stone-500 mt-0.5 truncate">{a.sub}</div>
                 </div>
               </div>
-              <div className={`text-[9px] lg:text-[10px] uppercase tracking-wider px-2 lg:px-2.5 py-1 rounded-full shrink-0 ${s.type === 'video' ? 'bg-stone-900 text-white' : 'bg-stone-200 text-stone-700'}`}>{s.type}</div>
-            </div>
-          ))}
-          {CLIENT.shoots.length === 0 && <div className="text-center py-8 text-[13px] text-stone-400">Aucun tournage programmé pour le moment.</div>}
-        </div>
+              <ArrowUpRight size={18} className="text-stone-400 group-hover:text-stone-900 transition shrink-0" />
+            </button>
+          );
+        })}
       </div>
+
+      {/* ── Prochains tournages ── titre direct, pas de kicker ── */}
+      {CLIENT.shootsEnabled && (
+        <div style={neu.raised} className={`rounded-[24px] lg:rounded-[28px] p-5 lg:p-6 ${CLIENT.invoicesEnabled ? 'lg:col-span-7' : 'lg:col-span-12'}`}>
+          <div className="flex items-end justify-between mb-5 gap-3">
+            <h3 className="text-[20px] lg:text-[22px] tracking-tight leading-none" style={SERIF}>Prochains tournages</h3>
+            <button onClick={() => goTo('calendar')} className="text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0 min-h-[32px]">
+              Tout voir <ArrowRight size={13} />
+            </button>
+          </div>
+          <div className="space-y-2.5">
+            {CLIENT.shoots.slice(0, 3).map(s => (
+              <div key={s.id} style={neu.pressedSm} className="rounded-2xl p-3.5 lg:p-4 flex items-center gap-4">
+                <div style={neu.darkSm} className="w-12 h-12 rounded-xl flex flex-col items-center justify-center text-white shrink-0">
+                  <div className="text-[8.5px] uppercase tracking-wider text-stone-400 leading-none">{s.month}</div>
+                  <div className="text-[16px] font-semibold leading-none mt-1" style={SERIF}>{s.date}</div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-[14px] truncate leading-tight">{s.title}</div>
+                  <div className="flex items-center gap-3 mt-1.5 text-[11.5px] text-stone-500 flex-wrap leading-none">
+                    {s.time && <span className="flex items-center gap-1"><Clock size={11} /> {s.time}</span>}
+                    {s.location && <span className="flex items-center gap-1"><MapPin size={11} /> {s.location}</span>}
+                  </div>
+                </div>
+                <div className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full shrink-0 font-semibold ${s.type === 'video' ? 'bg-stone-900 text-white' : 'bg-stone-200 text-stone-700'}`}>
+                  {s.type}
+                </div>
+              </div>
+            ))}
+            {CLIENT.shoots.length === 0 && (
+              <div className="text-center py-10 text-[13px] text-stone-400">Aucun tournage programmé.</div>
+            )}
+          </div>
+        </div>
       )}
 
+      {/* ── Dernières factures ── */}
       {CLIENT.invoicesEnabled && (
-      <div style={neu.raised} className={`col-span-2 ${CLIENT.shootsEnabled ? 'lg:col-span-5' : 'lg:col-span-12'} rounded-[24px] lg:rounded-[28px] p-5 lg:p-6`}>
-        <div className="flex items-center justify-between mb-4 lg:mb-5">
-          <div>
-            <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Récent</div>
-            <h3 className="text-[18px] lg:text-[20px] tracking-tight mt-1" style={SERIF}>Dernières factures</h3>
+        <div style={neu.raised} className={`rounded-[24px] lg:rounded-[28px] p-5 lg:p-6 ${CLIENT.shootsEnabled ? 'lg:col-span-5' : 'lg:col-span-12'}`}>
+          <div className="flex items-end justify-between mb-5 gap-3">
+            <h3 className="text-[20px] lg:text-[22px] tracking-tight leading-none" style={SERIF}>Dernières factures</h3>
+            <button onClick={() => goTo('invoices')} className="text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0 min-h-[32px]">
+              Tout voir <ArrowRight size={13} />
+            </button>
           </div>
-          <button onClick={() => goTo('invoices')} className="text-[11px] lg:text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0">Voir tout <ArrowRight size={13} /></button>
-        </div>
-        <div className="space-y-2.5">
-          {CLIENT.invoices.slice(0, 4).map(inv => (
-            <div key={inv.id} className="flex items-center justify-between py-2 gap-3">
-              <div className="min-w-0">
-                <div className="font-medium text-[12.5px] lg:text-[13px] truncate">{inv.id}</div>
-                <div className="text-[10.5px] lg:text-[11px] text-stone-500">{inv.date}</div>
+          <div className="divide-y divide-stone-200/60">
+            {CLIENT.invoices.slice(0, 4).map(inv => (
+              <div key={inv.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <div className="font-medium text-[13.5px] truncate leading-tight">{inv.id}</div>
+                  <div className="text-[11.5px] text-stone-500 mt-0.5 leading-none">{inv.date}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="font-semibold text-[14px] leading-none">{inv.amount.toLocaleString('fr-FR')} €</div>
+                  <div className={`text-[10px] uppercase tracking-wider mt-1 font-semibold leading-none ${inv.status === 'payée' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {inv.status}
+                  </div>
+                </div>
               </div>
-              <div className="text-right shrink-0">
-                <div className="font-semibold text-[13px] lg:text-[14px]">{inv.amount.toLocaleString('fr-FR')} €</div>
-                <div className={`text-[9px] lg:text-[10px] uppercase tracking-wider ${inv.status === 'payée' ? 'text-emerald-600' : 'text-amber-600'}`}>{inv.status}</div>
-              </div>
-            </div>
-          ))}
-          {CLIENT.invoices.length === 0 && <div className="text-center py-6 text-[13px] text-stone-400">Aucune facture pour le moment.</div>}
+            ))}
+            {CLIENT.invoices.length === 0 && (
+              <div className="text-center py-8 text-[13px] text-stone-400">Aucune facture émise.</div>
+            )}
+          </div>
         </div>
-      </div>
       )}
     </div>
   );
@@ -673,7 +755,10 @@ const Dashboard = ({ goTo }) => {
 // ────────────────────────────────────────────────────────────
 const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
   const m = items[index];
-  const embed = useMemo(() => getEmbed(m.url, m.type), [m]);
+  // Pour la LECTURE : privilégier la vidéo allégée (preview_url) si fournie.
+  // Le téléchargement utilise toujours m.url (haute qualité, plus bas dans downloadOne).
+  const playableSrc = (m.type === 'video' && m.preview_url) ? m.preview_url : m.url;
+  const embed = useMemo(() => getEmbed(playableSrc, m.type), [m, playableSrc]);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
@@ -716,6 +801,20 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
     if (!error && data) {
       setComments([...comments, data]);
       setNewComment('');
+
+      // 💬 Notifier l'admin qu'un commentaire a été posté
+      try {
+        fetch(`${window.SUPABASE_URL}/functions/v1/notify-client`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}` },
+          body:    JSON.stringify({
+            kind:      'admin_new_comment',
+            client_id: window.__CLIENT.id,
+            media_id:  m.id,
+            comment:   payload.comment,
+          }),
+        }).catch(() => {});
+      } catch (e) {}
     } else {
       alert("Impossible d'envoyer le commentaire.");
     }
@@ -729,19 +828,19 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
       setLocalStatus(status);
       onMediaUpdate && onMediaUpdate(m.id, status);
 
-      // Notifier l'admin SEULEMENT lors d'une demande de changements (action importante)
-      if (status === 'changes_requested') {
+      // Notifier l'admin lors d'une approbation ou d'une demande de changements
+      if (status === 'approved' || status === 'changes_requested') {
         try {
           fetch(`${window.SUPABASE_URL}/functions/v1/notify-client`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}` },
             body:    JSON.stringify({
-              kind:       'admin_changes_requested',
+              kind:       status === 'approved' ? 'admin_media_approved' : 'admin_changes_requested',
               client_id:  window.__CLIENT.id,
               media_id:   m.id,
-              dedupe_key: `changes:${m.id}:${new Date().toISOString().slice(0,10)}`,
+              dedupe_key: `${status}:${m.id}:${new Date().toISOString().slice(0,10)}`,
             }),
-          }).catch(() => {}); // silencieux : si l'admin n'a pas configuré son email, ce n'est pas grave
+          }).catch(() => {});
         } catch (e) {}
       }
     } else {
@@ -836,9 +935,14 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
             <div className="text-[12px] text-stone-500 mt-1">
               {m.date}{m.duration ? ` · ${m.duration}` : ''}{m.size ? ` · ${m.size}` : ''}
             </div>
-            <button onClick={downloadOne} className="mt-4 w-full px-4 py-2.5 rounded-full bg-stone-900 text-white text-[12.5px] font-semibold flex items-center justify-center gap-2 hover:bg-stone-800">
-              <Download size={14} /> Télécharger
+            <button onClick={downloadOne} className="mt-4 w-full px-4 py-3 rounded-full bg-stone-900 text-white text-[12.5px] font-semibold flex items-center justify-center gap-2 hover:bg-stone-800 active:scale-95 transition-transform">
+              <Download size={14} /> Télécharger{m.type === 'video' && m.preview_url ? ' (version HD)' : ''}
             </button>
+            {m.type === 'video' && m.preview_url && (
+              <div className="mt-2 text-[10.5px] text-stone-500 text-center leading-relaxed">
+                Vous regardez la version allégée. La version originale haute qualité (plus lourde) est disponible au téléchargement.
+              </div>
+            )}
           </div>
 
           {/* Approbation */}
@@ -912,21 +1016,41 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
 // 📸 MEDIA VIEW (galerie + tournages)
 // ────────────────────────────────────────────────────────────
 const Media = () => {
-  const [filter, setFilter] = useState('tous');
+  const [filter,   setFilter]   = useState('tous');   // tous | photo | video | a-valider | approuves
+  const [search,   setSearch]   = useState('');       // recherche par titre
+  const [activeTag, setActiveTag] = useState('');     // tag sélectionné ('' = tous)
+  const [view,     setView]     = useState('grid');   // grid | list
   const [lightbox, setLightbox] = useState({ open: false, items: [], index: 0 });
-  const [media, setMedia] = useState(CLIENT.media);
+  const [media,    setMedia]    = useState(CLIENT.media);
 
-  // Filtres
+  // Tags uniques présents dans les médias (tri alphabétique)
+  const allTags = useMemo(() => {
+    const tags = [...new Set(media.map(m => m.tag).filter(Boolean))].sort();
+    return tags;
+  }, [media]);
+
+  // Application de tous les filtres en cascade
   const filtered = useMemo(() => {
-    if (filter === 'tous')        return media;
-    if (filter === 'photo')       return media.filter(m => m.type === 'photo');
-    if (filter === 'video')       return media.filter(m => m.type === 'video');
-    if (filter === 'a-valider')   return media.filter(m => m.approval_status === 'pending');
-    if (filter === 'approuves')   return media.filter(m => m.approval_status === 'approved');
-    return media;
-  }, [filter, media]);
+    let res = media;
+    // Filtre type / statut
+    if (filter === 'photo')     res = res.filter(m => m.type === 'photo');
+    if (filter === 'video')     res = res.filter(m => m.type === 'video');
+    if (filter === 'a-valider') res = res.filter(m => m.approval_status === 'pending');
+    if (filter === 'approuves') res = res.filter(m => m.approval_status === 'approved');
+    // Filtre tag
+    if (activeTag)              res = res.filter(m => m.tag === activeTag);
+    // Recherche textuelle (insensible à la casse + accents)
+    if (search.trim()) {
+      const q = search.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      res = res.filter(m => {
+        const t = (m.title || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return t.includes(q);
+      });
+    }
+    return res;
+  }, [filter, activeTag, search, media]);
 
-  // Regroupement par tournage
+  // Regroupement par tournage (mode grille)
   const groups = useMemo(() => {
     const byShoot = new Map();
     filtered.forEach(m => {
@@ -945,34 +1069,95 @@ const Media = () => {
     return arr;
   }, [filtered]);
 
-  const openLightbox = (groupItems, item) => {
-    const idx = groupItems.findIndex(x => x.id === item.id);
-    setLightbox({ open: true, items: groupItems, index: idx });
+  const openLightbox = (items, item) => {
+    const idx = items.findIndex(x => x.id === item.id);
+    setLightbox({ open: true, items, index: idx });
   };
 
   const onMediaUpdate = (id, status) => {
     setMedia(prev => prev.map(m => m.id === id ? { ...m, approval_status: status } : m));
   };
 
-  const photos     = media.filter(m => m.type === 'photo').length;
-  const videos     = media.filter(m => m.type === 'video').length;
-  const aValider   = media.filter(m => m.approval_status === 'pending').length;
-  const approuves  = media.filter(m => m.approval_status === 'approved').length;
+  const hasActiveFilters = filter !== 'tous' || activeTag || search.trim();
+  const photos   = media.filter(m => m.type === 'photo').length;
+  const videos   = media.filter(m => m.type === 'video').length;
+  const aValider = media.filter(m => m.approval_status === 'pending').length;
+  const approuves = media.filter(m => m.approval_status === 'approved').length;
 
   return (
-    <div className="space-y-5">
-      {/* Filtres + actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto no-scrollbar -mx-1 px-1">
-          <Pill active={filter === 'tous'}      onClick={() => setFilter('tous')}>Tous</Pill>
-          <Pill active={filter === 'photo'}     onClick={() => setFilter('photo')}>Photos</Pill>
-          <Pill active={filter === 'video'}     onClick={() => setFilter('video')}>Vidéos</Pill>
-          <Pill active={filter === 'a-valider'} onClick={() => setFilter('a-valider')}>À valider</Pill>
-          <Pill active={filter === 'approuves'} onClick={() => setFilter('approuves')}>Approuvés</Pill>
+    <div className="space-y-4 lg:space-y-5">
+
+      {/* ── Barre supérieure : recherche + toggle vue ── */}
+      <div className="flex items-center gap-3">
+        {/* Champ de recherche */}
+        <div className="relative flex-1">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+          <input
+            type="search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher un fichier…"
+            style={neu.pressedSm}
+            className="w-full pl-9 pr-4 py-3 rounded-full text-[13.5px] placeholder:text-stone-400 bg-transparent outline-none"
+          />
+          {search && (
+            <button onClick={() => setSearch('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 transition">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        {/* Toggle grille / liste */}
+        <div style={neu.raisedXs} className="rounded-full p-1 flex items-center shrink-0">
+          <button onClick={() => setView('grid')}
+            style={view === 'grid' ? neu.darkSm : {}}
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition active:scale-95 ${view === 'grid' ? 'text-white' : 'text-stone-500'}`}
+            title="Vue grille">
+            <Grid size={15} />
+          </button>
+          <button onClick={() => setView('list')}
+            style={view === 'list' ? neu.darkSm : {}}
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition active:scale-95 ${view === 'list' ? 'text-white' : 'text-stone-500'}`}
+            title="Vue liste">
+            <List size={15} />
+          </button>
         </div>
       </div>
 
-      {/* Stats */}
+      {/* ── Filtres type ── */}
+      <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto no-scrollbar">
+        <Pill active={filter === 'tous'}      onClick={() => setFilter('tous')}>Tous ({media.length})</Pill>
+        <Pill active={filter === 'photo'}     onClick={() => setFilter('photo')}>📸 Photos ({photos})</Pill>
+        <Pill active={filter === 'video'}     onClick={() => setFilter('video')}>🎥 Vidéos ({videos})</Pill>
+        <Pill active={filter === 'a-valider'} onClick={() => setFilter('a-valider')}>⏳ À valider ({aValider})</Pill>
+        <Pill active={filter === 'approuves'} onClick={() => setFilter('approuves')}>✓ Approuvés ({approuves})</Pill>
+      </div>
+
+      {/* ── Filtres tags (n'apparaît que s'il y a 2+ tags distincts) ── */}
+      {allTags.length >= 2 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold shrink-0">Tag</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => setActiveTag('')}
+              style={!activeTag ? neu.darkSm : neu.raisedXs}
+              className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition active:scale-95 ${!activeTag ? 'text-white' : 'text-stone-600'}`}>
+              Tous
+            </button>
+            {allTags.map(tag => (
+              <button
+                key={tag}
+                onClick={() => setActiveTag(activeTag === tag ? '' : tag)}
+                style={activeTag === tag ? neu.darkSm : neu.raisedXs}
+                className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition active:scale-95 ${activeTag === tag ? 'text-white' : 'text-stone-600'}`}>
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Stats — 2 cols mobile, 4 cols desktop ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatCard label="Total" value={media.length} />
         <StatCard label="Photos" value={photos} />
@@ -980,88 +1165,234 @@ const Media = () => {
         <StatCard label="À valider" value={aValider} delta={`${approuves} approuvés`} />
       </div>
 
-      {/* Groupes par tournage */}
-      {groups.map((g, gi) => (
-        <div key={g.shoot?.id || `no-${gi}`} style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-4 lg:p-6">
-          <div className="flex items-start lg:items-center justify-between mb-4 lg:mb-5 flex-wrap gap-3">
-            <div className="flex items-center gap-3 lg:gap-4 min-w-0 flex-1">
-              {g.shoot && (
-                <div style={g.shoot.type === 'video' ? neu.dark : neu.darkSm} className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl flex flex-col items-center justify-center text-white shrink-0">
-                  <div className="text-[8px] lg:text-[9px] uppercase tracking-wider text-stone-400">{g.shoot.month}</div>
-                  <div className="text-[16px] lg:text-[18px] leading-none font-semibold" style={SERIF}>{g.shoot.date}</div>
+      {/* ── Résultats filtrés : label + reset ── */}
+      {hasActiveFilters && (
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[12.5px] text-stone-500">
+            {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
+            {search ? ` pour « ${search} »` : ''}
+            {activeTag ? ` · tag "${activeTag}"` : ''}
+          </span>
+          <button onClick={() => { setFilter('tous'); setActiveTag(''); setSearch(''); }}
+            className="text-[12px] text-stone-400 hover:text-stone-700 flex items-center gap-1 transition">
+            <X size={12} /> Réinitialiser
+          </button>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          VUE GRILLE — groupée par tournage
+          ══════════════════════════════════════════════ */}
+      {view === 'grid' && (
+        <>
+          {groups.map((g, gi) => (
+            <div key={g.shoot?.id || `no-${gi}`} style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+              {/* En-tête du groupe */}
+              <div className="flex items-center gap-4 mb-5">
+                {g.shoot ? (
+                  <div style={g.shoot.type === 'video' ? neu.dark : neu.darkSm} className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white shrink-0">
+                    <div className="text-[9px] uppercase tracking-wider text-stone-400 leading-none">{g.shoot.month}</div>
+                    <div className="text-[18px] leading-none font-semibold mt-1" style={SERIF}>{g.shoot.date}</div>
+                  </div>
+                ) : (
+                  <div style={neu.pressedSm} className="w-14 h-14 rounded-2xl flex items-center justify-center text-stone-400 shrink-0">
+                    <ImageIcon size={20} />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[20px] lg:text-[24px] tracking-tight leading-tight truncate" style={SERIF}>
+                    {g.shoot ? g.shoot.title : 'Médias divers'}
+                  </h3>
+                  <div className="text-[12px] text-stone-500 mt-1 leading-none">
+                    {g.items.length} fichier{g.items.length > 1 ? 's' : ''}
+                    {g.shoot?.location ? ` · ${g.shoot.location}` : ''}
+                  </div>
                 </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">
-                  {g.shoot ? 'Tournage' : 'Hors tournage'}
-                </div>
-                <h3 className="text-[18px] lg:text-[22px] tracking-tight leading-tight truncate" style={SERIF}>
-                  {g.shoot ? g.shoot.title : 'Médias divers'}
-                </h3>
-                <div className="text-[11px] lg:text-[12px] text-stone-500 mt-0.5">{g.items.length} fichier{g.items.length > 1 ? 's' : ''}</div>
+              </div>
+
+              {/* Grille de cartes */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
+                {g.items.map(m => {
+                  const thumb = getThumbUrl(m);
+                  const previewVideo = !m.thumb_url ? getPreviewVideoUrl(m) : null;
+                  return (
+                    <button key={m.id} onClick={() => openLightbox(g.items, m)}
+                      style={neu.raisedSm}
+                      className="rounded-[18px] lg:rounded-[20px] p-2 lg:p-2.5 group text-left active:scale-[0.98] transition-transform">
+                      <div className="aspect-[4/3] rounded-xl relative overflow-hidden bg-black"
+                        style={!previewVideo ? { background: thumb ? `url(${thumb}) center/cover` : m.thumb } : undefined}>
+                        {previewVideo && (
+                          <video src={previewVideo} autoPlay muted loop playsInline preload="metadata"
+                            className="absolute inset-0 w-full h-full object-cover" />
+                        )}
+                        {m.type === 'video' && !previewVideo && (
+                          <>
+                            <div className="absolute inset-0 bg-black/30" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-11 h-11 lg:w-12 lg:h-12 rounded-full bg-white/95 flex items-center justify-center group-hover:scale-110 transition">
+                                <Play size={14} className="text-stone-900 ml-0.5" fill="#2a2620" />
+                              </div>
+                            </div>
+                          </>
+                        )}
+                        {m.type === 'video' && m.duration && (
+                          <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-medium">{m.duration}</div>
+                        )}
+                        <div className="absolute top-2 right-2 z-10"><ApprovalBadge status={m.approval_status} /></div>
+                      </div>
+                      <div className="px-1 pt-2.5 pb-1">
+                        <div className="font-medium text-[12.5px] lg:text-[13px] truncate leading-tight">{m.title}</div>
+                        <div className="text-[10.5px] text-stone-500 mt-1 truncate leading-none">
+                          {m.date}{m.tag ? ` · ${m.tag}` : ''}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
+          ))}
+        </>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          VUE LISTE — plate, tous les médias en lignes
+          ══════════════════════════════════════════════ */}
+      {view === 'list' && (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] overflow-hidden">
+          {/* En-têtes desktop */}
+          <div className="hidden lg:grid grid-cols-12 gap-3 px-5 py-3.5 text-[10.5px] uppercase tracking-[0.16em] text-stone-400 font-semibold border-b border-stone-200/60">
+            <div className="col-span-1" />
+            <div className="col-span-4">Titre</div>
+            <div className="col-span-2">Tag</div>
+            <div className="col-span-2">Date</div>
+            <div className="col-span-1">Durée / Taille</div>
+            <div className="col-span-1 text-center">Statut</div>
+            <div className="col-span-1 text-right">Ouvrir</div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
-            {g.items.map(m => {
+          <div className="divide-y divide-stone-200/40">
+            {filtered.map(m => {
               const thumb = getThumbUrl(m);
-              const previewVideo = !m.thumb_url ? getPreviewVideoUrl(m) : null;
               return (
-                <button key={m.id} onClick={() => openLightbox(g.items, m)} style={neu.raisedSm} className="rounded-[16px] lg:rounded-[20px] p-2 lg:p-2.5 group text-left">
-                  <div className="aspect-[4/3] rounded-lg lg:rounded-xl relative overflow-hidden bg-black"
-                    style={!previewVideo ? { background: thumb ? `url(${thumb}) center/cover` : m.thumb } : undefined}>
-                    {previewVideo && (
-                      <video
-                        src={previewVideo}
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                        preload="metadata"
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
-                    )}
-                    {m.type === 'video' && !previewVideo && (
-                      <>
-                        <div className="absolute inset-0 bg-black/30" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-white/95 flex items-center justify-center group-hover:scale-110 transition">
-                            <Play size={14} className="text-stone-900 ml-0.5" fill="#1a1a1d" />
-                          </div>
+                <button key={m.id} onClick={() => openLightbox(filtered, m)}
+                  className="w-full text-left hover:bg-stone-50/50 transition-colors active:bg-stone-100/60 group">
+
+                  {/* Mobile : carte horizontale compacte */}
+                  <div className="lg:hidden flex items-center gap-3.5 px-4 py-3.5">
+                    {/* Vignette */}
+                    <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 relative"
+                      style={{ background: thumb ? `url(${thumb}) center/cover` : m.thumb }}>
+                      {m.type === 'video' && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <Play size={12} className="text-white" fill="white" />
                         </div>
-                      </>
-                    )}
-                    {m.type === 'video' && m.duration && (
-                      <div className="absolute bottom-1.5 right-1.5 lg:bottom-2 lg:right-2 px-1.5 lg:px-2 py-0.5 rounded-md bg-black/70 text-white text-[9px] lg:text-[10px] font-medium">{m.duration}</div>
-                    )}
-                    <div className="absolute top-1.5 left-1.5 lg:top-2 lg:left-2 px-1.5 lg:px-2 py-0.5 rounded-md bg-white/90 text-stone-800 text-[8px] lg:text-[9px] font-semibold uppercase tracking-wider z-10">{m.type}</div>
-                    <div className="absolute top-1.5 right-1.5 lg:top-2 lg:right-2 z-10"><ApprovalBadge status={m.approval_status} /></div>
+                      )}
+                    </div>
+                    {/* Infos */}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-[13.5px] truncate leading-tight">{m.title}</div>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        {m.tag && (
+                          <span style={neu.pressedSm} className="text-[10px] px-2 py-0.5 rounded-full text-stone-600 font-medium">{m.tag}</span>
+                        )}
+                        <span className="text-[11px] text-stone-400">{m.date}</span>
+                        {m.duration && <span className="text-[11px] text-stone-400">{m.duration}</span>}
+                        {m.size && <span className="text-[11px] text-stone-400">{m.size}</span>}
+                      </div>
+                    </div>
+                    {/* Badge + icône */}
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <ApprovalBadge status={m.approval_status} />
+                    </div>
                   </div>
-                  <div className="px-1 pt-2 lg:pt-3 pb-1">
-                    <div className="font-medium text-[12px] lg:text-[13px] truncate">{m.title}</div>
-                    <div className="text-[10px] lg:text-[10.5px] text-stone-500 mt-0.5 truncate">{m.date}{m.tag ? ` · ${m.tag}` : ''}</div>
+
+                  {/* Desktop : ligne grille */}
+                  <div className="hidden lg:grid grid-cols-12 gap-3 items-center px-5 py-3.5">
+                    {/* Vignette */}
+                    <div className="col-span-1">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden relative"
+                        style={{ background: thumb ? `url(${thumb}) center/cover` : m.thumb }}>
+                        {m.type === 'video' && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <Play size={10} className="text-white ml-px" fill="white" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {/* Titre */}
+                    <div className="col-span-4">
+                      <div className="font-medium text-[13.5px] truncate leading-tight">{m.title}</div>
+                      <div className="text-[11px] text-stone-400 mt-0.5 leading-none">
+                        {m.type === 'video' ? 'Vidéo' : 'Photo'}
+                      </div>
+                    </div>
+                    {/* Tag */}
+                    <div className="col-span-2">
+                      {m.tag
+                        ? <span style={neu.pressedSm} className="text-[11px] px-2.5 py-1 rounded-full text-stone-600 font-medium inline-block">{m.tag}</span>
+                        : <span className="text-[11px] text-stone-300">—</span>
+                      }
+                    </div>
+                    {/* Date */}
+                    <div className="col-span-2 text-[12px] text-stone-500">{m.date || '—'}</div>
+                    {/* Durée / Taille */}
+                    <div className="col-span-1 text-[12px] text-stone-500">
+                      {m.duration || m.size || '—'}
+                    </div>
+                    {/* Statut */}
+                    <div className="col-span-1 flex justify-center">
+                      <ApprovalBadge status={m.approval_status} />
+                    </div>
+                    {/* Bouton ouvrir */}
+                    <div className="col-span-1 flex justify-end">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 group-hover:text-stone-900 group-hover:bg-stone-100 transition">
+                        <Maximize2 size={13} />
+                      </div>
+                    </div>
                   </div>
                 </button>
               );
             })}
           </div>
         </div>
-      ))}
+      )}
 
+      {/* ── État vide ── */}
       {media.length === 0 && (
         <div style={neu.raised} className="rounded-[28px] p-16 text-center">
-          <div style={neu.darkSm} className="w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-4"><ImageIcon size={22} /></div>
+          <div style={neu.darkSm} className="w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-4">
+            <ImageIcon size={22} />
+          </div>
           <h3 className="text-[20px] tracking-tight" style={SERIF}>Aucun média pour l'instant</h3>
           <p className="text-[13px] text-stone-500 mt-2">Vos livraisons apparaîtront ici dès qu'elles seront prêtes.</p>
         </div>
       )}
 
+      {/* ── Aucun résultat avec filtres actifs ── */}
+      {media.length > 0 && filtered.length === 0 && (
+        <div style={neu.raised} className="rounded-[28px] p-12 text-center">
+          <div style={neu.pressedSm} className="w-14 h-14 rounded-2xl flex items-center justify-center text-stone-400 mx-auto mb-4">
+            <Search size={20} />
+          </div>
+          <h3 className="text-[18px] tracking-tight" style={SERIF}>Aucun résultat</h3>
+          <p className="text-[13px] text-stone-500 mt-2">Essayez d'autres termes ou réinitialisez les filtres.</p>
+          <button onClick={() => { setFilter('tous'); setActiveTag(''); setSearch(''); }}
+            className="mt-4 px-5 py-2.5 rounded-full text-[12.5px] font-semibold transition active:scale-95"
+            style={neu.dark}>
+            <span className="text-white">Tout afficher</span>
+          </button>
+        </div>
+      )}
+
       {lightbox.open && (
-        <Lightbox items={lightbox.items} index={lightbox.index}
+        <Lightbox
+          items={lightbox.items}
+          index={lightbox.index}
           onIndex={(i) => setLightbox({ ...lightbox, index: i })}
           onClose={() => setLightbox({ ...lightbox, open: false })}
-          onMediaUpdate={onMediaUpdate} />
+          onMediaUpdate={onMediaUpdate}
+        />
       )}
     </div>
   );
@@ -1076,55 +1407,61 @@ const Invoices = () => {
   const pending = CLIENT.invoices.filter(i => i.status === 'en attente').reduce((a, b) => a + b.amount, 0);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 lg:space-y-6">
+      {/* Stats — empilées sur mobile pour bien souffler */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-5">
-        <div style={neu.dark} className="rounded-[20px] lg:rounded-[24px] p-5 lg:p-6 text-white">
-          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Total facturé</div>
-          <div className="text-[32px] lg:text-[42px] tracking-tight mt-2 leading-none" style={SERIF}>{total.toLocaleString('fr-FR')} €</div>
+        <div style={neu.dark} className="rounded-[22px] lg:rounded-[24px] p-6 text-white">
+          <div className="text-[12px] text-stone-400 font-medium leading-none">Total facturé</div>
+          <div className="text-[34px] lg:text-[42px] tracking-tight mt-3 leading-none" style={SERIF}>{total.toLocaleString('fr-FR')} €</div>
         </div>
-        <div style={neu.raisedSm} className="rounded-[20px] lg:rounded-[24px] p-5 lg:p-6">
-          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Réglé</div>
-          <div className="text-[26px] lg:text-[32px] tracking-tight mt-2 leading-none" style={SERIF}>{paid.toLocaleString('fr-FR')} €</div>
-          <div className="mt-3 lg:mt-4 h-1.5 rounded-full" style={neu.pressedSm}><div className="h-full bg-emerald-500 rounded-full" style={{ width: total > 0 ? `${(paid/total)*100}%` : '0%' }} /></div>
+        <div style={neu.raisedSm} className="rounded-[22px] lg:rounded-[24px] p-6">
+          <div className="text-[12px] text-stone-500 font-medium leading-none">Réglé</div>
+          <div className="text-[28px] lg:text-[32px] tracking-tight mt-3 leading-none" style={SERIF}>{paid.toLocaleString('fr-FR')} €</div>
+          <div className="mt-4 h-1.5 rounded-full" style={neu.pressedSm}>
+            <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: total > 0 ? `${(paid/total)*100}%` : '0%' }} />
+          </div>
         </div>
-        <div style={neu.raisedSm} className="rounded-[20px] lg:rounded-[24px] p-5 lg:p-6">
-          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">En attente</div>
-          <div className="text-[26px] lg:text-[32px] tracking-tight mt-2 leading-none" style={SERIF}>{pending.toLocaleString('fr-FR')} €</div>
-          <div className="mt-3 lg:mt-4 h-1.5 rounded-full" style={neu.pressedSm}><div className="h-full bg-amber-400 rounded-full" style={{ width: total > 0 ? `${(pending/total)*100}%` : '0%' }} /></div>
+        <div style={neu.raisedSm} className="rounded-[22px] lg:rounded-[24px] p-6">
+          <div className="text-[12px] text-stone-500 font-medium leading-none">En attente</div>
+          <div className="text-[28px] lg:text-[32px] tracking-tight mt-3 leading-none" style={SERIF}>{pending.toLocaleString('fr-FR')} €</div>
+          <div className="mt-4 h-1.5 rounded-full" style={neu.pressedSm}>
+            <div className="h-full bg-amber-400 rounded-full transition-all" style={{ width: total > 0 ? `${(pending/total)*100}%` : '0%' }} />
+          </div>
         </div>
       </div>
 
-      <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-4 lg:p-6">
-        <h3 className="text-[18px] lg:text-[20px] tracking-tight mb-4" style={SERIF}>Historique des factures</h3>
+      <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+        <h3 className="text-[20px] lg:text-[22px] tracking-tight mb-5 leading-none" style={SERIF}>Historique des factures</h3>
 
         {/* En-têtes desktop uniquement */}
-        <div className="hidden lg:grid grid-cols-12 gap-4 px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold">
+        <div className="hidden lg:grid grid-cols-12 gap-4 px-4 pb-3 text-[10.5px] uppercase tracking-[0.16em] text-stone-400 font-semibold border-b border-stone-200/60">
           <div className="col-span-3">Référence</div><div className="col-span-4">Description</div><div className="col-span-2">Date</div><div className="col-span-2">Montant</div><div className="col-span-1 text-right">Statut</div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 lg:space-y-1 lg:mt-2">
           {CLIENT.invoices.map(inv => (
-            <div key={inv.id} style={neu.pressedSm} className="rounded-2xl p-4 lg:px-4 lg:py-4">
-              {/* Mobile : carte verticale */}
-              <div className="lg:hidden space-y-2">
-                <div className="flex items-start justify-between gap-3">
+            <div key={inv.id} style={neu.pressedSm} className="rounded-2xl p-4 lg:p-4 lg:bg-transparent lg:shadow-none" >
+              {/* Mobile : carte verticale aérée */}
+              <div className="lg:hidden">
+                <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="min-w-0 flex-1">
-                    <div className="font-mono text-[12.5px] font-medium">{inv.id}</div>
-                    <div className="text-[12.5px] text-stone-700 mt-1 line-clamp-2">{inv.desc}</div>
+                    <div className="font-mono text-[13px] font-semibold leading-none">{inv.id}</div>
+                    <div className="text-[13px] text-stone-700 mt-2 leading-snug line-clamp-2">{inv.desc}</div>
                   </div>
-                  <span className={`text-[9px] uppercase tracking-wider px-2 py-1 rounded-full font-semibold shrink-0 ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
+                  <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold shrink-0 leading-none ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
                 </div>
-                <div className="flex items-center justify-between pt-2">
-                  <div className="text-[11px] text-stone-500">{inv.date}</div>
+                <div className="flex items-center justify-between pt-3 border-t border-stone-200/60">
+                  <div className="text-[11.5px] text-stone-500 leading-none">{inv.date}</div>
                   <div className="flex items-center gap-3">
-                    <span className="font-semibold text-[16px]" style={SERIF}>{inv.amount.toLocaleString('fr-FR')} €</span>
+                    <span className="font-semibold text-[18px] leading-none" style={SERIF}>{inv.amount.toLocaleString('fr-FR')} €</span>
                     {inv.url && (
                       <button
                         onClick={() => smartDownload(inv.url, `Facture-${inv.id}`, 'pdf')}
-                        className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-stone-600"
+                        aria-label="Télécharger la facture"
+                        className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-stone-600 shrink-0 active:scale-95 transition-transform"
                         title="Télécharger la facture"
                       >
-                        <Download size={13} />
+                        <Download size={14} />
                       </button>
                     )}
                   </div>
@@ -1132,7 +1469,7 @@ const Invoices = () => {
               </div>
 
               {/* Desktop : ligne grille */}
-              <div className="hidden lg:grid grid-cols-12 gap-4 items-center">
+              <div className="hidden lg:grid grid-cols-12 gap-4 items-center py-1">
                 <div className="col-span-3 font-mono text-[13px] font-medium">{inv.id}</div>
                 <div className="col-span-4 text-[13px] text-stone-700">{inv.desc}</div>
                 <div className="col-span-2 text-[12px] text-stone-500">{inv.date}</div>
@@ -1142,7 +1479,7 @@ const Invoices = () => {
                   {inv.url && (
                     <button
                       onClick={() => smartDownload(inv.url, `Facture-${inv.id}`, 'pdf')}
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900"
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100"
                       title="Télécharger la facture"
                     >
                       <Download size={13} />
@@ -1153,6 +1490,109 @@ const Invoices = () => {
             </div>
           ))}
           {CLIENT.invoices.length === 0 && <div className="text-center py-12 text-[14px] text-stone-400">Aucune facture émise pour le moment.</div>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ────────────────────────────────────────────────────────────
+// 📁 DOCUMENTS (contrats, chartes graphiques, devis…)
+// ────────────────────────────────────────────────────────────
+const docCategoryStyle = (category) => ({
+  'Contrat':          'bg-indigo-100 text-indigo-700',
+  'Charte graphique': 'bg-fuchsia-100 text-fuchsia-700',
+  'Devis':            'bg-amber-100 text-amber-700',
+  'Brief':            'bg-sky-100 text-sky-700',
+}[category] || 'bg-stone-100 text-stone-600');
+
+const Documents = () => {
+  const [filter, setFilter] = useState('all');
+  const docs = CLIENT.documents;
+  const categories = ['all', ...Array.from(new Set(docs.map(d => d.category).filter(Boolean)))];
+  const shown = filter === 'all' ? docs : docs.filter(d => d.category === filter);
+
+  return (
+    <div className="space-y-5 lg:space-y-6">
+      {/* Filtre par catégorie */}
+      {categories.length > 2 && (
+        <div style={neu.raisedXs} className="rounded-full p-1 inline-flex items-center overflow-x-auto no-scrollbar max-w-full">
+          {categories.map(c => (
+            <button
+              key={c}
+              onClick={() => setFilter(c)}
+              style={filter === c ? neu.darkSm : {}}
+              className={`px-4 py-2.5 min-h-[40px] rounded-full text-[12.5px] font-medium whitespace-nowrap transition active:scale-95 ${filter === c ? 'text-white' : 'text-stone-500'}`}>
+              {c === 'all' ? 'Tous' : c}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+        <h3 className="text-[20px] lg:text-[22px] tracking-tight mb-5 leading-none" style={SERIF}>
+          Vos documents {docs.length > 0 && <span className="text-stone-400">({docs.length})</span>}
+        </h3>
+
+        {/* En-têtes desktop */}
+        <div className="hidden lg:grid grid-cols-12 gap-4 px-4 pb-3 text-[10.5px] uppercase tracking-[0.16em] text-stone-400 font-semibold border-b border-stone-200/60">
+          <div className="col-span-5">Document</div><div className="col-span-3">Catégorie</div><div className="col-span-2">Date</div><div className="col-span-2 text-right">Fichier</div>
+        </div>
+
+        <div className="space-y-2 lg:space-y-1 lg:mt-2">
+          {shown.map(doc => (
+            <div key={doc.id} style={neu.pressedSm} className="rounded-2xl p-4 lg:p-4 lg:bg-transparent lg:shadow-none">
+              {/* Mobile : carte verticale */}
+              <div className="lg:hidden">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[14px] font-semibold leading-snug line-clamp-2 flex items-start gap-2">
+                      <FileTextIcon size={15} className="text-stone-400 shrink-0 mt-0.5" /> <span>{doc.title}</span>
+                    </div>
+                    <div className="text-[11.5px] text-stone-500 mt-1.5 leading-none">{doc.date}{doc.size && ` · ${doc.size}`}</div>
+                  </div>
+                  <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold shrink-0 leading-none ${docCategoryStyle(doc.category)}`}>{doc.category}</span>
+                </div>
+                <div className="flex items-center justify-end pt-3 border-t border-stone-200/60">
+                  {doc.url && (
+                    <button
+                      onClick={() => smartDownload(doc.url, doc.title || 'Document', 'pdf')}
+                      aria-label="Télécharger le document"
+                      className="px-4 h-10 rounded-full flex items-center gap-2 text-[12.5px] font-medium bg-white text-stone-700 active:scale-95 transition-transform"
+                      title="Télécharger le document">
+                      <Download size={14} /> Télécharger
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Desktop : ligne grille */}
+              <div className="hidden lg:grid grid-cols-12 gap-4 items-center py-1">
+                <div className="col-span-5 text-[13px] text-stone-800 font-medium truncate flex items-center gap-2">
+                  <FileTextIcon size={14} className="text-stone-400 shrink-0" /> {doc.title}
+                </div>
+                <div className="col-span-3">
+                  <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold ${docCategoryStyle(doc.category)}`}>{doc.category}</span>
+                </div>
+                <div className="col-span-2 text-[12px] text-stone-500">{doc.date}{doc.size && ` · ${doc.size}`}</div>
+                <div className="col-span-2 flex items-center justify-end">
+                  {doc.url && (
+                    <button
+                      onClick={() => smartDownload(doc.url, doc.title || 'Document', 'pdf')}
+                      className="px-3.5 h-9 rounded-full flex items-center gap-2 text-[12px] font-medium text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition-colors"
+                      title="Télécharger le document">
+                      <Download size={13} /> Télécharger
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+          {shown.length === 0 && (
+            <div className="text-center py-12 text-[14px] text-stone-400">
+              {docs.length === 0 ? 'Aucun document partagé pour le moment.' : 'Aucun document dans cette catégorie.'}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1222,7 +1662,7 @@ const Analytics = () => {
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 6px 20px rgba(0,0,0,0.12)' }} />
-                <Bar dataKey="insta" fill="#1a1a1d" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="insta" fill={neu.textChart} radius={[8, 8, 0, 0]} />
                 <Bar dataKey="fb"    fill="#9ca3af" radius={[8, 8, 0, 0]} />
                 <Bar dataKey="tt"    fill="#d1d5db" radius={[8, 8, 0, 0]} />
               </BarChart>
@@ -1237,7 +1677,7 @@ const Analytics = () => {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={demo} innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="v">
-                  {['#1a1a1d', '#4a4a4d', '#9ca3af', '#d1d5db'].map((c, i) => <Cell key={i} fill={c} />)}
+                  {[neu.textChart, '#4a4a4d', '#9ca3af', '#d1d5db'].map((c, i) => <Cell key={i} fill={c} />)}
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
@@ -1249,7 +1689,7 @@ const Analytics = () => {
           <div className="space-y-2 mt-4">
             {demo.map((r, i) => (
               <div key={r.name} className="flex items-center justify-between text-[12px]">
-                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-sm" style={{ background: ['#1a1a1d', '#4a4a4d', '#9ca3af', '#d1d5db'][i] }} /> {r.name}</span>
+                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-sm" style={{ background: [neu.textChart, '#4a4a4d', '#9ca3af', '#d1d5db'][i] }} /> {r.name}</span>
                 <span className="font-semibold">{r.v}%</span>
               </div>
             ))}
@@ -1371,9 +1811,10 @@ function App() {
 
   const titles = {
     dashboard: { t: `Bonjour ${CLIENT.greeting}`, s: 'Voici un aperçu de votre activité.' },
-    media:     { t: 'Vos médias',                  s: 'Toutes vos photos et vidéos. Cliquez sur un fichier pour le visualiser, le télécharger ou le valider.' },
+    media:     { t: 'Vos médias',                  s: 'Touchez un fichier pour le visualiser, le télécharger ou le valider.' },
     invoices:  { t: 'Vos factures',                s: 'Historique complet de votre facturation.' },
-    analytics: { t: 'Analyses temps réel',         s: 'Performance de vos réseaux sociaux, mise à jour en continu.' },
+    documents: { t: 'Vos documents',               s: 'Contrats, chartes graphiques, devis et autres fichiers partagés.' },
+    analytics: { t: 'Analyses temps réel',         s: 'Performance de vos réseaux sociaux.' },
     calendar:  { t: 'Vos tournages',               s: 'Calendrier des prochains shootings.' },
   };
   const titleData = titles[section] || titles.dashboard;
@@ -1381,18 +1822,19 @@ function App() {
   return (
     <div className="min-h-screen w-full" style={{ ...neu.base, fontFamily: '"Manrope", system-ui, sans-serif' }}>
       <MobileHeader onLogout={handleLogout} isDark={isDark} toggleDark={toggleDark} />
-      <div className="flex gap-5 px-3 pb-24 lg:p-5 lg:pb-5 min-h-screen">
+      <div className="flex gap-5 px-4 pb-28 lg:p-5 lg:pb-5 min-h-screen">
         <Sidebar section={section} setSection={setSection} onLogout={handleLogout} isDark={isDark} toggleDark={toggleDark} />
         <main className="flex-1 min-w-0">
           <TopBar title={titleData.t} subtitle={titleData.s} />
           {section === 'dashboard' && <Dashboard goTo={setSection} />}
           {section === 'media'     && (CLIENT.mediaEnabled    ? <Media />    : <Dashboard goTo={setSection} />)}
           {section === 'invoices'  && (CLIENT.invoicesEnabled ? <Invoices /> : <Dashboard goTo={setSection} />)}
+          {section === 'documents' && (CLIENT.documentsEnabled ? <Documents /> : <Dashboard goTo={setSection} />)}
           {section === 'analytics' && (CLIENT.analyticsEnabled ? <Analytics /> : <Dashboard goTo={setSection} />)}
           {section === 'calendar'  && (CLIENT.shootsEnabled   ? <Calendar /> : <Dashboard goTo={setSection} />)}
         </main>
       </div>
-      <BottomNav section={section} setSection={setSection} />
+      <BottomNav section={section} setSection={setSection} isDark={isDark} />
     </div>
   );
 }

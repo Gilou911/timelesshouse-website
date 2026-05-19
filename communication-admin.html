@@ -1941,6 +1941,10 @@
 
       const submit = async (e) => {
         e.preventDefault();
+        // ⚠️ Avertissement si vidéo sans URL allégée
+        if (form.type === 'video' && !form.preview_url.trim()) {
+          if (!window.confirm('⚠️ Aucune URL allégée renseignée.\n\nSans elle, la vidéo sera illisible sur mobile pour le client.\n\nVoulez-vous quand même enregistrer ?')) return;
+        }
         setLoading(true);
         const { date_iso_local, ...rest } = form;
         const payload = { ...rest, client_id: clientId, position: parseInt(form.position) || 0, shoot_id: form.shoot_id || null };
@@ -1986,10 +1990,25 @@
                   </div>
                 </Field>
                 <Field label="URL vidéo allégée (compressée — pour la lecture en direct)">
-                  <Input value={form.preview_url} onChange={e => setForm({...form, preview_url: e.target.value})} placeholder="https://… (.mp4 web, Streamable, Cloudinary…)" />
-                  <div className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
-                    ▶️ <strong>Optionnel mais recommandé.</strong> Version compressée que le client peut lire instantanément dans son navigateur pour valider et commenter. Si vide, c'est la vidéo originale qui sera utilisée pour la lecture (lent sur connexion mobile).
-                  </div>
+                  <Input
+                    value={form.preview_url}
+                    onChange={e => setForm({...form, preview_url: e.target.value})}
+                    placeholder="https://… (.mp4 web, Streamable, Cloudinary…)"
+                    style={!form.preview_url ? { borderColor: '#f59e0b', boxShadow: '0 0 0 2px rgba(245,158,11,0.18)' } : {}}
+                  />
+                  {!form.preview_url ? (
+                    <div className="mt-2 flex items-start gap-2 rounded-lg px-3 py-2.5" style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.35)' }}>
+                      <span className="text-[15px] leading-none mt-px">⚠️</span>
+                      <div className="text-[11.5px] leading-relaxed" style={{ color: '#92400e' }}>
+                        <strong>Champ requis pour la lecture.</strong> Sans URL allégée, le client devra télécharger le fichier original (souvent plusieurs Go) pour visionner la vidéo — illisible sur mobile ou connexion lente.
+                        <div className="mt-1 opacity-80">→ Uploader sur <strong>Streamable</strong> ou utiliser une transformation <strong>Cloudinary</strong> (<code>q_auto,w_1280</code>).</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
+                      ✅ Vidéo allégée renseignée — lecture directe activée pour le client.
+                    </div>
+                  )}
                 </Field>
               </>
             ) : (
@@ -2050,8 +2069,9 @@
             </Field>
             <div className="flex gap-3 pt-2">
               <Btn onClick={onClose} full>Annuler</Btn>
-              <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
-                {loading ? 'Enregistrement…' : (existing ? 'Mettre à jour' : 'Ajouter')}
+              <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}
+                style={form.type === 'video' && !form.preview_url ? { background: 'linear-gradient(135deg,#92400e,#b45309)', boxShadow: '0 0 0 2px rgba(245,158,11,0.4)' } : {}}>
+                {loading ? 'Enregistrement…' : ((form.type === 'video' && !form.preview_url ? '⚠️ ' : '') + (existing ? 'Mettre à jour' : 'Ajouter'))}
               </Btn>
             </div>
           </form>

@@ -258,13 +258,13 @@ function getThumbUrl(media) {
   return null;
 }
 
-// Renvoie une URL vidéo directe utilisable dans <video autoplay> pour l'aperçu
-// dans la galerie. Privilégie preview_url (allégée) si dispo, sinon url.
-// Renvoie null si la vidéo nécessite un iframe (YouTube, Vimeo…)
+// Renvoie l'URL de la vidéo ALLÉGÉE (preview_url) pour l'aperçu au hover.
+// Ne retombe JAMAIS sur media.url (vidéo originale) : si pas de version
+// allégée, retourne null → aucune preview ne se lance (cas 3).
+// Renvoie aussi null pour YouTube/Vimeo/Streamable (cas 4).
 function getPreviewVideoUrl(media) {
   if (media.type !== 'video') return null;
-  // Privilégier la version allégée pour la fluidité de l'autoplay galerie
-  const src = media.preview_url || media.url;
+  const src = media.preview_url; // version allégée UNIQUEMENT
   if (!src) return null;
   try {
     const u = new URL(src);
@@ -274,8 +274,7 @@ function getPreviewVideoUrl(media) {
     if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(path)) return src;
     // Cloudinary
     if (/res\.cloudinary\.com\/.*\/video\/upload/.test(src)) return src;
-    // Streamable : les URLs /l/.../mp4-xxx.mp4 sont bloquées cross-origin (CORS).
-    // Pour la galerie, on retourne null → la vignette statique est utilisée.
+    // Streamable : URLs bloquées cross-origin (CORS) → pas de preview
     if (host === 'streamable.com') return null;
   } catch (e) {}
   return null;
@@ -413,7 +412,6 @@ const MediaCard = ({ media: m, thumb, previewVideo, onOpen, neu: neuStyle }) => 
   const videoRef = useRef(null);
   const cardRef  = useRef(null);
   const [playing, setPlaying] = useState(false);
-  const [loaded, setLoaded]   = useState(false); // première frame chargée
 
   // ── Charger / décharger le src selon la visibilité (mémoire) ──
   useEffect(() => {
@@ -424,11 +422,10 @@ const MediaCard = ({ media: m, thumb, previewVideo, onOpen, neu: neuStyle }) => 
         const v = videoRef.current;
         if (!v) return;
         if (e.isIntersecting) {
-          // Charge juste la 1ère frame (metadata)
+          // Charge juste les métadonnées (1ère frame) pour un hover instantané
           if (v.getAttribute('src') !== previewVideo) {
             v.src = previewVideo;
             v.load();
-            setLoaded(false);
           }
         } else {
           // Hors viewport élargi → libère le buffer
@@ -436,22 +433,12 @@ const MediaCard = ({ media: m, thumb, previewVideo, onOpen, neu: neuStyle }) => 
           v.removeAttribute('src');
           v.load();
           setPlaying(false);
-          setLoaded(false);
         }
       });
     }, { rootMargin: '400px 0px' });
     obs.observe(card);
     return () => obs.disconnect();
   }, [previewVideo]);
-
-  // ── Détecter quand la 1ère frame est prête ──
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    const onData = () => setLoaded(true);
-    v.addEventListener('loadeddata', onData);
-    return () => v.removeEventListener('loadeddata', onData);
-  }, []);
 
   const play = useCallback(() => {
     const v = videoRef.current;
@@ -512,10 +499,11 @@ const MediaCard = ({ media: m, thumb, previewVideo, onOpen, neu: neuStyle }) => 
       <div className="aspect-[4/3] rounded-xl relative overflow-hidden"
         style={{ background: thumb ? `url(${thumb}) center/cover` : m.thumb }}>
 
-        {/* Vidéo toujours visible — en pause = affiche la 1ère frame comme vignette */}
+        {/* Vidéo allégée — cachée au repos, visible seulement quand elle joue.
+            Au repos : vignette perso (cas 1) ou cadre vide (cas 2/3). */}
         {previewVideo && (
           <video ref={videoRef} muted loop playsInline preload="metadata"
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`} />
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${playing ? 'opacity-100' : 'opacity-0'}`} />
         )}
 
         {/* Overlay play — visible uniquement au repos */}
@@ -1367,8 +1355,12 @@ const Media = () => {
               {/* Grille de cartes */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
                 {g.items.map(m => {
-                  const thumb = getThumbUrl(m);
-                  const previewVideo = !m.thumb_url ? getPreviewVideoUrl(m) : null;
+                  const isVideo = m.type === 'video';
+                  // Preview au hover = vidéo allégée uniquement (jamais l'originale)
+                  const previewVideo = isVideo ? getPreviewVideoUrl(m) : null;
+                  // Au repos : vidéo → SEULEMENT la vignette perso uploadée
+                  // (sinon cadre vide) ; photo → son image normale
+                  const thumb = isVideo ? (m.thumb_url || null) : getThumbUrl(m);
                   return (
                     <MediaCard
                       key={m.id}

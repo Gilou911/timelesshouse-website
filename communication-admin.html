@@ -87,7 +87,8 @@
       X, Check, ArrowLeft, Image as ImageIcon, FileText, Calendar as CalendarIcon,
       Save, Eye, EyeOff, AlertCircle, ChevronRight, Lock, Mail, ArrowUpRight,
       Filter, Video, Camera, Clock, MapPin, TrendingUp, Sparkles, ExternalLink,
-      Loader2, MessageSquare, Bell, Send, CheckCircle2, RefreshCw, Link2
+      Loader2, MessageSquare, Bell, Send, CheckCircle2, RefreshCw, Link2,
+      FolderOpen, Download
     } from 'lucide-react';
 
     const sb = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
@@ -528,6 +529,7 @@
         media_enabled:     existing?.media_enabled    ?? true,
         invoices_enabled:  existing?.invoices_enabled ?? true,
         shoots_enabled:    existing?.shoots_enabled   ?? true,
+        documents_enabled: existing?.documents_enabled ?? true,
       });
       const [loading, setLoading] = useState(false);
       const [err, setErr] = useState('');
@@ -587,9 +589,9 @@
                 // Pour les nouveaux clients couples, on désactive par défaut les 3 modules extras
                 // (sauf si l'utilisateur les a déjà touchés ou si on édite un client existant)
                 if (!existing && COUPLES.includes(newUniverse) && !COUPLES.includes(form.universe)) {
-                  setForm({...form, universe: newUniverse, media_enabled: false, invoices_enabled: false, shoots_enabled: false});
+                  setForm({...form, universe: newUniverse, media_enabled: false, invoices_enabled: false, shoots_enabled: false, documents_enabled: false});
                 } else if (!existing && !COUPLES.includes(newUniverse) && COUPLES.includes(form.universe)) {
-                  setForm({...form, universe: newUniverse, media_enabled: true, invoices_enabled: true, shoots_enabled: true});
+                  setForm({...form, universe: newUniverse, media_enabled: true, invoices_enabled: true, shoots_enabled: true, documents_enabled: true});
                 } else {
                   setForm({...form, universe: newUniverse});
                 }
@@ -699,6 +701,22 @@
                   </div>
                 </button>
 
+                {/* Documents */}
+                <button type="button" onClick={() => setForm({...form, documents_enabled: !form.documents_enabled})}
+                  style={form.documents_enabled ? neu.dark : neu.pressedSm}
+                  className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.documents_enabled ? 'text-white' : 'text-stone-700'}`}>
+                  <div className="flex items-center gap-3 text-left">
+                    <FolderOpen size={17} />
+                    <div>
+                      <div className="font-semibold text-[13px]">Documents</div>
+                      <div className={`text-[10.5px] mt-0.5 ${form.documents_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Contrats, chartes graphiques, devis, briefs…</div>
+                    </div>
+                  </div>
+                  <div className={`w-10 h-5.5 rounded-full p-0.5 transition ${form.documents_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.documents_enabled ? 'translate-x-4' : ''}`} />
+                  </div>
+                </button>
+
                 {/* Tournages / Calendrier */}
                 <button type="button" onClick={() => setForm({...form, shoots_enabled: !form.shoots_enabled})}
                   style={form.shoots_enabled ? neu.dark : neu.pressedSm}
@@ -773,11 +791,13 @@
       const mediaOn    = client.media_enabled    !== false;
       const invoicesOn = client.invoices_enabled !== false;
       const shootsOn   = client.shoots_enabled   !== false;
+      const documentsOn = client.documents_enabled !== false;
 
       const tabs = [
         ...(client.universe && client.universe !== 'communication' ? [{ id: 'event_pages', label: 'Page client', icon: Eye }] : []),
         ...(mediaOn    ? [{ id: 'media',    label: 'Médias',    icon: ImageIcon }]  : []),
         ...(invoicesOn ? [{ id: 'invoices', label: 'Factures',  icon: FileText }]   : []),
+        ...(documentsOn ? [{ id: 'documents', label: 'Documents', icon: FolderOpen }] : []),
         ...(shootsOn   ? [{ id: 'shoots',   label: 'Tournages', icon: CalendarIcon }] : []),
         ...(client.analytics_enabled ? [{ id: 'analytics', label: 'Analyses', icon: BarChart3 }] : []),
       ];
@@ -872,7 +892,8 @@
           {/* Tab content */}
           {tab === 'event_pages' && <EventPagesTab clientId={client.id} client={client} />}
           {tab === 'media' && <MediaTab clientId={client.id} client={client} />}
-          {tab === 'invoices' && <InvoicesTab clientId={client.id} />}
+          {tab === 'invoices' && <InvoicesTab clientId={client.id} client={client} />}
+          {tab === 'documents' && <DocumentsTab clientId={client.id} />}
           {tab === 'shoots' && <ShootsTab clientId={client.id} />}
           {tab === 'analytics' && <AnalyticsTab clientId={client.id} />}
 
@@ -2041,11 +2062,12 @@
     /* ════════════════════════════════════════════════════════════
        💶 INVOICES TAB
        ════════════════════════════════════════════════════════════ */
-    function InvoicesTab({ clientId }) {
+    function InvoicesTab({ clientId, client }) {
       const [items, setItems] = useState([]);
       const [editing, setEditing] = useState(null);
       const [showForm, setShowForm] = useState(false);
       const [loading, setLoading] = useState(true);
+      const [notifying, setNotifying] = useState(null);
 
       const load = async () => {
         setLoading(true);
@@ -2058,6 +2080,37 @@
         if (!confirm('Supprimer cette facture ?')) return;
         await sb.from('invoices').delete().eq('id', id);
         load();
+      };
+
+      const notifyInvoiceReady = async (inv) => {
+        if (!client?.client_email) {
+          alert("Ajoutez d'abord l'email du client (Modifier → champ Email).");
+          return;
+        }
+        if (!confirm(`Envoyer un email à ${client.client_email} pour annoncer que la facture ${inv.reference} est disponible sur son espace client ?`)) return;
+        setNotifying(inv.id);
+        try {
+          // Mène toujours au login de l'espace client (la modale d'accès s'ouvre via #clients)
+          const loginUrl = window.location.origin + '/index.html#clients';
+          const url = `${window.SUPABASE_URL}/functions/v1/notify-client`;
+          const res = await fetch(url, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}` },
+            body:    JSON.stringify({
+              kind:      'invoice_ready',
+              client_id: clientId,
+              extra: {
+                reference: inv.reference,
+                amount:    parseFloat(inv.amount || 0),
+                loginUrl,
+              },
+            }),
+          });
+          if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
+          else if (res.status === 404) alert("La fonction de notification n'est pas déployée.\n\nVoir ÉMAILS-SETUP.md pour activer les notifications par email (5 min).");
+          else alert(`Erreur d'envoi : ${await res.text()}`);
+        } catch (e) { alert("Erreur réseau : " + e.message); }
+        setNotifying(null);
       };
 
       const total = items.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
@@ -2101,6 +2154,11 @@
                           <div className="font-semibold text-[18px] leading-none mt-2" style={SERIF}>{parseFloat(inv.amount).toLocaleString('fr-FR')} €</div>
                         </div>
                         <div className="flex items-center gap-2">
+                          {client?.client_email && (
+                            <button onClick={() => notifyInvoiceReady(inv)} disabled={notifying === inv.id} aria-label="Notifier le client" className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-stone-600 disabled:opacity-50 active:scale-95 transition-transform" title="Prévenir le client que la facture est prête">
+                            {notifying === inv.id ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                            </button>
+                          )}
                           <button onClick={() => { setEditing(inv); setShowForm(true); }} aria-label="Modifier" className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform"><Edit3 size={14} /></button>
                           <button onClick={() => remove(inv.id)} aria-label="Supprimer" className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-rose-500 active:scale-95 transition-transform"><Trash2 size={14} /></button>
                         </div>
@@ -2117,6 +2175,11 @@
                         <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
                       </div>
                       <div className="col-span-1 flex items-center justify-end gap-1.5">
+                        {client?.client_email && (
+                          <button onClick={() => notifyInvoiceReady(inv)} disabled={notifying === inv.id} aria-label="Notifier le client" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100 disabled:opacity-50" title="Prévenir le client que la facture est prête">
+                            {notifying === inv.id ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                          </button>
+                        )}
                         <button onClick={() => { setEditing(inv); setShowForm(true); }} aria-label="Modifier" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100"><Edit3 size={13} /></button>
                         <button onClick={() => remove(inv.id)} aria-label="Supprimer" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500 hover:bg-rose-50"><Trash2 size={13} /></button>
                       </div>
@@ -2195,6 +2258,182 @@
             <Field label="URL du PDF (optionnel)">
               <Input value={form.pdf_url} onChange={e => setForm({...form, pdf_url: e.target.value})} placeholder="factures/fac-2026-042.pdf ou https://…" />
             </Field>
+            <div className="flex gap-3 pt-2">
+              <Btn onClick={onClose} full>Annuler</Btn>
+              <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
+                {loading ? 'Enregistrement…' : (existing ? 'Mettre à jour' : 'Ajouter')}
+              </Btn>
+            </div>
+          </form>
+        </Modal>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       📁 DOCUMENTS TAB (contrats, chartes graphiques, devis…)
+       ════════════════════════════════════════════════════════════ */
+    const DOC_CATEGORIES = ['Contrat', 'Charte graphique', 'Devis', 'Brief', 'Autre'];
+
+    const DocCategoryBadge = ({ category }) => {
+      const cfg = {
+        'Contrat':          { bg: 'bg-indigo-100',  text: 'text-indigo-700' },
+        'Charte graphique': { bg: 'bg-fuchsia-100', text: 'text-fuchsia-700' },
+        'Devis':            { bg: 'bg-amber-100',   text: 'text-amber-700' },
+        'Brief':            { bg: 'bg-sky-100',     text: 'text-sky-700' },
+      }[category] || { bg: 'bg-stone-100', text: 'text-stone-600' };
+      return (
+        <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold shrink-0 leading-none ${cfg.bg} ${cfg.text}`}>{category}</span>
+      );
+    };
+
+    function DocumentsTab({ clientId }) {
+      const [items, setItems] = useState([]);
+      const [editing, setEditing] = useState(null);
+      const [showForm, setShowForm] = useState(false);
+      const [loading, setLoading] = useState(true);
+
+      const load = async () => {
+        setLoading(true);
+        const { data } = await sb.from('documents').select('*').eq('client_id', clientId).order('position').order('created_at', { ascending: false });
+        setItems(data || []); setLoading(false);
+      };
+      useEffect(() => { load(); }, [clientId]);
+
+      const remove = async (id) => {
+        if (!confirm('Supprimer ce document ?')) return;
+        await sb.from('documents').delete().eq('id', id);
+        load();
+      };
+
+      return (
+        <div className="space-y-5 lg:space-y-6">
+          <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+              <div>
+                <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Espace partagé</div>
+                <h3 className="text-[20px] lg:text-[22px] tracking-tight mt-1 leading-tight" style={SERIF}>
+                  Documents <span className="text-stone-400">({items.length})</span>
+                </h3>
+              </div>
+              <Btn kind="dark" icon={Plus} onClick={() => { setEditing(null); setShowForm(true); }} className="w-full sm:w-auto">
+                Ajouter un document
+              </Btn>
+            </div>
+            <p className="text-[12px] lg:text-[13px] text-stone-500 mt-2">
+              Contrats, chartes graphiques, devis, briefs… Le client retrouve ces fichiers dans l'onglet « Documents » de son espace.
+            </p>
+
+            <div className="mt-5">
+              {loading ? <div className="text-center py-12 text-stone-400">Chargement…</div> : (
+                <div className="space-y-2.5 lg:space-y-2">
+                  {items.map(doc => (
+                    <div key={doc.id} style={neu.pressedSm} className="rounded-2xl p-4 lg:px-4 lg:py-3.5">
+                      {/* Mobile : carte verticale */}
+                      <div className="lg:hidden">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-[13.5px] leading-snug line-clamp-2">{doc.title}</div>
+                            <div className="text-[11.5px] text-stone-500 mt-1.5 leading-none">{doc.date_label}{doc.size_label && ` · ${doc.size_label}`}</div>
+                          </div>
+                          <DocCategoryBadge category={doc.category} />
+                        </div>
+                        <div className="flex items-center justify-between pt-3 border-t border-stone-200/60 gap-3">
+                          <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-[12px] text-stone-500 flex items-center gap-1.5 truncate hover:text-stone-900">
+                            <ExternalLink size={12} /> Ouvrir
+                          </a>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => { setEditing(doc); setShowForm(true); }} aria-label="Modifier" className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform"><Edit3 size={14} /></button>
+                            <button onClick={() => remove(doc.id)} aria-label="Supprimer" className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-rose-500 active:scale-95 transition-transform"><Trash2 size={14} /></button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Desktop : ligne grille 12 col */}
+                      <div className="hidden lg:grid grid-cols-12 gap-4 items-center">
+                        <div className="col-span-5 text-[13px] text-stone-800 font-medium truncate flex items-center gap-2">
+                          <FileText size={14} className="text-stone-400 shrink-0" /> {doc.title}
+                        </div>
+                        <div className="col-span-2"><DocCategoryBadge category={doc.category} /></div>
+                        <div className="col-span-2 text-[12px] text-stone-500">{doc.date_label}</div>
+                        <div className="col-span-2 text-[12px] text-stone-500 truncate">{doc.size_label || '—'}</div>
+                        <div className="col-span-1 flex items-center justify-end gap-1.5">
+                          <a href={doc.file_url} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir le document" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100" title="Ouvrir le document"><ExternalLink size={13} /></a>
+                          <button onClick={() => { setEditing(doc); setShowForm(true); }} aria-label="Modifier" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100"><Edit3 size={13} /></button>
+                          <button onClick={() => remove(doc.id)} aria-label="Supprimer" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500 hover:bg-rose-50"><Trash2 size={13} /></button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucun document. Cliquez sur « Ajouter un document » pour commencer.</div>}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {showForm && <DocumentForm clientId={clientId} existing={editing} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load(); }} />}
+        </div>
+      );
+    }
+
+    function DocumentForm({ clientId, existing, onClose, onSaved }) {
+      const [form, setForm] = useState({
+        title:       existing?.title      || '',
+        category:    existing?.category   || 'Contrat',
+        file_url:    existing?.file_url   || '',
+        size_label:  existing?.size_label || '',
+        date_label:  existing?.date_label || (existing ? '' : isoToLabel(todayISO())),
+        date_iso_local: existing?.date_label ? '' : todayISO(),
+        position:    existing?.position ?? 0,
+      });
+      const [loading, setLoading] = useState(false);
+
+      const handleDocDate = (iso) => {
+        setForm({ ...form, date_iso_local: iso, date_label: isoToLabel(iso) });
+      };
+
+      const submit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        const { date_iso_local, ...rest } = form;
+        const payload = { ...rest, client_id: clientId, position: parseInt(form.position) || 0 };
+        const result = existing
+          ? await sb.from('documents').update(payload).eq('id', existing.id)
+          : await sb.from('documents').insert(payload);
+        if (!result.error) onSaved();
+        else { alert(result.error.message); setLoading(false); }
+      };
+
+      return (
+        <Modal title={existing ? 'Modifier le document' : 'Nouveau document'} kicker="Document" onClose={onClose} size="lg">
+          <form onSubmit={submit} className="space-y-4">
+            <Field label="Titre">
+              <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Contrat de prestation 2026" />
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Catégorie">
+                <Select value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
+                  {DOC_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </Select>
+              </Field>
+              <Field label="Date">
+                <Input type="date" value={form.date_iso_local} onChange={e => handleDocDate(e.target.value)} />
+                <div className="text-[11px] text-stone-500 mt-1">Libellé : <strong>{form.date_label || '—'}</strong></div>
+              </Field>
+            </div>
+            <Field label="URL du fichier">
+              <Input required value={form.file_url} onChange={e => setForm({...form, file_url: e.target.value})} placeholder="https://…/contrat-2026.pdf" />
+              <div className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
+                Lien public d'un PDF / image. Astuce : créez un bucket public « documents » dans Supabase Storage, déposez le fichier puis collez son URL publique ici.
+              </div>
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Taille (optionnel)">
+                <Input value={form.size_label} onChange={e => setForm({...form, size_label: e.target.value})} placeholder="1,2 MB" />
+              </Field>
+              <Field label="Ordre d'affichage">
+                <Input type="number" value={form.position} onChange={e => setForm({...form, position: e.target.value})} placeholder="0" />
+              </Field>
+            </div>
             <div className="flex gap-3 pt-2">
               <Btn onClick={onClose} full>Annuler</Btn>
               <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>

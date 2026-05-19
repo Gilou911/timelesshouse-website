@@ -18,7 +18,7 @@ import {
   Play, X, MessageCircle, Check, AlertCircle, RefreshCw, ArrowUpRight,
   Instagram, Facebook, Youtube, Sparkles, ArrowRight, Clock, MapPin,
   Grid, List, Send, ThumbsUp, Loader2, Camera, Video as VideoIcon,
-  CheckCircle2, MessageSquare, Maximize2
+  CheckCircle2, MessageSquare, Maximize2, FolderOpen, FileText as FileTextIcon
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis,
@@ -46,9 +46,11 @@ const CLIENT = {
   mediaEnabled:     D.mediaEnabled    !== false,
   invoicesEnabled:  D.invoicesEnabled !== false,
   shootsEnabled:    D.shootsEnabled   !== false,
+  documentsEnabled: D.documentsEnabled !== false,
   media:      D.media      || [],
   invoices:   D.invoices   || [],
   shoots:     D.shoots     || [],
+  documents:  D.documents  || [],
   comments:   D.comments   || [],
   analytics:  D.analytics  || {},
 };
@@ -434,6 +436,7 @@ const Sidebar = ({ section, setSection, onLogout, isDark, toggleDark }) => {
     { id: 'dashboard', icon: Home, label: 'Accueil' },
     ...(CLIENT.mediaEnabled    ? [{ id: 'media',    icon: ImageIcon,    label: 'Médias' }]      : []),
     ...(CLIENT.invoicesEnabled ? [{ id: 'invoices', icon: FileText,     label: 'Factures' }]    : []),
+    ...(CLIENT.documentsEnabled ? [{ id: 'documents', icon: FolderOpen,  label: 'Documents' }]   : []),
     ...(CLIENT.analyticsEnabled ? [{ id: 'analytics', icon: BarChart3,  label: 'Analyses' }]    : []),
     ...(CLIENT.shootsEnabled   ? [{ id: 'calendar', icon: CalendarIcon, label: 'Calendrier' }]  : []),
   ];
@@ -507,6 +510,7 @@ const BottomNav = ({ section, setSection, isDark }) => {
     { id: 'dashboard', icon: Home, label: 'Accueil' },
     ...(CLIENT.mediaEnabled    ? [{ id: 'media',    icon: ImageIcon,    label: 'Médias' }]      : []),
     ...(CLIENT.invoicesEnabled ? [{ id: 'invoices', icon: FileText,     label: 'Factures' }]    : []),
+    ...(CLIENT.documentsEnabled ? [{ id: 'documents', icon: FolderOpen,  label: 'Docs' }]        : []),
     ...(CLIENT.analyticsEnabled ? [{ id: 'analytics', icon: BarChart3,  label: 'Analyses' }]    : []),
     ...(CLIENT.shootsEnabled   ? [{ id: 'calendar', icon: CalendarIcon, label: 'Agenda' }]      : []),
   ];
@@ -587,6 +591,7 @@ const Dashboard = ({ goTo }) => {
   if (CLIENT.analyticsEnabled) actions.push({ id: 'analytics', icon: BarChart3,    title: 'Analyses',    sub: 'Mise à jour temps réel' });
   else if (CLIENT.shootsEnabled) actions.push({ id: 'calendar', icon: CalendarIcon, title: 'Calendrier',  sub: `${upcomingShoots} tournage${upcomingShoots > 1 ? 's' : ''} à venir` });
   else if (CLIENT.invoicesEnabled) actions.push({ id: 'invoices', icon: FileText,   title: 'Factures',    sub: `${CLIENT.invoices.length} facture${CLIENT.invoices.length > 1 ? 's' : ''}` });
+  if (CLIENT.documentsEnabled) actions.push({ id: 'documents', icon: FolderOpen, title: 'Documents', sub: `${CLIENT.documents.length} document${CLIENT.documents.length > 1 ? 's' : ''}` });
 
   return (
     <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-5">
@@ -1480,6 +1485,109 @@ const Invoices = () => {
 };
 
 // ────────────────────────────────────────────────────────────
+// 📁 DOCUMENTS (contrats, chartes graphiques, devis…)
+// ────────────────────────────────────────────────────────────
+const docCategoryStyle = (category) => ({
+  'Contrat':          'bg-indigo-100 text-indigo-700',
+  'Charte graphique': 'bg-fuchsia-100 text-fuchsia-700',
+  'Devis':            'bg-amber-100 text-amber-700',
+  'Brief':            'bg-sky-100 text-sky-700',
+}[category] || 'bg-stone-100 text-stone-600');
+
+const Documents = () => {
+  const [filter, setFilter] = useState('all');
+  const docs = CLIENT.documents;
+  const categories = ['all', ...Array.from(new Set(docs.map(d => d.category).filter(Boolean)))];
+  const shown = filter === 'all' ? docs : docs.filter(d => d.category === filter);
+
+  return (
+    <div className="space-y-5 lg:space-y-6">
+      {/* Filtre par catégorie */}
+      {categories.length > 2 && (
+        <div style={neu.raisedXs} className="rounded-full p-1 inline-flex items-center overflow-x-auto no-scrollbar max-w-full">
+          {categories.map(c => (
+            <button
+              key={c}
+              onClick={() => setFilter(c)}
+              style={filter === c ? neu.darkSm : {}}
+              className={`px-4 py-2.5 min-h-[40px] rounded-full text-[12.5px] font-medium whitespace-nowrap transition active:scale-95 ${filter === c ? 'text-white' : 'text-stone-500'}`}>
+              {c === 'all' ? 'Tous' : c}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+        <h3 className="text-[20px] lg:text-[22px] tracking-tight mb-5 leading-none" style={SERIF}>
+          Vos documents {docs.length > 0 && <span className="text-stone-400">({docs.length})</span>}
+        </h3>
+
+        {/* En-têtes desktop */}
+        <div className="hidden lg:grid grid-cols-12 gap-4 px-4 pb-3 text-[10.5px] uppercase tracking-[0.16em] text-stone-400 font-semibold border-b border-stone-200/60">
+          <div className="col-span-5">Document</div><div className="col-span-3">Catégorie</div><div className="col-span-2">Date</div><div className="col-span-2 text-right">Fichier</div>
+        </div>
+
+        <div className="space-y-2 lg:space-y-1 lg:mt-2">
+          {shown.map(doc => (
+            <div key={doc.id} style={neu.pressedSm} className="rounded-2xl p-4 lg:p-4 lg:bg-transparent lg:shadow-none">
+              {/* Mobile : carte verticale */}
+              <div className="lg:hidden">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[14px] font-semibold leading-snug line-clamp-2 flex items-start gap-2">
+                      <FileTextIcon size={15} className="text-stone-400 shrink-0 mt-0.5" /> <span>{doc.title}</span>
+                    </div>
+                    <div className="text-[11.5px] text-stone-500 mt-1.5 leading-none">{doc.date}{doc.size && ` · ${doc.size}`}</div>
+                  </div>
+                  <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold shrink-0 leading-none ${docCategoryStyle(doc.category)}`}>{doc.category}</span>
+                </div>
+                <div className="flex items-center justify-end pt-3 border-t border-stone-200/60">
+                  {doc.url && (
+                    <button
+                      onClick={() => smartDownload(doc.url, doc.title || 'Document', 'pdf')}
+                      aria-label="Télécharger le document"
+                      className="px-4 h-10 rounded-full flex items-center gap-2 text-[12.5px] font-medium bg-white text-stone-700 active:scale-95 transition-transform"
+                      title="Télécharger le document">
+                      <Download size={14} /> Télécharger
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Desktop : ligne grille */}
+              <div className="hidden lg:grid grid-cols-12 gap-4 items-center py-1">
+                <div className="col-span-5 text-[13px] text-stone-800 font-medium truncate flex items-center gap-2">
+                  <FileTextIcon size={14} className="text-stone-400 shrink-0" /> {doc.title}
+                </div>
+                <div className="col-span-3">
+                  <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold ${docCategoryStyle(doc.category)}`}>{doc.category}</span>
+                </div>
+                <div className="col-span-2 text-[12px] text-stone-500">{doc.date}{doc.size && ` · ${doc.size}`}</div>
+                <div className="col-span-2 flex items-center justify-end">
+                  {doc.url && (
+                    <button
+                      onClick={() => smartDownload(doc.url, doc.title || 'Document', 'pdf')}
+                      className="px-3.5 h-9 rounded-full flex items-center gap-2 text-[12px] font-medium text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition-colors"
+                      title="Télécharger le document">
+                      <Download size={13} /> Télécharger
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+          {shown.length === 0 && (
+            <div className="text-center py-12 text-[14px] text-stone-400">
+              {docs.length === 0 ? 'Aucun document partagé pour le moment.' : 'Aucun document dans cette catégorie.'}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ────────────────────────────────────────────────────────────
 // 📊 ANALYTICS (inchangé)
 // ────────────────────────────────────────────────────────────
 const Analytics = () => {
@@ -1693,6 +1801,7 @@ function App() {
     dashboard: { t: `Bonjour ${CLIENT.greeting}`, s: 'Voici un aperçu de votre activité.' },
     media:     { t: 'Vos médias',                  s: 'Touchez un fichier pour le visualiser, le télécharger ou le valider.' },
     invoices:  { t: 'Vos factures',                s: 'Historique complet de votre facturation.' },
+    documents: { t: 'Vos documents',               s: 'Contrats, chartes graphiques, devis et autres fichiers partagés.' },
     analytics: { t: 'Analyses temps réel',         s: 'Performance de vos réseaux sociaux.' },
     calendar:  { t: 'Vos tournages',               s: 'Calendrier des prochains shootings.' },
   };
@@ -1708,6 +1817,7 @@ function App() {
           {section === 'dashboard' && <Dashboard goTo={setSection} />}
           {section === 'media'     && (CLIENT.mediaEnabled    ? <Media />    : <Dashboard goTo={setSection} />)}
           {section === 'invoices'  && (CLIENT.invoicesEnabled ? <Invoices /> : <Dashboard goTo={setSection} />)}
+          {section === 'documents' && (CLIENT.documentsEnabled ? <Documents /> : <Dashboard goTo={setSection} />)}
           {section === 'analytics' && (CLIENT.analyticsEnabled ? <Analytics /> : <Dashboard goTo={setSection} />)}
           {section === 'calendar'  && (CLIENT.shootsEnabled   ? <Calendar /> : <Dashboard goTo={setSection} />)}
         </main>

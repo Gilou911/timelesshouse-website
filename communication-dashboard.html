@@ -246,11 +246,12 @@
       throw new Error('Client not found');
     }
 
-    const [mediaRes, invoicesRes, shootsRes, analyticsRes] = await Promise.all([
+    const [mediaRes, invoicesRes, shootsRes, analyticsRes, documentsRes] = await Promise.all([
       sb.from('media').select('*').eq('client_id', client.id).order('position'),
       sb.from('invoices').select('*').eq('client_id', client.id).order('created_at', { ascending: false }),
       sb.from('shoots').select('*').eq('client_id', client.id).order('year').order('date_day'),
       sb.from('analytics').select('*').eq('client_id', client.id).maybeSingle(),
+      sb.from('documents').select('*').eq('client_id', client.id).order('position').order('created_at', { ascending: false }),
     ]);
 
     const mediaIds = (mediaRes.data || []).map(m => m.id);
@@ -273,6 +274,7 @@
       mediaEnabled:     client.media_enabled    !== false,
       invoicesEnabled:  client.invoices_enabled !== false,
       shootsEnabled:    client.shoots_enabled   !== false,
+      documentsEnabled: client.documents_enabled !== false,
       media: (mediaRes.data || []).map(m => ({
         id:              m.id,
         type:            m.type,
@@ -294,6 +296,10 @@
       shoots: (shootsRes.data || []).map(s => ({
         id: s.id, title: s.title, type: s.type, date: s.date_day,
         month: s.month_label || 'Avr', time: s.time_label || '', location: s.location || '',
+      })),
+      documents: (documentsRes.data || []).map(d => ({
+        id: d.id, title: d.title, category: d.category || 'Autre',
+        url: d.file_url, date: d.date_label || '', size: d.size_label || '',
       })),
       comments: allComments || [],
       analytics: analyticsRes.data ? {

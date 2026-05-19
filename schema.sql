@@ -21,6 +21,7 @@ create table if not exists clients (
   storage_total   text default '15 GB',
   storage_percent integer default 0,
   active          boolean default true,
+  documents_enabled boolean default true,         -- module "Documents" visible côté client
   created_at      timestamptz default now()
 );
 
@@ -32,7 +33,8 @@ create table if not exists media (
   client_id   uuid references clients(id) on delete cascade,
   type        text check (type in ('photo', 'video')),
   title       text not null,
-  url         text,                                      -- lien Cloudinary, Streamable, Drive...
+  url         text,                                      -- vidéo originale haute qualité (téléchargement) ou photo
+  preview_url text,                                      -- vidéo allégée pour lecture streaming dans le navigateur (vidéo uniquement)
   thumb_url   text,                                      -- miniature (optionnel)
   thumb_grad  text default 'linear-gradient(135deg,#1a1a1d 0%,#3a3a3d 100%)',
   date_label  text,                                      -- ex: "12 Avr 2026"
@@ -98,6 +100,21 @@ create table if not exists analytics (
   updated_at          timestamptz default now()
 );
 
+-- ┌────────────────────────────────────────────────────────────┐
+-- │  TABLE 6 : documents (contrats, chartes graphiques, devis…) │
+-- └────────────────────────────────────────────────────────────┘
+create table if not exists documents (
+  id          uuid primary key default gen_random_uuid(),
+  client_id   uuid references clients(id) on delete cascade,
+  title       text not null,                       -- ex: "Contrat de prestation 2026"
+  category    text default 'Autre',                -- Contrat | Charte graphique | Devis | Brief | Autre
+  file_url    text not null,                       -- URL Supabase Storage OU lien externe
+  date_label  text,                                -- ex: "15 Avr 2026"
+  size_label  text,                                -- ex: "1,2 MB" (optionnel)
+  position    integer default 0,                   -- ordre d'affichage
+  created_at  timestamptz default now()
+);
+
 -- ════════════════════════════════════════════════════════════
 -- 🔐 ROW LEVEL SECURITY
 -- ════════════════════════════════════════════════════════════
@@ -112,6 +129,7 @@ alter table media     enable row level security;
 alter table invoices  enable row level security;
 alter table shoots    enable row level security;
 alter table analytics enable row level security;
+alter table documents enable row level security;
 
 -- Lecture publique
 create policy "public read clients"   on clients   for select using (true);
@@ -119,6 +137,7 @@ create policy "public read media"     on media     for select using (true);
 create policy "public read invoices"  on invoices  for select using (true);
 create policy "public read shoots"    on shoots    for select using (true);
 create policy "public read analytics" on analytics for select using (true);
+create policy "public read documents" on documents for select using (true);
 
 -- Écriture uniquement par admin connecté
 create policy "auth write clients"   on clients   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
@@ -126,6 +145,7 @@ create policy "auth write media"     on media     for all using (auth.role() = '
 create policy "auth write invoices"  on invoices  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "auth write shoots"    on shoots    for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "auth write analytics" on analytics for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "auth write documents" on documents for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
 -- ════════════════════════════════════════════════════════════
 -- ✅ TERMINÉ

@@ -896,7 +896,7 @@
           {tab === 'media' && <MediaTab clientId={client.id} client={client} />}
           {tab === 'invoices' && <InvoicesTab clientId={client.id} client={client} />}
           {tab === 'documents' && <DocumentsTab clientId={client.id} />}
-          {tab === 'shoots' && <ShootsTab clientId={client.id} />}
+          {tab === 'shoots' && <ShootsTab clientId={client.id} client={client} />}
           {tab === 'analytics' && <AnalyticsTab clientId={client.id} />}
 
           {editClient && <ClientForm existing={client} onClose={() => setEditClient(false)} onSaved={() => { setEditClient(false); refresh(); }} />}
@@ -2470,11 +2470,12 @@
     /* ════════════════════════════════════════════════════════════
        🎬 SHOOTS TAB
        ════════════════════════════════════════════════════════════ */
-    function ShootsTab({ clientId }) {
+    function ShootsTab({ clientId, client }) {
       const [items, setItems] = useState([]);
       const [editing, setEditing] = useState(null);
       const [showForm, setShowForm] = useState(false);
       const [loading, setLoading] = useState(true);
+      const [notifying, setNotifying] = useState(null);
 
       const load = async () => {
         setLoading(true);
@@ -2487,6 +2488,43 @@
         if (!confirm('Supprimer ce tournage ?')) return;
         await sb.from('shoots').delete().eq('id', id);
         load();
+      };
+
+      // Prévenir le client qu'un tournage est programmé (kind: shoot_scheduled)
+      const notifyScheduled = async (shoot) => {
+        if (!client?.client_email) {
+          alert("Ajoutez d'abord l'email du client (Modifier → champ Email).");
+          return;
+        }
+        if (!confirm(`Envoyer un email à ${client.client_email} pour annoncer le tournage « ${shoot.title} » ?`)) return;
+        setNotifying(shoot.id);
+        try {
+          const loginUrl = window.location.origin + '/index.html#clients';
+          const url = `${window.SUPABASE_URL}/functions/v1/notify-client`;
+          const res = await fetch(url, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}` },
+            body:    JSON.stringify({
+              kind:      'shoot_scheduled',
+              client_id: clientId,
+              extra: {
+                title:       shoot.title,
+                type:        shoot.type,
+                date_iso:    shoot.date_iso || null,
+                date_day:    shoot.date_day,
+                month_label: shoot.month_label,
+                year:        shoot.year,
+                time_label:  shoot.time_label || '',
+                location:    shoot.location || '',
+                loginUrl,
+              },
+            }),
+          });
+          if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
+          else if (res.status === 404) alert("La fonction de notification n'est pas déployée.\n\nVoir ÉMAILS-SETUP.md pour activer les notifications par email.");
+          else alert(`Erreur d'envoi : ${await res.text()}`);
+        } catch (e) { alert("Erreur réseau : " + e.message); }
+        setNotifying(null);
       };
 
       return (
@@ -2519,6 +2557,11 @@
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 ml-auto">
+                    {client?.client_email && (
+                      <button onClick={() => notifyScheduled(s)} disabled={notifying === s.id} aria-label="Notifier le client" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center disabled:opacity-50 active:scale-95 transition-transform" title="Prévenir le client de ce tournage par email">
+                      {notifying === s.id ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    </button>
+                    )}
                     <button onClick={() => { setEditing(s); setShowForm(true); }} aria-label="Modifier" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-transform"><Edit3 size={14} /></button>
                     <button onClick={() => remove(s.id)} aria-label="Supprimer" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center text-rose-500 active:scale-95 transition-transform"><Trash2 size={14} /></button>
                   </div>
@@ -2528,12 +2571,12 @@
             </div>
           )}
 
-          {showForm && <ShootForm clientId={clientId} existing={editing} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load(); }} />}
+          {showForm && <ShootForm clientId={clientId} client={client} existing={editing} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load(); }} />}
         </div>
       );
     }
 
-    function ShootForm({ clientId, existing, onClose, onSaved }) {
+    function ShootForm({ clientId, client, existing, onClose, onSaved }) {
       // Reconstituer la date ISO à partir des anciens champs si on édite un existant
       const existingISO = existing?.date_iso || (existing ? shootPartsToISO(existing.date_day, existing.month_label, existing.year) : '');
       const [form, setForm] = useState({
@@ -2545,6 +2588,41 @@
         notes:       existing?.notes       || '',
       });
       const [loading, setLoading] = useState(false);
+
+      // Envoie shoot_scheduled (création) ou shoot_updated (date/lieu modifié)
+      const fireShootEmail = async (kind, shoot) => {
+        if (!client?.client_email) return;
+        const label = kind === 'shoot_scheduled'
+          ? `annoncer le tournage « ${shoot.title} »`
+          : `prévenir du changement sur le tournage « ${shoot.title} »`;
+        if (!confirm(`Envoyer un email à ${client.client_email} pour ${label} ?`)) return;
+        try {
+          const loginUrl = window.location.origin + '/index.html#clients';
+          const url = `${window.SUPABASE_URL}/functions/v1/notify-client`;
+          const res = await fetch(url, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}` },
+            body:    JSON.stringify({
+              kind,
+              client_id: clientId,
+              extra: {
+                title:       shoot.title,
+                type:        shoot.type,
+                date_iso:    shoot.date_iso || null,
+                date_day:    shoot.date_day,
+                month_label: shoot.month_label,
+                year:        shoot.year,
+                time_label:  shoot.time_label || '',
+                location:    shoot.location || '',
+                loginUrl,
+              },
+            }),
+          });
+          if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
+          else if (res.status === 404) alert("La fonction de notification n'est pas déployée (l'email n'a pas été envoyé, le tournage est enregistré).");
+          else alert(`Le tournage est enregistré, mais l'email a échoué : ${await res.text()}`);
+        } catch (e) { alert("Le tournage est enregistré, mais l'email a échoué (réseau) : " + e.message); }
+      };
 
       const submit = async (e) => {
         e.preventDefault();
@@ -2559,11 +2637,30 @@
           year:        parts.year || new Date().getFullYear(),
           date_iso:    form.date_iso || null,
         };
+
+        // Détecter un changement de date ou de lieu (mode édition)
+        const dateChanged     = !!existing && (existing.date_iso || '') !== (payload.date_iso || '');
+        const locationChanged = !!existing && (existing.location || '') !== (payload.location || '');
+
         const result = existing
           ? await sb.from('shoots').update(payload).eq('id', existing.id)
           : await sb.from('shoots').insert(payload);
-        if (!result.error) onSaved();
-        else { alert(result.error.message); setLoading(false); }
+
+        if (result.error) { alert(result.error.message); setLoading(false); return; }
+
+        // Réinitialiser les flags de rappel si la date a bougé (les rappels J-7/J-1 repartiront)
+        if (existing && dateChanged) {
+          await sb.from('shoots').update({ reminded_7d: false, reminded_1d: false }).eq('id', existing.id);
+        }
+
+        // Notifications email
+        if (!existing) {
+          await fireShootEmail('shoot_scheduled', payload);
+        } else if (dateChanged || locationChanged) {
+          await fireShootEmail('shoot_updated', payload);
+        }
+
+        onSaved();
       };
 
       return (

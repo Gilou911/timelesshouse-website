@@ -1123,7 +1123,7 @@ const AdminClients = ({ goToClient }) => {
         {CLIENTS.map(c => (
           <div key={c.id} style={neu.raised} className="rounded-[24px] p-6 cursor-pointer group" onClick={() => goToClient(c.id)}>
             <div className="flex items-start justify-between">
-              <div style={neu.darkSm} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-[18px] font-semibold" style={{ ...neu.darkSm, backgroundColor: c.color }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-[18px] font-semibold" style={{ ...neu.darkSm, backgroundColor: c.color }}>
                 {c.initials}
               </div>
               <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold ${c.status === 'actif' ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200 text-stone-600'}`}>

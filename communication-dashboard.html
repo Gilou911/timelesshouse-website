@@ -294,7 +294,8 @@
       })),
       shoots: (shootsRes.data || []).map(s => ({
         id: s.id, title: s.title, type: s.type, date: s.date_day,
-        month: s.month_label || 'Avr', time: s.time_label || '', location: s.location || '',
+        month: s.month_label || 'Avr', year: s.year || new Date().getFullYear(),
+        time: s.time_label || '', location: s.location || '',
       })),
       documents: (documentsRes.data || []).map(d => ({
         id: d.id, title: d.title, category: d.category || 'Autre',

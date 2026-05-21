@@ -1851,29 +1851,113 @@ const Analytics = () => {
 };
 
 // ────────────────────────────────────────────────────────────
-// 🗓 CALENDAR (inchangé)
+// 🗓 CALENDAR (date-aware, syncs with shoot year/month/day)
 // ────────────────────────────────────────────────────────────
+const MOIS_FR_SHORT = ['Jan', 'Fév', 'Mars', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
+const MOIS_FR_LONG  = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
+// Normalise a French month label to a 0-11 index. Tolerates case, accents,
+// and the common "Sept" vs "Septembre" / "Fév" vs "Février" / etc. variants.
+const _strip = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+const monthLabelToIndex = (label) => {
+  const k = _strip(label);
+  if (!k) return null;
+  for (let i = 0; i < MOIS_FR_SHORT.length; i++) {
+    const a = _strip(MOIS_FR_SHORT[i]);
+    const b = _strip(MOIS_FR_LONG[i]);
+    if (k === a || k === b || a.startsWith(k) || b.startsWith(k)) return i;
+  }
+  return null;
+};
+
+const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+
 const Calendar = () => {
-  const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-  const monthDays = Array.from({ length: 30 }, (_, i) => i + 1);
-  const today = new Date().getDate();
+  const dayHeaders = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+  // Stable "today", midnight-aligned.
+  const today = useMemo(() => startOfDay(new Date()), []);
+
+  // Parse every shoot into a real Date once. Drop rows we cannot place.
+  const shoots = useMemo(() => {
+    const fallbackYear = today.getFullYear();
+    return (CLIENT.shoots || [])
+      .map(s => {
+        const mi  = monthLabelToIndex(s.month);
+        const day = Number(s.date);
+        const yr  = Number(s.year) || fallbackYear;
+        if (mi == null || !Number.isFinite(day) || day < 1 || day > 31) return null;
+        return { ...s, dateObj: new Date(yr, mi, day) };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.dateObj - b.dateObj);
+  }, [today]);
+
+  // Auto-focus rule: first upcoming shoot's month, else current month.
+  const focusMonth = useMemo(() => {
+    const upcoming = shoots.find(s => s.dateObj >= today);
+    const anchor   = upcoming ? upcoming.dateObj : today;
+    return new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  }, [shoots, today]);
+
+  const [cursor, setCursor] = useState(focusMonth);
+  // Re-anchor when data refreshes (e.g. Supabase pushes new shoots).
+  useEffect(() => { setCursor(focusMonth); }, [focusMonth]);
+
+  const year  = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();      // 28/29/30/31
+  const firstDow = new Date(year, month, 1).getDay();              // 0=Sun..6=Sat
+  const offset = (firstDow + 6) % 7;                               // Monday-first
+
+  const monthLabel = `${MOIS_FR_LONG[month]} ${year}`;
+
+  const prevMonth = useCallback(() => setCursor(new Date(year, month - 1, 1)), [year, month]);
+  const nextMonth = useCallback(() => setCursor(new Date(year, month + 1, 1)), [year, month]);
+
+  // Strict filter: year + month + day. No more day-only collisions.
+  const eventsOn = useCallback(
+    (day) => shoots.filter(s =>
+      s.dateObj.getFullYear() === year &&
+      s.dateObj.getMonth()    === month &&
+      s.dateObj.getDate()     === day
+    ),
+    [shoots, year, month]
+  );
+
+  // Side panel: chronological upcoming list (future only).
+  const upcomingList = useMemo(
+    () => shoots.filter(s => s.dateObj >= today),
+    [shoots, today]
+  );
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-[20px] lg:text-[22px] tracking-tight" style={SERIF}>Avril 2026</h3>
+        <div className="flex items-center gap-3">
+          <button onClick={prevMonth} aria-label="Mois précédent"
+                  style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center hidden lg:flex">
+            <ChevronLeft size={15} />
+          </button>
+          <h3 className="text-[20px] lg:text-[22px] tracking-tight" style={SERIF}>{monthLabel}</h3>
+          <button onClick={nextMonth} aria-label="Mois suivant"
+                  style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center hidden lg:flex">
+            <ChevronRight size={15} />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Vue calendrier — desktop uniquement (illisible sur mobile) */}
         <div style={neu.raised} className="hidden lg:block lg:col-span-8 rounded-[28px] p-6">
           <div className="grid grid-cols-7 gap-2 mb-3">
-            {days.map(d => <div key={d} className="text-[11px] uppercase tracking-[0.18em] text-stone-400 font-semibold text-center py-2">{d}</div>)}
+            {dayHeaders.map(d => <div key={d} className="text-[11px] uppercase tracking-[0.18em] text-stone-400 font-semibold text-center py-2">{d}</div>)}
           </div>
           <div className="grid grid-cols-7 gap-2">
-            {monthDays.map(day => {
-              const events = CLIENT.shoots.filter(s => s.date === day);
-              const isToday = day === today;
+            {Array.from({ length: offset }).map((_, i) => <div key={`pad-${i}`} />)}
+            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+              const events  = eventsOn(day);
+              const isToday = year === today.getFullYear() && month === today.getMonth() && day === today.getDate();
               return (
                 <div key={day} style={isToday ? neu.dark : (events.length ? neu.pressedSm : {})}
                   className={`aspect-square rounded-2xl p-2 flex flex-col ${isToday ? 'text-white' : ''} cursor-pointer hover:scale-[1.02] transition`}>
@@ -1896,11 +1980,13 @@ const Calendar = () => {
           <div style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-5">
             <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-4">Prochains événements</div>
             <div className="space-y-3">
-              {CLIENT.shoots.map(s => (
-                <div key={s.id} className="flex gap-3">
+              {upcomingList.map(s => (
+                <div key={s.id}
+                     onClick={() => setCursor(new Date(s.dateObj.getFullYear(), s.dateObj.getMonth(), 1))}
+                     className="flex gap-3 cursor-pointer">
                   <div style={s.type === 'video' ? neu.darkSm : neu.pressedSm} className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 ${s.type === 'video' ? 'text-white' : ''}`}>
-                    <div className={`text-[8px] uppercase tracking-wider ${s.type === 'video' ? 'text-stone-400' : 'text-stone-500'}`}>{s.month}</div>
-                    <div className="text-[14px] leading-none font-semibold" style={SERIF}>{s.date}</div>
+                    <div className={`text-[8px] uppercase tracking-wider ${s.type === 'video' ? 'text-stone-400' : 'text-stone-500'}`}>{MOIS_FR_SHORT[s.dateObj.getMonth()]}</div>
+                    <div className="text-[14px] leading-none font-semibold" style={SERIF}>{s.dateObj.getDate()}</div>
                   </div>
                   <div className="flex-1 min-w-0 pt-0.5">
                     <div className="font-medium text-[13px] truncate">{s.title}</div>
@@ -1908,7 +1994,7 @@ const Calendar = () => {
                   </div>
                 </div>
               ))}
-              {CLIENT.shoots.length === 0 && <div className="text-[12px] text-stone-400 text-center py-4">Aucun événement</div>}
+              {upcomingList.length === 0 && <div className="text-[12px] text-stone-400 text-center py-4">Aucun événement</div>}
             </div>
           </div>
         </div>

@@ -730,6 +730,10 @@
       opacity: 0; visibility: hidden;
       transition: opacity 0.55s var(--ease), visibility 0.55s var(--ease),
                   background 0.55s var(--ease);
+      /* Verrouillage tactile fiable iOS/Android : bloque le rubber-band
+         et le scroll natif tant que la lightbox est ouverte. */
+      touch-action: none;
+      overscroll-behavior: contain;
     }
     .lb.open { opacity: 1; visibility: visible; background: color-mix(in srgb, var(--bg-deep) 97%, transparent); }
 
@@ -1425,8 +1429,8 @@
       });
     }
     const drawer = $('drawer');
-    function openDrawer() { drawer.classList.add('open'); document.body.classList.add('no-scroll'); }
-    function closeDrawer() { drawer.classList.remove('open'); if (!lbOpen) document.body.classList.remove('no-scroll'); }
+    function openDrawer() { drawer.classList.add('open'); lockBody(); }
+    function closeDrawer() { drawer.classList.remove('open'); unlockBody(); }
     $('tbScenes').addEventListener('click', openDrawer);
     $('drawerClose').addEventListener('click', closeDrawer);
     drawer.addEventListener('click', (e) => { if (e.target === drawer) closeDrawer(); });
@@ -1458,15 +1462,49 @@
     const lb = $('lb'), lbImg = $('lbImg'), lbStage = $('lbStage');
     let lbOpen = false, lbIdx = 0, zoom = false;
 
+    /* ── Verrouillage du fond — version iOS-safe & "ref-counted"
+       `body.no-scroll` (overflow:hidden) ne suffit PAS sur iOS Safari :
+       la page continue de rebondir (rubber-band) et la barre d'URL
+       peut tout faire scroller. On fige donc <body> à sa position
+       courante via position:fixed + top négatif, puis on restaure
+       au close. Le compteur autorise drawer + lightbox empilés. */
+    let _bodyLockCount = 0, _savedScrollY = 0;
+    function lockBody() {
+      if (_bodyLockCount === 0) {
+        _savedScrollY = window.scrollY || window.pageYOffset || 0;
+        const b = document.body;
+        b.style.position = 'fixed';
+        b.style.top = `-${_savedScrollY}px`;
+        b.style.left = '0';
+        b.style.right = '0';
+        b.style.width = '100%';
+        b.classList.add('no-scroll'); // ceinture + bretelles (Android)
+      }
+      _bodyLockCount++;
+    }
+    function unlockBody() {
+      _bodyLockCount = Math.max(0, _bodyLockCount - 1);
+      if (_bodyLockCount === 0) {
+        const b = document.body;
+        b.style.position = '';
+        b.style.top = '';
+        b.style.left = '';
+        b.style.right = '';
+        b.style.width = '';
+        b.classList.remove('no-scroll');
+        window.scrollTo(0, _savedScrollY); // restauration exacte
+      }
+    }
+
     function openLb(i) {
       lbIdx = i; lbOpen = true;
       lb.classList.add('open');
-      document.body.classList.add('no-scroll');
+      lockBody();
       renderLb(true);
     }
     function closeLb() {
       lbOpen = false; lb.classList.remove('open');
-      if (!drawer.classList.contains('open')) document.body.classList.remove('no-scroll');
+      unlockBody();
       resetZoom();
     }
     function renderLb(first) {
@@ -1520,7 +1558,8 @@
       toggleFav(p.id);
       $('lbHeart').classList.toggle('fav', favs.has(p.id));
     });
-    lb.addEventListener('click', (e) => { if (e.target === lb || e.target === lbStage) closeLb(); });
+    /* Sortie stricte : la lightbox NE se ferme PLUS au clic sur le fond.
+       Seul le bouton ✕ (#lbClose) ou la touche Échap peuvent fermer. */
 
     document.addEventListener('keydown', (e) => {
       if (drawer.classList.contains('open') && e.key === 'Escape') return closeDrawer();
@@ -1531,20 +1570,84 @@
       else if (e.key === 'f' || e.key === 'F') { const p = FLAT[lbIdx]; if (p) { toggleFav(p.id); syncLbHeart(); } }
     });
 
-    // Swipe mobile
-    let sx = 0, sy = 0, st = 0;
+    /* ── Swipe mobile — suivi du doigt EN TEMPS RÉEL sur lbImg.
+       Comportement type "iOS Photos" :
+       - Pendant le geste, l'image suit le doigt horizontalement.
+       - À la libération : flick rapide OU drag > 20% écran = on
+         passe à la photo suivante/précédente ; sinon snap-back.
+       - Un geste vertical NE FERME PAS (sortie stricte par ✕).
+       - Quand l'image est zoomée, le swipe est désactivé pour
+         laisser l'utilisateur déplacer l'image dans son cadre. */
+    const SW_LOCK = 8, SW_RATIO = 0.20, SW_VEL = 0.5;
+    let sx = 0, sy = 0, st = 0, sdx = 0;
+    let swDir = null;     // 'h' | 'v' | null — direction verrouillée
+    let swActive = false; // true uniquement si geste horizontal
+
     lbStage.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1 || zoom) return;
       sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now();
+      sdx = 0; swDir = null; swActive = false;
+      lbImg.style.transition = 'none';
     }, { passive: true });
-    lbStage.addEventListener('touchend', (e) => {
-      if (zoom || !e.changedTouches.length) return;
-      const dx = e.changedTouches[0].clientX - sx;
-      const dy = e.changedTouches[0].clientY - sy;
+
+    lbStage.addEventListener('touchmove', (e) => {
+      if (zoom || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - sx;
+      const dy = e.touches[0].clientY - sy;
+      // Détermination de la direction sur le 1er mouvement significatif
+      if (!swDir) {
+        if (Math.abs(dx) < SW_LOCK && Math.abs(dy) < SW_LOCK) return;
+        swDir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+        swActive = (swDir === 'h');
+      }
+      if (swActive) {
+        if (e.cancelable) e.preventDefault(); // coupe le scroll natif
+        sdx = dx;
+        lbImg.style.transform = `translateX(${dx}px)`;
+      }
+    }, { passive: false }); // passive:false OBLIGATOIRE pour preventDefault
+
+    lbStage.addEventListener('touchend', () => {
+      if (zoom) return;
+      if (!swActive) { swDir = null; return; }
+      swActive = false; swDir = null;
+
+      const w = lb.clientWidth;
       const dt = Date.now() - st;
-      if (Math.abs(dy) > Math.abs(dx) && dy > 90 && dt < 600) return closeLb();
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
-    }, { passive: true });
+      const v = Math.abs(sdx) / Math.max(dt, 1);
+
+      if (Math.abs(sdx) > w * SW_RATIO || v > SW_VEL) {
+        // Commit : on glisse jusqu'au bord puis on change d'image
+        const d = sdx < 0 ? 1 : -1;
+        lbImg.style.transition = 'transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1)';
+        lbImg.style.transform  = `translateX(${-d * w}px)`;
+        setTimeout(() => {
+          step(d); // resetZoom() à l'intérieur efface transform
+          // On rend la main aux transitions CSS (fade-in nouvelle image)
+          lbImg.style.transition = '';
+          lbImg.style.transform  = '';
+        }, 280);
+      } else {
+        // Snap back vers le centre
+        lbImg.style.transition = 'transform 0.25s ease-out';
+        lbImg.style.transform  = 'translateX(0)';
+        setTimeout(() => {
+          lbImg.style.transition = '';
+          lbImg.style.transform  = '';
+        }, 260);
+      }
+    });
+
+    lbStage.addEventListener('touchcancel', () => {
+      if (!swActive) return;
+      swActive = false; swDir = null;
+      lbImg.style.transition = 'transform 0.2s ease-out';
+      lbImg.style.transform  = 'translateX(0)';
+      setTimeout(() => {
+        lbImg.style.transition = '';
+        lbImg.style.transform  = '';
+      }, 220);
+    });
 
     document.addEventListener('contextmenu', (e) => {
       if (e.target.tagName === 'IMG') e.preventDefault();

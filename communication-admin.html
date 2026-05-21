@@ -90,7 +90,8 @@
       Save, Eye, EyeOff, AlertCircle, ChevronRight, Lock, Mail, ArrowUpRight,
       Filter, Video, Camera, Clock, MapPin, TrendingUp, Sparkles, ExternalLink,
       Loader2, MessageSquare, Bell, Send, CheckCircle2, RefreshCw, Link2,
-      FolderOpen, Download
+      FolderOpen, Download,
+      Maximize2, Monitor, Smartphone, ChevronDown, ChevronUp
     } from 'lucide-react';
 
     const sb = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
@@ -916,6 +917,212 @@
     }
 
     /* ════════════════════════════════════════════════════════════
+       🖼️ LIVE PREVIEW — iframe d'aperçu de la page client
+       ════════════════════════════════════════════════════════════ */
+
+    function buildPreviewUrl({ client, pageType, version }) {
+      let target;
+      if (pageType === 'photos') {
+        target = 'event-photos.html';
+      } else {
+        target = client.universe === 'anniversaire-mariage' ? 'event-anniversary.html'
+               : client.universe === 'fiancailles'          ? 'event-engagement.html'
+               : 'event-video.html';
+      }
+      const params = new URLSearchParams({
+        preview: '1',
+        code:    client.code || '',
+        v:       String(version || 0),
+      });
+      return `${target}?${params.toString()}`;
+    }
+
+    function LivePreviewPanel({ client, pageType, version, disabled, disabledHint }) {
+      const [device, setDevice]       = useState('desktop'); // 'desktop' | 'mobile'
+      const [expanded, setExpanded]   = useState(false);
+      const [collapsed, setCollapsed] = useState(false);
+      const [loading, setLoading]     = useState(true);
+      const iframeRef = useRef(null);
+
+      const previewUrl = useMemo(
+        () => buildPreviewUrl({ client, pageType, version }),
+        [client, pageType, version]
+      );
+
+      // Reset loading whenever URL changes (new version after save)
+      useEffect(() => { if (!disabled) setLoading(true); }, [previewUrl, disabled]);
+
+      // Iframe -> parent : "preview:ready" ping clears spinner reliably
+      useEffect(() => {
+        const onMsg = (e) => {
+          if (e.data && e.data.type === 'preview:ready') setLoading(false);
+        };
+        window.addEventListener('message', onMsg);
+        return () => window.removeEventListener('message', onMsg);
+      }, []);
+
+      const openTab = useCallback(() => {
+        window.open(previewUrl, '_blank', 'noopener,noreferrer');
+      }, [previewUrl]);
+
+      const refresh = useCallback(() => {
+        if (!iframeRef.current) return;
+        setLoading(true);
+        // Cache-busting reload (re-assigning the identical src is a no-op in some browsers)
+        iframeRef.current.src = previewUrl + '&t=' + Date.now();
+      }, [previewUrl]);
+
+      const renderToolbar = (compact) => (
+        <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-stone-200/60">
+          <button
+            type="button"
+            onClick={() => !compact && setCollapsed(c => !c)}
+            className="flex items-center gap-2 min-w-0 text-left"
+            title={compact ? '' : (collapsed ? 'Déplier' : 'Replier')}
+          >
+            <Eye size={13} className="text-stone-500 shrink-0" />
+            <span className="text-[10.5px] uppercase tracking-[0.18em] text-stone-500 font-semibold truncate">
+              Aperçu en direct
+            </span>
+            {!compact && (collapsed
+              ? <ChevronDown size={12} className="text-stone-400" />
+              : <ChevronUp   size={12} className="text-stone-400" />)}
+          </button>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Device toggle */}
+            <div style={neu.pressedSm} className="rounded-full p-0.5 flex items-center">
+              <button type="button" onClick={() => setDevice('desktop')} title="Bureau"
+                className={`w-7 h-7 rounded-full flex items-center justify-center transition ${
+                  device === 'desktop' ? 'bg-stone-900 text-white' : 'text-stone-500'
+                }`}>
+                <Monitor size={12} />
+              </button>
+              <button type="button" onClick={() => setDevice('mobile')} title="Mobile"
+                className={`w-7 h-7 rounded-full flex items-center justify-center transition ${
+                  device === 'mobile' ? 'bg-stone-900 text-white' : 'text-stone-500'
+                }`}>
+                <Smartphone size={12} />
+              </button>
+            </div>
+            <button type="button" onClick={refresh} title="Rafraîchir" disabled={disabled}
+              style={neu.raisedXs}
+              className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40">
+              <RefreshCw size={12} className={loading && !disabled ? 'animate-spin' : ''} />
+            </button>
+            {!compact && (
+              <button type="button" onClick={() => setExpanded(true)} title="Plein écran" disabled={disabled}
+                style={neu.raisedXs}
+                className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40">
+                <Maximize2 size={12} />
+              </button>
+            )}
+            <button type="button" onClick={openTab} title="Ouvrir dans un nouvel onglet" disabled={disabled}
+              style={neu.raisedXs}
+              className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40">
+              <ExternalLink size={12} />
+            </button>
+          </div>
+        </div>
+      );
+
+      const renderFrame = (fillMobile) => (
+        <div className="relative w-full h-full bg-stone-200/40 flex items-center justify-center overflow-hidden">
+          {disabled ? (
+            <div className="text-center px-6 py-10 text-stone-500 text-[12.5px] max-w-[340px] leading-relaxed">
+              <Eye size={20} className="mx-auto mb-3 text-stone-400" />
+              {disabledHint || 'Enregistrez une première fois pour activer l\'aperçu.'}
+            </div>
+          ) : (
+            <div
+              className={`relative bg-white shadow-inner transition-all duration-300 ${
+                device === 'mobile'
+                  ? (fillMobile ? 'w-[390px] max-w-full h-full' : 'w-[390px] max-w-full h-full')
+                  : 'w-full h-full'
+              }`}
+            >
+              {loading && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-stone-100/70 backdrop-blur-sm">
+                  <Loader2 size={20} className="animate-spin text-stone-500" />
+                </div>
+              )}
+              <iframe
+                ref={iframeRef}
+                src={previewUrl}
+                title="Aperçu de la page client"
+                loading="lazy"
+                onLoad={() => setLoading(false)}
+                allow="autoplay; encrypted-media; fullscreen"
+                referrerPolicy="no-referrer"
+                className="absolute inset-0 w-full h-full border-0 bg-white"
+              />
+            </div>
+          )}
+        </div>
+      );
+
+      return (
+        <>
+          {/* Embedded slot */}
+          <div style={neu.pressedSm} className="rounded-2xl overflow-hidden">
+            {renderToolbar(false)}
+            {!collapsed && (
+              <div className="h-[320px] sm:h-[420px]">
+                {expanded ? (
+                  <div className="w-full h-full flex items-center justify-center text-stone-400 text-[12px] bg-stone-100/40">
+                    <span className="flex items-center gap-2">
+                      <Maximize2 size={14} /> Affiché en plein écran
+                    </span>
+                  </div>
+                ) : (
+                  renderFrame(false)
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Fullscreen overlay */}
+          {expanded && (
+            <div
+              className="fixed inset-0 z-[60] flex items-stretch justify-stretch bg-stone-900/70 backdrop-blur-sm p-3 sm:p-5"
+              onClick={() => setExpanded(false)}
+            >
+              <div
+                style={neu.raised}
+                className="rounded-[24px] sm:rounded-[28px] flex-1 flex flex-col overflow-hidden"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 border-b border-stone-200/60">
+                  <div className="min-w-0">
+                    <div className="text-[10.5px] uppercase tracking-[0.2em] text-stone-400 font-semibold">
+                      Aperçu en plein écran
+                    </div>
+                    <div className="text-[14px] font-semibold mt-0.5 truncate">{client.name}</div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button type="button" onClick={refresh} title="Rafraîchir"
+                      style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center">
+                      <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+                    </button>
+                    <button type="button" onClick={openTab} style={neu.raisedXs}
+                      className="px-3 py-1.5 rounded-full text-[11.5px] flex items-center gap-1.5">
+                      <ExternalLink size={11} /> Nouvel onglet
+                    </button>
+                    <button type="button" onClick={() => setExpanded(false)} style={neu.raisedXs}
+                      className="w-9 h-9 rounded-full flex items-center justify-center">
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 min-h-0">{renderFrame(true)}</div>
+              </div>
+            </div>
+          )}
+        </>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
        📸 MEDIA TAB
        ════════════════════════════════════════════════════════════ */
     /* ════════════════════════════════════════════════════════════
@@ -1102,7 +1309,16 @@
             </div>
           </div>
 
-          {editing && <EventPageForm clientId={clientId} client={client} {...editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+          {editing && (
+            <EventPageForm
+              clientId={clientId}
+              client={client}
+              {...editing}
+              onClose={() => setEditing(null)}
+              onSaved={() => { setEditing(null); load(); }}
+              onSavedQuiet={() => load()}
+            />
+          )}
         </div>
       );
     }
@@ -1193,23 +1409,43 @@
       return Object.assign(base, { date: '', lieu: '', dateISO: '' });
     }
 
-    function EventPageForm({ clientId, client, page_type, config, id, onClose, onSaved }) {
+    function EventPageForm({ clientId, client, page_type, config, id: initialId, onClose, onSaved, onSavedQuiet }) {
       const [c, setC] = useState(config);
       const [loading, setLoading] = useState(false);
+      const [pageId, setPageId] = useState(initialId);          // bumped to real id after first insert
+      const [savedVersion, setSavedVersion] = useState(initialId ? 1 : 0);
+      const [savedAt, setSavedAt] = useState(null);
       const isPhotos = page_type === 'photos';
       const isAnniversary = !isPhotos && client.universe === 'anniversaire-mariage';
       const isEngagement  = !isPhotos && client.universe === 'fiancailles';
 
-      const submit = async (e) => {
-        e.preventDefault();
+      const performSave = async ({ stayOpen }) => {
         setLoading(true);
         const payload = { client_id: clientId, page_type, config: c };
-        const result = id
-          ? await sb.from('event_pages').update(payload).eq('id', id)
-          : await sb.from('event_pages').insert(payload);
-        if (!result.error) onSaved();
-        else { alert(result.error.message); setLoading(false); }
+        const result = pageId
+          ? await sb.from('event_pages').update(payload).eq('id', pageId).select().single()
+          : await sb.from('event_pages').insert(payload).select().single();
+
+        if (result.error) {
+          alert(result.error.message);
+          setLoading(false);
+          return;
+        }
+        if (!pageId && result.data?.id) setPageId(result.data.id);
+        setSavedVersion(v => v + 1);
+        setSavedAt(Date.now());
+        setLoading(false);
+
+        if (stayOpen) {
+          // Refresh parent list silently, keep modal open so preview can refresh
+          (onSavedQuiet || onSaved)?.();
+        } else {
+          onSaved();
+        }
       };
+
+      const submit = (e) => { e.preventDefault(); performSave({ stayOpen: false }); };
+      const saveAndStay = () => performSave({ stayOpen: true });
 
       const updateConfig = (key, value) => setC({ ...c, [key]: value });
 
@@ -1224,7 +1460,23 @@
         : 'Lecteur vidéo';
 
       return (
-        <Modal title={formTitle} kicker={id ? 'Édition' : 'Nouvelle page'} onClose={onClose} size="lg">
+        <Modal title={formTitle} kicker={pageId ? 'Édition' : 'Nouvelle page'} onClose={onClose} size="lg">
+          {/* ─── Aperçu en direct ─── */}
+          <div className="mb-5">
+            <LivePreviewPanel
+              client={client}
+              pageType={page_type}
+              version={savedVersion}
+              disabled={!pageId}
+              disabledHint="Cliquez sur « Créer la page » pour activer l'aperçu en direct."
+            />
+            {savedAt && (Date.now() - savedAt < 3500) && (
+              <div className="mt-2 text-[11.5px] text-emerald-600 flex items-center gap-1.5">
+                <CheckCircle2 size={12} /> Modifications enregistrées · aperçu mis à jour
+              </div>
+            )}
+          </div>
+
           <form onSubmit={submit} className="space-y-4">
             <Field label="Couple / Client">
               <Input required value={c.couple || ''} onChange={e => updateConfig('couple', e.target.value)} placeholder="Précieuse & Ronny" />
@@ -1687,10 +1939,18 @@
               </>
             )}
 
-            <div className="flex gap-3 pt-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-3">
               <Btn onClick={onClose} full>Annuler</Btn>
+              <Btn
+                onClick={saveAndStay}
+                disabled={loading}
+                icon={loading ? Loader2 : RefreshCw}
+                full
+              >
+                {loading ? 'Enregistrement…' : 'Enregistrer & continuer'}
+              </Btn>
               <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
-                {loading ? 'Enregistrement…' : (id ? 'Mettre à jour' : 'Créer la page')}
+                {loading ? 'Enregistrement…' : (pageId ? 'Mettre à jour' : 'Créer la page')}
               </Btn>
             </div>
           </form>

@@ -161,6 +161,27 @@ const DarkToggle = ({ isDark, onToggle }) => {
   );
 };
 
+// ---------- Date helpers (locale-aware, UTC-safe) ----------
+const MONTHS_FR_SHORT = ['Janv','Févr','Mars','Avr','Mai','Juin','Juil','Août','Sept','Oct','Nov','Déc'];
+const MONTHS_FR_LONG  = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+// Parse 'YYYY-MM-DD' as a *local* midnight Date. Using new Date(str) directly
+// would parse it as UTC and shift the calendar day in negative-offset zones.
+function parseShootDate(value) {
+  if (value instanceof Date) return value;
+  if (typeof value !== 'string') return null;
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return new Date(+m[1], +m[2] - 1, +m[3]);
+}
+
+const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+const sameDay = (a, b) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth()    === b.getMonth() &&
+  a.getDate()     === b.getDate();
+const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
 // ---------- Mock data ----------
 const CLIENTS = [
   { id: 1, name: 'Maison Lumière', sector: 'Hôtellerie de luxe', logo: '🏛', color: '#1a1a1d', initials: 'ML', joined: 'Janv. 2024', mediaCount: 142, invoiceTotal: 12400, status: 'actif' },
@@ -212,13 +233,14 @@ const FOLLOWER_GROWTH = [
 ];
 
 const SHOOTS = [
-  { id: 1, date: 4, title: 'Shooting éditorial — Maison Lumière', time: '09:00 — 16:00', location: 'Studio Bastille, Paris 11', team: 4, type: 'photo' },
-  { id: 2, date: 8, title: 'Tournage spot — Atelier Onze', time: '08:00 — 18:00', location: 'Loft République', team: 7, type: 'video' },
-  { id: 3, date: 12, title: 'Shooting produit — Côté Jardin', time: '10:00 — 14:00', location: 'Studio Maison', team: 3, type: 'photo' },
-  { id: 4, date: 15, title: 'Interview fondateur — Studio Belmont', time: '14:00 — 17:00', location: 'Bureau client', team: 3, type: 'video' },
-  { id: 5, date: 20, title: 'Reels lifestyle — Atelier Onze', time: '11:00 — 16:00', location: 'Marais', team: 5, type: 'video' },
-  { id: 6, date: 23, title: 'Campagne extérieure — Maison Lumière', time: '07:00 — 13:00', location: 'Versailles', team: 6, type: 'photo' },
-  { id: 7, date: 28, title: 'Podcast vidéo — Côté Jardin', time: '15:00 — 18:00', location: 'Studio Voltaire', team: 4, type: 'video' },
+  { id: 1, date: '2026-04-04', title: 'Shooting éditorial — Maison Lumière',    time: '09:00 — 16:00', location: 'Studio Bastille, Paris 11', team: 4, type: 'photo' },
+  { id: 2, date: '2026-04-08', title: 'Tournage spot — Atelier Onze',           time: '08:00 — 18:00', location: 'Loft République',          team: 7, type: 'video' },
+  { id: 3, date: '2026-04-12', title: 'Shooting produit — Côté Jardin',         time: '10:00 — 14:00', location: 'Studio Maison',            team: 3, type: 'photo' },
+  { id: 4, date: '2026-04-15', title: 'Interview fondateur — Studio Belmont',   time: '14:00 — 17:00', location: 'Bureau client',            team: 3, type: 'video' },
+  { id: 5, date: '2026-04-20', title: 'Reels lifestyle — Atelier Onze',         time: '11:00 — 16:00', location: 'Marais',                   team: 5, type: 'video' },
+  { id: 6, date: '2026-04-23', title: 'Campagne extérieure — Maison Lumière',   time: '07:00 — 13:00', location: 'Versailles',               team: 6, type: 'photo' },
+  { id: 7, date: '2026-04-28', title: 'Podcast vidéo — Côté Jardin',            time: '15:00 — 18:00', location: 'Studio Voltaire',          team: 4, type: 'video' },
+  { id: 8, date: '2026-09-26', title: 'Tournage Mariage — Gaëlle & Johan',      time: 'Toute la journée', location: 'À définir',             team: 1, type: 'video', allDay: true },
 ];
 
 // ---------- Small UI atoms ----------
@@ -453,11 +475,16 @@ const ClientDashboard = ({ goTo }) => (
         </button>
       </div>
       <div className="space-y-3">
-        {SHOOTS.slice(0, 3).map(s => (
+        {SHOOTS
+          .map(s => ({ ...s, dateObj: parseShootDate(s.date) }))
+          .filter(s => s.dateObj && s.dateObj >= startOfDay(new Date()))
+          .sort((a, b) => a.dateObj - b.dateObj)
+          .slice(0, 3)
+          .map(s => (
           <div key={s.id} style={neu.pressedSm} className="rounded-2xl p-4 flex items-center gap-4">
             <div style={neu.darkSm} className="w-12 h-12 rounded-2xl flex flex-col items-center justify-center text-white">
-              <div className="text-[9px] uppercase tracking-wider text-stone-400">Avr</div>
-              <div className="text-[16px] font-semibold leading-none" style={{ fontFamily: 'Instrument Serif, serif' }}>{s.date}</div>
+              <div className="text-[9px] uppercase tracking-wider text-stone-400">{MONTHS_FR_SHORT[s.dateObj.getMonth()]}</div>
+              <div className="text-[16px] font-semibold leading-none" style={{ fontFamily: 'Instrument Serif, serif' }}>{s.dateObj.getDate()}</div>
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-medium text-[14px] truncate">{s.title}</div>
@@ -816,22 +843,77 @@ const ClientAnalytics = () => {
 
 const ClientCalendar = () => {
   const [viewType, setViewType] = useState('mois');
-  const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-  const monthDays = Array.from({ length: 30 }, (_, i) => i + 1);
-  const offset = 1; // April 1 falls on Tuesday-ish for layout
+  const dayHeaders = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+  // 1) "Today" — stable for the component lifetime, midnight-aligned.
+  const today = useMemo(() => startOfDay(new Date()), []);
+
+  // 2) Parse shoots once, drop invalid rows, sort chronologically.
+  const shoots = useMemo(
+    () => SHOOTS
+      .map(s => ({ ...s, dateObj: parseShootDate(s.date) }))
+      .filter(s => s.dateObj && !isNaN(s.dateObj))
+      .sort((a, b) => a.dateObj - b.dateObj),
+    []
+  );
+
+  // 3) Auto-focus rule: first upcoming shoot's month, else current month.
+  const focusMonth = useMemo(() => {
+    const next = shoots.find(s => s.dateObj >= today);
+    const anchor = next ? next.dateObj : today;
+    return new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  }, [shoots, today]);
+
+  // 4) Cursor = first day of the displayed month.
+  const [cursor, setCursor] = useState(focusMonth);
+  // Re-anchor if the shoot list changes (e.g. data refresh).
+  useEffect(() => { setCursor(focusMonth); }, [focusMonth]);
+
+  const year  = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();      // 28/29/30/31, per month
+  const firstDow = new Date(year, month, 1).getDay();              // 0=Sun..6=Sat
+  const offset = (firstDow + 6) % 7;                               // Monday-first
+
+  const monthLabel = `${capitalize(MONTHS_FR_LONG[month])} ${year}`;
+
+  const prevMonth = useCallback(() => setCursor(new Date(year, month - 1, 1)), [year, month]);
+  const nextMonth = useCallback(() => setCursor(new Date(year, month + 1, 1)), [year, month]);
+
+  // 5) Strict filter: year + month + day (no more day-only collisions).
+  const eventsOn = useCallback(
+    (day) => shoots.filter(s =>
+      s.dateObj.getFullYear() === year &&
+      s.dateObj.getMonth()    === month &&
+      s.dateObj.getDate()     === day
+    ),
+    [shoots, year, month]
+  );
+
+  const upcoming     = useMemo(() => shoots.filter(s => s.dateObj >= today).slice(0, 5), [shoots, today]);
+  const todaysShoots = useMemo(() => shoots.filter(s => sameDay(s.dateObj, today)),       [shoots, today]);
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center"><ChevronLeft size={16} /></button>
-          <h3 className="text-[22px] tracking-tight" style={{ fontFamily: 'Instrument Serif, serif' }}>Avril 2026</h3>
-          <button style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center"><ChevronRight size={16} /></button>
+          <button onClick={prevMonth} aria-label="Mois précédent"
+                  style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center">
+            <ChevronLeft size={16} />
+          </button>
+          <h3 className="text-[22px] tracking-tight min-w-[170px] text-center"
+              style={{ fontFamily: 'Instrument Serif, serif' }}>
+            {monthLabel}
+          </h3>
+          <button onClick={nextMonth} aria-label="Mois suivant"
+                  style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center">
+            <ChevronRight size={16} />
+          </button>
         </div>
         <div className="flex items-center gap-3">
           <div style={neu.raisedXs} className="rounded-full p-1 flex items-center">
             {['jour', 'semaine', 'mois'].map(t => (
-              <Pill key={t} active={viewType === t} onClick={() => setViewType(t)}>{t.charAt(0).toUpperCase() + t.slice(1)}</Pill>
+              <Pill key={t} active={viewType === t} onClick={() => setViewType(t)}>{capitalize(t)}</Pill>
             ))}
           </div>
           <button style={neu.dark} className="px-5 py-2.5 rounded-full text-white text-[13px] font-semibold flex items-center gap-2">
@@ -844,20 +926,20 @@ const ClientCalendar = () => {
         {/* Calendar grid */}
         <div style={neu.raised} className="col-span-8 rounded-[28px] p-6">
           <div className="grid grid-cols-7 gap-2 mb-3">
-            {days.map(d => (
+            {dayHeaders.map(d => (
               <div key={d} className="text-[11px] uppercase tracking-[0.18em] text-stone-400 font-semibold text-center py-2">{d}</div>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-2">
-            {Array.from({ length: offset }).map((_, i) => <div key={`e${i}`} />)}
-            {monthDays.map(day => {
-              const events = SHOOTS.filter(s => s.date === day);
-              const isToday = day === 14;
+            {Array.from({ length: offset }).map((_, i) => <div key={`pad-${i}`} />)}
+            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+              const events  = eventsOn(day);
+              const isToday = year === today.getFullYear() && month === today.getMonth() && day === today.getDate();
               return (
                 <div
                   key={day}
                   style={isToday ? neu.dark : (events.length ? neu.pressedSm : {})}
-                  className={`aspect-square rounded-2xl p-2 flex flex-col ${isToday ? 'text-white' : ''} cursor-pointer hover:scale-[1.02] transition`}
+                  className={`aspect-square rounded-2xl p-2 flex flex-col cursor-pointer hover:scale-[1.02] transition ${isToday ? 'text-white' : ''}`}
                 >
                   <div className={`text-[13px] font-semibold ${isToday ? '' : events.length ? 'text-stone-900' : 'text-stone-400'}`}>
                     {day}
@@ -882,22 +964,38 @@ const ClientCalendar = () => {
           </div>
         </div>
 
-        {/* Today/upcoming */}
+        {/* Today / upcoming */}
         <div className="col-span-4 space-y-4">
           <div style={neu.raised} className="rounded-[24px] p-5">
             <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Aujourd'hui</div>
-            <div className="text-[28px] tracking-tight mt-1 leading-none" style={{ fontFamily: 'Instrument Serif, serif' }}>14 Avril</div>
-            <div className="text-[12px] text-stone-500 mt-1">Aucun tournage prévu — journée de post-production</div>
+            <div className="text-[28px] tracking-tight mt-1 leading-none" style={{ fontFamily: 'Instrument Serif, serif' }}>
+              {today.getDate()} {capitalize(MONTHS_FR_LONG[today.getMonth()])}
+            </div>
+            <div className="text-[12px] text-stone-500 mt-1">
+              {todaysShoots.length === 0
+                ? 'Aucun tournage prévu — journée de post-production'
+                : `${todaysShoots.length} tournage${todaysShoots.length > 1 ? 's' : ''} aujourd'hui`}
+            </div>
           </div>
 
           <div style={neu.raised} className="rounded-[24px] p-5">
             <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-4">Prochains événements</div>
             <div className="space-y-3">
-              {SHOOTS.slice(0, 5).map(s => (
-                <div key={s.id} className="flex gap-3 group cursor-pointer">
-                  <div style={s.type === 'video' ? neu.darkSm : neu.pressedSm} className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center shrink-0 ${s.type === 'video' ? 'text-white' : ''}`}>
-                    <div className={`text-[8px] uppercase tracking-wider ${s.type === 'video' ? 'text-stone-400' : 'text-stone-500'}`}>Avr</div>
-                    <div className="text-[14px] leading-none font-semibold" style={{ fontFamily: 'Instrument Serif, serif' }}>{s.date}</div>
+              {upcoming.length === 0 && (
+                <div className="text-[12px] text-stone-500">Aucun tournage à venir.</div>
+              )}
+              {upcoming.map(s => (
+                <div key={s.id}
+                     onClick={() => setCursor(new Date(s.dateObj.getFullYear(), s.dateObj.getMonth(), 1))}
+                     className="flex gap-3 group cursor-pointer">
+                  <div style={s.type === 'video' ? neu.darkSm : neu.pressedSm}
+                       className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center shrink-0 ${s.type === 'video' ? 'text-white' : ''}`}>
+                    <div className={`text-[8px] uppercase tracking-wider ${s.type === 'video' ? 'text-stone-400' : 'text-stone-500'}`}>
+                      {MONTHS_FR_SHORT[s.dateObj.getMonth()]}
+                    </div>
+                    <div className="text-[14px] leading-none font-semibold" style={{ fontFamily: 'Instrument Serif, serif' }}>
+                      {s.dateObj.getDate()}
+                    </div>
                   </div>
                   <div className="flex-1 min-w-0 pt-0.5">
                     <div className="font-medium text-[12.5px] truncate">{s.title}</div>
@@ -1273,59 +1371,87 @@ const AdminBilling = () => (
   </div>
 );
 
-const AdminPlanning = () => (
-  <div className="space-y-5">
-    <div className="grid grid-cols-4 gap-4">
-      <StatCard dark label="Tournages ce mois" value="12" delta="+3 vs mars" deltaUp />
-      <StatCard label="Heures planifiées" value="186 h" />
-      <StatCard label="Équipes mobilisées" value="32" delta="techniciens" />
-      <StatCard label="Lieux de tournage" value="9" />
-    </div>
+const AdminPlanning = () => {
+  const today = useMemo(() => startOfDay(new Date()), []);
 
-    <div style={neu.raised} className="rounded-[28px] p-7">
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Planning consolidé</div>
-          <h3 className="text-[22px] tracking-tight mt-1" style={{ fontFamily: 'Instrument Serif, serif' }}>Tous les tournages — Avril</h3>
+  // Group all shoots by year+month, sort chronologically.
+  const shoots = useMemo(
+    () => SHOOTS
+      .map(s => ({ ...s, dateObj: parseShootDate(s.date) }))
+      .filter(s => s.dateObj && !isNaN(s.dateObj))
+      .sort((a, b) => a.dateObj - b.dateObj),
+    []
+  );
+
+  // Active month for the header: next month containing an upcoming shoot,
+  // else the current calendar month.
+  const activeMonth = useMemo(() => {
+    const next = shoots.find(s => s.dateObj >= today);
+    return next ? next.dateObj : today;
+  }, [shoots, today]);
+
+  const headerMonthLabel = capitalize(MONTHS_FR_LONG[activeMonth.getMonth()]);
+
+  // Show shoots from the active month onward (upcoming-first view).
+  const visibleShoots = shoots.filter(s =>
+    (s.dateObj.getFullYear() > activeMonth.getFullYear()) ||
+    (s.dateObj.getFullYear() === activeMonth.getFullYear() && s.dateObj.getMonth() >= activeMonth.getMonth())
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-4 gap-4">
+        <StatCard dark label="Tournages ce mois" value="12" delta="+3 vs mars" deltaUp />
+        <StatCard label="Heures planifiées" value="186 h" />
+        <StatCard label="Équipes mobilisées" value="32" delta="techniciens" />
+        <StatCard label="Lieux de tournage" value="9" />
+      </div>
+
+      <div style={neu.raised} className="rounded-[28px] p-7">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Planning consolidé</div>
+            <h3 className="text-[22px] tracking-tight mt-1" style={{ fontFamily: 'Instrument Serif, serif' }}>Tous les tournages — {headerMonthLabel}</h3>
+          </div>
+          <button style={neu.dark} className="px-5 py-2.5 rounded-full text-white text-[13px] font-semibold flex items-center gap-2">
+            <Plus size={14} /> Programmer un tournage
+          </button>
         </div>
-        <button style={neu.dark} className="px-5 py-2.5 rounded-full text-white text-[13px] font-semibold flex items-center gap-2">
-          <Plus size={14} /> Programmer un tournage
-        </button>
-      </div>
 
-      <div className="space-y-2.5">
-        {SHOOTS.map(s => {
-          const client = CLIENTS.find(c => s.title.includes(c.name));
-          return (
-            <div key={s.id} style={neu.pressedSm} className="rounded-2xl p-4 flex items-center gap-4">
-              <div style={s.type === 'video' ? neu.dark : neu.raisedXs} className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0 ${s.type === 'video' ? 'text-white' : 'text-stone-700'}`}>
-                <div className={`text-[9px] uppercase tracking-wider ${s.type === 'video' ? 'text-stone-400' : 'text-stone-400'}`}>Avr</div>
-                <div className="text-[18px] leading-none font-semibold" style={{ fontFamily: 'Instrument Serif, serif' }}>{s.date}</div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="font-medium text-[14px]">{s.title}</div>
-                  <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-md font-semibold ${s.type === 'video' ? 'bg-stone-900 text-white' : 'bg-stone-300 text-stone-700'}`}>
-                    {s.type}
-                  </span>
+        <div className="space-y-2.5">
+          {visibleShoots.map(s => {
+            const client = CLIENTS.find(c => s.title.includes(c.name));
+            return (
+              <div key={s.id} style={neu.pressedSm} className="rounded-2xl p-4 flex items-center gap-4">
+                <div style={s.type === 'video' ? neu.dark : neu.raisedXs} className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0 ${s.type === 'video' ? 'text-white' : 'text-stone-700'}`}>
+                  <div className={`text-[9px] uppercase tracking-wider ${s.type === 'video' ? 'text-stone-400' : 'text-stone-400'}`}>{MONTHS_FR_SHORT[s.dateObj.getMonth()]}</div>
+                  <div className="text-[18px] leading-none font-semibold" style={{ fontFamily: 'Instrument Serif, serif' }}>{s.dateObj.getDate()}</div>
                 </div>
-                <div className="flex items-center gap-4 mt-1.5 text-[11px] text-stone-500">
-                  <span className="flex items-center gap-1"><Clock size={11} /> {s.time}</span>
-                  <span className="flex items-center gap-1"><MapPin size={11} /> {s.location}</span>
-                  <span className="flex items-center gap-1"><Users size={11} /> {s.team} pers.</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2.5">
+                    <div className="font-medium text-[14px]">{s.title}</div>
+                    <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-md font-semibold ${s.type === 'video' ? 'bg-stone-900 text-white' : 'bg-stone-300 text-stone-700'}`}>
+                      {s.type}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 mt-1.5 text-[11px] text-stone-500">
+                    <span className="flex items-center gap-1"><Clock size={11} /> {s.time}</span>
+                    <span className="flex items-center gap-1"><MapPin size={11} /> {s.location}</span>
+                    <span className="flex items-center gap-1"><Users size={11} /> {s.team} pers.</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center"><Edit3 size={13} /></button>
+                  <button style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center"><MoreHorizontal size={14} /></button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center"><Edit3 size={13} /></button>
-                <button style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center"><MoreHorizontal size={14} /></button>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ---------- ROOT ----------
 export default function App() {

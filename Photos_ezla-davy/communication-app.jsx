@@ -18,18 +18,14 @@ import {
   Play, X, MessageCircle, Check, AlertCircle, RefreshCw, ArrowUpRight,
   Instagram, Facebook, Youtube, Sparkles, ArrowRight, Clock, MapPin,
   Grid, List, Send, ThumbsUp, Loader2, Camera, Video as VideoIcon,
-  CheckCircle2, MessageSquare, Maximize2, FolderOpen,
-  FileText as FileTextIcon,
-  // ━━━ Analytics v2 ━━━
-  Hash, Zap, Target, DollarSign, MousePointerClick, TrendingUp, TrendingDown,
-  Eye as EyeIcon, Bookmark, Plus, ExternalLink, AlertTriangle,
-  Award, Activity, Layers, Heart, Users
+  CheckCircle2, MessageSquare, Maximize2, FolderOpen, FileText as FileTextIcon,
+  Zap, TrendingUp, TrendingDown, Target, Users, Layers, Eye, Heart, 
+  DollarSign, MousePointerClick, Award, Hash, ExternalLink, AlertTriangle, User
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
-  // ━━━ Analytics v2 ━━━
-  LineChart, Line, ComposedChart, ReferenceLine, Legend
+  LineChart, Line, ComposedChart
 } from 'recharts';
 
 // — Config Supabase injectée par Vite depuis .env (variables VITE_*)
@@ -192,22 +188,6 @@ const DarkToggle = ({ isDark, onToggle }) => {
   );
 };
 const SERIF = { fontFamily: 'Instrument Serif, serif', fontWeight: 400 };
-
-// ━━━ Helpers de format pour Analytics v2 ━━━
-const fmtNum = (n) => {
-  if (n == null || n === '') return '—';
-  const v = Number(n);
-  if (!isFinite(v)) return '—';
-  if (Math.abs(v) >= 1_000_000) return (v / 1_000_000).toFixed(1).replace('.', ',') + 'M';
-  if (Math.abs(v) >= 10_000)    return (v / 1_000).toFixed(1).replace('.', ',') + 'k';
-  if (Math.abs(v) >= 1_000)     return v.toLocaleString('fr-FR');
-  return String(v);
-};
-const fmtPct   = (n, d = 1) => n == null ? '—' : `${Number(n).toFixed(d).replace('.', ',')}%`;
-const fmtMoney = (n, c = 'EUR') => n == null ? '—' : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: c, maximumFractionDigits: 0 }).format(n);
-const fmtDate  = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—';
-const platformColor = (p) => ({ instagram: '#E1306C', tiktok: '#000000', facebook: '#1877F2', youtube: '#FF0000' }[p] || '#71717a');
-const platformLabel = (p) => ({ instagram: 'Instagram', tiktok: 'TikTok', facebook: 'Facebook', youtube: 'YouTube' }[p] || p);
 
 // ────────────────────────────────────────────────────────────
 // 🛠 HELPERS — détection player + format
@@ -1749,182 +1729,135 @@ const Documents = () => {
   );
 };
 
-/* ════════════════════════════════════════════════════════════
-   📊  ANALYTICS v2 — Module Vite/Tailwind v4
-   ════════════════════════════════════════════════════════════
-   Drop-in remplaçant le composant Analytics actuel
-   (lignes 1732-1879 de communication-app.jsx).
+// ────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────
+// 📊 SOCIAL ANALYTICS v2
+// ────────────────────────────────────────────────────────────
 
-   Compatible avec l'architecture migrée :
-     ▸ Vite 5 + @vitejs/plugin-react (Babel)
-     ▸ Tailwind CSS v4 via @tailwindcss/vite (scan AOT auto)
-     ▸ Imports ESM natifs (lucide-react, recharts bundlés)
-     ▸ Supabase via const sb = window.__SUPABASE (déjà initialisé
-       par communication-dashboard.html)
-     ▸ CLIENT.id lu depuis window.CLIENT_DATA.id
-     ▸ Variables env : SUPABASE_URL / SUPABASE_ANON_KEY
-       déjà disponibles en haut du fichier parent
+const fmtNum = (n) => {
+  if (n == null || n === '') return '—';
+  const v = Number(n);
+  if (!isFinite(v)) return '—';
+  if (Math.abs(v) >= 1_000_000) return (v / 1_000_000).toFixed(1).replace('.', ',') + 'M';
+  if (Math.abs(v) >= 10_000)    return (v / 1_000).toFixed(1).replace('.', ',') + 'k';
+  if (Math.abs(v) >= 1_000)     return v.toLocaleString('fr-FR');
+  return String(v);
+};
+const fmtPct   = (n, d = 1) => n == null ? '—' : `${Number(n).toFixed(d).replace('.', ',')}%`;
+const fmtMoney = (n, c = 'EUR') => n == null ? '—' : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: c, maximumFractionDigits: 0 }).format(n);
+const fmtDate  = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—';
+const platformColor = (p) => ({ instagram: '#E1306C', tiktok: '#000000', facebook: '#1877F2' }[p] || '#71717a');
+const platformLabel = (p) => ({ instagram: 'Instagram', tiktok: 'TikTok', facebook: 'Facebook' }[p] || p);
+const platformIcon  = (p) => ({ instagram: 'instagram', tiktok: 'sparkles', facebook: 'facebook' }[p] || 'sparkles');
 
-   ────────────────────────────────────────────────────────────
-   ⚠️  Ce fichier N'EST PAS un module ESM autonome.
-       Il s'insère DANS communication-app.jsx, et réutilise :
-         • neu, NEU_LIGHT, NEU_DARK     (styles)
-         • SERIF                         (typo)
-         • Pill, StatCard                (atoms)
-         • sb, D, CLIENT                 (données runtime)
-         • SUPABASE_URL/SUPABASE_ANON_KEY pour les Edge Functions
-   ════════════════════════════════════════════════════════════ */
-
-
-/* ────────────────────────────────────────────────────────────
-   📦  IMPORTS À AJOUTER EN HAUT DE communication-app.jsx
-   ────────────────────────────────────────────────────────────
-
-   La migration Vite a déjà supprimé toutes les références CDN.
-   On étend uniquement les blocs d'import lucide-react et
-   recharts existants. Pas de nouvelle dépendance npm requise.
-
-   REMPLACE la liste lucide-react actuelle (lignes 15-22)
-   par la suivante (les nouveaux imports sont marqués │NEW│) :
-
-   import {
-     Home, Image as ImageIcon, FileText, BarChart3, Calendar as CalendarIcon,
-     LogOut, Search, Bell, Filter, Download, ChevronLeft, ChevronRight,
-     Play, X, MessageCircle, Check, AlertCircle, RefreshCw, ArrowUpRight,
-     Instagram, Facebook, Youtube, Sparkles, ArrowRight, Clock, MapPin,
-     Grid, List, Send, ThumbsUp, Loader2, Camera, Video as VideoIcon,
-     CheckCircle2, MessageSquare, Maximize2, FolderOpen,
-     FileText as FileTextIcon,
-     // │NEW│ — Analytics v2
-     Hash, Zap, Target, DollarSign, MousePointerClick, TrendingUp,
-     TrendingDown, Eye as EyeIcon, Bookmark, Plus, ExternalLink,
-     AlertTriangle, Award, Activity, Layers, Heart, Users
-   } from 'lucide-react';
-
-   REMPLACE la liste recharts actuelle (lignes 23-26) par :
-
-   import {
-     BarChart, Bar, AreaChart, Area, XAxis, YAxis,
-     CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
-     // │NEW│ — Analytics v2
-     LineChart, Line, ComposedChart, ReferenceLine, Legend
-   } from 'recharts';
-   ──────────────────────────────────────────────────────────── */
-
-
-
-
-
-/* ════════════════════════════════════════════════════════════
-   🪝 HOOK : useSocialData
-   ────────────────────────────────────────────────────────────
-   Charge les données du client depuis Supabase. S'appuie sur
-   le client `sb` déjà initialisé en haut de communication-app.jsx.
-   ════════════════════════════════════════════════════════════ */
-const useSocialData = (clientId, { platform = 'all', range = '30j' } = {}) => {
-  const [state, setState] = useState({
-    loading: true, accounts: [], posts: [], campaigns: [], alerts: [], insights: null
-  });
-
-  useEffect(() => {
-    if (!sb || !clientId) {
-      setState(s => ({ ...s, loading: false }));
-      return;
-    }
-    let cancelled = false;
-
-    const since = (() => {
-      const d = new Date();
-      const days = { '24h': 1, '7j': 7, '30j': 30, '12m': 365 }[range] || 30;
-      d.setDate(d.getDate() - days);
-      return d.toISOString();
-    })();
-
-    (async () => {
-      setState(s => ({ ...s, loading: true }));
-
-      try {
-        const [accountsRes, postsRes, campaignsRes, alertsRes, insightsRes] = await Promise.all([
-          sb.from('v_social_accounts_public').select('*').eq('client_id', clientId).eq('active', true),
-          sb.from('social_posts').select('*').eq('client_id', clientId).gte('published_at', since).order('published_at', { ascending: false }),
-          sb.from('v_campaign_kpis').select('*').eq('client_id', clientId).order('start_date', { ascending: false }),
-          sb.from('social_alerts').select('*').eq('client_id', clientId).is('acknowledged_at', null).order('created_at', { ascending: false }).limit(5),
-          sb.from('ai_insights').select('*').eq('client_id', clientId).eq('scope', 'weekly_summary').order('created_at', { ascending: false }).limit(1).maybeSingle(),
-        ]);
-
-        if (cancelled) return;
-
-        // Pour chaque campagne, récupérer la liste des post_ids associés
-        const campaigns = campaignsRes.data || [];
-        if (campaigns.length > 0) {
-          const { data: links } = await sb
-            .from('campaign_posts')
-            .select('campaign_id, post_id, ad_spend, role')
-            .in('campaign_id', campaigns.map(c => c.campaign_id));
-          campaigns.forEach(c => {
-            c.post_ids = (links || []).filter(l => l.campaign_id === c.campaign_id).map(l => l.post_id);
-          });
-        }
-
-        setState({
-          loading: false,
-          accounts: accountsRes.data || [],
-          posts: (postsRes.data || []).filter(p => platform === 'all' || p.platform === platform),
-          campaigns,
-          alerts: alertsRes.data || [],
-          insights: insightsRes.data || null,
-        });
-      } catch (err) {
-        console.error('[Analytics v2] data load failed:', err);
-        if (!cancelled) setState(s => ({ ...s, loading: false }));
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [clientId, platform, range]);
-
-  return state;
+const IconMap = {
+  'zap': Zap, 'trending-up': TrendingUp, 'trending-down': TrendingDown, 'target': Target,
+  'users': Users, 'layers': Layers, 'eye': Eye, 'heart': Heart, 'dollar-sign': DollarSign,
+  'mouse-pointer-click': MousePointerClick, 'award': Award, 'hash': Hash,
+  'external-link': ExternalLink, 'alert-triangle': AlertTriangle, 'alert-circle': AlertCircle,
+  'sparkles': Sparkles, 'instagram': Instagram, 'facebook': Facebook, 'bar-chart-3': BarChart3,
+  'user': User
 };
 
+const DynamicIcon = ({ name, size = 16, className = '', style = {} }) => {
+  const Comp = IconMap[name] || AlertCircle;
+  return <Comp size={size} className={className} style={style} strokeWidth={1.8} />;
+};
 
-/* ════════════════════════════════════════════════════════════
-   🎨 ATOMS supplémentaires
-   ──────────────────────────────────────────────────────────── */
+const MOCK_ACCOUNTS = [
+  { id: 'a1', platform: 'instagram', account_name: 'maison.lumiere',    follower_count: 24300, total_posts: 412, sync_status: 'ok', last_sync_at: new Date(Date.now() - 12 * 60_000).toISOString() },
+  { id: 'a2', platform: 'tiktok',    account_name: 'maisonlumiere_off', follower_count: 8920,  total_posts: 87,  sync_status: 'ok', last_sync_at: new Date(Date.now() -  9 * 60_000).toISOString() },
+];
 
-const MetricTile = ({ icon: IconComp, label, value, sub, tone = 'neutral' }) => {
-  const toneClasses = {
-    neutral: 'text-stone-500',
-    good:    'text-emerald-600',
-    bad:     'text-rose-600',
-    warn:    'text-amber-600',
-  };
+const CAPTIONS = [
+  "Coulisses du shooting hôtel Le Bristol · jour 2 ☀️",
+  "5 lieux insolites à Paris cette semaine — l'adresse #3 va vous surprendre",
+  "Le making-of du défilé Maison Lumière FW26",
+  "Comment nous avons éclairé cette scène en 3 minutes",
+  "Quand le client demande 'naturel mais professionnel' 😅"
+];
+const HASHTAGS_POOL = [['paris','bts','behindthescenes','filmmaking'], ['hotellerie','luxehotel','lifestyle','luxurytravel'], ['videoproduction','reels','viralreels','contentcreator']];
+const randHashtags = () => HASHTAGS_POOL[Math.floor(Math.random() * HASHTAGS_POOL.length)];
+
+const buildPosts = () => {
+  const out = []; const now = Date.now();
+  for (let i = 0; i < 32; i++) {
+    const platform = Math.random() > 0.45 ? 'instagram' : 'tiktok';
+    const post_type = platform === 'tiktok' ? 'tiktok_video' : (['reel', 'carousel', 'image', 'reel', 'reel'][Math.floor(Math.random() * 5)]);
+    const daysAgo = Math.floor(Math.random() * 30); const reach = Math.floor((post_type === 'reel' || post_type === 'tiktok_video' ? 8000 : 2500) + Math.random() * 45000);
+    const er = (post_type === 'tiktok_video' ? 4.5 : 3.2) + (Math.random() * 4 - 1.5);
+    const total_eng = Math.floor(reach * er / 100);
+    const likes = Math.floor(total_eng * 0.72); const comments = Math.floor(total_eng * 0.06); const shares = Math.floor(total_eng * 0.05); const saves = Math.floor(total_eng - likes - comments - shares);
+    const isVideo = post_type === 'reel' || post_type === 'tiktok_video'; const dur = isVideo ? Math.floor(15 + Math.random() * 60) : null;
+    out.push({
+      id: 'p' + i, platform, post_type, published_at: new Date(now - daysAgo * 86400_000).toISOString(),
+      caption: CAPTIONS[i % CAPTIONS.length], thumbnail_url: `https://picsum.photos/seed/post${i}/200/200`,
+      hashtags: randHashtags(), duration_seconds: dur, reach, impressions: Math.floor(reach * 1.25),
+      reach_from_followers: Math.floor(reach * 0.55), reach_from_non_followers: 0, likes, comments, shares, saves,
+      views: isVideo ? Math.floor(reach * 1.5) : null, plays: isVideo && platform === 'instagram' ? Math.floor(reach * 1.5) : null,
+      engagement_rate: +er.toFixed(2), save_rate: +(saves / reach * 100).toFixed(2), velocity_score: +(Math.random() * 4).toFixed(2),
+    });
+  }
+  out.forEach(p => { p.reach_from_non_followers = p.reach - p.reach_from_followers; });
+  return out.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+};
+const MOCK_POSTS = buildPosts();
+
+const MOCK_CAMPAIGNS = [
+  {
+    campaign_id: 'c1', name: 'Lancement collection FW26', slug: 'fw26', objective: 'awareness', status: 'active', start_date: '2026-04-15', end_date: '2026-05-31', budget_total: 5000, currency: 'EUR',
+    landing_url: 'https://maison-lumiere.fr/fw26', utm_params: { source: 'instagram', medium: 'paid_social', campaign: 'fw26-launch' },
+    post_ids: MOCK_POSTS.slice(0, 8).map(p => p.id), total_revenue: 14250, total_conversions: 87, posts_count: 8, total_reach: 184320, total_impressions: 248500, total_engagements: 9842, total_clicks: 1247,
+    total_ad_spend: 3400, avg_engagement_rate: 5.34, cpm: 13.68, cpc: 2.73, cpe: 0.35, cpa: 39.08, conversion_rate: 6.98, roas: 4.19, roi: 319.1,
+  },
+  {
+    campaign_id: 'c2', name: 'Sensibilisation tournages BTS', slug: 'bts-summer', objective: 'engagement', status: 'active', start_date: '2026-05-01', end_date: '2026-06-30', budget_total: 1800, currency: 'EUR',
+    post_ids: MOCK_POSTS.slice(8, 14).map(p => p.id), total_revenue: 3200, total_conversions: 24, posts_count: 6, total_reach: 96800, total_impressions: 124000, total_engagements: 6420, total_clicks: 489,
+    total_ad_spend: 980, avg_engagement_rate: 6.63, cpm: 7.90, cpc: 2.00, cpe: 0.15, cpa: 40.83, conversion_rate: 4.91, roas: 3.27, roi: 226.5,
+  }
+];
+
+const MOCK_ALERTS = [
+  { id: 'al1', kind: 'viral_post',     severity: 'success', title: 'Reel #14 part en viral',         body: '+340% d\'engagement vs vos moyennes — pensez à booster.' },
+  { id: 'al2', kind: 'spend_pace',     severity: 'warning', title: 'Budget FW26 à 68% consommé',     body: 'Au rythme actuel, épuisé 5 jours avant la fin.' },
+];
+const MOCK_INSIGHTS = {
+  headline: 'Vos contenus vidéos performent 3,2× mieux que les photos sur TikTok cette semaine.',
+  body: 'Les Reels de coulisses publiés mercredi et samedi génèrent 62 % du reach total. Le format court (< 30 s) bat le format long sur les deux plateformes.',
+  period_start: new Date(Date.now() - 7 * 86400_000).toISOString(),
+  recommendations: [
+    { title: 'Doubler la cadence Reels', body: 'Passez à 3 Reels/semaine en gardant le format coulisses.' },
+    { title: 'Tester un format interview', body: 'Format vertical 45 s, jeudi 18 h — créneau le plus engageant.' }
+  ],
+};
+
+const MetricTile = ({ iconName, label, value, sub, tone = 'neutral' }) => {
+  const t = { neutral: 'text-stone-500', good: 'text-emerald-600', bad: 'text-rose-600', warn: 'text-amber-600' };
   return (
     <div style={neu.raisedXs} className="rounded-2xl p-4">
       <div className="flex items-center gap-2 mb-2">
-        <IconComp size={13} className="text-stone-400" />
+        <DynamicIcon name={iconName} size={13} />
         <span className="text-[10.5px] uppercase tracking-[0.15em] text-stone-400 font-semibold">{label}</span>
       </div>
       <div className="text-[22px] tracking-tight leading-none" style={SERIF}>{value}</div>
-      {sub && <div className={`text-[11px] mt-2 leading-tight ${toneClasses[tone]}`}>{sub}</div>}
+      {sub && <div className={`text-[11px] mt-2 leading-tight ${t[tone]}`}>{sub}</div>}
     </div>
   );
 };
 
 const VelocityBadge = ({ score }) => {
   if (score == null) return null;
-  if (score >= 3)   return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700"><Zap size={10}/> VIRAL</span>;
-  if (score >= 1.5) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700"><TrendingUp size={10}/> TENDANCE</span>;
-  if (score < 0.5)  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-stone-100 text-stone-500"><TrendingDown size={10}/> Sous moyenne</span>;
+  if (score >= 3)   return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700"><DynamicIcon name="zap" size={10}/> VIRAL</span>;
+  if (score >= 1.5) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700"><DynamicIcon name="trending-up" size={10}/> TENDANCE</span>;
+  if (score < 0.5)  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-stone-100 text-stone-500"><DynamicIcon name="trending-down" size={10}/> Sous moyenne</span>;
   return null;
 };
 
 const PlatformBadge = ({ platform, size = 'sm' }) => {
-  const IconMap = { instagram: Instagram, tiktok: Sparkles, facebook: Facebook, youtube: Youtube };
-  const IconComp = IconMap[platform] || Sparkles;
   const px = size === 'lg' ? 16 : 12;
   return (
     <span className="inline-flex items-center gap-1.5">
-      <IconComp size={px} style={{ color: platformColor(platform) }} />
+      <DynamicIcon name={platformIcon(platform)} size={px} style={{ color: platformColor(platform) }} />
       {size === 'lg' && <span className="text-[12px] font-medium">{platformLabel(platform)}</span>}
     </span>
   );
@@ -1938,115 +1871,17 @@ const Metric = ({ label, value, sub, highlight }) => (
   </div>
 );
 
-
-/* ════════════════════════════════════════════════════════════
-   📊  COMPOSANT PRINCIPAL — remplace l'ancien Analytics
-   ════════════════════════════════════════════════════════════ */
-const Analytics = () => {
-  const [platform, setPlatform]   = useState('all');
-  const [timeRange, setTimeRange] = useState('30j');
-  const [tab, setTab]             = useState('overview');
-
-  // CLIENT.id provient de window.CLIENT_DATA.id (peuplé par
-  // communication-dashboard.html avant l'import dynamique de ce fichier)
-  const clientId = D.id;
-
-  const { loading, accounts, posts, campaigns, alerts, insights } =
-    useSocialData(clientId, { platform, range: timeRange });
-
-  const kpis = useMemo(() => {
-    if (!posts.length) return null;
-    const sum = (k) => posts.reduce((s, p) => s + (Number(p[k]) || 0), 0);
-    const totalReach        = sum('reach');
-    const totalEngagements  = posts.reduce((s, p) =>
-      s + (+p.likes || 0) + (+p.comments || 0) + (+p.shares || 0) + (+p.saves || 0), 0);
-    const totalImpressions  = sum('impressions');
-    const totalSaves        = sum('saves');
-    const totalClicks       = sum('website_clicks');
-    const avgER             = totalReach > 0 ? (totalEngagements / totalReach * 100) : null;
-    const nfReachWeighted   = sum('reach_from_non_followers');
-    const nfPct             = totalReach > 0 ? (nfReachWeighted / totalReach * 100) : null;
-    return { totalReach, totalEngagements, totalImpressions, totalSaves, totalClicks, avgER, nfPct, postsCount: posts.length };
-  }, [posts]);
-
-  // État de chargement
-  if (loading) {
-    return (
-      <div className="space-y-5">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-          {[1,2,3,4].map(i => (
-            <div key={i} style={neu.raisedSm} className="rounded-[22px] h-[120px] animate-pulse" />
-          ))}
-        </div>
-        <div style={neu.raised} className="rounded-[28px] h-[300px] animate-pulse" />
-      </div>
-    );
-  }
-
-  // Aucun compte connecté → onboarding
-  if (accounts.length === 0) return <NoAccountsConnected />;
-
-  return (
-    <div className="space-y-5">
-      <AnalyticsHeader
-        accounts={accounts}
-        platform={platform} setPlatform={setPlatform}
-        timeRange={timeRange} setTimeRange={setTimeRange}
-      />
-
-      {alerts.length > 0 && <AlertsStrip alerts={alerts} />}
-
-      {/* Onglets */}
-      <div style={neu.raisedXs} className="rounded-full p-1 flex items-center w-fit overflow-x-auto">
-        {[
-          { id: 'overview',  label: "Vue d'ensemble", icon: BarChart3 },
-          { id: 'posts',     label: 'Posts',          icon: Layers },
-          { id: 'campaigns', label: 'Campagnes',      icon: Target },
-          { id: 'audience',  label: 'Audience',       icon: Users },
-        ].map(t => {
-          const IconComp = t.icon;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              style={tab === t.id ? neu.dark : {}}
-              className={`px-4 py-2.5 rounded-full text-[12.5px] font-medium tracking-tight transition-all flex items-center gap-2 whitespace-nowrap ${tab === t.id ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`}
-            >
-              <IconComp size={13} /> {t.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {tab === 'overview'  && <OverviewTab  kpis={kpis} posts={posts} insights={insights} accounts={accounts} />}
-      {tab === 'posts'     && <PostsTab     posts={posts} />}
-      {tab === 'campaigns' && <CampaignsTab campaigns={campaigns} posts={posts} />}
-      {tab === 'audience'  && <AudienceTab  accounts={accounts} posts={posts} />}
-    </div>
-  );
-};
-
-
-/* ════════════════════════════════════════════════════════════
-   HEADER
-   ──────────────────────────────────────────────────────────── */
 const AnalyticsHeader = ({ accounts, platform, setPlatform, timeRange, setTimeRange }) => {
-  const lastSync = accounts.reduce(
-    (a, b) => !a || (b.last_sync_at && b.last_sync_at > a) ? b.last_sync_at : a,
-    null
-  );
+  const lastSync = accounts.reduce((a, b) => !a || (b.last_sync_at && b.last_sync_at > a) ? b.last_sync_at : a, null);
   const ago = lastSync ? Math.round((Date.now() - new Date(lastSync).getTime()) / 60000) : null;
   const agoStr = ago == null ? 'jamais' : ago < 60 ? `il y a ${ago} min` : `il y a ${Math.round(ago/60)}h`;
-
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto">
+      <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto no-scrollbar">
         <Pill active={platform === 'all'} onClick={() => setPlatform('all')}>Tous</Pill>
         {accounts.map(a => (
           <Pill key={a.id} active={platform === a.platform} onClick={() => setPlatform(a.platform)}>
-            <span className="flex items-center gap-1.5">
-              <PlatformBadge platform={a.platform} /> {platformLabel(a.platform)}
-            </span>
+            <span className="flex items-center gap-1.5"><PlatformBadge platform={a.platform} /> {platformLabel(a.platform)}</span>
           </Pill>
         ))}
       </div>
@@ -2056,36 +1891,25 @@ const AnalyticsHeader = ({ accounts, platform, setPlatform, timeRange, setTimeRa
           <span className="text-[11px] font-medium text-stone-700">Sync · {agoStr}</span>
         </div>
         <div style={neu.raisedXs} className="rounded-full p-1 flex items-center">
-          {['24h', '7j', '30j', '12m'].map(t =>
-            <Pill key={t} active={timeRange === t} onClick={() => setTimeRange(t)}>{t}</Pill>
-          )}
+          {['24h', '7j', '30j', '12m'].map(t => <Pill key={t} active={timeRange === t} onClick={() => setTimeRange(t)}>{t}</Pill>)}
         </div>
       </div>
     </div>
   );
 };
 
-
-/* ════════════════════════════════════════════════════════════
-   ALERTES
-   ──────────────────────────────────────────────────────────── */
 const AlertsStrip = ({ alerts }) => {
-  const iconFor = (kind) => ({
-    viral_post:         { i: Zap,           c: 'text-rose-500'     },
-    engagement_drop:    { i: TrendingDown,  c: 'text-amber-500'    },
-    spend_pace:         { i: DollarSign,    c: 'text-amber-500'    },
-    sentiment_negative: { i: AlertTriangle, c: 'text-rose-500'     },
-    follower_spike:     { i: TrendingUp,    c: 'text-emerald-500'  },
-    kpi_target_hit:     { i: Award,         c: 'text-emerald-500'  },
-  }[kind] || { i: AlertCircle, c: 'text-stone-500' });
-
+  const tone = (k) => ({
+    viral_post:         { i: 'zap',            c: 'text-rose-500'    },
+    spend_pace:         { i: 'dollar-sign',    c: 'text-amber-500'   },
+  }[k] || { i: 'alert-circle', c: 'text-stone-500' });
   return (
-    <div className="flex gap-3 overflow-x-auto pb-1">
+    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
       {alerts.map(a => {
-        const { i: IconComp, c } = iconFor(a.kind);
+        const { i, c } = tone(a.kind);
         return (
           <div key={a.id} style={neu.raisedSm} className="rounded-2xl p-3.5 flex items-start gap-3 min-w-[280px]">
-            <div className={`shrink-0 ${c}`}><IconComp size={16} /></div>
+            <div className={`shrink-0 ${c}`}><DynamicIcon name={i} size={16} /></div>
             <div className="min-w-0">
               <div className="text-[12.5px] font-semibold leading-tight">{a.title}</div>
               {a.body && <div className="text-[11px] text-stone-500 mt-1 leading-snug line-clamp-2">{a.body}</div>}
@@ -2097,38 +1921,30 @@ const AlertsStrip = ({ alerts }) => {
   );
 };
 
-
-/* ════════════════════════════════════════════════════════════
-   ONGLET 1 — VUE D'ENSEMBLE
-   ──────────────────────────────────────────────────────────── */
 const OverviewTab = ({ kpis, posts, insights, accounts }) => {
   const totalFollowers = accounts.reduce((s, a) => s + (Number(a.follower_count) || 0), 0);
-
-  const topPosts = useMemo(() =>
-    [...posts].sort((a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0)).slice(0, 3),
-  [posts]);
-
+  const topPosts = useMemo(() => [...posts].sort((a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0)).slice(0, 3), [posts]);
   const timeline = useMemo(() => {
-    const buckets = {};
+    const b = {};
     posts.forEach(p => {
       const d = p.published_at.slice(0, 10);
-      buckets[d] = buckets[d] || { date: d, label: fmtDate(d), reach: 0, engagements: 0 };
-      buckets[d].reach += +p.reach || 0;
-      buckets[d].engagements += (+p.likes || 0) + (+p.comments || 0) + (+p.shares || 0) + (+p.saves || 0);
+      b[d] = b[d] || { date: d, label: fmtDate(d), reach: 0, engagements: 0 };
+      b[d].reach += +p.reach || 0;
+      b[d].engagements += (+p.likes || 0) + (+p.comments || 0) + (+p.shares || 0) + (+p.saves || 0);
     });
-    return Object.values(buckets).sort((a, b) => a.date.localeCompare(b.date));
+    return Object.values(b).sort((a, b) => a.date.localeCompare(b.date));
   }, [posts]);
 
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        <StatCard dark label="Audience totale" value={fmtNum(totalFollowers)} delta={`${accounts.length} compte${accounts.length > 1 ? 's' : ''}`} />
-        <StatCard label="Engagement moyen" value={fmtPct(kpis?.avgER)} delta={kpis?.postsCount ? `${kpis.postsCount} posts` : '—'} deltaUp />
-        <StatCard label="Reach total" value={fmtNum(kpis?.totalReach)} delta={kpis?.totalImpressions ? `${fmtNum(kpis.totalImpressions)} impressions` : '—'} deltaUp />
+        <StatCard dark label="Audience totale" value={fmtNum(totalFollowers)} delta={`${accounts.length} comptes connectés`} />
+        <StatCard label="Engagement moyen" value={fmtPct(kpis?.avgER)} delta={`${kpis.postsCount} posts`} deltaUp />
+        <StatCard label="Reach total" value={fmtNum(kpis?.totalReach)} delta={`${fmtNum(kpis?.totalImpressions)} impressions`} deltaUp />
         <StatCard label="Non-followers" value={fmtPct(kpis?.nfPct, 0)} delta="Indicateur viralité" deltaUp />
       </div>
 
-      <div className="grid grid-cols-12 gap-5">
+      <div className="grid grid-cols-12 gap-5 mt-5">
         <div style={neu.raised} className="col-span-12 lg:col-span-8 rounded-[28px] p-6 lg:p-7">
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -2136,7 +1952,7 @@ const OverviewTab = ({ kpis, posts, insights, accounts }) => {
               <h3 className="text-[22px] tracking-tight mt-1" style={SERIF}>Reach & engagement par jour</h3>
             </div>
             <div className="flex items-center gap-4 text-[11px]">
-              <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-stone-900" /> Reach</span>
+              <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm" style={{ background: neu.textChart }} /> Reach</span>
               <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-stone-400" /> Engagements</span>
             </div>
           </div>
@@ -2148,7 +1964,7 @@ const OverviewTab = ({ kpis, posts, insights, accounts }) => {
                 <YAxis yAxisId="r" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                 <YAxis yAxisId="e" orientation="right" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 6px 20px rgba(0,0,0,0.12)' }} />
-                <Bar yAxisId="r" dataKey="reach" fill="#2a2620" radius={[6, 6, 0, 0]} />
+                <Bar yAxisId="r" dataKey="reach" fill={neu.textChart} radius={[6, 6, 0, 0]} />
                 <Line yAxisId="e" type="monotone" dataKey="engagements" stroke="#9ca3af" strokeWidth={2.5} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
@@ -2159,497 +1975,223 @@ const OverviewTab = ({ kpis, posts, insights, accounts }) => {
           <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Podium</div>
           <h3 className="text-[20px] tracking-tight mt-1 mb-4" style={SERIF}>Posts les plus engageants</h3>
           <div className="space-y-3">
-            {topPosts.length === 0 && <div className="text-[12px] text-stone-400 italic">Aucun post sur la période</div>}
             {topPosts.map((p, i) => (
-              <a key={p.id} href={p.permalink || '#'} target="_blank" rel="noreferrer"
-                 style={neu.raisedXs}
-                 className="rounded-2xl p-3 flex gap-3 items-center hover:opacity-90 transition">
-                <div className="text-[20px] font-bold text-stone-400 w-6 text-center" style={SERIF}>{i + 1}</div>
-                <div className="w-12 h-12 rounded-xl bg-stone-200 shrink-0 overflow-hidden"
-                     style={p.thumbnail_url ? { backgroundImage: `url(${p.thumbnail_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}} />
+              <div key={p.id} style={neu.raisedXs} className="rounded-2xl p-3 flex gap-3 items-center">
+                <div className="text-[26px] font-bold text-stone-400 w-7 text-center leading-none" style={SERIF}>{i + 1}</div>
+                <div className="w-12 h-12 rounded-xl shrink-0 overflow-hidden" style={{ background: `url(${p.thumbnail_url}) center/cover` }} />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <PlatformBadge platform={p.platform} />
-                    <span className="text-[10px] text-stone-400">{fmtDate(p.published_at)}</span>
-                  </div>
-                  <div className="text-[11.5px] text-stone-700 truncate">{p.caption || '(sans légende)'}</div>
+                  <div className="flex items-center gap-1.5 mb-0.5"><PlatformBadge platform={p.platform} /> <span className="text-[10px] text-stone-400">{fmtDate(p.published_at)}</span></div>
+                  <div className="text-[11.5px] text-stone-700 truncate">{p.caption}</div>
                   <div className="text-[11px] font-semibold mt-0.5 text-emerald-700">{fmtPct(p.engagement_rate)} engagement</div>
                 </div>
-              </a>
+              </div>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        {accounts.map(a => (
-          <div key={a.id} style={neu.raisedSm} className="rounded-[22px] p-5">
-            <div className="flex items-center justify-between mb-3">
-              <PlatformBadge platform={a.platform} size="lg" />
-              {a.sync_status === 'ok'    && <span className="text-[10px] text-emerald-600 font-semibold">● Live</span>}
-              {a.sync_status === 'error' && <span className="text-[10px] text-rose-600 font-semibold">● Erreur</span>}
-            </div>
-            <div className="text-[12px] text-stone-500 truncate">@{a.account_name}</div>
-            <div className="text-[24px] tracking-tight mt-1 leading-none" style={SERIF}>{fmtNum(a.follower_count)}</div>
-            <div className="text-[11px] text-stone-400 mt-2">{fmtNum(a.total_posts)} publications</div>
-          </div>
-        ))}
-      </div>
-
       {insights && (
-        <div style={neu.dark} className="rounded-[28px] p-7 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-20"
-               style={{ background: 'radial-gradient(circle, #ffffff 0%, transparent 70%)', transform: 'translate(40%, -40%)' }} />
+        <div style={neu.dark} className="rounded-[28px] p-7 text-white relative overflow-hidden mt-5">
+          <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #ffffff 0%, transparent 70%)', transform: 'translate(40%, -40%)' }} />
           <div className="flex items-center gap-2 mb-2 relative">
-            <Sparkles size={14} className="text-amber-200" />
-            <span className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">
-              Synthèse IA · {insights.period_start ? new Date(insights.period_start).toLocaleDateString('fr-FR') : 'Cette semaine'}
-            </span>
+            <DynamicIcon name="sparkles" size={14} className="text-amber-200" />
+            <span className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Synthèse IA · semaine du {fmtDate(insights.period_start)}</span>
           </div>
           <h3 className="text-[26px] tracking-tight max-w-2xl leading-[1.15] relative" style={SERIF}>{insights.headline}</h3>
-          {insights.body && <p className="text-[13px] text-stone-300 mt-3 max-w-xl leading-relaxed relative">{insights.body}</p>}
-          {Array.isArray(insights.recommendations) && insights.recommendations.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5 relative">
-              {insights.recommendations.slice(0, 3).map((r, i) => (
-                <div key={i} className="rounded-2xl p-4 bg-white/10 backdrop-blur-sm">
-                  <div className="text-[10px] uppercase tracking-wider text-amber-200 font-semibold mb-1">Recommandation</div>
-                  <div className="text-[13px] font-semibold leading-snug">{r.title}</div>
-                  {r.body && <div className="text-[11px] text-stone-300 mt-1.5 leading-snug">{r.body}</div>}
-                </div>
-              ))}
-            </div>
-          )}
+          <p className="text-[13px] text-stone-300 mt-3 max-w-xl leading-relaxed relative">{insights.body}</p>
         </div>
       )}
     </>
   );
 };
 
+const PostCard = ({ post }) => (
+  <div style={neu.raised} className="rounded-[24px] p-5 flex gap-4">
+    <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-2xl shrink-0 overflow-hidden relative" style={{ background: `url(${post.thumbnail_url}) center/cover` }}>
+      {(post.post_type === 'reel' || post.post_type === 'tiktok_video') && (
+        <div className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded font-semibold">▶ {post.duration_seconds}s</div>
+      )}
+    </div>
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2">
+          <PlatformBadge platform={post.platform} />
+          <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">{post.post_type.replace('_', ' ')}</span>
+        </div>
+        <VelocityBadge score={post.velocity_score} />
+      </div>
+      <div className="text-[12.5px] text-stone-700 line-clamp-2 leading-snug mb-3">{post.caption}</div>
+      <div className="grid grid-cols-4 gap-2.5">
+        <Metric label="Reach" value={fmtNum(post.reach)} />
+        <Metric label="Eng. rate" value={fmtPct(post.engagement_rate)} highlight />
+        <Metric label="Likes" value={fmtNum(post.likes)} />
+        <Metric label="Comments" value={fmtNum(post.comments)} />
+      </div>
+    </div>
+  </div>
+);
 
-/* ════════════════════════════════════════════════════════════
-   ONGLET 2 — POSTS
-   ──────────────────────────────────────────────────────────── */
 const PostsTab = ({ posts }) => {
-  const [sort, setSort]     = useState('published');
+  const [sort, setSort] = useState('published');
   const [format, setFormat] = useState('all');
-
   const filtered = useMemo(() => {
     let r = format === 'all' ? posts : posts.filter(p => p.post_type === format);
     const sorters = {
       published:  (a, b) => new Date(b.published_at) - new Date(a.published_at),
       engagement: (a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0),
       reach:      (a, b) => (b.reach || 0) - (a.reach || 0),
-      saves:      (a, b) => (b.saves || 0) - (a.saves || 0),
       velocity:   (a, b) => (b.velocity_score || 0) - (a.velocity_score || 0),
     };
     return [...r].sort(sorters[sort]);
   }, [posts, sort, format]);
-
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto">
-          {[['all','Tous'],['reel','Reels'],['carousel','Carrousels'],['image','Photos'],['tiktok_video','Vidéos TikTok'],['story','Stories']].map(([id, lbl]) => (
+        <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto no-scrollbar">
+          {[['all','Tous'],['reel','Reels'],['carousel','Carrousels'],['image','Photos']].map(([id, lbl]) => (
             <Pill key={id} active={format === id} onClick={() => setFormat(id)}>{lbl}</Pill>
           ))}
         </div>
         <div className="flex items-center gap-2 text-[11.5px] text-stone-500">
           <span>Trier par</span>
-          <select value={sort} onChange={e => setSort(e.target.value)}
-                  style={neu.raisedXs}
-                  className="rounded-full px-3 py-2 text-[12px] font-medium bg-transparent outline-none border-none">
+          <select value={sort} onChange={e => setSort(e.target.value)} style={neu.raisedXs} className="rounded-full px-3 py-2 text-[12px] font-medium bg-transparent outline-none border-none">
             <option value="published">Plus récent</option>
             <option value="engagement">Engagement</option>
             <option value="reach">Reach</option>
-            <option value="saves">Saves</option>
             <option value="velocity">Vélocité</option>
           </select>
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {filtered.map(p => <PostCard key={p.id} post={p} />)}
       </div>
-      {filtered.length === 0 && (
-        <div style={neu.raised} className="rounded-[24px] p-10 text-center text-stone-400 text-[13px]">
-          Aucun post sur la période.
-        </div>
-      )}
     </div>
   );
 };
 
-const PostCard = ({ post }) => (
-  <div style={neu.raised} className="rounded-[24px] p-5 flex gap-4">
-    <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-2xl shrink-0 overflow-hidden relative"
-         style={{ background: post.thumbnail_url ? `url(${post.thumbnail_url}) center/cover` : 'linear-gradient(135deg,#1a1a1d 0%,#3a3a3d 100%)' }}>
-      {(post.post_type === 'reel' || post.post_type === 'tiktok_video' || post.post_type === 'video') && (
-        <div className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded font-semibold">
-          ▶ {post.duration_seconds ? `${Math.round(post.duration_seconds)}s` : ''}
-        </div>
-      )}
-    </div>
-
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2">
-          <PlatformBadge platform={post.platform} />
-          <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">{post.post_type?.replace('_', ' ')}</span>
-          <span className="text-[10px] text-stone-400">· {fmtDate(post.published_at)}</span>
-        </div>
-        <VelocityBadge score={post.velocity_score} />
-      </div>
-
-      <div className="text-[12.5px] text-stone-700 line-clamp-2 leading-snug mb-3">
-        {post.caption || <i className="text-stone-400">(sans légende)</i>}
-      </div>
-
-      <div className="grid grid-cols-4 gap-2.5">
-        <Metric label="Reach"     value={fmtNum(post.reach)} />
-        <Metric label="Eng. rate" value={fmtPct(post.engagement_rate)} highlight />
-        <Metric label="Likes"     value={fmtNum(post.likes)} />
-        <Metric label="Comments"  value={fmtNum(post.comments)} />
-        {post.platform === 'instagram' && (
-          <Metric label="Saves" value={fmtNum(post.saves)} sub={post.save_rate ? fmtPct(post.save_rate) : null} />
-        )}
-        <Metric label="Shares" value={fmtNum(post.shares)} />
-        {(post.platform === 'tiktok' || post.post_type === 'reel') && (
-          <Metric label="Views" value={fmtNum(post.views || post.plays)} />
-        )}
-        {post.watch_through_rate != null && (
-          <Metric label="Watch" value={fmtPct(post.watch_through_rate, 0)} />
-        )}
-      </div>
-
-      {Array.isArray(post.hashtags) && post.hashtags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-3">
-          {post.hashtags.slice(0, 5).map(h => (
-            <span key={h} className="text-[10px] text-stone-500 bg-stone-100/80 px-1.5 py-0.5 rounded">#{h}</span>
-          ))}
-          {post.hashtags.length > 5 && <span className="text-[10px] text-stone-400">+{post.hashtags.length - 5}</span>}
-        </div>
-      )}
-    </div>
-  </div>
-);
-
-
-/* ════════════════════════════════════════════════════════════
-   ONGLET 3 — CAMPAGNES
-   ──────────────────────────────────────────────────────────── */
 const CampaignsTab = ({ campaigns, posts }) => {
-  const [selected, setSelected] = useState(campaigns[0]?.campaign_id || null);
+  const [selected, setSelected] = useState(campaigns[0]?.campaign_id);
   const campaign = campaigns.find(c => c.campaign_id === selected);
-
-  if (campaigns.length === 0) {
-    return (
-      <div style={neu.raised} className="rounded-[28px] p-10 text-center">
-        <Target size={32} className="text-stone-300 mx-auto mb-3" strokeWidth={1.5} />
-        <h3 className="text-[22px] tracking-tight" style={SERIF}>Aucune campagne créée</h3>
-        <p className="text-[13px] text-stone-500 mt-2 max-w-md mx-auto">
-          Regroupez vos posts en campagnes pour suivre vos ROAS, ROI, CPM et conversions en un coup d'œil.
-        </p>
-      </div>
-    );
-  }
-
+  if (!campaign) return null;
   return (
     <div className="space-y-5">
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
         {campaigns.map(c => {
           const active = c.campaign_id === selected;
           return (
-            <button key={c.campaign_id} onClick={() => setSelected(c.campaign_id)}
-                    style={active ? neu.dark : neu.raisedSm}
-                    className={`rounded-2xl p-4 min-w-[220px] text-left transition-all ${active ? 'text-white' : ''}`}>
+            <button key={c.campaign_id} onClick={() => setSelected(c.campaign_id)} style={active ? neu.dark : neu.raisedSm}
+              className={`rounded-2xl p-4 min-w-[220px] text-left transition-all ${active ? 'text-white' : ''}`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-stone-400">{c.status}</div>
               </div>
               <div className="text-[15px] font-semibold leading-tight" style={SERIF}>{c.name}</div>
-              <div className={`text-[11px] mt-1.5 ${active ? 'text-stone-400' : 'text-stone-500'}`}>
-                {fmtDate(c.start_date)} → {fmtDate(c.end_date)}
-              </div>
+              <div className={`text-[11px] mt-1.5 ${active ? 'text-stone-400' : 'text-stone-500'}`}>{fmtDate(c.start_date)} → {fmtDate(c.end_date)}</div>
             </button>
           );
         })}
       </div>
-
-      {campaign && (
-        <>
-          <div style={neu.raised} className="rounded-[28px] p-6 lg:p-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold">
-                Objectif · {campaign.objective || 'Non défini'}
-              </div>
-              <h3 className="text-[26px] tracking-tight mt-1" style={SERIF}>{campaign.name}</h3>
-              <div className="text-[12.5px] text-stone-500 mt-2">
-                {fmtDate(campaign.start_date)} → {fmtDate(campaign.end_date)} · {campaign.posts_count || 0} posts · {fmtMoney(campaign.total_ad_spend, campaign.currency)} dépensés sur {fmtMoney(campaign.budget_total, campaign.currency)}
-              </div>
-            </div>
-            <BudgetRing spent={Number(campaign.total_ad_spend) || 0} total={Number(campaign.budget_total) || 0} />
+      <div style={neu.raised} className="rounded-[28px] p-6 lg:p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Objectif · {campaign.objective}</div>
+          <h3 className="text-[26px] tracking-tight mt-1" style={SERIF}>{campaign.name}</h3>
+          <div className="text-[12.5px] text-stone-500 mt-2">
+            {fmtDate(campaign.start_date)} → {fmtDate(campaign.end_date)} · {fmtMoney(campaign.total_ad_spend, campaign.currency)} dépensés
           </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:gap-4">
-            <MetricTile icon={EyeIcon}            label="Reach"           value={fmtNum(campaign.total_reach)}        sub={`${fmtNum(campaign.total_impressions)} impressions`} />
-            <MetricTile icon={Heart}              label="Engagement rate" value={fmtPct(campaign.avg_engagement_rate)} sub={`${fmtNum(campaign.total_engagements)} interactions`} tone="good" />
-            <MetricTile icon={DollarSign}         label="CPM"             value={fmtMoney(campaign.cpm, campaign.currency)} sub="coût pour 1000 impressions" />
-            <MetricTile icon={MousePointerClick} label="CPC"             value={fmtMoney(campaign.cpc, campaign.currency)} sub={`${fmtNum(campaign.total_clicks)} clics`} />
-            <MetricTile icon={Zap}                label="CPE"             value={fmtMoney(campaign.cpe, campaign.currency)} sub="coût par engagement" />
-            <MetricTile icon={Target}             label="Conversion rate" value={fmtPct(campaign.conversion_rate)}     sub={`${fmtNum(campaign.total_conversions)} conversions`} tone="good" />
-            <MetricTile icon={Award}              label="ROAS"            value={campaign.roas != null ? `${Number(campaign.roas).toFixed(2).replace('.', ',')}×` : '—'} sub={fmtMoney(campaign.total_revenue, campaign.currency)} tone={campaign.roas >= 2 ? 'good' : 'warn'} />
-            <MetricTile icon={TrendingUp}         label="ROI"             value={fmtPct(campaign.roi, 0)} sub={campaign.roi >= 0 ? 'rentable' : 'déficit'} tone={campaign.roi >= 0 ? 'good' : 'bad'} />
-          </div>
-
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Publications de cette campagne</div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {posts
-                .filter(p => Array.isArray(campaign.post_ids) && campaign.post_ids.includes(p.id))
-                .slice(0, 6)
-                .map(p => <PostCard key={p.id} post={p} />)}
-            </div>
-          </div>
-
-          <UTMHelper campaign={campaign} />
-        </>
-      )}
-    </div>
-  );
-};
-
-const BudgetRing = ({ spent, total }) => {
-  if (!total) return null;
-  const pct = Math.min(100, (spent / total) * 100);
-  const data = [{ name: 'spent', v: pct }, { name: 'left', v: 100 - pct }];
-  const tone = pct > 95 ? '#ef4444' : pct > 80 ? '#f59e0b' : '#10b981';
-  return (
-    <div className="relative w-28 h-28 shrink-0">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie data={data} innerRadius={38} outerRadius={50} startAngle={90} endAngle={-270} dataKey="v" stroke="none">
-            <Cell fill={tone} />
-            <Cell fill="rgba(0,0,0,0.06)" />
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="text-[18px] leading-none" style={SERIF}>{Math.round(pct)}%</div>
-        <div className="text-[9px] text-stone-400 uppercase tracking-wider mt-0.5">consommé</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:gap-4">
+        <MetricTile iconName="eye"                  label="Reach"           value={fmtNum(campaign.total_reach)}        sub={`${fmtNum(campaign.total_impressions)} impressions`} />
+        <MetricTile iconName="heart"                label="Engagement rate" value={fmtPct(campaign.avg_engagement_rate)} tone="good" />
+        <MetricTile iconName="dollar-sign"          label="CPM"             value={fmtMoney(campaign.cpm, campaign.currency)} />
+        <MetricTile iconName="mouse-pointer-click"  label="CPC"             value={fmtMoney(campaign.cpc, campaign.currency)} />
+      </div>
+      <div>
+        <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Publications de cette campagne</div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {posts.filter(p => campaign.post_ids.includes(p.id)).slice(0, 4).map(p => <PostCard key={p.id} post={p} />)}
+        </div>
       </div>
     </div>
   );
 };
 
-const UTMHelper = ({ campaign }) => {
-  const utm = campaign.utm_params || {};
-  const url = campaign.landing_url || 'https://votresite.com';
-  const built = url + (url.includes('?') ? '&' : '?') + new URLSearchParams({
-    utm_source:   utm.source   || 'instagram',
-    utm_medium:   utm.medium   || 'social',
-    utm_campaign: utm.campaign || campaign.slug || campaign.name?.toLowerCase().replace(/\s+/g, '-'),
-    utm_content:  utm.content  || 'organic',
-  }).toString();
-
-  return (
-    <div style={neu.raisedSm} className="rounded-[24px] p-5">
-      <div className="flex items-center gap-2 mb-2">
-        <ExternalLink size={13} className="text-stone-400" />
-        <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Lien tracké (UTM)</div>
-      </div>
-      <div className="text-[12px] font-mono bg-stone-100/80 p-3 rounded-xl break-all text-stone-700">{built}</div>
-      <button onClick={() => navigator.clipboard?.writeText(built)}
-              className="mt-2 text-[11px] text-stone-500 hover:text-stone-800">
-        📋 Copier
-      </button>
-    </div>
-  );
-};
-
-
-/* ════════════════════════════════════════════════════════════
-   ONGLET 4 — AUDIENCE
-   ──────────────────────────────────────────────────────────── */
 const AudienceTab = ({ accounts, posts }) => {
-  const heatmap = useMemo(() => {
-    const grid = Array.from({ length: 7 }, () =>
-      Array.from({ length: 24 }, () => ({ count: 0, er: 0, total: 0 }))
-    );
-    posts.forEach(p => {
-      const d = new Date(p.published_at);
-      const day = (d.getDay() + 6) % 7; // lundi = 0
-      const hour = d.getHours();
-      grid[day][hour].count++;
-      grid[day][hour].total += p.engagement_rate || 0;
-    });
-    grid.forEach(row => row.forEach(c => c.er = c.count ? c.total / c.count : 0));
-    return grid;
-  }, [posts]);
-
-  const maxER = Math.max(0.1, ...heatmap.flat().map(c => c.er));
-  const days  = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
   const hashtagPerf = useMemo(() => {
     const m = {};
     posts.forEach(p => (p.hashtags || []).forEach(h => {
-      m[h] = m[h] || { tag: h, count: 0, reach: 0, _totEr: 0 };
-      m[h].count++;
-      m[h].reach += +p.reach || 0;
-      m[h]._totEr += +p.engagement_rate || 0;
+      m[h] = m[h] || { tag: h, count: 0, reach: 0, _er: 0 };
+      m[h].count++; m[h].reach += +p.reach || 0; m[h]._er += +p.engagement_rate || 0;
     }));
-    return Object.values(m)
-      .map(x => ({ ...x, er: x._totEr / x.count }))
-      .sort((a, b) => b.reach - a.reach)
-      .slice(0, 12);
-  }, [posts]);
-
-  const formats = useMemo(() => {
-    const m = {};
-    posts.forEach(p => {
-      const k = p.post_type || 'autre';
-      m[k] = m[k] || { format: k, count: 0, _er: 0, reach: 0 };
-      m[k].count++;
-      m[k]._er += p.engagement_rate || 0;
-      m[k].reach += +p.reach || 0;
-    });
-    return Object.values(m).map(x => ({ ...x, er: x._er / x.count }));
+    return Object.values(m).map(x => ({ ...x, er: x._er / x.count })).sort((a, b) => b.reach - a.reach).slice(0, 10);
   }, [posts]);
 
   return (
     <div className="space-y-5">
       <div style={neu.raised} className="rounded-[28px] p-6 lg:p-7">
-        <div className="flex items-center justify-between mb-1">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Meilleurs créneaux</div>
-            <h3 className="text-[22px] tracking-tight mt-1" style={SERIF}>Engagement par jour × heure</h3>
-          </div>
-          <div className="text-[10px] text-stone-400">Calculé sur vos posts</div>
-        </div>
-        <div className="overflow-x-auto mt-5">
-          <div className="inline-grid gap-[3px]" style={{ gridTemplateColumns: 'auto repeat(24, 18px)' }}>
-            <div />
-            {Array.from({ length: 24 }, (_, h) => (
-              <div key={h} className="text-[9px] text-stone-400 text-center font-medium">{h}h</div>
-            ))}
-            {days.map((d, di) => (
-              <React.Fragment key={d}>
-                <div className="text-[10px] text-stone-500 font-semibold pr-2 leading-[18px]">{d}</div>
-                {heatmap[di].map((c, hi) => {
-                  const intensity = c.count ? Math.min(1, c.er / maxER) : 0;
-                  return (
-                    <div key={hi}
-                         title={c.count ? `${c.count} post${c.count > 1 ? 's' : ''} · ER moyen ${c.er.toFixed(2)}%` : 'Aucun post'}
-                         className="w-[18px] h-[18px] rounded-[3px]"
-                         style={{ background: c.count ? `rgba(42, 38, 32, ${0.12 + intensity * 0.78})` : 'rgba(0,0,0,0.04)' }}
-                    />
-                  );
-                })}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 text-[10px] text-stone-400 mt-4">
-          <span>Moins engageant</span>
-          <div className="flex gap-0.5">
-            {[0.12, 0.3, 0.5, 0.7, 0.9].map(o => (
-              <div key={o} className="w-3.5 h-3.5 rounded-sm" style={{ background: `rgba(42, 38, 32, ${o})` }} />
-            ))}
-          </div>
-          <span>Plus engageant</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-12 gap-5">
-        <div style={neu.raised} className="col-span-12 lg:col-span-5 rounded-[28px] p-6 lg:p-7">
-          <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Format vs performance</div>
-          <h3 className="text-[20px] tracking-tight mt-1 mb-4" style={SERIF}>Que créer en priorité ?</h3>
-          <div className="space-y-3">
-            {formats.map(f => (
-              <div key={f.format}>
-                <div className="flex items-center justify-between text-[12px] mb-1.5">
-                  <span className="font-semibold capitalize">{f.format.replace('_', ' ')}</span>
-                  <span className="text-stone-500">{fmtPct(f.er)} · {f.count} posts</span>
-                </div>
-                <div className="h-2 bg-stone-200/60 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full"
-                       style={{ width: `${Math.min(100, (f.er / Math.max(...formats.map(x => x.er), 1)) * 100)}%`, background: '#2a2620' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={neu.raised} className="col-span-12 lg:col-span-7 rounded-[28px] p-6 lg:p-7">
           <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Hashtags</div>
-          <h3 className="text-[20px] tracking-tight mt-1 mb-4" style={SERIF}>Performance par hashtag</h3>
-          <div className="space-y-2">
-            {hashtagPerf.length === 0 && <div className="text-[12px] text-stone-400 italic">Aucun hashtag détecté</div>}
-            {hashtagPerf.map(h => (
+          <h3 className="text-[20px] tracking-tight mt-1 mb-5" style={SERIF}>Performance par hashtag</h3>
+          <div className="space-y-2.5">
+            {hashtagPerf.map((h) => (
               <div key={h.tag} className="flex items-center gap-3 text-[12px]">
-                <Hash size={12} className="text-stone-400" />
-                <span className="font-medium min-w-[120px] truncate">{h.tag}</span>
+                <DynamicIcon name="hash" size={12} />
+                <span className="font-medium min-w-[140px] truncate">{h.tag}</span>
                 <div className="flex-1 h-1.5 bg-stone-200/60 rounded-full overflow-hidden">
-                  <div className="h-full" style={{ width: `${(h.reach / hashtagPerf[0].reach) * 100}%`, background: '#2a2620' }} />
+                  <div className="h-full" style={{ width: `${(h.reach / hashtagPerf[0].reach) * 100}%`, background: neu.textChart }} />
                 </div>
                 <span className="text-stone-500 text-[11px] w-16 text-right">{fmtNum(h.reach)}</span>
                 <span className="text-emerald-700 font-semibold w-14 text-right text-[11px]">{fmtPct(h.er)}</span>
               </div>
             ))}
           </div>
-        </div>
       </div>
     </div>
   );
 };
 
+const Analytics = () => {
+  const [tab, setTab] = useState('overview');
+  const [platform, setPlatform] = useState('all');
+  const [timeRange, setTimeRange] = useState('30j');
 
-/* ════════════════════════════════════════════════════════════
-   ONBOARDING — aucun compte connecté
-   ──────────────────────────────────────────────────────────── */
-const NoAccountsConnected = () => {
-  // Construction des URLs OAuth via les variables Vite déjà disponibles
-  // dans communication-app.jsx (SUPABASE_URL / SUPABASE_ANON_KEY).
-  // À implémenter quand les Edge Functions oauth-instagram / oauth-tiktok
-  // seront déployées (voir guide d'installation, phase suivante).
-  const connectInstagram = () => {
-    const url = `${SUPABASE_URL}/functions/v1/oauth-instagram?client_id=${D.id}`;
-    window.open(url, 'oauth-ig', 'width=600,height=700');
-  };
-  const connectTiktok = () => {
-    const url = `${SUPABASE_URL}/functions/v1/oauth-tiktok?client_id=${D.id}`;
-    window.open(url, 'oauth-tt', 'width=600,height=700');
-  };
+  const posts = useMemo(() => platform === 'all' ? MOCK_POSTS : MOCK_POSTS.filter(p => p.platform === platform), [platform]);
+  const kpis = useMemo(() => {
+    const sum = (k) => posts.reduce((s, p) => s + (Number(p[k]) || 0), 0);
+    const totalReach = sum('reach');
+    const totalEng = posts.reduce((s, p) => s + (+p.likes || 0) + (+p.comments || 0) + (+p.shares || 0) + (+p.saves || 0), 0);
+    const totalImp = sum('impressions');
+    const nfReach = sum('reach_from_non_followers');
+    return {
+      totalReach, totalEngagements: totalEng, totalImpressions: totalImp,
+      avgER: totalReach > 0 ? (totalEng / totalReach * 100) : null,
+      nfPct: totalReach > 0 ? (nfReach / totalReach * 100) : null,
+      postsCount: posts.length,
+    };
+  }, [posts]);
 
   return (
-    <div style={neu.raised} className="rounded-[28px] p-10 text-center">
-      <div style={neu.darkSm} className="w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-5">
-        <Activity size={26} />
+    <div className="space-y-5">
+      <AnalyticsHeader accounts={MOCK_ACCOUNTS} platform={platform} setPlatform={setPlatform} timeRange={timeRange} setTimeRange={setTimeRange} />
+      <AlertsStrip alerts={MOCK_ALERTS} />
+      <div style={neu.raisedXs} className="rounded-full p-1 flex items-center w-fit overflow-x-auto no-scrollbar">
+        {[
+          { id: 'overview', label: 'Vue d\'ensemble', icon: 'bar-chart-3' },
+          { id: 'posts',    label: 'Posts',           icon: 'layers' },
+          { id: 'campaigns',label: 'Campagnes',       icon: 'target' },
+          { id: 'audience', label: 'Audience',        icon: 'users' },
+        ].map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={tab === t.id ? neu.dark : {}}
+            className={`px-4 py-2.5 rounded-full text-[12.5px] font-medium tracking-tight transition-all flex items-center gap-2 ${tab === t.id ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`}>
+            <DynamicIcon name={t.icon} size={13} /> {t.label}
+          </button>
+        ))}
       </div>
-      <h3 className="text-[28px] tracking-tight" style={SERIF}>Connectez vos réseaux</h3>
-      <p className="text-[13.5px] text-stone-500 mt-3 max-w-md mx-auto leading-relaxed">
-        Reliez vos comptes Instagram et TikTok pour activer le suivi temps réel :
-        posts, campagnes, ROAS, audience. Vos données restent privées et chiffrées.
-      </p>
-      <div className="flex flex-col sm:flex-row gap-3 justify-center mt-7">
-        <button onClick={connectInstagram} style={neu.dark}
-                className="text-white px-6 py-3.5 rounded-2xl text-[13px] font-semibold inline-flex items-center gap-2.5 justify-center">
-          <Instagram size={16} /> Connecter Instagram
-        </button>
-        <button onClick={connectTiktok} style={neu.raisedSm}
-                className="px-6 py-3.5 rounded-2xl text-[13px] font-semibold inline-flex items-center gap-2.5 justify-center">
-          <Sparkles size={16} /> Connecter TikTok
-        </button>
-      </div>
-      <p className="text-[11px] text-stone-400 mt-5">L'agence vous accompagnera lors de la première connexion.</p>
+      {tab === 'overview'  && <OverviewTab kpis={kpis} posts={posts} insights={MOCK_INSIGHTS} accounts={MOCK_ACCOUNTS} />}
+      {tab === 'posts'     && <PostsTab posts={posts} />}
+      {tab === 'campaigns' && <CampaignsTab campaigns={MOCK_CAMPAIGNS} posts={MOCK_POSTS} />}
+      {tab === 'audience'  && <AudienceTab accounts={MOCK_ACCOUNTS} posts={posts} />}
     </div>
   );
 };
-
-/* ════════════════════════════════════════════════════════════
-   ✅  FIN — Le composant `Analytics` ci-dessus remplace
-        directement celui des lignes 1732-1879 de
-        communication-app.jsx. Le composant `Calendar` qui suit
-        immédiatement reste intact.
-   ════════════════════════════════════════════════════════════ */
 
 // ────────────────────────────────────────────────────────────
 // 🗓 CALENDAR (date-aware, syncs with shoot year/month/day)

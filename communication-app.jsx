@@ -1039,8 +1039,11 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col lg:flex-row bg-stone-900/95 backdrop-blur-sm">
-      {/* Zone média — hauteur fixe sur mobile pour ne pas déborder sur l'aside */}
-      <div className="flex items-center justify-center relative p-3 sm:p-6 lg:p-8 min-w-0 lg:flex-1 h-[55vh] lg:h-auto shrink-0 overflow-hidden">
+      {/* Zone média — hauteur fixe sur mobile pour ne pas déborder sur l'aside
+          Desktop : lg:h-full + lg:min-h-screen → la chaîne de h-full peut se résoudre
+          jusqu'au <video>/<img> (sinon, height: 100% reste en "auto" et le média
+          s'affiche à sa taille intrinsèque, souvent minuscule pour un preview allégé). */}
+      <div className="flex items-center justify-center relative p-3 sm:p-6 lg:p-8 min-w-0 lg:flex-1 h-[55vh] lg:h-full lg:min-h-screen shrink-0 overflow-hidden">
         {/* Nav buttons */}
         {index > 0 && (
           <button onClick={() => onIndex(index - 1)} className="absolute left-2 lg:left-4 top-1/2 -translate-y-1/2 w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur z-10">
@@ -1061,17 +1064,48 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
           <X size={16} />
         </button>
 
-        <div className="max-w-full max-h-full flex items-center justify-center w-full h-full">
+        <div className="flex items-center justify-center w-full h-full min-h-0 min-w-0">
           {!embed && <div className="text-stone-400">Aucun aperçu disponible</div>}
           {embed && embed.kind === 'image' && (
-            <img src={embed.src} alt={m.title} className="max-w-full max-h-full object-contain rounded-xl" />
+            <img
+              src={embed.src}
+              alt={m.title}
+              className="rounded-xl"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
           )}
           {embed && embed.kind === 'video' && (
-            <video src={embed.src} controls playsInline className="max-w-full max-h-full object-contain rounded-xl bg-black" />
+            <video
+              src={embed.src}
+              controls
+              playsInline
+              className="rounded-xl bg-black"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
           )}
           {embed && embed.kind === 'iframe' && (
-            <div className="w-full max-w-[1200px] aspect-video">
-              <iframe src={embed.src} className="w-full h-full rounded-xl" frameBorder="0" allow="autoplay; encrypted-media; fullscreen" allowFullScreen />
+            <div className="w-full h-full flex items-center justify-center">
+              <div
+                className="rounded-xl overflow-hidden bg-black"
+                style={{
+                  width: '100%',
+                  maxWidth: '1600px',
+                  aspectRatio: '16 / 9',
+                  maxHeight: '100%',
+                }}
+              >
+                <iframe
+                  src={embed.src}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'block',
+                    border: 0,
+                  }}
+                  allow="autoplay; encrypted-media; fullscreen"
+                  allowFullScreen
+                />
+              </div>
             </div>
           )}
         </div>

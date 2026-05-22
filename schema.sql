@@ -1,21 +1,11 @@
 -- ════════════════════════════════════════════════════════════
--- 📊 TIMELESSHOUSE — SCHÉMA SUPABASE COMPLET (v3 — mai 2026)
+-- 📊 TIMELESSHOUSE — SCHÉMA SUPABASE COMPLET (v2 — mai 2026)
 -- ════════════════════════════════════════════════════════════
 -- Généré à partir de l'introspection réelle de la base de données.
 -- Fidèle à 100% à ce qui tourne en production.
 --
--- ⚠️ CHANGEMENT v3 (mai 2026) :
---   ▸ Ajout de la colonne shoots.date_iso (date)
---     Le front (ShootForm) enregistre désormais une date ISO complète
---     via <input type="date">, en plus des champs legacy
---     (date_day / month_label / year) conservés pour l'affichage.
---   ▸ Une section MIGRATION idempotente a été ajoutée en fin de
---     fichier : elle ajoute date_iso aux bases DÉJÀ existantes
---     (create table if not exists ne touche pas une table existante).
---
--- À exécuter dans Supabase :
+-- À exécuter UNE SEULE FOIS dans Supabase :
 --   Dashboard Supabase → SQL Editor → coller ce fichier → Run
---   (Le fichier est idempotent : ré-exécutable sans danger.)
 --
 -- Tables présentes :
 --   1. clients         — espaces clients (tous univers)
@@ -215,72 +205,20 @@ create table if not exists notifications (
 -- │  TABLE 9 : shoots                                           │
 -- │  Tournages planifiés (affichés dans le calendrier client)   │
 -- └────────────────────────────────────────────────────────────┘
--- date_iso     : date complète au format ISO (AAAA-MM-JJ). Source de
---                vérité saisie via <input type="date"> dans ShootForm.
--- date_day /   : champs LEGACY recalculés à partir de date_iso pour
--- month_label /  l'affichage compact (pastille calendrier). Conservés
--- year           pour compatibilité avec l'ancien rendu client.
 create table if not exists shoots (
   id          uuid        primary key default gen_random_uuid(),
   client_id   uuid        references clients(id) on delete cascade,
   title       text        not null,
   type        text        default 'photo'
                           check (type in ('photo', 'video')),
-  date_iso    date,                               -- date du tournage (ISO, source de vérité)
-  date_day    integer,                            -- legacy : 1-31
-  month_label text        default 'Avr',          -- legacy : ex "Avr"
-  year        integer     default 2026,           -- legacy : ex 2026
+  date_day    integer,                            -- 1-31
+  month_label text        default 'Avr',          -- ex: "Avr"
+  year        integer     default 2026,
   time_label  text,                               -- ex: "09:00 — 16:00"
   location    text,
   notes       text,
   created_at  timestamptz default now()
 );
-
-
--- ════════════════════════════════════════════════════════════
--- 🔧 MIGRATION — bases déjà existantes
--- ════════════════════════════════════════════════════════════
--- IMPORTANT : "create table if not exists" ne modifie PAS une table
--- déjà présente en production. Ce bloc ajoute donc explicitement la
--- colonne manquante sur les bases existantes. Il est idempotent
--- (sans effet si la colonne existe déjà).
-alter table shoots add column if not exists date_iso date;
-
--- Rétro-remplissage : reconstruire date_iso pour les tournages
--- existants à partir des champs legacy, quand c'est possible.
--- month_label attendu sous forme abrégée FR ("Jan", "Fév", "Mar"…).
-update shoots
-set date_iso = make_date(
-  coalesce(year, 2026),
-  case lower(left(month_label, 3))
-    when 'jan' then 1
-    when 'fév' then 2  when 'fev' then 2
-    when 'mar' then 3
-    when 'avr' then 4
-    when 'mai' then 5
-    when 'jui' then 6                 -- "Juin" (ambigu avec Juillet : voir note)
-    when 'jul' then 7
-    when 'aoû' then 8  when 'aou' then 8
-    when 'sep' then 9
-    when 'oct' then 10
-    when 'nov' then 11
-    when 'déc' then 12 when 'dec' then 12
-    else 1
-  end,
-  greatest(1, least(28, coalesce(date_day, 1)))   -- borne 1..28 pour éviter les dates invalides
-)
-where date_iso is null
-  and date_day is not null
-  and month_label is not null
-  and year is not null;
--- NOTE : "Jui" est ambigu entre Juin et Juillet en abrégé 3 lettres.
--- Le rétro-remplissage suppose Juin. Vérifiez/corrigez manuellement
--- les éventuels tournages de juillet après exécution si besoin.
-
--- Recharge immédiate du cache de schéma PostgREST
--- (sinon l'API peut renvoyer "Could not find the column ... in the
--- schema cache" pendant quelques secondes).
-notify pgrst, 'reload schema';
 
 
 -- ════════════════════════════════════════════════════════════
@@ -296,15 +234,10 @@ begin
 end;
 $$;
 
--- Note : si vous ré-exécutez ce fichier sur une base existante,
--- "create trigger" lèvera une erreur "trigger already exists".
--- Les deux DROP ci-dessous rendent la création idempotente.
-drop trigger if exists event_pages_updated_at on event_pages;
 create trigger event_pages_updated_at
   before update on event_pages
   for each row execute function set_updated_at();
 
-drop trigger if exists analytics_updated_at on analytics;
 create trigger analytics_updated_at
   before update on analytics
   for each row execute function set_updated_at();
@@ -345,51 +278,30 @@ alter table notifications  enable row level security;
 alter table shoots         enable row level security;
 
 -- ── Lecture publique ─────────────────────────────────────────
--- "drop policy if exists" rend chaque création idempotente
--- (ré-exécution du fichier sans erreur "policy already exists").
-drop policy if exists "public read clients"        on clients;
 create policy "public read clients"        on clients        for select using (true);
-drop policy if exists "public read analytics"      on analytics;
 create policy "public read analytics"      on analytics      for select using (true);
-drop policy if exists "public read documents"      on documents;
 create policy "public read documents"      on documents      for select using (true);
-drop policy if exists "public read event_pages"    on event_pages;
 create policy "public read event_pages"    on event_pages    for select using (true);
-drop policy if exists "public read invoices"       on invoices;
 create policy "public read invoices"       on invoices       for select using (true);
-drop policy if exists "public read media"          on media;
 create policy "public read media"          on media          for select using (true);
-drop policy if exists "public read media_comments" on media_comments;
 create policy "public read media_comments" on media_comments for select using (true);
-drop policy if exists "public read notifications"  on notifications;
 create policy "public read notifications"  on notifications  for select using (true);
-drop policy if exists "public read shoots"         on shoots;
 create policy "public read shoots"         on shoots         for select using (true);
 
 -- ── Écriture admin uniquement ────────────────────────────────
-drop policy if exists "auth write clients"        on clients;
 create policy "auth write clients"        on clients        for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-drop policy if exists "auth write analytics"      on analytics;
 create policy "auth write analytics"      on analytics      for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-drop policy if exists "auth write documents"      on documents;
 create policy "auth write documents"      on documents      for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-drop policy if exists "auth write event_pages"    on event_pages;
 create policy "auth write event_pages"    on event_pages    for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-drop policy if exists "auth write invoices"       on invoices;
 create policy "auth write invoices"       on invoices       for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-drop policy if exists "auth write media"          on media;
 create policy "auth write media"          on media          for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-drop policy if exists "auth write media_comments" on media_comments;
 create policy "auth write media_comments" on media_comments for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-drop policy if exists "auth write notifications"  on notifications;
 create policy "auth write notifications"  on notifications  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-drop policy if exists "auth write shoots"         on shoots;
 create policy "auth write shoots"         on shoots         for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
 -- ── Écriture cliente : commentaires (le client peut poster) ──
 -- Les clients peuvent INSERT des commentaires sans être authentifiés Supabase
 -- (ils sont identifiés par leur code, pas par Supabase Auth)
-drop policy if exists "client insert media_comments" on media_comments;
 create policy "client insert media_comments" on media_comments
   for insert with check (is_admin = false);
 

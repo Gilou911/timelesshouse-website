@@ -25,6 +25,10 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 
+// — Config Supabase injectée par Vite depuis .env (variables VITE_*)
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 // ────────────────────────────────────────────────────────────
 // 🔐 ACCÈS
 // ────────────────────────────────────────────────────────────
@@ -946,9 +950,9 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
 
       // 💬 Notifier l'admin qu'un commentaire a été posté
       try {
-        fetch(`${window.SUPABASE_URL}/functions/v1/notify-client`, {
+        fetch(`${SUPABASE_URL}/functions/v1/notify-client`, {
           method:  'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}` },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
           body:    JSON.stringify({
             kind:      'admin_new_comment',
             client_id: window.__CLIENT.id,
@@ -973,9 +977,9 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
       // Notifier l'admin lors d'une approbation ou d'une demande de changements
       if (status === 'approved' || status === 'changes_requested') {
         try {
-          fetch(`${window.SUPABASE_URL}/functions/v1/notify-client`, {
+          fetch(`${SUPABASE_URL}/functions/v1/notify-client`, {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
             body:    JSON.stringify({
               kind:       status === 'approved' ? 'admin_media_approved' : 'admin_changes_requested',
               client_id:  window.__CLIENT.id,

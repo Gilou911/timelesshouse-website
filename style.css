@@ -1,0 +1,15 @@
+/* ──────────────────────────────────────────────────────────────
+   style.css — Feuille de style maîtresse TimelessHouse
+   ──────────────────────────────────────────────────────────────
+   Une seule directive suffit avec Tailwind v4 : le compilateur
+   scanne automatiquement tous les fichiers HTML / JSX / TSX du
+   projet pour livrer une CSS minifiée ne contenant que les
+   classes effectivement utilisées.
+   ────────────────────────────────────────────────────────────── */
+@import "tailwindcss";
+
+/* Espace réservé : ajoute ici tes styles globaux utilitaires
+   partagés entre plusieurs pages (variables CSS communes,
+   resets supplémentaires, fontes locales, etc.). Pour l'instant,
+   les styles spécifiques restent dans les balises <style> de
+   chaque HTML, ce qui évite toute régression visuelle. */

@@ -21,14 +21,20 @@
   />
 
   <!-- 🔐 Config Supabase (URL + ANON_KEY) -->
-  <script src="supabase-config.js"></script>
   <!-- 🖼️ Bridge d'aperçu admin (à conserver) -->
   <script src="preview-bridge.js"></script>
 
   <!-- 📥 Chargement de la config depuis Supabase (top-level await) — IDENTIQUE à event-photos.html -->
   <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-    const sb = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+    // — Config Supabase injectée par Vite depuis .env (variables VITE_*)
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    // Rétrocompatibilité pour les scripts classiques de la page qui lisent window.SUPABASE_*
+    window.SUPABASE_URL = SUPABASE_URL;
+    window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
+
+    import { createClient } from '@supabase/supabase-js';
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     function showError(type, clientName) {
       document.body.style.opacity = '1';

@@ -150,6 +150,18 @@
       max-height: 100%;
     }
 
+    /* Exception cards de prévisualisation : même bug que ci-dessus, mais sur la
+       vidéo de hover des cards "Vos médias". La <video> a `absolute inset-0 w-full h-full`
+       en Tailwind, mais le `height: auto` global ligne 137 écrase le `h-full` (cascade
+       favorise le CSS du head sur Tailwind CDN). La vidéo se rendait alors à sa taille
+       intrinsèque, créant les fameuses bandes noires.
+       On force ici les dimensions sur tout <video> en position absolute à inset-0
+       dont le parent porte la classe `overflow-hidden` (= un conteneur de card/lightbox). */
+    video.absolute.inset-0 {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
     /* 2 — 100vh → utilise la hauteur dynamique réelle (barre URL mobile) */
     @supports (height: 100dvh) {
       .full-h, .hero, .min-h-screen { min-height: 100dvh; }

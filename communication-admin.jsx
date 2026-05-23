@@ -2108,6 +2108,170 @@
       );
     }
 
+    /* ════════════════════════════════════════════════════════════
+       🎯 PREVIEW CROPPER — Cadrage de la VIDÉO de hover
+       ────────────────────────────────────────────────────────────
+       Cible UNIQUEMENT la vidéo allégée qui démarre au survol côté
+       client (élément <video>). N'affecte PAS la vignette statique.
+       
+       Pas de recadrage destructif : on enregistre 3 valeurs
+       (focus_x, focus_y, zoom) qui seront appliquées côté client
+       en CSS pur (object-fit + object-position + transform: scale).
+       
+       L'admin voit ICI le rendu temps réel sur la VRAIE vidéo
+       (lecture muette en boucle), au ratio 4:3 = ratio des cards client.
+       ════════════════════════════════════════════════════════════ */
+    function PreviewCropper({ previewUrl, fallbackThumbUrl, focusX, focusY, zoom, onChange }) {
+      const boxRef = useRef(null);
+      const dragRef = useRef(null);
+
+      const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
+      const setFocus = (x, y) => onChange({ focus_x: clamp(x), focus_y: clamp(y), zoom });
+      const setZoom  = (z)    => onChange({ focus_x: focusX, focus_y: focusY, zoom: Math.max(1, Math.min(3, z)) });
+
+      const onPointerDown = (e) => {
+        if (!previewUrl && !fallbackThumbUrl) return;
+        const box = boxRef.current;
+        if (!box) return;
+        // Auto-zoom doux si l'utilisateur drag à zoom=1 (sinon, rien à bouger)
+        let activeZoom = zoom;
+        if (zoom <= 1.001) { activeZoom = 1.4; setZoom(1.4); }
+        const rect = box.getBoundingClientRect();
+        dragRef.current = {
+          startX: e.clientX,
+          startY: e.clientY,
+          baseFx: focusX, baseFy: focusY,
+          w: rect.width, h: rect.height, z: activeZoom,
+        };
+        e.target.setPointerCapture?.(e.pointerId);
+      };
+
+      const onPointerMove = (e) => {
+        const d = dragRef.current;
+        if (!d) return;
+        // Conversion pixels → % de focus, en tenant compte du zoom
+        const denomX = Math.max(1, (d.z - 1) * d.w);
+        const denomY = Math.max(1, (d.z - 1) * d.h);
+        const dfx = -((e.clientX - d.startX) * 100) / denomX;
+        const dfy = -((e.clientY - d.startY) * 100) / denomY;
+        setFocus(d.baseFx + dfx, d.baseFy + dfy);
+      };
+
+      const onPointerUp = () => { dragRef.current = null; };
+
+      const mediaStyle = {
+        objectFit: 'cover',
+        objectPosition: `${focusX}% ${focusY}%`,
+        transform: zoom !== 1 ? `scale(${zoom})` : undefined,
+        transformOrigin: `${focusX}% ${focusY}%`,
+      };
+
+      const presets = [
+        { label: 'Reset',  fx: 50, fy: 50, z: 1 },
+        { label: 'Centre', fx: 50, fy: 50, z: Math.max(zoom, 1.2) },
+        { label: 'Visage', fx: 50, fy: 35, z: 1.6 },
+        { label: 'Haut',   fx: 50, fy: 20, z: Math.max(zoom, 1.4) },
+        { label: 'Bas',    fx: 50, fy: 80, z: Math.max(zoom, 1.4) },
+      ];
+
+      // Pas de source vidéo ni de thumb → on n'affiche pas le cropper
+      if (!previewUrl && !fallbackThumbUrl) {
+        return (
+          <div className="rounded-xl p-4 text-[12px] text-stone-500 ring-1 ring-stone-200 bg-stone-50">
+            💡 Renseignez d'abord l'<strong>URL allégée</strong> de la vidéo ci-dessus pour pouvoir cadrer la prévisualisation au hover.
+          </div>
+        );
+      }
+
+      return (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-start">
+            {/* Aperçu interactif au ratio 4:3 (= card client) */}
+            <div
+              ref={boxRef}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+              onPointerLeave={onPointerUp}
+              className="relative w-full rounded-xl overflow-hidden ring-1 ring-stone-200 bg-stone-900 select-none"
+              style={{ aspectRatio: '4 / 3', cursor: dragRef.current ? 'grabbing' : 'grab', touchAction: 'none' }}
+            >
+              {previewUrl ? (
+                <video
+                  key={previewUrl}
+                  src={previewUrl}
+                  autoPlay muted loop playsInline preload="metadata"
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  style={mediaStyle}
+                />
+              ) : (
+                // Fallback : si pas d'URL allégée, on cadre sur la vignette
+                // (utile si l'admin veut préparer le cadrage avant l'encodage final)
+                <img
+                  src={fallbackThumbUrl}
+                  alt="cadrage"
+                  draggable="false"
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  style={mediaStyle}
+                />
+              )}
+
+              {/* Grille de tiers + indicateur de focus */}
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-1/3 left-0 right-0 h-px bg-white/20" />
+                <div className="absolute top-2/3 left-0 right-0 h-px bg-white/20" />
+                <div className="absolute left-1/3 top-0 bottom-0 w-px bg-white/20" />
+                <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white/20" />
+                <div
+                  className="absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white pointer-events-none"
+                  style={{ left: `${focusX}%`, top: `${focusY}%`, boxShadow: '0 0 0 2px rgba(0,0,0,0.5)' }}
+                />
+              </div>
+              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-mono">
+                {Math.round(focusX)}% · {Math.round(focusY)}% · ×{zoom.toFixed(2)}
+              </div>
+              {!previewUrl && (
+                <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-amber-500/90 text-white text-[10px] font-semibold">
+                  Aperçu sur la vignette (pas d'URL vidéo allégée)
+                </div>
+              )}
+            </div>
+
+            {/* Contrôles à droite */}
+            <div className="space-y-3 sm:w-44">
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold mb-1.5">Zoom</div>
+                <input
+                  type="range" min="1" max="3" step="0.05" value={zoom}
+                  onChange={e => setZoom(parseFloat(e.target.value))}
+                  className="w-full accent-stone-900"
+                />
+                <div className="text-[11px] text-stone-500 mt-1">×{zoom.toFixed(2)}</div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold mb-1.5">Préréglages</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {presets.map(p => (
+                    <button key={p.label} type="button"
+                      onClick={() => onChange({ focus_x: p.fx, focus_y: p.fy, zoom: p.z })}
+                      className="text-[11px] px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 transition ring-1 ring-stone-200">
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-[11.5px] text-stone-500 leading-relaxed">
+            💡 <strong>Glisse la vidéo</strong> pour repositionner le point d'intérêt. Augmente le <strong>zoom</strong> si le fichier MP4 contient des bandes noires intégrées à éliminer.
+            Aucun fichier n'est régénéré — seules les coordonnées de cadrage sont enregistrées.
+          </div>
+        </div>
+      );
+    }
+
     function MediaForm({ clientId, shoots = [], existing, onClose, onSaved }) {
       const [form, setForm] = useState({
         type:       existing?.type       || 'photo',
@@ -2116,6 +2280,9 @@
         preview_url: existing?.preview_url || '',
         thumb_url:   existing?.thumb_url   || '',
         thumb_grad:  existing?.thumb_grad  || 'linear-gradient(135deg,#2a2620 0%,#4a4238 100%)',
+        preview_focus_x: existing?.preview_focus_x ?? 50,
+        preview_focus_y: existing?.preview_focus_y ?? 50,
+        preview_zoom:    existing?.preview_zoom    ?? 1,
         date_label:  existing?.date_label  || (existing ? '' : isoToLabel(todayISO())),
         date_iso_local: existing?.date_label ? '' : todayISO(),
         duration:    existing?.duration    || '',
@@ -2139,7 +2306,16 @@
         }
         setLoading(true);
         const { date_iso_local, ...rest } = form;
-        const payload = { ...rest, client_id: clientId, position: parseInt(form.position) || 0, shoot_id: form.shoot_id || null };
+        const payload = {
+          ...rest,
+          client_id: clientId,
+          position: parseInt(form.position) || 0,
+          shoot_id: form.shoot_id || null,
+          // Coercer les coordonnées de cadrage en nombres (la DB attend des numeric)
+          preview_focus_x: Number(form.preview_focus_x) || 50,
+          preview_focus_y: Number(form.preview_focus_y) || 50,
+          preview_zoom:    Number(form.preview_zoom)    || 1,
+        };
         const result = existing
           ? await sb.from('media').update(payload).eq('id', existing.id)
           : await sb.from('media').insert(payload);
@@ -2249,6 +2425,22 @@
                 </div>
               )}
             </Field>
+
+            {/* 🎯 Cadrage de la vidéo de hover — uniquement pour les vidéos.
+                N'affecte PAS la vignette statique. */}
+            {form.type === 'video' && (
+              <Field label="Cadrage de la vidéo au survol (élimine bandes noires intégrées, recentre le sujet)">
+                <PreviewCropper
+                  previewUrl={form.preview_url}
+                  fallbackThumbUrl={form.thumb_url}
+                  focusX={Number(form.preview_focus_x) || 50}
+                  focusY={Number(form.preview_focus_y) || 50}
+                  zoom={Number(form.preview_zoom) || 1}
+                  onChange={({ focus_x, focus_y, zoom }) =>
+                    setForm({ ...form, preview_focus_x: focus_x, preview_focus_y: focus_y, preview_zoom: zoom })}
+                />
+              </Field>
+            )}
 
             <Field label="Couleur de fond (utilisée si la vignette n'est pas disponible)">
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">

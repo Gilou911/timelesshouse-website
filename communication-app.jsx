@@ -527,11 +527,25 @@ const MediaCard = ({ media: m, thumb, previewVideo, onOpen, neu: neuStyle }) => 
         style={{ background: thumb ? `url(${thumb}) center/cover` : m.thumb }}>
 
         {/* Vidéo allégée — cachée au repos, visible seulement quand elle joue.
-            Au repos : vignette perso (cas 1) ou cadre vide (cas 2/3). */}
-        {previewVideo && (
-          <video ref={videoRef} muted loop playsInline preload="metadata"
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${playing ? 'opacity-100' : 'opacity-0'}`} />
-        )}
+            Au repos : vignette perso (cas 1) ou cadre vide (cas 2/3).
+            🎯 object-position + scale : appliquent le cadrage défini par l'admin
+            pour éliminer d'éventuelles bandes noires intégrées dans le fichier MP4
+            ou recentrer le sujet. Sans cadrage admin (defaults 50/50/1), le rendu
+            est identique au comportement object-cover classique. */}
+        {previewVideo && (() => {
+          const fx = Number.isFinite(+m?.preview_focus_x) ? +m.preview_focus_x : 50;
+          const fy = Number.isFinite(+m?.preview_focus_y) ? +m.preview_focus_y : 50;
+          const pz = Number.isFinite(+m?.preview_zoom) && +m.preview_zoom > 0 ? +m.preview_zoom : 1;
+          return (
+            <video ref={videoRef} muted loop playsInline preload="metadata"
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${playing ? 'opacity-100' : 'opacity-0'}`}
+              style={{
+                objectPosition: `${fx}% ${fy}%`,
+                transform: pz !== 1 ? `scale(${pz})` : undefined,
+                transformOrigin: `${fx}% ${fy}%`,
+              }} />
+          );
+        })()}
 
         {/* Overlay play — visible uniquement au repos */}
         {m.type === 'video' && !playing && (
@@ -934,6 +948,17 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
   const [savingApproval, setSavingApproval] = useState(false);
   const [localStatus, setLocalStatus] = useState(m.approval_status);
 
+  // 📐 Ratio naturel du média (largeur / hauteur), lu au chargement.
+  //   - <video>  : via onLoadedMetadata → videoWidth / videoHeight
+  //   - <img>    : via onLoad           → naturalWidth / naturalHeight
+  //   - <iframe> : non lisible (cross-origin) → 16/9 par défaut
+  // Permet à la boîte de prendre le ratio du média lui-même, donc :
+  //   - vidéo paysage (16:9) → boîte 16:9 → remplit largeur dispo
+  //   - vidéo portrait (9:16) → boîte 9:16 → remplit hauteur dispo
+  //   - aucune bande noire ajoutée par object-fit: contain.
+  const [mediaRatio, setMediaRatio] = useState(16 / 9);
+  useEffect(() => { setMediaRatio(16 / 9); }, [m.id]); // reset à chaque changement de média
+
   // Recharger les commentaires à chaque changement de média
   useEffect(() => {
     setLocalStatus(m.approval_status);
@@ -1066,46 +1091,80 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
 
         <div className="flex items-center justify-center w-full h-full min-h-0 min-w-0">
           {!embed && <div className="text-stone-400">Aucun aperçu disponible</div>}
+
+          {/* Pattern de boîte adaptative au ratio du média :
+              • height: 100%          → la boîte fait la hauteur dispo
+              • aspect-ratio: ratio    → width se calcule depuis la height
+              • max-width: 100%        → si ça déborde en largeur, on cape ; la height
+                                         se recalcule alors automatiquement via aspect-ratio
+              ⇒ Plus de bandes noires : la boîte épouse exactement le ratio du média
+                et le navigateur trouve la plus grande taille qui tient dans le parent. */}
+
           {embed && embed.kind === 'image' && (
             <img
               src={embed.src}
               alt={m.title}
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                if (img.naturalWidth && img.naturalHeight) {
+                  setMediaRatio(img.naturalWidth / img.naturalHeight);
+                }
+              }}
               className="rounded-xl"
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              style={{
+                height: '100%',
+                maxWidth: '100%',
+                width: 'auto',
+                aspectRatio: mediaRatio,
+                objectFit: 'contain',
+              }}
             />
           )}
+
           {embed && embed.kind === 'video' && (
             <video
               src={embed.src}
               controls
               playsInline
+              onLoadedMetadata={(e) => {
+                const v = e.currentTarget;
+                if (v.videoWidth && v.videoHeight) {
+                  setMediaRatio(v.videoWidth / v.videoHeight);
+                }
+              }}
               className="rounded-xl bg-black"
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              style={{
+                height: '100%',
+                maxWidth: '100%',
+                width: 'auto',
+                aspectRatio: mediaRatio,
+                objectFit: 'contain',
+              }}
             />
           )}
+
+          {/* Iframe (Streamable, YouTube…) : dimensions cross-origin illisibles → 16/9 par défaut */}
           {embed && embed.kind === 'iframe' && (
-            <div className="w-full h-full flex items-center justify-center">
-              <div
-                className="rounded-xl overflow-hidden bg-black"
+            <div
+              className="rounded-xl overflow-hidden bg-black"
+              style={{
+                height: '100%',
+                maxWidth: '100%',
+                width: 'auto',
+                aspectRatio: '16 / 9',
+              }}
+            >
+              <iframe
+                src={embed.src}
                 style={{
                   width: '100%',
-                  maxWidth: '1600px',
-                  aspectRatio: '16 / 9',
-                  maxHeight: '100%',
+                  height: '100%',
+                  display: 'block',
+                  border: 0,
                 }}
-              >
-                <iframe
-                  src={embed.src}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'block',
-                    border: 0,
-                  }}
-                  allow="autoplay; encrypted-media; fullscreen"
-                  allowFullScreen
-                />
-              </div>
+                allow="autoplay; encrypted-media; fullscreen"
+                allowFullScreen
+              />
             </div>
           )}
         </div>

@@ -158,6 +158,14 @@ create table if not exists media (
   preview_url     text,                           -- URL allégée pour streaming navigateur
   thumb_url       text,                           -- miniature
   thumb_grad      text        default 'linear-gradient(135deg,#1a1a1d 0%,#3a3a3d 100%)',
+  -- 🎯 Cadrage de la VIDÉO DE PREVIEW (celle qui démarre au survol côté client).
+  -- N'affecte PAS la vignette statique (img), qui reste cover/center par défaut.
+  -- focus_x / focus_y : position du point d'intérêt dans la vidéo, en % (0-100)
+  -- zoom : facteur d'agrandissement (1 = original, 2 = ×2, etc.) pour exclure
+  -- des bandes noires intégrées dans le fichier MP4 ou recentrer le cadrage.
+  preview_focus_x numeric     default 50,
+  preview_focus_y numeric     default 50,
+  preview_zoom    numeric     default 1,
   date_label      text,                           -- ex: "12 Avr 2026"
   duration        text,                           -- vidéos uniquement, ex: "0:45"
   size_label      text,                           -- ex: "128 MB"
@@ -304,6 +312,40 @@ create policy "auth write shoots"         on shoots         for all using (auth.
 -- (ils sont identifiés par leur code, pas par Supabase Auth)
 create policy "client insert media_comments" on media_comments
   for insert with check (is_admin = false);
+
+
+-- ════════════════════════════════════════════════════════════
+-- 🔄 MIGRATION INCRÉMENTALE — bases déjà déployées
+-- ════════════════════════════════════════════════════════════
+-- Ce bloc est idempotent : safe à exécuter plusieurs fois.
+-- Gère les deux scénarios :
+--   A) la migration n'a JAMAIS été exécutée → crée les colonnes preview_focus_*
+--   B) une ancienne version avait créé thumb_focus_* → les renomme proprement
+do $$
+begin
+  -- Scénario B : renommer si l'ancien nom existait
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'media'
+             and column_name = 'thumb_focus_x') then
+    alter table media rename column thumb_focus_x to preview_focus_x;
+  end if;
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'media'
+             and column_name = 'thumb_focus_y') then
+    alter table media rename column thumb_focus_y to preview_focus_y;
+  end if;
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'media'
+             and column_name = 'thumb_zoom') then
+    alter table media rename column thumb_zoom to preview_zoom;
+  end if;
+end $$;
+
+-- Scénario A (et compléter B si une seule colonne avait été renommée) :
+-- création si absentes.
+alter table media add column if not exists preview_focus_x numeric default 50;
+alter table media add column if not exists preview_focus_y numeric default 50;
+alter table media add column if not exists preview_zoom    numeric default 1;
 
 
 -- ════════════════════════════════════════════════════════════

@@ -1304,6 +1304,46 @@
       };
     }
 
+    // Helpers chapitres vidéo (format YouTube : "MM:SS Titre" ou "HH:MM:SS Titre" par ligne)
+    function parseChapterTime(str) {
+      if (typeof str === 'number' && isFinite(str)) return Math.max(0, Math.floor(str));
+      if (!str) return 0;
+      const parts = String(str).trim().split(':').map(p => parseInt(p, 10));
+      if (parts.some(isNaN)) return 0;
+      if (parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
+      if (parts.length === 2) return parts[0]*60 + parts[1];
+      return parts[0] || 0;
+    }
+    function formatChapterTime(sec) {
+      sec = Math.max(0, Math.floor(sec || 0));
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      const mm = String(m).padStart(2, '0');
+      const ss = String(s).padStart(2, '0');
+      return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+    }
+    function chaptersToText(arr) {
+      if (!Array.isArray(arr)) return '';
+      return arr
+        .map(c => `${formatChapterTime(c.time)} ${c.titre || ''}`.trimEnd())
+        .join('\n');
+    }
+    // Parse libre : accepte "0:00 - Titre", "0:00 — Titre", "0:00 Titre", "00:00:00 Titre"
+    function textToChapters(text) {
+      if (!text) return [];
+      const re = /^\s*(\d{1,2}(?::\d{1,2}){1,2})\s*[-–—:]?\s*(.*?)\s*$/;
+      return text.split(/\r?\n/).reduce((acc, line) => {
+        if (!line.trim()) return acc;
+        const m = line.match(re);
+        if (!m) return acc;
+        const titre = (m[2] || '').trim();
+        if (!titre) return acc;
+        acc.push({ time: parseChapterTime(m[1]), titre });
+        return acc;
+      }, []).sort((a, b) => a.time - b.time);
+    }
+
     function defaultVideoConfig(client) {
       const base = {
         couple: clientCouple(client),
@@ -1314,6 +1354,8 @@
         teaserDownloadUrl: '',
         filmDownloadUrl: '',
         defaultVideo: 'film',
+        teaserChapitres: [],
+        filmChapitres: [],
         upsellBouton: false,
         upsellTexte: 'Commander ce film',
         upsellLien: 'mailto:service@timelesshouse.org',
@@ -1818,6 +1860,17 @@
                     <Field label="Lien de téléchargement teaser">
                       <Input value={c.teaserDownloadUrl || ''} onChange={e => updateConfig('teaserDownloadUrl', e.target.value)} placeholder="https://..." />
                     </Field>
+                    <Field label="Chapitres du teaser (format YouTube — un par ligne, ex. 0:15 Cérémonie)">
+                      <Textarea
+                        rows={4}
+                        value={chaptersToText(c.teaserChapitres)}
+                        onChange={e => updateConfig('teaserChapitres', textToChapters(e.target.value))}
+                        placeholder={"0:00 Ouverture\n0:25 Préparatifs\n0:55 Cérémonie"}
+                      />
+                      <div className="text-[10px] text-stone-400 mt-1.5 leading-relaxed">
+                        Formats acceptés : <code className="font-mono">MM:SS</code> ou <code className="font-mono">HH:MM:SS</code>, suivis du titre. Une ligne vide ou invalide est ignorée. Tri auto par ordre chronologique.
+                      </div>
+                    </Field>
                   </>
                 )}
 
@@ -1834,6 +1887,17 @@
                     </div>
                     <Field label="Lien de téléchargement film">
                       <Input value={c.filmDownloadUrl || ''} onChange={e => updateConfig('filmDownloadUrl', e.target.value)} placeholder="https://..." />
+                    </Field>
+                    <Field label="Chapitres du film (format YouTube — un par ligne, ex. 2:30 Cérémonie)">
+                      <Textarea
+                        rows={7}
+                        value={chaptersToText(c.filmChapitres)}
+                        onChange={e => updateConfig('filmChapitres', textToChapters(e.target.value))}
+                        placeholder={"0:00 Préparatifs\n2:30 Cérémonie\n8:00 Vin d'honneur\n14:20 Discours\n22:45 Première danse"}
+                      />
+                      <div className="text-[10px] text-stone-400 mt-1.5 leading-relaxed">
+                        Formats acceptés : <code className="font-mono">MM:SS</code> ou <code className="font-mono">HH:MM:SS</code>, suivis du titre. Une ligne vide ou invalide est ignorée. Tri auto par ordre chronologique.
+                      </div>
                     </Field>
                   </>
                 )}

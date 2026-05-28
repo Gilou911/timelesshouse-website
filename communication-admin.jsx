@@ -1393,7 +1393,18 @@
 
       const performSave = async ({ stayOpen }) => {
         setLoading(true);
-        const payload = { client_id: clientId, page_type, config: c };
+        // Les chapitres sont édités en texte libre (clés *Raw) puis convertis ici
+        // en tableaux normalisés [{ time, titre }] que lit la page client.
+        const cfgToSave = { ...c };
+        if (!isPhotos) {
+          if (cfgToSave.teaserChapitresRaw !== undefined) {
+            cfgToSave.teaserChapitres = textToChapters(cfgToSave.teaserChapitresRaw);
+          }
+          if (cfgToSave.filmChapitresRaw !== undefined) {
+            cfgToSave.filmChapitres = textToChapters(cfgToSave.filmChapitresRaw);
+          }
+        }
+        const payload = { client_id: clientId, page_type, config: cfgToSave };
         const result = pageId
           ? await sb.from('event_pages').update(payload).eq('id', pageId).select().single()
           : await sb.from('event_pages').insert(payload).select().single();
@@ -1863,8 +1874,8 @@
                     <Field label="Chapitres du teaser (format YouTube — un par ligne, ex. 0:15 Cérémonie)">
                       <Textarea
                         rows={4}
-                        value={chaptersToText(c.teaserChapitres)}
-                        onChange={e => updateConfig('teaserChapitres', textToChapters(e.target.value))}
+                        value={c.teaserChapitresRaw !== undefined ? c.teaserChapitresRaw : chaptersToText(c.teaserChapitres)}
+                        onChange={e => updateConfig('teaserChapitresRaw', e.target.value)}
                         placeholder={"0:00 Ouverture\n0:25 Préparatifs\n0:55 Cérémonie"}
                       />
                       <div className="text-[10px] text-stone-400 mt-1.5 leading-relaxed">
@@ -1891,8 +1902,8 @@
                     <Field label="Chapitres du film (format YouTube — un par ligne, ex. 2:30 Cérémonie)">
                       <Textarea
                         rows={7}
-                        value={chaptersToText(c.filmChapitres)}
-                        onChange={e => updateConfig('filmChapitres', textToChapters(e.target.value))}
+                        value={c.filmChapitresRaw !== undefined ? c.filmChapitresRaw : chaptersToText(c.filmChapitres)}
+                        onChange={e => updateConfig('filmChapitresRaw', e.target.value)}
                         placeholder={"0:00 Préparatifs\n2:30 Cérémonie\n8:00 Vin d'honneur\n14:20 Discours\n22:45 Première danse"}
                       />
                       <div className="text-[10px] text-stone-400 mt-1.5 leading-relaxed">

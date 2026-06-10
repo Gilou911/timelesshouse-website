@@ -17,7 +17,8 @@
       Filter, Video, Camera, Clock, MapPin, TrendingUp, Sparkles, ExternalLink,
       Loader2, MessageSquare, Bell, Send, CheckCircle2, RefreshCw, Link2,
       FolderOpen, Download,
-      Maximize2, Monitor, Smartphone, ChevronDown, ChevronUp
+      Maximize2, Monitor, Smartphone, ChevronDown, ChevronUp,
+      Lightbulb, Copy, Power
     } from 'lucide-react';
 
     // — Config Supabase injectée par Vite depuis .env (variables VITE_*)
@@ -463,6 +464,7 @@
         invoices_enabled:  existing?.invoices_enabled ?? true,
         shoots_enabled:    existing?.shoots_enabled   ?? true,
         documents_enabled: existing?.documents_enabled ?? true,
+        strategies_enabled: existing?.strategies_enabled ?? true,
       });
       const [loading, setLoading] = useState(false);
       const [err, setErr] = useState('');
@@ -522,9 +524,9 @@
                 // Pour les nouveaux clients couples, on désactive par défaut les 3 modules extras
                 // (sauf si l'utilisateur les a déjà touchés ou si on édite un client existant)
                 if (!existing && COUPLES.includes(newUniverse) && !COUPLES.includes(form.universe)) {
-                  setForm({...form, universe: newUniverse, media_enabled: false, invoices_enabled: false, shoots_enabled: false, documents_enabled: false});
+                  setForm({...form, universe: newUniverse, media_enabled: false, invoices_enabled: false, shoots_enabled: false, documents_enabled: false, strategies_enabled: false});
                 } else if (!existing && !COUPLES.includes(newUniverse) && COUPLES.includes(form.universe)) {
-                  setForm({...form, universe: newUniverse, media_enabled: true, invoices_enabled: true, shoots_enabled: true, documents_enabled: true});
+                  setForm({...form, universe: newUniverse, media_enabled: true, invoices_enabled: true, shoots_enabled: true, documents_enabled: true, strategies_enabled: true});
                 } else {
                   setForm({...form, universe: newUniverse});
                 }
@@ -650,6 +652,22 @@
                   </div>
                 </button>
 
+                {/* Stratégies */}
+                <button type="button" onClick={() => setForm({...form, strategies_enabled: !form.strategies_enabled})}
+                  style={form.strategies_enabled ? neu.dark : neu.pressedSm}
+                  className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.strategies_enabled ? 'text-white' : 'text-stone-700'}`}>
+                  <div className="flex items-center gap-3 text-left">
+                    <Lightbulb size={17} />
+                    <div>
+                      <div className="font-semibold text-[13px]">Stratégies</div>
+                      <div className={`text-[10.5px] mt-0.5 ${form.strategies_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Stratégies de contenu consultables et partageables par lien</div>
+                    </div>
+                  </div>
+                  <div className={`w-10 h-5.5 rounded-full p-0.5 transition ${form.strategies_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.strategies_enabled ? 'translate-x-4' : ''}`} />
+                  </div>
+                </button>
+
                 {/* Tournages / Calendrier */}
                 <button type="button" onClick={() => setForm({...form, shoots_enabled: !form.shoots_enabled})}
                   style={form.shoots_enabled ? neu.dark : neu.pressedSm}
@@ -725,12 +743,14 @@
       const invoicesOn = client.invoices_enabled !== false;
       const shootsOn   = client.shoots_enabled   !== false;
       const documentsOn = client.documents_enabled !== false;
+      const strategiesOn = client.strategies_enabled !== false;
 
       const tabs = [
         ...(client.universe && client.universe !== 'communication' ? [{ id: 'event_pages', label: 'Page client', icon: Eye }] : []),
         ...(mediaOn    ? [{ id: 'media',    label: 'Médias',    icon: ImageIcon }]  : []),
         ...(invoicesOn ? [{ id: 'invoices', label: 'Factures',  icon: FileText }]   : []),
         ...(documentsOn ? [{ id: 'documents', label: 'Documents', icon: FolderOpen }] : []),
+        ...(strategiesOn ? [{ id: 'strategies', label: 'Stratégies', icon: Lightbulb }] : []),
         ...(shootsOn   ? [{ id: 'shoots',   label: 'Tournages', icon: CalendarIcon }] : []),
         ...(client.analytics_enabled ? [{ id: 'analytics', label: 'Analyses', icon: BarChart3 }] : []),
       ];
@@ -827,6 +847,7 @@
           {tab === 'media' && <MediaTab clientId={client.id} client={client} />}
           {tab === 'invoices' && <InvoicesTab clientId={client.id} client={client} />}
           {tab === 'documents' && <DocumentsTab clientId={client.id} />}
+          {tab === 'strategies' && <StrategiesTab clientId={client.id} />}
           {tab === 'shoots' && <ShootsTab clientId={client.id} client={client} />}
           {tab === 'analytics' && <AnalyticsTab clientId={client.id} />}
 
@@ -1393,18 +1414,7 @@
 
       const performSave = async ({ stayOpen }) => {
         setLoading(true);
-        // Les chapitres sont édités en texte libre (clés *Raw) puis convertis ici
-        // en tableaux normalisés [{ time, titre }] que lit la page client.
-        const cfgToSave = { ...c };
-        if (!isPhotos) {
-          if (cfgToSave.teaserChapitresRaw !== undefined) {
-            cfgToSave.teaserChapitres = textToChapters(cfgToSave.teaserChapitresRaw);
-          }
-          if (cfgToSave.filmChapitresRaw !== undefined) {
-            cfgToSave.filmChapitres = textToChapters(cfgToSave.filmChapitresRaw);
-          }
-        }
-        const payload = { client_id: clientId, page_type, config: cfgToSave };
+        const payload = { client_id: clientId, page_type, config: c };
         const result = pageId
           ? await sb.from('event_pages').update(payload).eq('id', pageId).select().single()
           : await sb.from('event_pages').insert(payload).select().single();
@@ -1874,8 +1884,8 @@
                     <Field label="Chapitres du teaser (format YouTube — un par ligne, ex. 0:15 Cérémonie)">
                       <Textarea
                         rows={4}
-                        value={c.teaserChapitresRaw !== undefined ? c.teaserChapitresRaw : chaptersToText(c.teaserChapitres)}
-                        onChange={e => updateConfig('teaserChapitresRaw', e.target.value)}
+                        value={chaptersToText(c.teaserChapitres)}
+                        onChange={e => updateConfig('teaserChapitres', textToChapters(e.target.value))}
                         placeholder={"0:00 Ouverture\n0:25 Préparatifs\n0:55 Cérémonie"}
                       />
                       <div className="text-[10px] text-stone-400 mt-1.5 leading-relaxed">
@@ -1902,8 +1912,8 @@
                     <Field label="Chapitres du film (format YouTube — un par ligne, ex. 2:30 Cérémonie)">
                       <Textarea
                         rows={7}
-                        value={c.filmChapitresRaw !== undefined ? c.filmChapitresRaw : chaptersToText(c.filmChapitres)}
-                        onChange={e => updateConfig('filmChapitresRaw', e.target.value)}
+                        value={chaptersToText(c.filmChapitres)}
+                        onChange={e => updateConfig('filmChapitres', textToChapters(e.target.value))}
                         placeholder={"0:00 Préparatifs\n2:30 Cérémonie\n8:00 Vin d'honneur\n14:20 Discours\n22:45 Première danse"}
                       />
                       <div className="text-[10px] text-stone-400 mt-1.5 leading-relaxed">
@@ -2917,6 +2927,482 @@
               <Btn onClick={onClose} full>Annuler</Btn>
               <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
                 {loading ? 'Enregistrement…' : (existing ? 'Mettre à jour' : 'Ajouter')}
+              </Btn>
+            </div>
+          </form>
+        </Modal>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       📑 STRATEGIES TAB (stratégies de contenu + partage par lien)
+       ════════════════════════════════════════════════════════════ */
+    const STRATEGY_TAGS = ['Lead Gen', 'Éducation', 'Désir', 'Viral', 'Confiance', 'Conversion'];
+
+    const STRATEGY_TAG_COLORS = {
+      'Lead Gen': '#C9A84C', 'Éducation': '#2D7A5F', 'Désir': '#7B5EA7',
+      'Viral': '#C0392B', 'Confiance': '#2980B9', 'Conversion': '#E67E22',
+    };
+
+    const stratTagColor = (tag) => STRATEGY_TAG_COLORS[tag] || '#8a7a66';
+    const stratHexA = (hex, a) => {
+      const h = (hex || '#8a7a66').replace('#', '');
+      return `rgba(${parseInt(h.substring(0,2),16)},${parseInt(h.substring(2,4),16)},${parseInt(h.substring(4,6),16)},${a})`;
+    };
+
+    const StrategyTagBadge = ({ tag }) => {
+      if (!tag) return null;
+      const c = stratTagColor(tag);
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold shrink-0 leading-none"
+              style={{ background: stratHexA(c, 0.14), color: c, border: `1px solid ${stratHexA(c, 0.35)}` }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />{tag}
+        </span>
+      );
+    };
+
+    function StrategiesTab({ clientId }) {
+      const [items, setItems] = useState([]);
+      const [editing, setEditing] = useState(null);
+      const [showForm, setShowForm] = useState(false);
+      const [loading, setLoading] = useState(true);
+      const [copiedId, setCopiedId] = useState(null);
+      const [busyId, setBusyId] = useState(null);
+
+      const load = async () => {
+        setLoading(true);
+        const { data } = await sb.from('strategies').select('*').eq('client_id', clientId).order('position').order('created_at', { ascending: false });
+        setItems(data || []); setLoading(false);
+      };
+      useEffect(() => { load(); }, [clientId]);
+
+      const remove = async (id) => {
+        if (!confirm('Supprimer cette stratégie ? Le lien de partage cessera de fonctionner.')) return;
+        await sb.from('strategies').delete().eq('id', id);
+        load();
+      };
+
+      // Base de l'URL publique : strategie.html vit à la racine du site.
+      const shareBase = (() => {
+        const path = window.location.pathname.replace(/[^/]*$/, '');
+        return window.location.origin + path + 'strategie.html';
+      })();
+
+      const shareLink = (s) => shareBase + '?s=' + s.share_token;
+
+      const copyLink = async (s) => {
+        try { await navigator.clipboard.writeText(shareLink(s)); }
+        catch (e) { window.prompt('Copiez ce lien :', shareLink(s)); }
+        setCopiedId(s.id); setTimeout(() => setCopiedId(null), 2200);
+      };
+
+      // Active/désactive le partage public
+      const toggleShare = async (s) => {
+        setBusyId(s.id);
+        await sb.from('strategies').update({ share_enabled: !s.share_enabled }).eq('id', s.id);
+        await load(); setBusyId(null);
+      };
+
+      // Régénère le token (révoque l'ancien lien)
+      const regenToken = async (s) => {
+        if (!confirm('Régénérer le lien ? L\'ancien lien partagé cessera immédiatement de fonctionner.')) return;
+        setBusyId(s.id);
+        const newToken = (crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random())).replace(/-/g, '');
+        await sb.from('strategies').update({ share_token: newToken }).eq('id', s.id);
+        await load(); setBusyId(null);
+      };
+
+      // Duplique une stratégie (sert de modèle) : nouveau token (défaut DB),
+      // partage désactivé, statut brouillon.
+      const duplicate = async (s) => {
+        setBusyId(s.id);
+        const { id, created_at, updated_at, share_token, ...rest } = s;
+        const { error } = await sb.from('strategies').insert({
+          ...rest,
+          title: s.title + ' (copie)',
+          share_enabled: false,
+          status: 'draft',
+        });
+        if (error) alert(error.message);
+        await load(); setBusyId(null);
+      };
+
+      return (
+        <div className="space-y-5 lg:space-y-6">
+          <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+              <div>
+                <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Contenu & Marketing</div>
+                <h3 className="text-[20px] lg:text-[22px] tracking-tight mt-1 leading-tight" style={SERIF}>
+                  Stratégies <span className="text-stone-400">({items.length})</span>
+                </h3>
+              </div>
+              <Btn kind="dark" icon={Plus} onClick={() => { setEditing(null); setShowForm(true); }} className="w-full sm:w-auto">
+                Nouvelle stratégie
+              </Btn>
+            </div>
+            <p className="text-[12px] lg:text-[13px] text-stone-500 mt-2">
+              Stratégies de contenu (concepts, hooks, storyboards…). Le client les consulte dans son espace et peut partager un lien public à ses collaborateurs.
+            </p>
+
+            <div className="mt-5">
+              {loading ? <div className="text-center py-12 text-stone-400">Chargement…</div> : (
+                <div className="space-y-3">
+                  {items.map(s => {
+                    const nbConcepts = Array.isArray(s.concepts) ? s.concepts.length : 0;
+                    return (
+                      <div key={s.id} style={neu.pressedSm} className="rounded-2xl p-4 lg:p-5">
+                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-[14px] leading-snug">{s.title}</span>
+                              <span className={`text-[9.5px] uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold ${s.status === 'published' ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200 text-stone-500'}`}>
+                                {s.status === 'published' ? 'Publiée' : 'Brouillon'}
+                              </span>
+                            </div>
+                            {s.subtitle && <div className="text-[12.5px] text-stone-500 mt-1 leading-snug">{s.subtitle}</div>}
+                            <div className="text-[11.5px] text-stone-400 mt-1.5">
+                              {nbConcepts} concept{nbConcepts > 1 ? 's' : ''}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button onClick={() => duplicate(s)} disabled={busyId === s.id} aria-label="Dupliquer" title="Dupliquer (sert de modèle)" className="w-10 h-10 lg:w-9 lg:h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform disabled:opacity-50"><Copy size={14} /></button>
+                            <button onClick={() => { setEditing(s); setShowForm(true); }} aria-label="Modifier" className="w-10 h-10 lg:w-9 lg:h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform"><Edit3 size={14} /></button>
+                            <button onClick={() => remove(s.id)} aria-label="Supprimer" className="w-10 h-10 lg:w-9 lg:h-9 rounded-full flex items-center justify-center bg-white text-rose-500 active:scale-95 transition-transform"><Trash2 size={14} /></button>
+                          </div>
+                        </div>
+
+                        {/* Bloc de partage */}
+                        <div style={neu.raisedXs} className="rounded-xl p-3 mt-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                          <button
+                            onClick={() => toggleShare(s)}
+                            disabled={busyId === s.id}
+                            style={s.share_enabled ? neu.darkSm : {}}
+                            className={`px-3 py-2 min-h-[40px] rounded-full text-[12px] font-semibold flex items-center justify-center gap-2 shrink-0 active:scale-95 transition ${s.share_enabled ? 'text-white' : 'text-stone-500'}`}>
+                            <Power size={13} /> {s.share_enabled ? 'Lien actif' : 'Lien désactivé'}
+                          </button>
+
+                          {s.share_enabled ? (
+                            <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+                              {s.status !== 'published' && (
+                                <span className="text-[11px] text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 leading-none">
+                                  <AlertCircle size={11} /> Lien inactif tant que la stratégie est en brouillon
+                                </span>
+                              )}
+                              <code className="text-[11px] text-stone-500 truncate flex-1 font-mono min-w-[120px]">{shareLink(s)}</code>
+                              <button onClick={() => copyLink(s)} aria-label="Copier le lien"
+                                className="w-9 h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform shrink-0" title="Copier le lien">
+                                {copiedId === s.id ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                              </button>
+                              <a href={shareLink(s)} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir l'aperçu"
+                                className="w-9 h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform shrink-0" title="Ouvrir l'aperçu public"><ExternalLink size={13} /></a>
+                              <button onClick={() => regenToken(s)} aria-label="Régénérer le lien"
+                                className="w-9 h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform shrink-0" title="Régénérer le lien (révoque l'ancien)"><RefreshCw size={13} /></button>
+                            </div>
+                          ) : (
+                            <div className="text-[11.5px] text-stone-400 leading-snug">Activez le lien pour permettre au client de le partager publiquement.</div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucune stratégie. Cliquez sur « Nouvelle stratégie » pour commencer.</div>}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {showForm && <StrategyForm clientId={clientId} existing={editing} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load(); }} />}
+        </div>
+      );
+    }
+
+    /* ────────────────────────────────────────────────────────────
+       ÉDITEUR D'UN CONCEPT (carte/storyboard)
+       Pattern raw-text-on-change : les lignes "texte écran" sont éditées
+       comme un bloc texte brut (1 ligne = 1 super), converti en tableau
+       seulement à la sauvegarde → évite la boucle controlled-input.
+       ──────────────────────────────────────────────────────────── */
+    function ConceptEditor({ concept, index, total, onChange, onRemove, onMove }) {
+      const set = (patch) => onChange({ ...concept, ...patch });
+      return (
+        <div style={neu.pressedSm} className="rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[20px] leading-none">{concept.emoji || '🎬'}</span>
+              <span className="text-[12px] font-semibold text-stone-500">Concept #{concept.id}</span>
+              <StrategyTagBadge tag={concept.tag} />
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button type="button" onClick={() => onMove(index, -1)} disabled={index === 0} aria-label="Monter"
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-stone-500 disabled:opacity-30 active:scale-95"><ChevronUp size={14} /></button>
+              <button type="button" onClick={() => onMove(index, 1)} disabled={index === total - 1} aria-label="Descendre"
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-stone-500 disabled:opacity-30 active:scale-95"><ChevronDown size={14} /></button>
+              <button type="button" onClick={() => onRemove(index)} aria-label="Supprimer le concept"
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-rose-500 active:scale-95"><Trash2 size={13} /></button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Field label="Emoji">
+              <Input value={concept.emoji || ''} onChange={e => set({ emoji: e.target.value })} placeholder="💰" />
+            </Field>
+            <Field label="Objectif (tag)">
+              <Select value={concept.tag || ''} onChange={e => set({ tag: e.target.value })}>
+                <option value="">— Aucun —</option>
+                {STRATEGY_TAGS.map(t => <option key={t} value={t}>{t}</option>)}
+              </Select>
+            </Field>
+            <Field label="Angle stratégique">
+              <Input value={concept.angle || ''} onChange={e => set({ angle: e.target.value })} placeholder="Brise la barrière prix #1" />
+            </Field>
+          </div>
+
+          <Field label="Titre">
+            <Input value={concept.titre || ''} onChange={e => set({ titre: e.target.value })} placeholder="Budget réel en Île-de-France" />
+          </Field>
+
+          <Field label="Hook (accroche, 3 premières secondes)">
+            <Textarea rows={2} value={concept.hook || ''} onChange={e => set({ hook: e.target.value })} placeholder="On m'a dit 200K… mais combien ça coûte VRAIMENT ?" />
+          </Field>
+
+          <Field label="Visuel (ce qu'on montre à l'écran)">
+            <Textarea rows={2} value={concept.visuel || ''} onChange={e => set({ visuel: e.target.value })} placeholder="Constructeur face caméra, tableau blanc derrière…" />
+          </Field>
+
+          <Field label="Texte écran (une ligne = un super)">
+            <Textarea rows={4}
+              value={Array.isArray(concept.texteEcran) ? concept.texteEcran.join('\n') : (concept.texteEcran || '')}
+              onChange={e => set({ texteEcran: e.target.value.split('\n') })}
+              placeholder={"⚠️ VÉRITÉ sur les prix\nEntre 1 600 et 2 200 €/m²\n→ pour une maison clé en main"} />
+            <div className="text-[11px] text-stone-500 mt-1">Chaque retour à la ligne crée une nouvelle pastille de texte.</div>
+          </Field>
+
+          <Field label="Call to action (CTA de fin)">
+            <Input value={concept.cta || ''} onChange={e => set({ cta: e.target.value })} placeholder="💬 Estimez votre projet →" />
+          </Field>
+        </div>
+      );
+    }
+
+    function StrategyForm({ clientId, existing, onClose, onSaved }) {
+      const [form, setForm] = useState({
+        title:        existing?.title        || '',
+        subtitle:     existing?.subtitle     || '',
+        sector_label: existing?.sector_label || '',
+        intro:        existing?.intro         || '',
+        format_note:  existing?.format_note  || '',
+        status:       existing?.status       || 'draft',
+        share_enabled: existing?.share_enabled ?? false,
+        position:     existing?.position ?? 0,
+      });
+      // Concepts en state structuré (édités via ConceptEditor, chacun avec un sous-state texte brut)
+      const [concepts, setConcepts] = useState(() =>
+        Array.isArray(existing?.concepts) ? existing.concepts.map(c => ({ ...c })) : []
+      );
+      // Stats d'en-tête et objectifs/KPIs : édition visuelle structurée
+      const [stats, setStats] = useState(() =>
+        Array.isArray(existing?.stats) ? existing.stats.map(s => ({ ...s })) : []
+      );
+      const [kpis, setKpis] = useState(() =>
+        Array.isArray(existing?.kpis) ? existing.kpis.map(k => ({ ...k })) : []
+      );
+      const [loading, setLoading] = useState(false);
+      const [err, setErr] = useState('');
+
+      const updateRow = (list, setList) => (i, patch) => setList(list.map((r, idx) => idx === i ? { ...r, ...patch } : r));
+      const removeRow = (list, setList) => (i) => setList(list.filter((_, idx) => idx !== i));
+      const updateStat = updateRow(stats, setStats);
+      const removeStat = removeRow(stats, setStats);
+      const updateKpi  = updateRow(kpis, setKpis);
+      const removeKpi  = removeRow(kpis, setKpis);
+
+      const addConcept = () => {
+        const nextId = concepts.reduce((m, c) => Math.max(m, parseInt(c.id) || 0), 0) + 1;
+        setConcepts([...concepts, { id: nextId, emoji: '🎬', titre: '', hook: '', visuel: '', texteEcran: [], cta: '', tag: '', angle: '' }]);
+      };
+      const updateConcept = (i, next) => setConcepts(concepts.map((c, idx) => idx === i ? next : c));
+      const removeConcept = (i) => setConcepts(concepts.filter((_, idx) => idx !== i));
+      const moveConcept = (i, dir) => {
+        const j = i + dir;
+        if (j < 0 || j >= concepts.length) return;
+        const copy = [...concepts];
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+        setConcepts(copy);
+      };
+
+      const submit = async (e) => {
+        e.preventDefault();
+        setErr('');
+        // Nettoie les lignes vides de texteEcran + renumérote les concepts dans l'ordre d'affichage
+        const cleanConcepts = concepts.map((c, idx) => ({
+          ...c,
+          id: idx + 1,
+          texteEcran: (Array.isArray(c.texteEcran) ? c.texteEcran : String(c.texteEcran || '').split('\n'))
+            .map(l => l.trim()).filter(Boolean),
+        }));
+
+        let cleanStats = stats
+          .map(s => ({ n: (s.n || '').trim(), label: (s.label || '').trim() }))
+          .filter(s => s.n || s.label);
+        let cleanKpis = kpis
+          .map(k => ({
+            icon: (k.icon || '').trim(), label: (k.label || '').trim(),
+            count: (k.count || '').trim(), desc: (k.desc || '').trim(),
+            color: k.color || '#2a2620',
+          }))
+          .filter(k => k.label || k.desc || k.count);
+
+        setLoading(true);
+        const payload = {
+          client_id: clientId,
+          title: form.title, subtitle: form.subtitle, sector_label: form.sector_label,
+          intro: form.intro, format_note: form.format_note,
+          status: form.status, share_enabled: form.share_enabled,
+          position: parseInt(form.position) || 0,
+          concepts: cleanConcepts, kpis: cleanKpis, stats: cleanStats,
+        };
+        const result = existing
+          ? await sb.from('strategies').update(payload).eq('id', existing.id)
+          : await sb.from('strategies').insert(payload);
+        if (!result.error) onSaved();
+        else { setErr(result.error.message); setLoading(false); }
+      };
+
+      return (
+        <Modal title={existing ? 'Modifier la stratégie' : 'Nouvelle stratégie'} kicker="Stratégie de contenu" onClose={onClose} size="lg">
+          <form onSubmit={submit} className="space-y-4">
+            <Field label="Titre (kicker)">
+              <Input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Stratégie Contenu Vidéo Courte" />
+            </Field>
+            <Field label="Sous-titre">
+              <Input value={form.subtitle} onChange={e => setForm({ ...form, subtitle: e.target.value })} placeholder="8 Concepts Reels · TikTok · Shorts" />
+            </Field>
+            <Field label="Secteur / contexte">
+              <Input value={form.sector_label} onChange={e => setForm({ ...form, sector_label: e.target.value })} placeholder="Constructeur maisons individuelles — Île-de-France" />
+            </Field>
+            <Field label="Introduction (objectif stratégique)">
+              <Textarea rows={3} value={form.intro} onChange={e => setForm({ ...form, intro: e.target.value })} placeholder="Démystifier, rassurer, convertir. Chaque vidéo lève un frein précis…" />
+            </Field>
+
+            {/* Concepts */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold">Concepts ({concepts.length})</label>
+                <Btn icon={Plus} onClick={addConcept}>Ajouter un concept</Btn>
+              </div>
+              <div className="space-y-3">
+                {concepts.map((c, i) => (
+                  <ConceptEditor key={i} concept={c} index={i} total={concepts.length}
+                    onChange={(next) => updateConcept(i, next)} onRemove={removeConcept} onMove={moveConcept} />
+                ))}
+                {concepts.length === 0 && (
+                  <div style={neu.pressedSm} className="rounded-2xl p-6 text-center text-[12.5px] text-stone-400">
+                    Aucun concept. Cliquez sur « Ajouter un concept ».
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Stats d'en-tête (compteurs) */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold">Compteurs d'en-tête ({stats.length})</label>
+                <Btn icon={Plus} onClick={() => setStats([...stats, { n: '', label: '' }])}>Ajouter</Btn>
+              </div>
+              <div className="space-y-2">
+                {stats.map((s, i) => (
+                  <div key={i} style={neu.pressedSm} className="rounded-xl p-3 flex items-end gap-2">
+                    <div className="w-24 shrink-0">
+                      <Field label="Valeur"><Input value={s.n || ''} onChange={e => updateStat(i, { n: e.target.value })} placeholder="8" /></Field>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <Field label="Libellé"><Input value={s.label || ''} onChange={e => updateStat(i, { label: e.target.value })} placeholder="Concepts" /></Field>
+                    </div>
+                    <button type="button" onClick={() => removeStat(i)} aria-label="Supprimer"
+                      className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-rose-500 active:scale-95 shrink-0 mb-0.5"><Trash2 size={13} /></button>
+                  </div>
+                ))}
+                {stats.length === 0 && <div className="text-[11.5px] text-stone-400 px-1">Ex. : « 8 / Concepts », « 60s / Format max ». Affichés en haut à droite de la stratégie.</div>}
+              </div>
+            </div>
+
+            {/* Objectifs / KPIs */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold">Objectifs ({kpis.length})</label>
+                <Btn icon={Plus} onClick={() => setKpis([...kpis, { icon: '🎯', label: '', count: '', desc: '', color: '#2D7A5F' }])}>Ajouter</Btn>
+              </div>
+              <div className="space-y-2">
+                {kpis.map((k, i) => (
+                  <div key={i} style={neu.pressedSm} className="rounded-xl p-3 space-y-3">
+                    <div className="flex items-end gap-2">
+                      <div className="w-20 shrink-0">
+                        <Field label="Emoji"><Input value={k.icon || ''} onChange={e => updateKpi(i, { icon: e.target.value })} placeholder="🔍" /></Field>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Field label="Libellé"><Input value={k.label || ''} onChange={e => updateKpi(i, { label: e.target.value })} placeholder="Notoriété & Portée" /></Field>
+                      </div>
+                      <div className="w-28 shrink-0">
+                        <Field label="Compteur"><Input value={k.count || ''} onChange={e => updateKpi(i, { count: e.target.value })} placeholder="3 vidéos" /></Field>
+                      </div>
+                      <div className="w-14 shrink-0">
+                        <Field label="Couleur">
+                          <input type="color" value={k.color || '#2D7A5F'} onChange={e => updateKpi(i, { color: e.target.value })}
+                            aria-label="Couleur de l'objectif"
+                            style={{ ...neu.pressedSm, padding: 4 }} className="w-full h-[46px] rounded-xl cursor-pointer bg-transparent" />
+                        </Field>
+                      </div>
+                      <button type="button" onClick={() => removeKpi(i)} aria-label="Supprimer"
+                        className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-rose-500 active:scale-95 shrink-0 mb-0.5"><Trash2 size={13} /></button>
+                    </div>
+                    <Field label="Description">
+                      <Input value={k.desc || ''} onChange={e => updateKpi(i, { desc: e.target.value })} placeholder="Concepts 2, 5, 7 — éducation top of funnel" />
+                    </Field>
+                  </div>
+                ))}
+                {kpis.length === 0 && <div className="text-[11.5px] text-stone-400 px-1">Cartes d'objectifs affichées en bas de la stratégie (notoriété, confiance, conversion…).</div>}
+              </div>
+            </div>
+
+            <Field label="Note de pied de page">
+              <Input value={form.format_note} onChange={e => setForm({ ...form, format_note: e.target.value })} placeholder="Format Reels / TikTok / YouTube Shorts · 30–60 s par vidéo" />
+            </Field>
+
+            {/* Publication + partage */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Statut">
+                <Select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+                  <option value="draft">Brouillon</option>
+                  <option value="published">Publiée</option>
+                </Select>
+              </Field>
+              <Field label="Ordre d'affichage">
+                <Input type="number" value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} placeholder="0" />
+              </Field>
+            </div>
+
+            <button type="button" onClick={() => setForm({ ...form, share_enabled: !form.share_enabled })}
+              style={form.share_enabled ? neu.dark : neu.pressedSm}
+              className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.share_enabled ? 'text-white' : 'text-stone-700'}`}>
+              <div className="flex items-center gap-3 text-left">
+                <Link2 size={17} />
+                <div>
+                  <div className="font-semibold text-[13px]">Lien de partage public</div>
+                  <div className={`text-[10.5px] mt-0.5 ${form.share_enabled ? 'text-stone-300' : 'text-stone-500'}`}>Lien consultable sans connexion — actif uniquement si la stratégie est publiée</div>
+                </div>
+              </div>
+              <div className={`w-10 h-5.5 rounded-full p-0.5 transition ${form.share_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.share_enabled ? 'translate-x-4' : ''}`} />
+              </div>
+            </button>
+
+            {err && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]"><AlertCircle size={14} /> {err}</div>}
+
+            <div className="flex gap-3 pt-2">
+              <Btn onClick={onClose} full>Annuler</Btn>
+              <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
+                {loading ? 'Enregistrement…' : (existing ? 'Mettre à jour' : 'Créer la stratégie')}
               </Btn>
             </div>
           </form>

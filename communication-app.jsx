@@ -23,7 +23,9 @@ import {
   // ━━━ Analytics v2 ━━━
   Hash, Zap, Target, DollarSign, MousePointerClick, TrendingUp, TrendingDown,
   Eye as EyeIcon, Bookmark, Plus, ExternalLink, AlertTriangle,
-  Award, Activity, Layers, Heart, Users
+  Award, Activity, Layers, Heart, Users,
+  // ━━━ Stratégies ━━━
+  Lightbulb, Link2, ChevronDown, ChevronUp, Copy, Lock
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis,
@@ -58,10 +60,12 @@ const CLIENT = {
   invoicesEnabled:  D.invoicesEnabled !== false,
   shootsEnabled:    D.shootsEnabled   !== false,
   documentsEnabled: D.documentsEnabled !== false,
+  strategiesEnabled: D.strategiesEnabled !== false,
   media:      D.media      || [],
   invoices:   D.invoices   || [],
   shoots:     D.shoots     || [],
   documents:  D.documents  || [],
+  strategies: D.strategies || [],
   comments:   D.comments   || [],
   analytics:  D.analytics  || {},
 };
@@ -632,6 +636,7 @@ const Sidebar = ({ section, setSection, onLogout, isDark, toggleDark }) => {
     ...(CLIENT.mediaEnabled    ? [{ id: 'media',    icon: ImageIcon,    label: 'Médias' }]      : []),
     ...(CLIENT.invoicesEnabled ? [{ id: 'invoices', icon: FileText,     label: 'Factures' }]    : []),
     ...(CLIENT.documentsEnabled ? [{ id: 'documents', icon: FolderOpen,  label: 'Documents' }]   : []),
+    ...(CLIENT.strategiesEnabled ? [{ id: 'strategies', icon: Lightbulb, label: 'Stratégies' }]  : []),
     ...(CLIENT.analyticsEnabled ? [{ id: 'analytics', icon: BarChart3,  label: 'Analyses' }]    : []),
     ...(CLIENT.shootsEnabled   ? [{ id: 'calendar', icon: CalendarIcon, label: 'Calendrier' }]  : []),
   ];
@@ -706,6 +711,7 @@ const BottomNav = ({ section, setSection, isDark }) => {
     ...(CLIENT.mediaEnabled    ? [{ id: 'media',    icon: ImageIcon,    label: 'Médias' }]      : []),
     ...(CLIENT.invoicesEnabled ? [{ id: 'invoices', icon: FileText,     label: 'Factures' }]    : []),
     ...(CLIENT.documentsEnabled ? [{ id: 'documents', icon: FolderOpen,  label: 'Docs' }]        : []),
+    ...(CLIENT.strategiesEnabled ? [{ id: 'strategies', icon: Lightbulb, label: 'Idées' }]       : []),
     ...(CLIENT.analyticsEnabled ? [{ id: 'analytics', icon: BarChart3,  label: 'Analyses' }]    : []),
     ...(CLIENT.shootsEnabled   ? [{ id: 'calendar', icon: CalendarIcon, label: 'Agenda' }]      : []),
   ];
@@ -787,6 +793,7 @@ const Dashboard = ({ goTo }) => {
   else if (CLIENT.shootsEnabled) actions.push({ id: 'calendar', icon: CalendarIcon, title: 'Calendrier',  sub: `${upcomingShoots} tournage${upcomingShoots > 1 ? 's' : ''} à venir` });
   else if (CLIENT.invoicesEnabled) actions.push({ id: 'invoices', icon: FileText,   title: 'Factures',    sub: `${CLIENT.invoices.length} facture${CLIENT.invoices.length > 1 ? 's' : ''}` });
   if (CLIENT.documentsEnabled) actions.push({ id: 'documents', icon: FolderOpen, title: 'Documents', sub: `${CLIENT.documents.length} document${CLIENT.documents.length > 1 ? 's' : ''}` });
+  if (CLIENT.strategiesEnabled) actions.push({ id: 'strategies', icon: Lightbulb, title: 'Stratégies', sub: `${CLIENT.strategies.length} stratégie${CLIENT.strategies.length > 1 ? 's' : ''}` });
 
   return (
     <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-5">
@@ -2898,6 +2905,381 @@ const Calendar = () => {
 };
 
 // ────────────────────────────────────────────────────────────
+// 📑 STRATÉGIES — composant partagé + onglet client
+// ────────────────────────────────────────────────────────────
+/* ───────────── Palette de tags (accents, indépendante du thème) ─────────────
+   Chaque tag a une couleur d'accent. On dérive un fond translucide léger
+   pour rester lisible aussi bien en light qu'en dark. */
+const STRATEGY_TAG_COLORS = {
+  'Lead Gen':   '#C9A84C',
+  'Éducation':  '#2D7A5F',
+  'Education':  '#2D7A5F',
+  'Désir':      '#7B5EA7',
+  'Desir':      '#7B5EA7',
+  'Viral':      '#C0392B',
+  'Confiance':  '#2980B9',
+  'Conversion': '#E67E22',
+};
+
+const strategyTagColor = (tag) => STRATEGY_TAG_COLORS[tag] || '#8a7a66';
+
+// Convertit un hex en rgba avec alpha (pour les fonds de pastille)
+const hexA = (hex, a) => {
+  const h = (hex || '#8a7a66').replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+};
+
+const StrategyTag = ({ tag, size = 'sm' }) => {
+  if (!tag) return null;
+  const c = strategyTagColor(tag);
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full font-semibold uppercase tracking-wider shrink-0 leading-none ${size === 'lg' ? 'text-[11px] px-3 py-1.5' : 'text-[10px] px-2.5 py-1'}`}
+      style={{ background: hexA(c, 0.14), color: c, border: `1px solid ${hexA(c, 0.35)}` }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
+      {tag}
+    </span>
+  );
+};
+
+/* ════════════════════════════════════════════════════════════
+   StrategyView — props :
+     • strategy : { title, subtitle, sector_label, intro, format_note,
+                    concepts[], kpis[], stats[] }
+     • neu, SERIF : tokens de thème (passés depuis le contexte hôte)
+     • compact (bool) : version resserrée (carte d'aperçu dans la liste)
+   ════════════════════════════════════════════════════════════ */
+function StrategyView({ strategy, neu, SERIF, ChevronDownIcon, ChevronUpIcon }) {
+  const [openId, setOpenId] = useState(null);
+
+  const concepts = Array.isArray(strategy?.concepts) ? strategy.concepts : [];
+  const kpis     = Array.isArray(strategy?.kpis)     ? strategy.kpis     : [];
+  const stats    = Array.isArray(strategy?.stats)    ? strategy.stats    : [];
+
+  const selected = concepts.find((c) => String(c.id) === String(openId));
+
+  // Scroll fluide vers le storyboard à l'ouverture d'une carte (mobile :
+  // le panneau s'ouvre sous la grille, hors viewport sinon).
+  const storyboardRef = useRef(null);
+  useEffect(() => {
+    if (openId != null && storyboardRef.current) {
+      storyboardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [openId]);
+
+  return (
+    // strategy-root : ancrage CSS pour le durcissement tactile (voir <style>).
+    <div className="strategy-root" style={{ touchAction: 'pan-y', overflowX: 'hidden', maxWidth: '100%' }}>
+
+      {/* ── En-tête ── */}
+      <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 sm:p-6 lg:p-7 mb-5 lg:mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5 mb-2">
+              <span className="w-2 h-7 rounded-full shrink-0" style={{ background: neu.accent }} />
+              <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">
+                {strategy?.title || 'Stratégie de contenu'}
+              </span>
+            </div>
+            {strategy?.subtitle && (
+              <h2 className="text-[22px] sm:text-[26px] lg:text-[30px] tracking-tight leading-[1.1]" style={SERIF}>
+                {strategy.subtitle}
+              </h2>
+            )}
+            {strategy?.sector_label && (
+              <p className="text-[12.5px] sm:text-[13px] text-stone-500 mt-2 leading-relaxed">
+                {strategy.sector_label}
+              </p>
+            )}
+          </div>
+
+          {stats.length > 0 && (
+            <div className="flex gap-4 sm:gap-6 shrink-0 flex-wrap">
+              {stats.slice(0, 4).map((s, i) => (
+                <div key={i} className="text-center">
+                  <div className="text-[22px] sm:text-[26px] leading-none" style={{ ...SERIF, color: neu.accent }}>{s.n}</div>
+                  <div className="text-[10px] uppercase tracking-[0.12em] text-stone-400 mt-1.5 font-semibold">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {strategy?.intro && (
+          <div style={neu.pressedSm} className="rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4 mt-5 flex items-start gap-3">
+            <span className="text-[18px] shrink-0 leading-none mt-0.5">🎯</span>
+            <p className="text-[12.5px] sm:text-[13.5px] text-stone-600 leading-relaxed m-0">{strategy.intro}</p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Grille de concepts ── */}
+      {concepts.length === 0 ? (
+        <div style={neu.raised} className="rounded-[24px] p-10 text-center text-[13px] text-stone-400">
+          Aucun concept pour l'instant.
+        </div>
+      ) : (
+        <div className="strategy-grid grid gap-4 sm:gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 270px), 1fr))' }}>
+          {concepts.map((c) => {
+            const isOpen = String(openId) === String(c.id);
+            const accent = strategyTagColor(c.tag);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setOpenId(isOpen ? null : c.id)}
+                aria-expanded={isOpen}
+                style={{
+                  ...(isOpen ? neu.raised : neu.raisedSm),
+                  borderLeft: `3px solid ${accent}`,
+                  touchAction: 'pan-y',
+                }}
+                className="strategy-card text-left rounded-[20px] p-5 relative overflow-hidden transition active:scale-[0.99] w-full"
+              >
+                {/* Filigrane numéro */}
+                <span
+                  className="absolute top-2.5 right-3.5 leading-none select-none pointer-events-none"
+                  style={{ ...SERIF, fontSize: 46, color: hexA(neu.accent, 0.06) }}
+                >
+                  {String(c.id).padStart(2, '0')}
+                </span>
+
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <span className="text-[26px] leading-none">{c.emoji}</span>
+                  <StrategyTag tag={c.tag} />
+                </div>
+
+                <h3 className="text-[15px] leading-snug mb-2.5 pr-6" style={SERIF}>{c.titre}</h3>
+
+                {c.hook && (
+                  <p className="text-[12px] text-stone-500 leading-relaxed italic line-clamp-2 m-0 mb-3">{c.hook}</p>
+                )}
+
+                {c.angle && (
+                  <div style={neu.pressedSm} className="rounded-lg px-3 py-2 flex items-center gap-2 mb-3">
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: accent }} />
+                    <span className="text-[11px] text-stone-500 leading-snug">{c.angle}</span>
+                  </div>
+                )}
+
+                <div className="text-[11px] text-right tracking-[0.06em] font-medium flex items-center justify-end gap-1"
+                     style={{ color: isOpen ? neu.accent : '#9b8d78' }}>
+                  {isOpen
+                    ? <>{ChevronUpIcon && <ChevronUpIcon size={13} />} Masquer le storyboard</>
+                    : <>{ChevronDownIcon && <ChevronDownIcon size={13} />} Voir le storyboard</>}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Storyboard déplié ── */}
+      {selected && (
+        <div ref={storyboardRef} style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 sm:p-7 lg:p-8 mt-5 lg:mt-6">
+          <div className="flex items-center gap-4 mb-6 flex-wrap">
+            <span className="text-[34px] leading-none">{selected.emoji}</span>
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-[0.2em] font-semibold mb-1" style={{ color: neu.accent }}>
+                Concept #{selected.id} — Storyboard
+              </div>
+              <h3 className="text-[20px] sm:text-[24px] tracking-tight leading-tight" style={SERIF}>{selected.titre}</h3>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))' }}>
+            {/* HOOK */}
+            <div style={neu.pressedSm} className="rounded-[18px] p-4 sm:p-5">
+              <div className="text-[11px] font-bold uppercase tracking-[0.1em] mb-1" style={{ color: neu.accent }}>🎣 Hook</div>
+              <div className="text-[9.5px] uppercase tracking-[0.08em] text-stone-400 mb-3 font-semibold">3 premières secondes</div>
+              <p className="text-[13.5px] text-stone-700 leading-relaxed italic m-0 pl-3" style={{ borderLeft: `3px solid ${neu.accent}` }}>
+                {selected.hook}
+              </p>
+            </div>
+
+            {/* VISUEL */}
+            <div style={neu.pressedSm} className="rounded-[18px] p-4 sm:p-5">
+              <div className="text-[11px] font-bold uppercase tracking-[0.1em] mb-1 text-sky-600">📷 Visuel</div>
+              <div className="text-[9.5px] uppercase tracking-[0.08em] text-stone-400 mb-3 font-semibold">Ce qu'on montre à l'écran</div>
+              <p className="text-[12.5px] text-stone-600 leading-relaxed m-0">{selected.visuel}</p>
+            </div>
+
+            {/* TEXTE ÉCRAN */}
+            <div style={neu.pressedSm} className="rounded-[18px] p-4 sm:p-5">
+              <div className="text-[11px] font-bold uppercase tracking-[0.1em] mb-1 text-violet-600">✍️ Texte écran</div>
+              <div className="text-[9.5px] uppercase tracking-[0.08em] text-stone-400 mb-3 font-semibold">Supers & typographie</div>
+              <div className="flex flex-col gap-2">
+                {(selected.texteEcran || []).map((line, i) => (
+                  <div key={i} className="rounded-lg px-3 py-2 text-[12.5px] text-stone-700 leading-snug"
+                       style={{ background: hexA('#7B5EA7', 0.10), border: `1px solid ${hexA('#7B5EA7', 0.20)}` }}>
+                    {line}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* CTA */}
+            <div style={neu.pressedSm} className="rounded-[18px] p-4 sm:p-5">
+              <div className="text-[11px] font-bold uppercase tracking-[0.1em] mb-1 text-emerald-600">📣 Call to action</div>
+              <div className="text-[9.5px] uppercase tracking-[0.08em] text-stone-400 mb-3 font-semibold">CTA de fin — mesurable</div>
+              {selected.cta && (
+                <div className="rounded-xl px-4 py-3.5 text-[14px] font-bold text-center text-emerald-700"
+                     style={{ background: hexA('#2D7A5F', 0.12), border: `1.5px solid ${hexA('#2D7A5F', 0.30)}` }}>
+                  {selected.cta}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bandeau angle + objectif */}
+          {(selected.angle || selected.tag) && (
+            <div style={neu.pressedSm} className="rounded-2xl px-4 sm:px-5 py-3.5 mt-4 flex items-center justify-between flex-wrap gap-3">
+              {selected.angle && (
+                <div className="flex items-center gap-2 text-[12.5px]">
+                  <span className="text-stone-400">Angle stratégique :</span>
+                  <span className="font-semibold" style={{ color: neu.accent }}>{selected.angle}</span>
+                </div>
+              )}
+              {selected.tag && (
+                <div className="flex items-center gap-2 text-[12.5px]">
+                  <span className="text-stone-400">Objectif :</span>
+                  <StrategyTag tag={selected.tag} size="lg" />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Objectifs / KPIs (bandeau bas) ── */}
+      {kpis.length > 0 && (
+        <div className="grid gap-3 sm:gap-4 mt-6 lg:mt-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))' }}>
+          {kpis.map((k, i) => {
+            const c = k.color || neu.accent;
+            return (
+              <div key={i} style={{ ...neu.raisedSm, borderLeft: `3px solid ${c}` }} className="rounded-[20px] p-5">
+                <div className="text-[22px] mb-2.5 leading-none">{k.icon}</div>
+                <div className="text-[10.5px] font-bold uppercase tracking-[0.1em] mb-1.5" style={{ color: c }}>{k.label}</div>
+                {k.count && <div className="text-[20px] leading-none mb-1.5" style={SERIF}>{k.count}</div>}
+                {k.desc && <p className="text-[12px] text-stone-500 leading-relaxed m-0">{k.desc}</p>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Pied ── */}
+      {strategy?.format_note && (
+        <div className="text-center text-[11px] text-stone-400 tracking-[0.08em] mt-8 pt-6 border-t border-stone-200/60">
+          {strategy.format_note}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   📑 STRATEGIES — onglet espace client
+   Liste les stratégies du client + lecture + lien de partage.
+   ════════════════════════════════════════════════════════════ */
+const Strategies = () => {
+  const list = CLIENT.strategies || [];
+  const [activeId, setActiveId] = useState(list[0]?.id || null);
+  const [copiedId, setCopiedId] = useState(null);
+
+  const active = list.find(s => s.id === activeId) || list[0];
+
+  const shareBase = (() => {
+    // strategie.html vit à la racine du site, à côté de communication-dashboard.html
+    const path = window.location.pathname.replace(/[^/]*$/, '');
+    return window.location.origin + path + 'strategie.html';
+  })();
+
+  const copyShareLink = async (s) => {
+    if (!s.share_enabled || !s.share_token) return;
+    const link = shareBase + '?s=' + s.share_token;
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch (e) {
+      // Fallback : sélection manuelle via prompt
+      window.prompt('Copiez ce lien :', link);
+    }
+    setCopiedId(s.id);
+    setTimeout(() => setCopiedId(null), 2200);
+  };
+
+  if (list.length === 0) {
+    return (
+      <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-8 lg:p-10 text-center">
+        <div style={neu.darkSm} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mx-auto mb-4">
+          <Lightbulb size={20} />
+        </div>
+        <h3 className="text-[20px] tracking-tight" style={SERIF}>Aucune stratégie pour le moment</h3>
+        <p className="text-[13px] text-stone-500 mt-2 max-w-sm mx-auto leading-relaxed">
+          Vos stratégies de contenu apparaîtront ici dès qu'elles seront prêtes. Vous pourrez les consulter et les partager à vos collaborateurs.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5 lg:space-y-6">
+      {/* Sélecteur de stratégie (si plusieurs) */}
+      {list.length > 1 && (
+        <div className="overflow-x-auto no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0" style={{ touchAction: 'pan-x' }}>
+          <div style={neu.raisedXs} className="rounded-full p-1 inline-flex items-center gap-1">
+            {list.map(s => (
+              <button key={s.id} onClick={() => setActiveId(s.id)}
+                style={s.id === (active && active.id) ? neu.dark : {}}
+                className={`px-4 py-2.5 min-h-[40px] rounded-full text-[12.5px] font-medium whitespace-nowrap transition active:scale-95 ${s.id === (active && active.id) ? 'text-white' : 'text-stone-500'}`}>
+                {s.subtitle || s.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Barre de partage */}
+      {active && (
+        <div style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <div style={neu.pressedSm} className="w-10 h-10 rounded-full flex items-center justify-center shrink-0">
+              <Link2 size={16} className="text-stone-500" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold leading-tight">Partager cette stratégie</div>
+              <div className="text-[11.5px] text-stone-500 mt-0.5 leading-snug">
+                {active.share_enabled
+                  ? 'Envoyez ce lien à vos collaborateurs — aucune connexion requise.'
+                  : 'Le partage public est désactivé pour cette stratégie.'}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => copyShareLink(active)}
+            disabled={!active.share_enabled || !active.share_token}
+            style={active.share_enabled ? neu.darkSm : neu.pressedSm}
+            className={`px-4 py-2.5 min-h-[44px] rounded-full text-[12.5px] font-semibold flex items-center justify-center gap-2 shrink-0 active:scale-95 transition ${active.share_enabled ? 'text-white' : 'text-stone-400'} disabled:active:scale-100`}>
+            {copiedId === active.id ? <><Check size={14} /> Lien copié</> : <><Copy size={14} /> Copier le lien</>}
+          </button>
+        </div>
+      )}
+
+      {/* Rendu de la stratégie */}
+      {active && (
+        <StrategyView strategy={active} neu={neu} SERIF={SERIF} ChevronDownIcon={ChevronDown} ChevronUpIcon={ChevronUp} />
+      )}
+    </div>
+  );
+};
+
+
+// ────────────────────────────────────────────────────────────
 // 🌳 ROOT
 // ────────────────────────────────────────────────────────────
 function App() {
@@ -2917,6 +3299,7 @@ function App() {
     media:     { t: 'Vos médias',                  s: 'Touchez un fichier pour le visualiser, le télécharger ou le valider.' },
     invoices:  { t: 'Vos factures',                s: 'Historique complet de votre facturation.' },
     documents: { t: 'Vos documents',               s: 'Contrats, chartes graphiques, devis et autres fichiers partagés.' },
+    strategies: { t: 'Vos stratégies',             s: 'Vos stratégies de contenu — à consulter et à partager.' },
     analytics: { t: 'Analyses temps réel',         s: 'Performance de vos réseaux sociaux.' },
     calendar:  { t: 'Vos tournages',               s: 'Calendrier des prochains shootings.' },
   };
@@ -2933,6 +3316,7 @@ function App() {
           {section === 'media'     && (CLIENT.mediaEnabled    ? <Media />    : <Dashboard goTo={setSection} />)}
           {section === 'invoices'  && (CLIENT.invoicesEnabled ? <Invoices /> : <Dashboard goTo={setSection} />)}
           {section === 'documents' && (CLIENT.documentsEnabled ? <Documents /> : <Dashboard goTo={setSection} />)}
+          {section === 'strategies' && (CLIENT.strategiesEnabled ? <Strategies /> : <Dashboard goTo={setSection} />)}
           {section === 'analytics' && (CLIENT.analyticsEnabled ? <Analytics /> : <Dashboard goTo={setSection} />)}
           {section === 'calendar'  && (CLIENT.shootsEnabled   ? <Calendar /> : <Dashboard goTo={setSection} />)}
         </main>

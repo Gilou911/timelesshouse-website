@@ -150,18 +150,6 @@
       max-height: 100%;
     }
 
-    /* Exception cards de prévisualisation : même bug que ci-dessus, mais sur la
-       vidéo de hover des cards "Vos médias". La <video> a `absolute inset-0 w-full h-full`
-       en Tailwind, mais le `height: auto` global ligne 137 écrase le `h-full` (cascade
-       favorise le CSS du head sur Tailwind CDN). La vidéo se rendait alors à sa taille
-       intrinsèque, créant les fameuses bandes noires.
-       On force ici les dimensions sur tout <video> en position absolute à inset-0
-       dont le parent porte la classe `overflow-hidden` (= un conteneur de card/lightbox). */
-    video.absolute.inset-0 {
-      width: 100% !important;
-      height: 100% !important;
-    }
-
     /* 2 — 100vh → utilise la hauteur dynamique réelle (barre URL mobile) */
     @supports (height: 100dvh) {
       .full-h, .hero, .min-h-screen { min-height: 100dvh; }
@@ -263,12 +251,13 @@
       throw new Error('Client not found');
     }
 
-    const [mediaRes, invoicesRes, shootsRes, analyticsRes, documentsRes] = await Promise.all([
+    const [mediaRes, invoicesRes, shootsRes, analyticsRes, documentsRes, strategiesRes] = await Promise.all([
       sb.from('media').select('*').eq('client_id', client.id).order('position'),
       sb.from('invoices').select('*').eq('client_id', client.id).order('created_at', { ascending: false }),
       sb.from('shoots').select('*').eq('client_id', client.id).order('year').order('date_day'),
       sb.from('analytics').select('*').eq('client_id', client.id).maybeSingle(),
       sb.from('documents').select('*').eq('client_id', client.id).order('position').order('created_at', { ascending: false }),
+      sb.from('strategies').select('*').eq('client_id', client.id).eq('status', 'published').order('position').order('created_at', { ascending: false }),
     ]);
 
     const mediaIds = (mediaRes.data || []).map(m => m.id);
@@ -292,6 +281,7 @@
       invoicesEnabled:  client.invoices_enabled !== false,
       shootsEnabled:    client.shoots_enabled   !== false,
       documentsEnabled: client.documents_enabled !== false,
+      strategiesEnabled: client.strategies_enabled !== false,
       media: (mediaRes.data || []).map(m => ({
         id:              m.id,
         type:            m.type,
@@ -319,6 +309,21 @@
       documents: (documentsRes.data || []).map(d => ({
         id: d.id, title: d.title, category: d.category || 'Autre',
         url: d.file_url, date: d.date_label || '', size: d.size_label || '',
+      })),
+      strategies: (strategiesRes.data || []).map(s => ({
+        id:            s.id,
+        title:         s.title,
+        subtitle:      s.subtitle      || '',
+        sector_label:  s.sector_label  || '',
+        intro:         s.intro         || '',
+        format_note:   s.format_note   || '',
+        concepts:      s.concepts      || [],
+        kpis:          s.kpis          || [],
+        stats:         s.stats         || [],
+        share_token:   s.share_token   || '',
+        share_enabled: s.share_enabled === true,
+        status:        s.status        || 'draft',
+        updated_at:    s.updated_at,
       })),
       comments: allComments || [],
       analytics: analyticsRes.data ? {

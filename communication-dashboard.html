@@ -300,15 +300,18 @@
       invoices: (invoicesRes.data || []).map(i => ({
         id: i.reference, date: i.date_label || '', amount: parseFloat(i.amount || 0),
         status: i.status, desc: i.description || '', url: i.pdf_url,
+        shoot_id: i.shoot_id || null,
       })),
       shoots: (shootsRes.data || []).map(s => ({
         id: s.id, title: s.title, type: s.type, date: s.date_day,
         month: s.month_label || 'Avr', year: s.year || new Date().getFullYear(),
         time: s.time_label || '', location: s.location || '',
+        strategy_id: s.strategy_id || null, concept_id: s.concept_id || null,
       })),
       documents: (documentsRes.data || []).map(d => ({
         id: d.id, title: d.title, category: d.category || 'Autre',
         url: d.file_url, date: d.date_label || '', size: d.size_label || '',
+        shoot_id: d.shoot_id || null, strategy_id: d.strategy_id || null,
       })),
       strategies: (strategiesRes.data || []).map(s => ({
         id:            s.id,

@@ -1284,7 +1284,7 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
 // ────────────────────────────────────────────────────────────
 // 📸 MEDIA VIEW (galerie + tournages)
 // ────────────────────────────────────────────────────────────
-const Media = () => {
+const Media = ({ navTarget, clearTarget }) => {
   const [filter,   setFilter]   = useState('tous');   // tous | photo | video | a-valider | approuves
   const [search,   setSearch]   = useState('');       // recherche par titre
   const [activeTag, setActiveTag] = useState('');     // tag sélectionné ('' = tous)
@@ -1342,6 +1342,18 @@ const Media = () => {
     const idx = items.findIndex(x => x.id === item.id);
     setLightbox({ open: true, items, index: idx });
   };
+
+  // ── Navigation croisée : scroll vers le groupe du tournage demandé ──
+  // requestAnimationFrame : attend que les groupes soient effectivement rendus.
+  useEffect(() => {
+    if (!navTarget?.shootId) return;
+    const id = `media-shoot-${navTarget.shootId}`;
+    requestAnimationFrame(() => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    clearTarget && clearTarget();
+  }, []);
 
   const onMediaUpdate = (id, status) => {
     setMedia(prev => prev.map(m => m.id === id ? { ...m, approval_status: status } : m));
@@ -1455,7 +1467,7 @@ const Media = () => {
       {view === 'grid' && (
         <>
           {groups.map((g, gi) => (
-            <div key={g.shoot?.id || `no-${gi}`} style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+            <div key={g.shoot?.id || `no-${gi}`} id={g.shoot ? `media-shoot-${g.shoot.id}` : undefined} style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6 scroll-mt-24">
               {/* En-tête du groupe */}
               <div className="flex items-center gap-4 mb-5">
                 {g.shoot ? (
@@ -1651,7 +1663,49 @@ const Media = () => {
 // ────────────────────────────────────────────────────────────
 // 💶 INVOICES (inchangé)
 // ────────────────────────────────────────────────────────────
-const Invoices = () => {
+// ── Chip de liaison vers un tournage (factures, documents) ──
+// Cliquable si la rubrique Calendrier est active : ouvre le tournage ciblé.
+const ShootChip = ({ shootId, goTo }) => {
+  const shoot = (CLIENT.shoots || []).find(s => s.id === shootId);
+  if (!shoot) return null;
+  const clickable = CLIENT.shootsEnabled && goTo;
+  return (
+    <span
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? (e) => { e.stopPropagation(); goTo('calendar', { shootId: shoot.id }); } : undefined}
+      className={`inline-flex items-center gap-1.5 text-[10.5px] font-semibold px-2.5 py-1 rounded-full leading-none max-w-full ${clickable ? 'cursor-pointer active:scale-95 transition-transform' : ''}`}
+      style={{ background: 'rgba(138,122,102,0.12)', color: '#8a7a66', border: '1px solid rgba(138,122,102,0.25)' }}
+      title={clickable ? 'Voir ce tournage dans le calendrier' : undefined}
+    >
+      {shoot.type === 'video' ? '🎥' : '📸'}
+      <span className="truncate">{shoot.title}</span>
+      {clickable && <ChevronRight size={10} className="shrink-0" />}
+    </span>
+  );
+};
+
+// ── Chip de liaison vers une stratégie (documents) ──
+const StrategyChip = ({ strategyId, goTo }) => {
+  const strat = (CLIENT.strategies || []).find(s => s.id === strategyId);
+  if (!strat) return null;
+  const clickable = CLIENT.strategiesEnabled && goTo;
+  return (
+    <span
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? (e) => { e.stopPropagation(); goTo('strategies', { strategyId: strat.id }); } : undefined}
+      className={`inline-flex items-center gap-1.5 text-[10.5px] font-semibold px-2.5 py-1 rounded-full leading-none max-w-full ${clickable ? 'cursor-pointer active:scale-95 transition-transform' : ''}`}
+      style={{ background: 'rgba(201,168,76,0.12)', color: '#a8893d', border: '1px solid rgba(201,168,76,0.3)' }}
+      title={clickable ? 'Voir cette stratégie' : undefined}
+    >
+      💡 <span className="truncate">{strat.subtitle || strat.title}</span>
+      {clickable && <ChevronRight size={10} className="shrink-0" />}
+    </span>
+  );
+};
+
+const Invoices = ({ goTo }) => {
   const total = CLIENT.invoices.reduce((a, b) => a + b.amount, 0);
   const paid = CLIENT.invoices.filter(i => i.status === 'payée').reduce((a, b) => a + b.amount, 0);
   const pending = CLIENT.invoices.filter(i => i.status === 'en attente').reduce((a, b) => a + b.amount, 0);
@@ -1697,6 +1751,7 @@ const Invoices = () => {
                   <div className="min-w-0 flex-1">
                     <div className="font-mono text-[13px] font-semibold leading-none">{inv.id}</div>
                     <div className="text-[13px] text-stone-700 mt-2 leading-snug line-clamp-2">{inv.desc}</div>
+                    {inv.shoot_id && <div className="mt-2"><ShootChip shootId={inv.shoot_id} goTo={goTo} /></div>}
                   </div>
                   <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold shrink-0 leading-none ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
                 </div>
@@ -1721,7 +1776,10 @@ const Invoices = () => {
               {/* Desktop : ligne grille */}
               <div className="hidden lg:grid grid-cols-12 gap-4 items-center py-1">
                 <div className="col-span-3 font-mono text-[13px] font-medium">{inv.id}</div>
-                <div className="col-span-4 text-[13px] text-stone-700">{inv.desc}</div>
+                <div className="col-span-4 text-[13px] text-stone-700">
+                  {inv.desc}
+                  {inv.shoot_id && <div className="mt-1"><ShootChip shootId={inv.shoot_id} goTo={goTo} /></div>}
+                </div>
                 <div className="col-span-2 text-[12px] text-stone-500">{inv.date}</div>
                 <div className="col-span-2 font-semibold text-[14px]" style={SERIF}>{inv.amount.toLocaleString('fr-FR')} €</div>
                 <div className="col-span-1 flex items-center justify-end gap-2">
@@ -1756,7 +1814,7 @@ const docCategoryStyle = (category) => ({
   'Brief':            'bg-sky-100 text-sky-700',
 }[category] || 'bg-stone-100 text-stone-600');
 
-const Documents = () => {
+const Documents = ({ goTo }) => {
   const [filter, setFilter] = useState('all');
   const docs = CLIENT.documents;
   const categories = ['all', ...Array.from(new Set(docs.map(d => d.category).filter(Boolean)))];
@@ -1800,6 +1858,12 @@ const Documents = () => {
                       <FileTextIcon size={15} className="text-stone-400 shrink-0 mt-0.5" /> <span>{doc.title}</span>
                     </div>
                     <div className="text-[11.5px] text-stone-500 mt-1.5 leading-none">{doc.date}{doc.size && ` · ${doc.size}`}</div>
+                    {(doc.shoot_id || doc.strategy_id) && (
+                      <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                        {doc.shoot_id && <ShootChip shootId={doc.shoot_id} goTo={goTo} />}
+                        {doc.strategy_id && <StrategyChip strategyId={doc.strategy_id} goTo={goTo} />}
+                      </div>
+                    )}
                   </div>
                   <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold shrink-0 leading-none ${docCategoryStyle(doc.category)}`}>{doc.category}</span>
                 </div>
@@ -1823,6 +1887,12 @@ const Documents = () => {
                 </div>
                 <div className="col-span-3">
                   <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold ${docCategoryStyle(doc.category)}`}>{doc.category}</span>
+                  {(doc.shoot_id || doc.strategy_id) && (
+                    <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                      {doc.shoot_id && <ShootChip shootId={doc.shoot_id} goTo={goTo} />}
+                      {doc.strategy_id && <StrategyChip strategyId={doc.strategy_id} goTo={goTo} />}
+                    </div>
+                  )}
                 </div>
                 <div className="col-span-2 text-[12px] text-stone-500">{doc.date}{doc.size && ` · ${doc.size}`}</div>
                 <div className="col-span-2 flex items-center justify-end">
@@ -2773,7 +2843,7 @@ const monthLabelToIndex = (label) => {
 
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 
-const Calendar = () => {
+const Calendar = ({ navTarget, clearTarget, goTo }) => {
   const dayHeaders = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
   // Stable "today", midnight-aligned.
@@ -2804,6 +2874,20 @@ const Calendar = () => {
   const [cursor, setCursor] = useState(focusMonth);
   // Re-anchor when data refreshes (e.g. Supabase pushes new shoots).
   useEffect(() => { setCursor(focusMonth); }, [focusMonth]);
+
+  // ── Navigation croisée : un autre onglet a demandé CE tournage ──
+  // Déclaré APRÈS le re-anchor pour que le ciblage gagne au montage.
+  const [highlightId, setHighlightId] = useState(null);
+  useEffect(() => {
+    if (!navTarget?.shootId) return;
+    const target = shoots.find(x => x.id === navTarget.shootId);
+    if (target) {
+      setCursor(new Date(target.dateObj.getFullYear(), target.dateObj.getMonth(), 1));
+      setHighlightId(target.id);
+      setTimeout(() => setHighlightId(null), 3500);
+    }
+    clearTarget && clearTarget();
+  }, []);
 
   const year  = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -2881,10 +2965,14 @@ const Calendar = () => {
           <div style={neu.raised} className="rounded-[20px] lg:rounded-[24px] p-5">
             <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-4">Prochains événements</div>
             <div className="space-y-3">
-              {upcomingList.map(s => (
+              {upcomingList.map(s => {
+                const isTarget = s.id === highlightId;
+                const hasMedia = CLIENT.mediaEnabled && (CLIENT.media || []).some(m => m.shoot_id === s.id);
+                return (
                 <div key={s.id}
                      onClick={() => setCursor(new Date(s.dateObj.getFullYear(), s.dateObj.getMonth(), 1))}
-                     className="flex gap-3 cursor-pointer">
+                     className="flex gap-3 cursor-pointer rounded-xl transition-shadow duration-500"
+                     style={isTarget ? { boxShadow: `0 0 0 2px ${neu.accent}`, padding: '6px', margin: '-6px' } : {}}>
                   <div style={s.type === 'video' ? neu.darkSm : neu.pressedSm} className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 ${s.type === 'video' ? 'text-white' : ''}`}>
                     <div className={`text-[8px] uppercase tracking-wider ${s.type === 'video' ? 'text-stone-400' : 'text-stone-500'}`}>{MOIS_FR_SHORT[s.dateObj.getMonth()]}</div>
                     <div className="text-[14px] leading-none font-semibold" style={SERIF}>{s.dateObj.getDate()}</div>
@@ -2892,9 +2980,18 @@ const Calendar = () => {
                   <div className="flex-1 min-w-0 pt-0.5">
                     <div className="font-medium text-[13px] truncate">{s.title}</div>
                     <div className="text-[11px] text-stone-500 mt-0.5 truncate">{s.time}{s.location && ` · ${s.location}`}</div>
+                    {hasMedia && goTo && (
+                      <span role="button" tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); goTo('media', { shootId: s.id }); }}
+                        className="inline-flex items-center gap-1 text-[10.5px] font-semibold mt-1 cursor-pointer"
+                        style={{ color: neu.accent }}>
+                        <ImageIcon size={10} /> Voir les médias →
+                      </span>
+                    )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
               {upcomingList.length === 0 && <div className="text-[12px] text-stone-400 text-center py-4">Aucun événement</div>}
             </div>
           </div>
@@ -2953,12 +3050,17 @@ const StrategyTag = ({ tag, size = 'sm' }) => {
      • neu, SERIF : tokens de thème (passés depuis le contexte hôte)
      • compact (bool) : version resserrée (carte d'aperçu dans la liste)
    ════════════════════════════════════════════════════════════ */
-function StrategyView({ strategy, neu, SERIF, ChevronDownIcon, ChevronUpIcon }) {
+function StrategyView({ strategy, neu, SERIF, ChevronDownIcon, ChevronUpIcon, production = {}, onOpenShoot }) {
   const [openId, setOpenId] = useState(null);
 
   const concepts = Array.isArray(strategy?.concepts) ? strategy.concepts : [];
   const kpis     = Array.isArray(strategy?.kpis)     ? strategy.kpis     : [];
   const stats    = Array.isArray(strategy?.stats)    ? strategy.stats    : [];
+
+  // ── Avancement de production (déduit de production: conceptId → {shoot, delivered}) ──
+  const delivered = concepts.filter(c => production[c.id]?.delivered).length;
+  const planned   = concepts.filter(c => production[c.id] && !production[c.id].delivered).length;
+  const hasProduction = delivered + planned > 0;
 
   const selected = concepts.find((c) => String(c.id) === String(openId));
 
@@ -3015,6 +3117,23 @@ function StrategyView({ strategy, neu, SERIF, ChevronDownIcon, ChevronUpIcon }) 
             <p className="text-[12.5px] sm:text-[13.5px] text-stone-600 leading-relaxed m-0">{strategy.intro}</p>
           </div>
         )}
+
+        {/* ── Avancement de production (visible uniquement dans l'espace client) ── */}
+        {hasProduction && concepts.length > 0 && (
+          <div style={neu.pressedSm} className="rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4 mt-4">
+            <div className="flex items-center justify-between gap-3 mb-2.5 flex-wrap">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-stone-400 font-semibold">Avancement de production</span>
+              <span className="text-[12px] font-semibold" style={{ color: neu.accent }}>
+                {delivered}/{concepts.length} concept{concepts.length > 1 ? 's' : ''} produit{delivered > 1 ? 's' : ''}
+                {planned > 0 && <span className="text-stone-400 font-medium"> · {planned} planifié{planned > 1 ? 's' : ''}</span>}
+              </span>
+            </div>
+            <div className="h-2 rounded-full overflow-hidden flex" style={{ background: hexA('#8a7a66', 0.15) }}>
+              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(delivered / concepts.length) * 100}%`, background: '#2D7A5F' }} />
+              <div className="h-full transition-all duration-700" style={{ width: `${(planned / concepts.length) * 100}%`, background: hexA(neu.accent === '#e8d8be' ? '#e8d8be' : '#8a7a66', 0.45) }} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Grille de concepts ── */}
@@ -3065,6 +3184,28 @@ function StrategyView({ strategy, neu, SERIF, ChevronDownIcon, ChevronUpIcon }) 
                     <span className="text-[11px] text-stone-500 leading-snug">{c.angle}</span>
                   </div>
                 )}
+
+                {/* ── État de production du concept (espace client uniquement) ── */}
+                {production[c.id] && (() => {
+                  const prod = production[c.id];
+                  const label = prod.delivered
+                    ? '✓ Livré'
+                    : `🎬 Tournage ${prod.shoot.date ? `le ${prod.shoot.date} ${prod.shoot.month}` : 'planifié'}`;
+                  const clickable = !!onOpenShoot;
+                  return (
+                    <span
+                      role={clickable ? 'button' : undefined}
+                      tabIndex={clickable ? 0 : undefined}
+                      onClick={clickable ? (e) => { e.stopPropagation(); onOpenShoot(prod.shoot.id); } : undefined}
+                      title={clickable ? 'Voir ce tournage dans le calendrier' : undefined}
+                      className={`inline-flex items-center gap-1.5 text-[10.5px] font-bold px-2.5 py-1.5 rounded-full leading-none mb-3 ${clickable ? 'cursor-pointer active:scale-95 transition-transform' : ''}`}
+                      style={prod.delivered
+                        ? { background: hexA('#2D7A5F', 0.14), color: '#2D7A5F', border: `1px solid ${hexA('#2D7A5F', 0.35)}` }
+                        : { background: hexA('#2980B9', 0.12), color: '#2980B9', border: `1px solid ${hexA('#2980B9', 0.3)}` }}>
+                      {label}
+                    </span>
+                  );
+                })()}
 
                 <div className="text-[11px] text-right tracking-[0.06em] font-medium flex items-center justify-end gap-1"
                      style={{ color: isOpen ? neu.accent : '#9b8d78' }}>
@@ -3187,12 +3328,34 @@ function StrategyView({ strategy, neu, SERIF, ChevronDownIcon, ChevronUpIcon }) 
    📑 STRATEGIES — onglet espace client
    Liste les stratégies du client + lecture + lien de partage.
    ════════════════════════════════════════════════════════════ */
-const Strategies = () => {
+const Strategies = ({ goTo, navTarget, clearTarget }) => {
   const list = CLIENT.strategies || [];
-  const [activeId, setActiveId] = useState(list[0]?.id || null);
+  // Si on arrive via un chip « stratégie » (document lié), on ouvre la bonne.
+  const [activeId, setActiveId] = useState(navTarget?.strategyId || list[0]?.id || null);
   const [copiedId, setCopiedId] = useState(null);
+  useEffect(() => { if (navTarget?.strategyId) clearTarget && clearTarget(); }, []);
 
   const active = list.find(s => s.id === activeId) || list[0];
+
+  // ── Suivi de production : concept → tournage (→ média livré) ──
+  // Chaîne déduite des FK : shoots.strategy_id/concept_id, puis media.shoot_id.
+  // État « livré » prioritaire sur « planifié » si plusieurs tournages.
+  const production = useMemo(() => {
+    if (!active) return {};
+    const map = {};
+    (CLIENT.shoots || [])
+      .filter(s => s.strategy_id === active.id && s.concept_id != null)
+      .forEach(s => {
+        const delivered = (CLIENT.media || []).some(m => m.shoot_id === s.id);
+        const cur = map[s.concept_id];
+        if (!cur || (delivered && !cur.delivered)) map[s.concept_id] = { shoot: s, delivered };
+      });
+    return map;
+  }, [active]);
+
+  const openShoot = CLIENT.shootsEnabled && goTo
+    ? (shootId) => goTo('calendar', { shootId })
+    : null;
 
   const shareBase = (() => {
     // strategie.html vit à la racine du site, à côté de communication-dashboard.html
@@ -3272,7 +3435,7 @@ const Strategies = () => {
 
       {/* Rendu de la stratégie */}
       {active && (
-        <StrategyView strategy={active} neu={neu} SERIF={SERIF} ChevronDownIcon={ChevronDown} ChevronUpIcon={ChevronUp} />
+        <StrategyView strategy={active} neu={neu} SERIF={SERIF} ChevronDownIcon={ChevronDown} ChevronUpIcon={ChevronUp} production={production} onOpenShoot={openShoot} />
       )}
     </div>
   );
@@ -3288,6 +3451,14 @@ function App() {
   neu = isDark ? NEU_DARK : NEU_LIGHT;
 
   const [section, setSection] = useState('dashboard');
+
+  // ── Navigation croisée entre rubriques ──
+  // goTo('calendar', { shootId }) : ouvre une rubrique SUR un élément précis.
+  // Chaque section consomme navTarget à son montage (scroll/highlight) puis
+  // le réinitialise via clearTarget pour ne pas rejouer au montage suivant.
+  const [navTarget, setNavTarget] = useState(null);
+  const goTo = (sec, target = null) => { setNavTarget(target); setSection(sec); };
+  const clearTarget = () => setNavTarget(null);
 
   const handleLogout = () => {
     sessionStorage.removeItem('access_granted');
@@ -3312,13 +3483,13 @@ function App() {
         <Sidebar section={section} setSection={setSection} onLogout={handleLogout} isDark={isDark} toggleDark={toggleDark} />
         <main className="flex-1 min-w-0">
           <TopBar title={titleData.t} subtitle={titleData.s} />
-          {section === 'dashboard' && <Dashboard goTo={setSection} />}
-          {section === 'media'     && (CLIENT.mediaEnabled    ? <Media />    : <Dashboard goTo={setSection} />)}
-          {section === 'invoices'  && (CLIENT.invoicesEnabled ? <Invoices /> : <Dashboard goTo={setSection} />)}
-          {section === 'documents' && (CLIENT.documentsEnabled ? <Documents /> : <Dashboard goTo={setSection} />)}
-          {section === 'strategies' && (CLIENT.strategiesEnabled ? <Strategies /> : <Dashboard goTo={setSection} />)}
-          {section === 'analytics' && (CLIENT.analyticsEnabled ? <Analytics /> : <Dashboard goTo={setSection} />)}
-          {section === 'calendar'  && (CLIENT.shootsEnabled   ? <Calendar /> : <Dashboard goTo={setSection} />)}
+          {section === 'dashboard' && <Dashboard goTo={goTo} />}
+          {section === 'media'     && (CLIENT.mediaEnabled    ? <Media navTarget={navTarget} clearTarget={clearTarget} />    : <Dashboard goTo={goTo} />)}
+          {section === 'invoices'  && (CLIENT.invoicesEnabled ? <Invoices goTo={goTo} /> : <Dashboard goTo={goTo} />)}
+          {section === 'documents' && (CLIENT.documentsEnabled ? <Documents goTo={goTo} /> : <Dashboard goTo={goTo} />)}
+          {section === 'strategies' && (CLIENT.strategiesEnabled ? <Strategies goTo={goTo} navTarget={navTarget} clearTarget={clearTarget} /> : <Dashboard goTo={goTo} />)}
+          {section === 'analytics' && (CLIENT.analyticsEnabled ? <Analytics /> : <Dashboard goTo={goTo} />)}
+          {section === 'calendar'  && (CLIENT.shootsEnabled   ? <Calendar navTarget={navTarget} clearTarget={clearTarget} goTo={goTo} /> : <Dashboard goTo={goTo} />)}
         </main>
       </div>
       <BottomNav section={section} setSection={setSection} isDark={isDark} />

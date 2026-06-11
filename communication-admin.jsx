@@ -16,7 +16,7 @@
       Save, Eye, EyeOff, AlertCircle, ChevronRight, Lock, Mail, ArrowUpRight,
       Filter, Video, Camera, Clock, MapPin, TrendingUp, Sparkles, ExternalLink,
       Loader2, MessageSquare, Bell, Send, CheckCircle2, RefreshCw, Link2,
-      FolderOpen, Download,
+      FolderOpen, Download, FileDown,
       Maximize2, Monitor, Smartphone, ChevronDown, ChevronUp,
       Lightbulb, Copy, Power
     } from 'lucide-react';
@@ -465,6 +465,10 @@
         shoots_enabled:    existing?.shoots_enabled   ?? true,
         documents_enabled: existing?.documents_enabled ?? true,
         strategies_enabled: existing?.strategies_enabled ?? true,
+        // Coordonnées de facturation (bloc « Destinataire » du PDF de facture)
+        billing_address:        existing?.billing_address        || '',
+        billing_company_number: existing?.billing_company_number || '',
+        billing_phone:          existing?.billing_phone          || '',
       });
       const [loading, setLoading] = useState(false);
       const [err, setErr] = useState('');
@@ -601,6 +605,19 @@
                 </Select>
               </Field>
             </div>
+
+            {/* ── Facturation : bloc « Destinataire » des PDF générés ──
+                 Optionnel : le PDF n'affiche que les lignes remplies. */}
+            <Field label="Facturation — coordonnées du destinataire (PDF)">
+              <div className="space-y-3">
+                <Textarea rows={2} value={form.billing_address} onChange={e => setForm({...form, billing_address: e.target.value})} placeholder={"2 rue Saint Spire\n91100 Corbeil-Essonnes"} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input value={form.billing_company_number} onChange={e => setForm({...form, billing_company_number: e.target.value})} placeholder="N° d'entreprise (SIREN/SIRET)" />
+                  <Input value={form.billing_phone} onChange={e => setForm({...form, billing_phone: e.target.value})} placeholder="Téléphone" />
+                </div>
+                <div className="text-[11px] text-stone-500">Utilisé par « Générer le PDF » dans l'onglet Factures. Adresse sur plusieurs lignes possible.</div>
+              </div>
+            </Field>
 
             <Field label="Modules visibles dans l'espace client">
               <div className="space-y-2">
@@ -847,7 +864,7 @@
           {tab === 'media' && <MediaTab clientId={client.id} client={client} />}
           {tab === 'invoices' && <InvoicesTab clientId={client.id} client={client} />}
           {tab === 'documents' && <DocumentsTab clientId={client.id} />}
-          {tab === 'strategies' && <StrategiesTab clientId={client.id} />}
+          {tab === 'strategies' && <StrategiesTab clientId={client.id} client={client} />}
           {tab === 'shoots' && <ShootsTab clientId={client.id} client={client} />}
           {tab === 'analytics' && <AnalyticsTab clientId={client.id} />}
 
@@ -2551,12 +2568,71 @@
     /* ════════════════════════════════════════════════════════════
        💶 INVOICES TAB
        ════════════════════════════════════════════════════════════ */
+    /* ════════════════════════════════════════════════════════════
+       🔗 LIAISONS — listes pour les selects (tournages / stratégies)
+       ════════════════════════════════════════════════════════════ */
+    function useLinkLists(clientId, { shoots = false, strategies = false } = {}) {
+      const [lists, setLists] = useState({ shoots: [], strategies: [] });
+      useEffect(() => {
+        let alive = true;
+        (async () => {
+          const next = { shoots: [], strategies: [] };
+          if (shoots) {
+            const { data } = await sb.from('shoots').select('id,title,type,date_day,month_label,year')
+              .eq('client_id', clientId).order('year', { ascending: false }).order('date_day', { ascending: false });
+            next.shoots = data || [];
+          }
+          if (strategies) {
+            const { data } = await sb.from('strategies').select('id,title,subtitle,concepts')
+              .eq('client_id', clientId).order('position');
+            next.strategies = data || [];
+          }
+          if (alive) setLists(next);
+        })();
+        return () => { alive = false; };
+      }, [clientId]);
+      return lists;
+    }
+
+    const shootOptionLabel = (s) =>
+      `${s.type === 'video' ? '🎥' : '📸'} ${s.title}${s.date_day ? ` — ${s.date_day} ${s.month_label || ''} ${s.year || ''}` : ''}`;
+
     function InvoicesTab({ clientId, client }) {
       const [items, setItems] = useState([]);
       const [editing, setEditing] = useState(null);
       const [showForm, setShowForm] = useState(false);
       const [loading, setLoading] = useState(true);
       const [notifying, setNotifying] = useState(null);
+      const [generating, setGenerating] = useState(null);
+
+      // Génère le PDF de la facture côté serveur (Edge Function) :
+      // pdf-lib → upload Backblaze B2 → écrit invoices.pdf_url.
+      // Auth : token de SESSION admin (pas la clé anon) — la fonction
+      // vérifie l'utilisateur et refuse tout appel non authentifié.
+      const generatePdf = async (inv) => {
+        const verb = inv.pdf_url ? 'Régénérer' : 'Générer';
+        if (!confirm(`${verb} le PDF de la facture ${inv.reference} ?\n\nIl sera uploadé sur Backblaze et lié à la facture.`)) return;
+        setGenerating(inv.id);
+        try {
+          const { data: { session } } = await sb.auth.getSession();
+          if (!session) { alert('Session expirée — reconnectez-vous.'); setGenerating(null); return; }
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-invoice-pdf`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body:    JSON.stringify({ invoice_id: inv.id }),
+          });
+          const out = await res.json().catch(() => ({}));
+          if (res.ok && out.pdf_url) {
+            alert('✓ PDF généré et lié à la facture.');
+            load();
+          } else if (res.status === 404) {
+            alert("La fonction generate-invoice-pdf n'est pas déployée.\n\nVoir GUIDE-FACTURE-PDF.md.");
+          } else {
+            alert('Erreur : ' + (out.error || await res.text()));
+          }
+        } catch (e) { alert('Erreur réseau : ' + e.message); }
+        setGenerating(null);
+      };
 
       const load = async () => {
         setLoading(true);
@@ -2643,6 +2719,14 @@
                           <div className="font-semibold text-[18px] leading-none mt-2" style={SERIF}>{parseFloat(inv.amount).toLocaleString('fr-FR')} €</div>
                         </div>
                         <div className="flex items-center gap-2">
+                          <button onClick={() => generatePdf(inv)} disabled={generating === inv.id} aria-label="Générer le PDF" className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-stone-600 disabled:opacity-50 active:scale-95 transition-transform" title={inv.pdf_url ? 'Régénérer le PDF (Backblaze)' : 'Générer le PDF (Backblaze)'}>
+                            {generating === inv.id ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                          </button>
+                          {inv.pdf_url && (
+                            <button onClick={() => window.open(inv.pdf_url, '_blank')} aria-label="Ouvrir le PDF" className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform" title="Ouvrir le PDF">
+                              <ExternalLink size={14} />
+                            </button>
+                          )}
                           {client?.client_email && (
                             <button onClick={() => notifyInvoiceReady(inv)} disabled={notifying === inv.id} aria-label="Notifier le client" className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-stone-600 disabled:opacity-50 active:scale-95 transition-transform" title="Prévenir le client que la facture est prête">
                             {notifying === inv.id ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
@@ -2657,13 +2741,21 @@
                     {/* Desktop : ligne grille 12 col */}
                     <div className="hidden lg:grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-2 font-mono text-[12.5px] font-medium">{inv.reference}</div>
-                      <div className="col-span-4 text-[12.5px] text-stone-700 truncate">{inv.description}</div>
+                      <div className="col-span-3 text-[12.5px] text-stone-700 truncate">{inv.description}</div>
                       <div className="col-span-2 text-[12px] text-stone-500">{inv.date_label}</div>
                       <div className="col-span-2 font-semibold text-[14px]" style={SERIF}>{parseFloat(inv.amount).toLocaleString('fr-FR')} €</div>
                       <div className="col-span-1">
                         <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
                       </div>
-                      <div className="col-span-1 flex items-center justify-end gap-1.5">
+                      <div className="col-span-2 flex items-center justify-end gap-1.5">
+                        <button onClick={() => generatePdf(inv)} disabled={generating === inv.id} aria-label="Générer le PDF" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100 disabled:opacity-50" title={inv.pdf_url ? 'Régénérer le PDF (Backblaze)' : 'Générer le PDF (Backblaze)'}>
+                          {generating === inv.id ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />}
+                        </button>
+                        {inv.pdf_url && (
+                          <button onClick={() => window.open(inv.pdf_url, '_blank')} aria-label="Ouvrir le PDF" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100" title="Ouvrir le PDF">
+                            <ExternalLink size={13} />
+                          </button>
+                        )}
                         {client?.client_email && (
                           <button onClick={() => notifyInvoiceReady(inv)} disabled={notifying === inv.id} aria-label="Notifier le client" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100 disabled:opacity-50" title="Prévenir le client que la facture est prête">
                             {notifying === inv.id ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
@@ -2685,18 +2777,20 @@
       );
     }
 
-    function InvoiceForm({ clientId, existing, onClose, onSaved }) {
+    function InvoiceForm({ clientId, existing, onClose, onSaved, initial }) {
       const [form, setForm] = useState({
         reference:   existing?.reference   || '',
-        description: existing?.description || '',
+        description: existing?.description || initial?.description || '',
         amount:      existing?.amount      || '',
         date_label:  existing?.date_label  || (existing ? '' : isoToLabel(todayISO())),
         date_iso_local: existing?.date_label ? '' : todayISO(),
         due_date:    existing?.due_date    || (existing ? '' : in30DaysISO()),
         status:      existing?.status      || 'en attente',
         pdf_url:     existing?.pdf_url     || '',
+        shoot_id:    existing?.shoot_id    || initial?.shoot_id || '',
       });
       const [loading, setLoading] = useState(false);
+      const { shoots } = useLinkLists(clientId, { shoots: true });
 
       // Quand on change la date d'émission via le date picker, auto-générer le libellé
       const handleEmissionDate = (iso) => {
@@ -2707,7 +2801,7 @@
         e.preventDefault();
         setLoading(true);
         const { date_iso_local, ...rest } = form;
-        const payload = { ...rest, client_id: clientId, amount: parseFloat(form.amount), due_date: form.due_date || null };
+        const payload = { ...rest, client_id: clientId, amount: parseFloat(form.amount), due_date: form.due_date || null, shoot_id: form.shoot_id || null };
         const result = existing
           ? await sb.from('invoices').update(payload).eq('id', existing.id)
           : await sb.from('invoices').insert(payload);
@@ -2729,6 +2823,13 @@
             </div>
             <Field label="Description">
               <Input required value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Production vidéo — Campagne printemps" />
+            </Field>
+            <Field label="Tournage couvert (optionnel)">
+              <Select value={form.shoot_id} onChange={e => setForm({...form, shoot_id: e.target.value})}>
+                <option value="">— Aucun —</option>
+                {shoots.map(s => <option key={s.id} value={s.id}>{shootOptionLabel(s)}</option>)}
+              </Select>
+              <div className="text-[11px] text-stone-500 mt-1">Le client verra à quel tournage cette facture correspond.</div>
             </Field>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Field label="Montant (€)">
@@ -2873,8 +2974,11 @@
         date_label:  existing?.date_label || (existing ? '' : isoToLabel(todayISO())),
         date_iso_local: existing?.date_label ? '' : todayISO(),
         position:    existing?.position ?? 0,
+        shoot_id:    existing?.shoot_id    || '',
+        strategy_id: existing?.strategy_id || '',
       });
       const [loading, setLoading] = useState(false);
+      const { shoots, strategies } = useLinkLists(clientId, { shoots: true, strategies: true });
 
       const handleDocDate = (iso) => {
         setForm({ ...form, date_iso_local: iso, date_label: isoToLabel(iso) });
@@ -2884,7 +2988,7 @@
         e.preventDefault();
         setLoading(true);
         const { date_iso_local, ...rest } = form;
-        const payload = { ...rest, client_id: clientId, position: parseInt(form.position) || 0 };
+        const payload = { ...rest, client_id: clientId, position: parseInt(form.position) || 0, shoot_id: form.shoot_id || null, strategy_id: form.strategy_id || null };
         const result = existing
           ? await sb.from('documents').update(payload).eq('id', existing.id)
           : await sb.from('documents').insert(payload);
@@ -2915,6 +3019,20 @@
                 Lien public d'un PDF / image. Astuce : créez un bucket public « documents » dans Supabase Storage, déposez le fichier puis collez son URL publique ici.
               </div>
             </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Tournage lié (optionnel)">
+                <Select value={form.shoot_id} onChange={e => setForm({...form, shoot_id: e.target.value})}>
+                  <option value="">— Aucun —</option>
+                  {shoots.map(s => <option key={s.id} value={s.id}>{shootOptionLabel(s)}</option>)}
+                </Select>
+              </Field>
+              <Field label="Stratégie liée (optionnel)">
+                <Select value={form.strategy_id} onChange={e => setForm({...form, strategy_id: e.target.value})}>
+                  <option value="">— Aucune —</option>
+                  {strategies.map(s => <option key={s.id} value={s.id}>💡 {s.subtitle || s.title}</option>)}
+                </Select>
+              </Field>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Taille (optionnel)">
                 <Input value={form.size_label} onChange={e => setForm({...form, size_label: e.target.value})} placeholder="1,2 MB" />
@@ -2961,13 +3079,42 @@
       );
     };
 
-    function StrategiesTab({ clientId }) {
+    function StrategiesTab({ clientId, client }) {
       const [items, setItems] = useState([]);
       const [editing, setEditing] = useState(null);
       const [showForm, setShowForm] = useState(false);
       const [loading, setLoading] = useState(true);
       const [copiedId, setCopiedId] = useState(null);
       const [busyId, setBusyId] = useState(null);
+      const [notifying, setNotifying] = useState(null);
+      // « Planifier un tournage » depuis une stratégie (préremplit ShootForm)
+      const [shootFor, setShootFor] = useState(null);
+
+      // Prévenir le client que sa stratégie est publiée (kind: strategy_ready)
+      const notifyReady = async (s) => {
+        if (!client?.client_email) {
+          alert("Ajoutez d'abord l'email du client (Modifier → champ Email).");
+          return;
+        }
+        if (s.status !== 'published') {
+          alert("Publiez d'abord la stratégie : un brouillon est invisible côté client.");
+          return;
+        }
+        if (!confirm(`Envoyer un email à ${client.client_email} pour annoncer la stratégie « ${s.subtitle || s.title} » ?`)) return;
+        setNotifying(s.id);
+        try {
+          const url = `${SUPABASE_URL}/functions/v1/notify-client`;
+          const res = await fetch(url, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body:    JSON.stringify({ kind: 'strategy_ready', client_id: clientId, strategy_id: s.id }),
+          });
+          if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
+          else if (res.status === 404) alert("La fonction de notification n'est pas déployée.");
+          else alert(`Erreur : ${await res.text()}`);
+        } catch (e) { alert("Erreur réseau : " + e.message); }
+        setNotifying(null);
+      };
 
       const load = async () => {
         setLoading(true);
@@ -3066,6 +3213,12 @@
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
+                            <button onClick={() => setShootFor(s)} aria-label="Planifier un tournage" title="Planifier un tournage lié à cette stratégie" className="w-10 h-10 lg:w-9 lg:h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform"><CalendarIcon size={14} /></button>
+                            {s.status === 'published' && client?.client_email && (
+                              <button onClick={() => notifyReady(s)} disabled={notifying === s.id} aria-label="Notifier le client" title="Envoyer un email au client" className="w-10 h-10 lg:w-9 lg:h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform disabled:opacity-50">
+                                {notifying === s.id ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                              </button>
+                            )}
                             <button onClick={() => duplicate(s)} disabled={busyId === s.id} aria-label="Dupliquer" title="Dupliquer (sert de modèle)" className="w-10 h-10 lg:w-9 lg:h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform disabled:opacity-50"><Copy size={14} /></button>
                             <button onClick={() => { setEditing(s); setShowForm(true); }} aria-label="Modifier" className="w-10 h-10 lg:w-9 lg:h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform"><Edit3 size={14} /></button>
                             <button onClick={() => remove(s.id)} aria-label="Supprimer" className="w-10 h-10 lg:w-9 lg:h-9 rounded-full flex items-center justify-center bg-white text-rose-500 active:scale-95 transition-transform"><Trash2 size={14} /></button>
@@ -3113,6 +3266,15 @@
           </div>
 
           {showForm && <StrategyForm clientId={clientId} existing={editing} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load(); }} />}
+          {shootFor && (
+            <ShootForm
+              clientId={clientId}
+              client={client}
+              initial={{ strategy_id: shootFor.id }}
+              onClose={() => setShootFor(null)}
+              onSaved={() => { setShootFor(null); alert('✓ Tournage programmé — retrouvez-le dans l\'onglet Tournages.'); }}
+            />
+          )}
         </div>
       );
     }
@@ -3419,6 +3581,9 @@
       const [showForm, setShowForm] = useState(false);
       const [loading, setLoading] = useState(true);
       const [notifying, setNotifying] = useState(null);
+      // Liaisons : stratégies (pour les chips) + « Facturer ce tournage »
+      const { strategies } = useLinkLists(clientId, { strategies: true });
+      const [invoiceFor, setInvoiceFor] = useState(null);
 
       const load = async () => {
         setLoading(true);
@@ -3497,9 +3662,22 @@
                     <div className="flex items-center gap-3 mt-1.5 text-[11.5px] text-stone-500 flex-wrap">
                       {s.time_label && <span className="flex items-center gap-1"><Clock size={11} /> {s.time_label}</span>}
                       {s.location && <span className="flex items-center gap-1"><MapPin size={11} /> {s.location}</span>}
+                      {s.strategy_id && (() => {
+                        const strat = strategies.find(st => st.id === s.strategy_id);
+                        if (!strat) return null;
+                        const concept = s.concept_id != null && Array.isArray(strat.concepts)
+                          ? strat.concepts.find(c => String(c.id) === String(s.concept_id)) : null;
+                        return (
+                          <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full leading-none"
+                                style={{ background: 'rgba(201,168,76,0.12)', color: '#a8893d', border: '1px solid rgba(201,168,76,0.3)' }}>
+                            💡 {strat.subtitle || strat.title}{concept ? ` · #${concept.id} ${concept.emoji || ''}` : ''}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 ml-auto">
+                    <button onClick={() => setInvoiceFor(s)} aria-label="Facturer ce tournage" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-transform" title="Créer une facture liée à ce tournage"><FileText size={14} /></button>
                     {client?.client_email && (
                       <button onClick={() => notifyScheduled(s)} disabled={notifying === s.id} aria-label="Notifier le client" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center disabled:opacity-50 active:scale-95 transition-transform" title="Prévenir le client de ce tournage par email">
                       {notifying === s.id ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
@@ -3515,11 +3693,22 @@
           )}
 
           {showForm && <ShootForm clientId={clientId} client={client} existing={editing} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load(); }} />}
+          {invoiceFor && (
+            <InvoiceForm
+              clientId={clientId}
+              initial={{
+                shoot_id: invoiceFor.id,
+                description: `${invoiceFor.type === 'video' ? 'Production vidéo' : 'Production photo'} — ${invoiceFor.title}`,
+              }}
+              onClose={() => setInvoiceFor(null)}
+              onSaved={() => { setInvoiceFor(null); alert('✓ Facture créée — retrouvez-la dans l\'onglet Factures.'); }}
+            />
+          )}
         </div>
       );
     }
 
-    function ShootForm({ clientId, client, existing, onClose, onSaved }) {
+    function ShootForm({ clientId, client, existing, onClose, onSaved, initial }) {
       // Reconstituer la date ISO à partir des anciens champs si on édite un existant
       const existingISO = existing?.date_iso || (existing ? shootPartsToISO(existing.date_day, existing.month_label, existing.year) : '');
       const [form, setForm] = useState({
@@ -3529,8 +3718,15 @@
         time_label:  existing?.time_label  || '',
         location:    existing?.location    || '',
         notes:       existing?.notes       || '',
+        strategy_id: existing?.strategy_id || initial?.strategy_id || '',
+        concept_id:  existing?.concept_id  ?? initial?.concept_id ?? '',
       });
       const [loading, setLoading] = useState(false);
+      const { strategies } = useLinkLists(clientId, { strategies: true });
+
+      // Concepts de la stratégie sélectionnée (pour le second select)
+      const selectedStrategy = strategies.find(s => s.id === form.strategy_id);
+      const conceptOptions = Array.isArray(selectedStrategy?.concepts) ? selectedStrategy.concepts : [];
 
       // Envoie shoot_scheduled (création) ou shoot_updated (date/lieu modifié)
       const fireShootEmail = async (kind, shoot) => {
@@ -3579,6 +3775,8 @@
           month_label: parts.month_label || 'Jan',
           year:        parts.year || new Date().getFullYear(),
           date_iso:    form.date_iso || null,
+          strategy_id: form.strategy_id || null,
+          concept_id:  form.strategy_id && form.concept_id !== '' ? parseInt(form.concept_id) : null,
         };
 
         // Détecter un changement de date ou de lieu (mode édition)
@@ -3630,6 +3828,27 @@
             <Field label="Lieu">
               <Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} placeholder="Studio Bastille, Paris 11" />
             </Field>
+
+            {/* ── Liaison stratégie → concept (chaîne de production) ── */}
+            {strategies.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Stratégie liée (optionnel)">
+                  <Select value={form.strategy_id} onChange={e => setForm({...form, strategy_id: e.target.value, concept_id: ''})}>
+                    <option value="">— Aucune —</option>
+                    {strategies.map(s => <option key={s.id} value={s.id}>💡 {s.subtitle || s.title}</option>)}
+                  </Select>
+                </Field>
+                {form.strategy_id && (
+                  <Field label="Concept produit">
+                    <Select value={form.concept_id} onChange={e => setForm({...form, concept_id: e.target.value})}>
+                      <option value="">— Aucun en particulier —</option>
+                      {conceptOptions.map(c => <option key={c.id} value={c.id}>#{c.id} {c.emoji} {c.titre}</option>)}
+                    </Select>
+                    <div className="text-[11px] text-stone-500 mt-1">Le concept passera en « 🎬 planifié » puis « ✓ livré » dans la stratégie du client.</div>
+                  </Field>
+                )}
+              </div>
+            )}
             <Field label="Notes (optionnel, visibles uniquement par vous)">
               <Textarea rows={3} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Équipe : 4 personnes. Pré-prod le 3 avril." />
             </Field>

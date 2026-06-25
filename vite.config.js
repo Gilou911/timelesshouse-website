@@ -47,7 +47,9 @@ export default defineConfig({
 
         // — Outils / démo internes —
         demoToggle:             resolve(__dirname, 'demo-toggle.html'),
-        socialPreview:          resolve(__dirname, 'social-v2-preview.html'),
+
+        // — Prospection —
+        portfolio:              resolve(__dirname, 'portfolio.html'),
       },
     },
   },

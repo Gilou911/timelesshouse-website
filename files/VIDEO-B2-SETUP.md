@@ -131,16 +131,27 @@ brew install ffmpeg
    et **supprime les anciens encodages** du média.
    → La carte du média passe en « ✅ Lecture adaptative active ».
 
-### Films de mariage (event-video.html)
-1. Encoder avec un préfixe au nom du couple :
+### Films de mariage / pages vidéo (tous univers)
+Depuis l'admin, dans la page vidéo, chaque bloc **Teaser** et **Film** a un
+champ **« Fichier … — upload direct sur B2 »** :
+1. Choisis le fichier → il s'uploade sur B2 (`weddings/<code>/<teaser|film>/
+   original/`), le **lien de téléchargement** se remplit et la page est
+   sauvegardée. L'admin affiche alors une **commande d'encodage** avec
+   `--event-page` (bouton copier).
+2. Lance-la sur ton Mac :
    ```bash
-   npm run encode -- --prefix weddings/ezla-davy/film --input "/chemin/film.mp4" --upload-original
+   npm run encode -- --prefix weddings/<code>/film --input "/chemin/film.mp4" --event-page <id> --field filmHls
    ```
-2. Le script affiche l'**URL HLS** (et l'URL de téléchargement si
-   `--upload-original`) → les coller dans **Admin → page vidéo →
-   « URL HLS adaptative »** (+ lien de téléchargement).
-3. Les anciens champs 1080p/4K restent fonctionnels pour les pages
-   existantes — l'URL HLS est prioritaire quand elle est renseignée.
+   Elle génère les qualités HLS **et réécrit l'URL HLS directement dans la
+   page** (`teaserHls`/`filmHls`) — plus aucun copier-coller. Recharge la
+   page dans l'admin pour voir le champ rempli.
+3. Alternative manuelle (sans passer par l'admin) :
+   ```bash
+   npm run encode -- --prefix weddings/<slug>/film --input "/chemin/film.mp4" --upload-original
+   ```
+   puis coller l'URL HLS affichée dans « URL HLS adaptative ».
+4. Les anciens champs 1080p/4K restent fonctionnels — l'URL HLS est
+   prioritaire quand elle est renseignée.
 
 ### Anciennes vidéos (Streamable, Cloudinary…)
 Rien ne casse : les liens existants continuent d'être lus (iframe/MP4).

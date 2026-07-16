@@ -1619,6 +1619,73 @@
         }
       };
 
+      // ── Upload des vidéos teaser/film → B2 depuis l'admin (tous univers) ──
+      const [evUpload, setEvUpload] = useState({}); // { teaser|film: { pct, msg, cmd } }
+      const codeSlug = slugify(client?.code || '');
+      const uploadEventVideo = async (kind, file) => {
+        if (!file) return;
+        if (!codeSlug) { alert("Le client doit avoir un code (fiche client) avant d'uploader une vidéo."); return; }
+        const dlKey    = kind === 'teaser' ? 'teaserDownloadUrl' : 'filmDownloadUrl';
+        const hlsField = kind === 'teaser' ? 'teaserHls' : 'filmHls';
+        try {
+          setEvUpload(s => ({ ...s, [kind]: { pct: 0, msg: 'Upload en cours… (ne ferme pas l\'onglet)' } }));
+          const key = `weddings/${codeSlug}/${kind}/original/${b2SafeName(file.name)}`;
+          const url = await b2UploadFile(file, key, (p) =>
+            setEvUpload(s => ({ ...s, [kind]: { pct: Math.round(p * 100), msg: 'Upload en cours… (ne ferme pas l\'onglet)' } })));
+          // Persiste la config avec le lien de téléchargement + garantit un pageId
+          const newConfig = { ...c, [dlKey]: url };
+          setC(newConfig);
+          let pid = pageId;
+          const res = pid
+            ? await sb.from('event_pages').update({ client_id: clientId, page_type, config: newConfig }).eq('id', pid).select('id').single()
+            : await sb.from('event_pages').insert({ client_id: clientId, page_type, config: newConfig }).select('id').single();
+          if (res.error) throw new Error(res.error.message);
+          pid = res.data.id; if (!pageId) setPageId(pid);
+          setSavedVersion(v => v + 1); setSavedAt(Date.now());
+          const cmd = `npm run encode -- --prefix weddings/${codeSlug}/${kind} --input "/chemin/vers/${file.name}" --event-page ${pid} --field ${hlsField}`;
+          setEvUpload(s => ({ ...s, [kind]: { pct: 100, msg: '✅ Original en ligne (téléchargement client OK)', cmd } }));
+          (onSavedQuiet || onSaved)?.();
+        } catch (err) {
+          setEvUpload(s => ({ ...s, [kind]: { msg: `✗ ${err.message}` } }));
+        }
+      };
+
+      // Bloc réutilisable : upload d'une vidéo (teaser ou film).
+      // Fonction de rendu (pas un composant) → appelée inline, aucun remontage
+      // du champ fichier pendant les re-renders de progression.
+      const renderVideoUpload = (kind) => {
+        const st = evUpload[kind];
+        return (
+          <Field label={`Fichier ${kind === 'teaser' ? 'teaser' : 'film'} — upload direct sur B2`}>
+            <input
+              type="file"
+              accept="video/mp4,video/quicktime,video/webm,video/x-m4v"
+              onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) uploadEventVideo(kind, f); }}
+              className="w-full text-[13px] text-stone-600 file:mr-3 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-stone-900 file:text-white file:text-[12px] file:font-semibold file:cursor-pointer"
+            />
+            {st && (
+              <div className="mt-2">
+                {st.pct != null && st.pct < 100 && (
+                  <div className="h-1.5 rounded-full bg-stone-300/60 overflow-hidden mb-1.5">
+                    <div className="h-full bg-stone-900 transition-all" style={{ width: `${st.pct}%` }} />
+                  </div>
+                )}
+                <div className="text-[11.5px] text-stone-600 font-medium">{st.msg}</div>
+                {st.cmd && (
+                  <div className="mt-2 rounded-lg px-3 py-2.5" style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.30)' }}>
+                    <div className="text-[11px] leading-relaxed mb-1.5" style={{ color: '#92400e' }}>
+                      <strong>Dernière étape (lecture adaptative).</strong> Lance ceci sur ton Mac — l'URL HLS ci-dessous se remplira toute seule :
+                    </div>
+                    <div className="rounded bg-stone-900 text-stone-100 px-3 py-2 font-mono text-[11px] break-all select-all leading-relaxed">{st.cmd}</div>
+                    <button type="button" onClick={() => { try { navigator.clipboard.writeText(st.cmd); } catch (e) {} }} className="text-[11px] text-stone-500 underline underline-offset-2 mt-1.5">Copier la commande</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </Field>
+        );
+      };
+
       const formTitle = isPhotos ? 'Galerie photos'
         : isAnniversary ? 'Lecteur vidéo (anniversaire)'
         : isEngagement  ? 'Lecteur vidéo (fiançailles)'
@@ -2051,10 +2118,11 @@
                 {c.afficherTeaser && (
                   <>
                     <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mt-6 mb-1">Teaser</div>
-                    <Field label="URL HLS adaptative (master.m3u8 — recommandé)">
-                      <Input value={c.teaserHls || ''} onChange={e => updateConfig('teaserHls', e.target.value)} placeholder="https://…/master.m3u8" />
+                    {renderVideoUpload('teaser')}
+                    <Field label="URL HLS adaptative (master.m3u8 — remplie automatiquement)">
+                      <Input value={c.teaserHls || ''} onChange={e => updateConfig('teaserHls', e.target.value)} placeholder="Se remplit après l'encodage — ou colle une URL" />
                       <div className="text-[11px] text-stone-500 mt-1 leading-relaxed">
-                        La qualité s'adapte à la connexion (boutons AUTO · 4K · 1080p…). Générée par <code>npm run encode -- --prefix weddings/&lt;couple&gt;/teaser --input fichier.mp4</code>. Si renseignée, remplace les URLs fixes ci-dessous.
+                        La qualité s'adapte à la connexion (boutons AUTO · 4K · 1080p…). Renseignée automatiquement après l'upload + la commande d'encodage ci-dessus. Si présente, remplace les URLs fixes ci-dessous.
                       </div>
                     </Field>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2085,10 +2153,11 @@
                 {c.afficherFilm && (
                   <>
                     <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mt-6 mb-1">Film complet</div>
-                    <Field label="URL HLS adaptative (master.m3u8 — recommandé)">
-                      <Input value={c.filmHls || ''} onChange={e => updateConfig('filmHls', e.target.value)} placeholder="https://…/master.m3u8" />
+                    {renderVideoUpload('film')}
+                    <Field label="URL HLS adaptative (master.m3u8 — remplie automatiquement)">
+                      <Input value={c.filmHls || ''} onChange={e => updateConfig('filmHls', e.target.value)} placeholder="Se remplit après l'encodage — ou colle une URL" />
                       <div className="text-[11px] text-stone-500 mt-1 leading-relaxed">
-                        La qualité s'adapte à la connexion (boutons AUTO · 4K · 1080p…). Générée par <code>npm run encode -- --prefix weddings/&lt;couple&gt;/film --input fichier.mp4</code>. Si renseignée, remplace les URLs fixes ci-dessous.
+                        La qualité s'adapte à la connexion (boutons AUTO · 4K · 1080p…). Renseignée automatiquement après l'upload + la commande d'encodage ci-dessus. Si présente, remplace les URLs fixes ci-dessous.
                       </div>
                     </Field>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

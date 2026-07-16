@@ -55,15 +55,22 @@ const mediaId        = arg("media-id");
 const rawPrefix      = arg("prefix");
 const input          = arg("input");
 const uploadOriginal = hasFlag("upload-original");
+const eventPage      = arg("event-page");   // id d'une page vidéo (event_pages)
+const field          = arg("field");        // teaserHls | filmHls — champ à réécrire
 
 if ((!mediaId && !rawPrefix) || !input) {
   console.error(`Usage :
   npm run encode -- --media-id <uuid> --input <fichier> [--upload-original]
-  npm run encode -- --prefix weddings/<slug>/<film|teaser> --input <fichier> [--upload-original]`);
+  npm run encode -- --prefix weddings/<slug>/<film|teaser> --input <fichier> [--upload-original]
+  npm run encode -- --prefix weddings/<slug>/<film|teaser> --input <fichier> --event-page <id> --field <teaserHls|filmHls>`);
   process.exit(1);
 }
 if (rawPrefix && !/^(media|weddings)\/[a-zA-Z0-9._\-/]+$/.test(rawPrefix)) {
   console.error("✗ --prefix doit commencer par media/ ou weddings/ (lettres, chiffres, - _ . /)");
+  process.exit(1);
+}
+if (eventPage && !["teaserHls", "filmHls"].includes(field)) {
+  console.error("✗ --event-page requiert --field teaserHls ou --field filmHls");
   process.exit(1);
 }
 
@@ -83,8 +90,8 @@ for (const [name, value] of Object.entries({
     process.exit(1);
   }
 }
-if (mediaId && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("Variable manquante : SUPABASE_SERVICE_ROLE_KEY (requise pour mettre à jour la fiche média)");
+if ((mediaId || eventPage) && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("Variable manquante : SUPABASE_SERVICE_ROLE_KEY (requise pour mettre à jour la base)");
   process.exit(1);
 }
 const PUBLIC_BASE = process.env.B2_PUBLIC_BASE_URL.replace(/\/+$/, "");
@@ -100,9 +107,17 @@ const s3 = new S3Client({
 });
 
 // ─── Vérification préalable de la fiche média ───────────────
-const supabase = mediaId
+const supabase = (mediaId || eventPage)
   ? createClient(SB_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
   : null;
+// La page vidéo doit exister AVANT d'encoder (évite un encodage dans le vide)
+if (eventPage) {
+  const { data } = await supabase.from("event_pages").select("id").eq("id", eventPage).maybeSingle();
+  if (!data) {
+    console.error(`✗ Aucune page vidéo avec l'id ${eventPage} — vérifie l'identifiant.`);
+    process.exit(1);
+  }
+}
 let existingMedia = null;
 if (mediaId) {
   const { data } = await supabase
@@ -330,8 +345,22 @@ if (mediaId) {
   console.log(`\n✓ Lecture adaptative active pour « ${existingMedia.title} »`);
   console.log(`  Qualités : ${rungs.map((r) => r.name).join(" / ")} (auto selon la connexion)`);
   console.log(`  Original affiché au client : ${qualityLabel(srcW, srcH)} · ${fmtSize(inputSize)}`);
+} else if (eventPage) {
+  // Réécriture automatique du champ HLS dans la config de la page vidéo
+  const { data: page } = await supabase.from("event_pages").select("config").eq("id", eventPage).maybeSingle();
+  const newConfig = { ...(page?.config || {}), [field]: masterUrl };
+  const { error } = await supabase.from("event_pages").update({ config: newConfig }).eq("id", eventPage);
+  if (error) {
+    console.error("✗ Mise à jour de la page ÉCHOUÉE :", error.message);
+    console.log(`  À coller manuellement dans le champ ${field} : ${masterUrl}`);
+    process.exit(1);
+  }
+  console.log(`\n✓ Lecture adaptative active — ${field} mis à jour automatiquement sur la page.`);
+  console.log(`  URL HLS : ${masterUrl}`);
+  console.log(`  Qualités : ${rungs.map((r) => r.name).join(" / ")} · original ${qualityLabel(srcW, srcH)} · ${fmtSize(inputSize)}`);
+  console.log(`  → Recharge la page vidéo dans l'admin pour voir le champ rempli.`);
 } else {
-  console.log(`\n✓ Encodage terminé — à coller dans l'admin (page vidéo mariage) :`);
+  console.log(`\n✓ Encodage terminé — à coller dans l'admin (page vidéo) :`);
   console.log(`  URL HLS (lecture adaptative) : ${masterUrl}`);
   if (originalKey) console.log(`  URL de téléchargement         : ${pub(originalKey)}`);
   console.log(`  Poster (si besoin)            : ${posterUrl}`);

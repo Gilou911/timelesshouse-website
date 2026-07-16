@@ -2110,7 +2110,7 @@
       const load = async () => {
         setLoading(true);
         const [m, s] = await Promise.all([
-          sb.from('media').select('*').eq('client_id', clientId).order('position'),
+          sb.from('media').select('*').eq('client_id', clientId).order('date_iso', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }),
           sb.from('shoots').select('*').eq('client_id', clientId).order('date_day'),
         ]);
         const mediaItems = m.data || [];
@@ -2493,7 +2493,9 @@
         preview_focus_y: existing?.preview_focus_y ?? 50,
         preview_zoom:    existing?.preview_zoom    ?? 1,
         date_label:  existing?.date_label  || (existing ? '' : isoToLabel(todayISO())),
-        date_iso_local: existing?.date_label ? '' : todayISO(),
+        // date_iso pilote désormais le tri des galeries : on pré-remplit le
+        // sélecteur depuis la valeur existante (ou aujourd'hui pour un nouveau média)
+        date_iso_local: existing?.date_iso || (existing ? '' : todayISO()),
         duration:    existing?.duration    || '',
         size_label:  existing?.size_label  || '',
         tag:         existing?.tag         || '',
@@ -2575,6 +2577,7 @@
         const payload = {
           ...rest,
           client_id: clientId,
+          date_iso: date_iso_local || null,   // pilote le tri chronologique des galeries
           position: parseInt(form.position) || 0,
           shoot_id: form.shoot_id || null,
           // Coercer les coordonnées de cadrage en nombres (la DB attend des numeric)
@@ -2762,9 +2765,9 @@
               </Select>
             </Field>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Field label="Date">
+              <Field label="Date (classe automatiquement le média)">
                 <Input type="date" value={form.date_iso_local} onChange={e => handleMediaDate(e.target.value)} />
-                <div className="text-[11px] text-stone-500 mt-1">{form.date_label || '—'}</div>
+                <div className="text-[11px] text-stone-500 mt-1">{form.date_label || '—'} · le plus récent apparaît en premier</div>
               </Field>
               {form.type === 'video' && (
                 <Field label="Durée">
@@ -2773,9 +2776,6 @@
               )}
               <Field label="Taille">
                 <Input value={form.size_label} onChange={e => setForm({...form, size_label: e.target.value})} placeholder="128 MB" />
-              </Field>
-              <Field label="Position (ordre)">
-                <Input type="number" value={form.position} onChange={e => setForm({...form, position: e.target.value})} />
               </Field>
             </div>
 

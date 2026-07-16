@@ -252,7 +252,7 @@
     }
 
     const [mediaRes, invoicesRes, shootsRes, analyticsRes, documentsRes, strategiesRes] = await Promise.all([
-      sb.from('media').select('*').eq('client_id', client.id).order('position'),
+      sb.from('media').select('*').eq('client_id', client.id).order('date_iso', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }),
       sb.from('invoices').select('*').eq('client_id', client.id).order('created_at', { ascending: false }),
       sb.from('shoots').select('*').eq('client_id', client.id).order('year').order('date_day'),
       sb.from('analytics').select('*').eq('client_id', client.id).maybeSingle(),

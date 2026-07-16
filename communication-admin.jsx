@@ -2508,6 +2508,56 @@
       const [encodeHint, setEncodeHint] = useState(null);  // { id, filename } après upload de l'original
       const [showUrlFields, setShowUrlFields] = useState(false);
       const isHls = (u) => /\.m3u8(\?|$)/i.test(u || '');
+      // ── Sélecteur de vignette depuis la vidéo + auto-remplissage durée/taille ──
+      const [videoMeta, setVideoMeta]       = useState(null);   // {width,height,duration} lu du fichier
+      const [videoObjUrl, setVideoObjUrl]   = useState(null);   // URL locale pour le sélecteur d'image
+      const [pickerDur, setPickerDur]       = useState(0);
+      const [frameTime, setFrameTime]       = useState(0);
+      const [capturedBlob, setCapturedBlob] = useState(null);   // image capturée dans la vidéo
+      const [capturedPreview, setCapturedPreview] = useState(null);
+      const pickerVideoRef = useRef(null);
+
+      // Libère les URLs d'objet à la fermeture du formulaire (anti-fuite mémoire)
+      useEffect(() => () => {
+        if (videoObjUrl) URL.revokeObjectURL(videoObjUrl);
+        if (capturedPreview) URL.revokeObjectURL(capturedPreview);
+      }, [videoObjUrl, capturedPreview]);
+
+      // Sélection d'un fichier vidéo : remplit taille + durée immédiatement,
+      // et prépare l'aperçu pour choisir la vignette dans la vidéo.
+      const handleVideoFile = async (file) => {
+        setVideoFile(file);
+        setCapturedBlob(null);
+        setCapturedPreview(p => { if (p) URL.revokeObjectURL(p); return null; });
+        setVideoObjUrl(prev => { if (prev) URL.revokeObjectURL(prev); return file ? URL.createObjectURL(file) : null; });
+        setVideoMeta(null);
+        setFrameTime(0);
+        if (!file) return;
+        setForm(f => ({ ...f, size_label: fmtSizeFR(file.size) }));        // taille auto
+        const meta = await readLocalVideoMeta(file);
+        setVideoMeta(meta);
+        if (meta?.duration) setForm(f => ({ ...f, duration: fmtDurationLabel(meta.duration) })); // durée auto
+      };
+
+      // Capture l'image affichée dans l'aperçu comme vignette (canvas → jpeg).
+      const captureFrame = () => {
+        const v = pickerVideoRef.current;
+        if (!v || !v.videoWidth) { alert("L'image n'est pas encore prête — patiente une seconde puis réessaie."); return; }
+        const canvas = document.createElement('canvas');
+        canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+        try {
+          canvas.getContext('2d').drawImage(v, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => {
+            if (!blob) { alert("Capture impossible sur ce format vidéo — utilise l'upload manuel."); return; }
+            setThumbFile(null);
+            setForm(f => ({ ...f, thumb_url: '' }));
+            setCapturedBlob(blob);
+            setCapturedPreview(p => { if (p) URL.revokeObjectURL(p); return URL.createObjectURL(blob); });
+          }, 'image/jpeg', 0.9);
+        } catch (err) {
+          alert("Le navigateur ne sait pas décoder ce format (ex : ProRes/HEVC). Utilise l'upload manuel, ou la vignette générée automatiquement à l'encodage.");
+        }
+      };
 
       // Quand on change la date via le picker, auto-générer le libellé
       const handleMediaDate = (iso) => {
@@ -2546,7 +2596,7 @@
           // 2) Uploads directs vers B2 (URL signée par l'Edge Function b2-sign)
           const patch = {};
           if (videoFile) {
-            const meta = await readLocalVideoMeta(videoFile);
+            const meta = videoMeta || await readLocalVideoMeta(videoFile);
             const name = b2SafeName(videoFile.name);
             patch.url = await b2UploadFile(videoFile, `media/${rowId}/original/${name}`, (p) =>
               setUpProgress({ label: `Vidéo originale — ${videoFile.name}`, pct: Math.round(p * 100) }));
@@ -2560,9 +2610,12 @@
               if (!form.duration && meta.duration) patch.duration = fmtDurationLabel(meta.duration);
             }
           }
-          if (thumbFile) {
-            patch.thumb_url = await b2UploadFile(thumbFile, `media/${rowId}/thumb/${Date.now()}-${b2SafeName(thumbFile.name)}`, (p) =>
-              setUpProgress({ label: `Vignette — ${thumbFile.name}`, pct: Math.round(p * 100) }));
+          // Vignette : priorité à l'image capturée dans la vidéo, sinon fichier uploadé
+          const thumbBlob = capturedBlob || thumbFile;
+          if (thumbBlob) {
+            const tname = capturedBlob ? 'vignette.jpg' : b2SafeName(thumbFile.name);
+            patch.thumb_url = await b2UploadFile(thumbBlob, `media/${rowId}/thumb/${Date.now()}-${tname}`, (p) =>
+              setUpProgress({ label: 'Vignette', pct: Math.round(p * 100) }));
           }
           setUpProgress(null);
 
@@ -2646,7 +2699,7 @@
                   <input
                     type="file"
                     accept="video/mp4,video/quicktime,video/webm,video/x-m4v"
-                    onChange={e => setVideoFile(e.target.files?.[0] || null)}
+                    onChange={e => handleVideoFile(e.target.files?.[0] || null)}
                     className="w-full text-[13px] text-stone-600 file:mr-3 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-stone-900 file:text-white file:text-[12px] file:font-semibold file:cursor-pointer"
                   />
                   {videoFile ? (
@@ -2726,28 +2779,56 @@
               </Field>
             </div>
 
-            <Field label={form.type === 'video' ? "Vignette (optionnel — générée automatiquement à l'encodage si vide)" : "Miniature (optionnel)"}>
+            <Field label={form.type === 'video' ? "Vignette (optionnel — sinon générée automatiquement à l'encodage)" : "Miniature (optionnel)"}>
+              {/* 1) Choisir une image DANS la vidéo (si un fichier vidéo est sélectionné) */}
+              {form.type === 'video' && videoObjUrl && (
+                <div className="mb-3 rounded-xl p-3" style={neu.pressedSm}>
+                  <div className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold mb-2">Choisir une image dans la vidéo</div>
+                  <video
+                    ref={pickerVideoRef}
+                    src={videoObjUrl}
+                    muted playsInline preload="metadata"
+                    onLoadedMetadata={e => setPickerDur(e.currentTarget.duration || 0)}
+                    className="w-full max-h-52 rounded-lg bg-black object-contain"
+                  />
+                  <input
+                    type="range" min="0" max={pickerDur || 0} step="0.1" value={frameTime}
+                    onChange={e => { const t = parseFloat(e.target.value); setFrameTime(t); if (pickerVideoRef.current) pickerVideoRef.current.currentTime = t; }}
+                    className="w-full accent-stone-900 mt-2"
+                  />
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-[11px] text-stone-500 tabular-nums">{fmtDurationLabel(Math.round(frameTime))} / {fmtDurationLabel(Math.round(pickerDur))}</span>
+                    <Btn type="button" icon={Camera} onClick={captureFrame}>Utiliser cette image</Btn>
+                  </div>
+                </div>
+              )}
+
+              {/* 2) …ou uploader une image manuellement */}
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
-                onChange={e => setThumbFile(e.target.files?.[0] || null)}
+                onChange={e => { const f = e.target.files?.[0] || null; setThumbFile(f); if (f) { setCapturedBlob(null); setCapturedPreview(p => { if (p) URL.revokeObjectURL(p); return null; }); } }}
                 className="w-full text-[13px] text-stone-600 file:mr-3 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-stone-200 file:text-stone-700 file:text-[12px] file:font-semibold file:cursor-pointer"
               />
-              {thumbFile && <div className="text-[11px] text-stone-500 mt-1.5">🖼 {thumbFile.name} · {fmtSizeFR(thumbFile.size)} — sera uploadée sur B2</div>}
+              {/* 3) …ou coller une URL d'image */}
               <Input
                 value={form.thumb_url || ''}
                 onChange={e => setForm({...form, thumb_url: e.target.value})}
                 placeholder="… ou coller une URL d'image"
                 style={{ marginTop: '8px' }}
               />
-              {form.thumb_url && !thumbFile && (
+
+              {/* Aperçu de la vignette retenue (capture ou URL) */}
+              {(capturedPreview || (form.thumb_url && !thumbFile)) && (
                 <div className="mt-3 flex items-center gap-3">
-                  <img src={form.thumb_url} alt="aperçu" className="h-20 rounded-lg object-cover ring-1 ring-stone-200" />
-                  <button type="button" onClick={() => setForm({...form, thumb_url: ''})} className="text-[12px] text-stone-500 hover:text-rose-600">
+                  <img src={capturedPreview || form.thumb_url} alt="aperçu" className="h-20 rounded-lg object-cover ring-1 ring-stone-200" />
+                  <span className="text-[11px] text-stone-500">{capturedPreview ? '📸 Image capturée dans la vidéo' : '🔗 Vignette depuis une URL'}</span>
+                  <button type="button" onClick={() => { setCapturedBlob(null); setCapturedPreview(p => { if (p) URL.revokeObjectURL(p); return null; }); setForm(f => ({ ...f, thumb_url: '' })); }} className="text-[12px] text-stone-500 hover:text-rose-600">
                     Effacer
                   </button>
                 </div>
               )}
+              {thumbFile && !capturedPreview && <div className="text-[11px] text-stone-500 mt-2">🖼 {thumbFile.name} · {fmtSizeFR(thumbFile.size)} — sera uploadée sur B2</div>}
             </Field>
 
             {/* 🎯 Cadrage de la vidéo de hover — uniquement pour les vidéos.

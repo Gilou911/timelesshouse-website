@@ -88,7 +88,7 @@ function json(status: number, body: unknown): Response {
 }
 
 // Un chemin B2 valide : préfixe connu, segments sûrs, pas de traversée.
-const KEY_RE = /^(media|weddings)\/[a-zA-Z0-9._\-/]{1,400}$/;
+const KEY_RE = /^(media|weddings|invoices|documents)\/[a-zA-Z0-9._\-/]{1,400}$/;
 function validKey(key: unknown): key is string {
   return typeof key === "string" && KEY_RE.test(key) && !key.includes("..") && !key.includes("//");
 }

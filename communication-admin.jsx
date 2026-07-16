@@ -3063,6 +3063,8 @@
         shoot_id:    existing?.shoot_id    || initial?.shoot_id || '',
       });
       const [loading, setLoading] = useState(false);
+      const [pdfFile, setPdfFile] = useState(null);   // PDF à uploader sur B2
+      const [upPct, setUpPct]     = useState(null);   // progression upload
       const { shoots } = useLinkLists(clientId, { shoots: true });
 
       // Quand on change la date d'émission via le date picker, auto-générer le libellé
@@ -3073,13 +3075,26 @@
       const submit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        const { date_iso_local, ...rest } = form;
-        const payload = { ...rest, client_id: clientId, amount: parseFloat(form.amount), due_date: form.due_date || null, shoot_id: form.shoot_id || null };
-        const result = existing
-          ? await sb.from('invoices').update(payload).eq('id', existing.id)
-          : await sb.from('invoices').insert(payload);
-        if (!result.error) onSaved();
-        else { alert(result.error.message); setLoading(false); }
+        try {
+          const { date_iso_local, ...rest } = form;
+          // Upload direct du PDF vers B2 si un fichier est choisi
+          let pdf_url = form.pdf_url;
+          if (pdfFile) {
+            setUpPct(0);
+            pdf_url = await b2UploadFile(pdfFile, `invoices/${clientId}/${Date.now()}-${b2SafeName(pdfFile.name)}`,
+              (p) => setUpPct(Math.round(p * 100)));
+            setUpPct(null);
+          }
+          const payload = { ...rest, pdf_url, client_id: clientId, amount: parseFloat(form.amount), due_date: form.due_date || null, shoot_id: form.shoot_id || null };
+          const result = existing
+            ? await sb.from('invoices').update(payload).eq('id', existing.id)
+            : await sb.from('invoices').insert(payload);
+          if (result.error) throw new Error(result.error.message);
+          onSaved();
+        } catch (err) {
+          setUpPct(null); setLoading(false);
+          alert(`✗ ${err.message || 'Erreur'}`);
+        }
       };
 
       return (
@@ -3118,13 +3133,32 @@
                 </Select>
               </Field>
             </div>
-            <Field label="URL du PDF (optionnel)">
-              <Input value={form.pdf_url} onChange={e => setForm({...form, pdf_url: e.target.value})} placeholder="factures/fac-2026-042.pdf ou https://…" />
+            <Field label="Facture PDF (optionnel)">
+              <input
+                type="file"
+                accept="application/pdf,image/jpeg,image/png"
+                onChange={e => { const f = e.target.files?.[0] || null; setPdfFile(f); if (f) setForm(fm => ({ ...fm, pdf_url: '' })); }}
+                className="w-full text-[13px] text-stone-600 file:mr-3 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-stone-900 file:text-white file:text-[12px] file:font-semibold file:cursor-pointer"
+              />
+              {pdfFile ? (
+                <div className="text-[11px] text-stone-500 mt-1.5">📄 {pdfFile.name} · {fmtSizeFR(pdfFile.size)} — sera uploadé sur B2</div>
+              ) : form.pdf_url ? (
+                <div className="text-[11px] text-emerald-700 mt-1.5 truncate">✅ PDF déjà en ligne : {form.pdf_url}</div>
+              ) : (
+                <div className="text-[11px] text-stone-500 mt-1.5">Le PDF part directement du navigateur vers B2.</div>
+              )}
+              <Input value={form.pdf_url} onChange={e => setForm({...form, pdf_url: e.target.value})} placeholder="… ou coller une URL" style={{ marginTop: '8px' }} />
             </Field>
+            {upPct !== null && (
+              <div className="rounded-xl px-4 py-3" style={neu.pressedSm}>
+                <div className="flex justify-between text-[11.5px] font-semibold text-stone-600 mb-1.5"><span>☁️ Upload du PDF</span><span>{upPct}%</span></div>
+                <div className="h-1.5 rounded-full bg-stone-300/60 overflow-hidden"><div className="h-full bg-stone-900 transition-all" style={{ width: `${upPct}%` }} /></div>
+              </div>
+            )}
             <div className="flex gap-3 pt-2">
-              <Btn onClick={onClose} full>Annuler</Btn>
+              <Btn onClick={onClose} full disabled={loading}>Annuler</Btn>
               <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
-                {loading ? 'Enregistrement…' : (existing ? 'Mettre à jour' : 'Ajouter')}
+                {loading ? (upPct !== null ? 'Upload…' : 'Enregistrement…') : (existing ? 'Mettre à jour' : 'Ajouter')}
               </Btn>
             </div>
           </form>
@@ -3251,22 +3285,43 @@
         strategy_id: existing?.strategy_id || '',
       });
       const [loading, setLoading] = useState(false);
+      const [docFile, setDocFile] = useState(null);   // fichier à uploader sur B2
+      const [upPct, setUpPct]     = useState(null);
       const { shoots, strategies } = useLinkLists(clientId, { shoots: true, strategies: true });
 
       const handleDocDate = (iso) => {
         setForm({ ...form, date_iso_local: iso, date_label: isoToLabel(iso) });
       };
 
+      // Sélection d'un fichier : remplit la taille automatiquement
+      const handleDocFile = (f) => {
+        setDocFile(f);
+        if (f) setForm(fm => ({ ...fm, file_url: '', size_label: fmtSizeFR(f.size) }));
+      };
+
       const submit = async (e) => {
         e.preventDefault();
+        if (!docFile && !form.file_url.trim()) { alert('Choisis un fichier ou colle une URL.'); return; }
         setLoading(true);
-        const { date_iso_local, ...rest } = form;
-        const payload = { ...rest, client_id: clientId, position: parseInt(form.position) || 0, shoot_id: form.shoot_id || null, strategy_id: form.strategy_id || null };
-        const result = existing
-          ? await sb.from('documents').update(payload).eq('id', existing.id)
-          : await sb.from('documents').insert(payload);
-        if (!result.error) onSaved();
-        else { alert(result.error.message); setLoading(false); }
+        try {
+          const { date_iso_local, ...rest } = form;
+          let file_url = form.file_url;
+          if (docFile) {
+            setUpPct(0);
+            file_url = await b2UploadFile(docFile, `documents/${clientId}/${Date.now()}-${b2SafeName(docFile.name)}`,
+              (p) => setUpPct(Math.round(p * 100)));
+            setUpPct(null);
+          }
+          const payload = { ...rest, file_url, client_id: clientId, position: parseInt(form.position) || 0, shoot_id: form.shoot_id || null, strategy_id: form.strategy_id || null };
+          const result = existing
+            ? await sb.from('documents').update(payload).eq('id', existing.id)
+            : await sb.from('documents').insert(payload);
+          if (result.error) throw new Error(result.error.message);
+          onSaved();
+        } catch (err) {
+          setUpPct(null); setLoading(false);
+          alert(`✗ ${err.message || 'Erreur'}`);
+        }
       };
 
       return (
@@ -3286,12 +3341,28 @@
                 <div className="text-[11px] text-stone-500 mt-1">Libellé : <strong>{form.date_label || '—'}</strong></div>
               </Field>
             </div>
-            <Field label="URL du fichier">
-              <Input required value={form.file_url} onChange={e => setForm({...form, file_url: e.target.value})} placeholder="https://…/contrat-2026.pdf" />
-              <div className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
-                Lien public d'un PDF / image. Astuce : créez un bucket public « documents » dans Supabase Storage, déposez le fichier puis collez son URL publique ici.
-              </div>
+            <Field label="Fichier (PDF, image)">
+              <input
+                type="file"
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                onChange={e => handleDocFile(e.target.files?.[0] || null)}
+                className="w-full text-[13px] text-stone-600 file:mr-3 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-stone-900 file:text-white file:text-[12px] file:font-semibold file:cursor-pointer"
+              />
+              {docFile ? (
+                <div className="text-[11px] text-stone-500 mt-1.5">📄 {docFile.name} · {fmtSizeFR(docFile.size)} — sera uploadé sur B2</div>
+              ) : form.file_url ? (
+                <div className="text-[11px] text-emerald-700 mt-1.5 truncate">✅ Fichier déjà en ligne : {form.file_url}</div>
+              ) : (
+                <div className="text-[11px] text-stone-500 mt-1.5">Le fichier part directement du navigateur vers B2.</div>
+              )}
+              <Input value={form.file_url} onChange={e => setForm({...form, file_url: e.target.value})} placeholder="… ou coller une URL publique" style={{ marginTop: '8px' }} />
             </Field>
+            {upPct !== null && (
+              <div className="rounded-xl px-4 py-3" style={neu.pressedSm}>
+                <div className="flex justify-between text-[11.5px] font-semibold text-stone-600 mb-1.5"><span>☁️ Upload du fichier</span><span>{upPct}%</span></div>
+                <div className="h-1.5 rounded-full bg-stone-300/60 overflow-hidden"><div className="h-full bg-stone-900 transition-all" style={{ width: `${upPct}%` }} /></div>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Tournage lié (optionnel)">
                 <Select value={form.shoot_id} onChange={e => setForm({...form, shoot_id: e.target.value})}>

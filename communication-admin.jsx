@@ -137,6 +137,45 @@
         : `${m}:${String(s).padStart(2, '0')}`;
     };
 
+    // slug ASCII pour dériver un nom de sous-dossier depuis un libellé de catégorie
+    const slugify = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+    /* ════════════════════════════════════════════════════════════
+       📸 UPLOAD PHOTOS → CLOUDINARY (galeries) via Edge Function cloudinary-sign
+       L'admin uploade ses photos sans quitter son espace ; elles vont dans
+       rootFolder/catégorie/ et la galerie (list-gallery) les liste toute seule.
+       ════════════════════════════════════════════════════════════ */
+    async function cloudinarySign(payload) {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session?.access_token) throw new Error('Session admin expirée — reconnecte-toi.');
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/cloudinary-sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify(payload),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || `Signature Cloudinary échouée (${res.status})`);
+      return j;
+    }
+
+    // Uploade un lot de photos dans un dossier Cloudinary (1 signature réutilisée).
+    async function uploadPhotosToCloudinary(files, folder, onProgress) {
+      const sig = await cloudinarySign({ folder });
+      for (let i = 0; i < files.length; i++) {
+        const fd = new FormData();
+        fd.append('file', files[i]);
+        fd.append('api_key', sig.apiKey);
+        fd.append('timestamp', String(sig.timestamp));
+        fd.append('folder', sig.folder);
+        fd.append('signature', sig.signature);
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloudName}/image/upload`, { method: 'POST', body: fd });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(j.error?.message || `Upload Cloudinary échoué (photo ${i + 1}/${files.length})`);
+        if (onProgress) onProgress(i + 1, files.length);
+      }
+    }
+
     /* ════════════════════════════════════════════════════════════
        🎨 STYLES NÉOMORPHIQUES (harmonisés avec le dashboard client)
        LIGHT : cream warm (#e9e4d9) — DARK : graphite + ivoire (#e8d8be)
@@ -1559,6 +1598,27 @@
         setC({ ...c, [isoKey]: iso, [labelKey]: isoToLabel(iso) });
       };
 
+      // ── Upload de photos par catégorie (galeries photos → Cloudinary) ──
+      const [photoUp, setPhotoUp] = useState({}); // { [indexCatégorie]: message }
+      const handleCategoryPhotos = async (i, fileList) => {
+        const cat = (c.categories || [])[i] || {};
+        const folderName = (cat.folder || slugify(cat.name)).trim();
+        if (!c.cloudName)  { alert('Renseigne le "Cloud name" Cloudinary plus haut.'); return; }
+        if (!c.rootFolder) { alert('Renseigne le "Dossier racine" plus haut.'); return; }
+        if (!folderName)   { alert('Donne un nom (ou un sous-dossier) à cette catégorie avant d\'ajouter des photos.'); return; }
+        // Fixe le sous-dossier depuis le nom s'il était vide (cohérence galerie)
+        if (!cat.folder) { const arr = [...(c.categories || [])]; arr[i] = { ...arr[i], folder: folderName }; updateConfig('categories', arr); }
+        const files = Array.from(fileList || []);
+        if (!files.length) return;
+        try {
+          await uploadPhotosToCloudinary(files, `${c.rootFolder}/${folderName}`,
+            (n, total) => setPhotoUp(s => ({ ...s, [i]: `⏳ ${n}/${total}…` })));
+          setPhotoUp(s => ({ ...s, [i]: `✅ ${files.length} photo(s) ajoutée(s)` }));
+        } catch (err) {
+          setPhotoUp(s => ({ ...s, [i]: `✗ ${err.message}` }));
+        }
+      };
+
       const formTitle = isPhotos ? 'Galerie photos'
         : isAnniversary ? 'Lecteur vidéo (anniversaire)'
         : isEngagement  ? 'Lecteur vidéo (fiançailles)'
@@ -1660,11 +1720,9 @@
                       <CheckCircle2 size={16} />
                     </div>
                     <div>
-                      <div className="text-[12.5px] font-semibold text-stone-700">Détection automatique activée</div>
+                      <div className="text-[12.5px] font-semibold text-stone-700">Upload direct + détection automatique</div>
                       <div className="text-[11.5px] text-stone-500 mt-1 leading-relaxed">
-                        Les photos sont listées automatiquement depuis Cloudinary.
-                        Plus besoin de numéroter vos fichiers ni de compter.
-                        Uploadez vos photos dans <code className="text-[10.5px] bg-stone-200/60 px-1 py-0.5 rounded">{c.rootFolder || 'dossier_racine'}/[catégorie]/</code> sous n'importe quel nom (IMG_2841.jpg, etc.) — chaque sous-dossier devient une catégorie.
+                        Ajoute une catégorie ci-dessous, puis clique <strong>« Ajouter des photos »</strong> : elles partent directement sur Cloudinary dans <code className="text-[10.5px] bg-stone-200/60 px-1 py-0.5 rounded">{c.rootFolder || 'dossier_racine'}/[catégorie]/</code> et la galerie du client les affiche automatiquement. Aucun fichier à numéroter. (Tu peux toujours uploader depuis Cloudinary directement si tu préfères.)
                       </div>
                     </div>
                   </div>
@@ -1679,33 +1737,44 @@
                 </div>
                 <div className="space-y-2">
                   {(c.categories || []).map((cat, i) => (
-                    <div key={i} style={neu.pressedSm} className="rounded-xl p-3 grid grid-cols-12 gap-2 items-center">
-                      <div className="col-span-1 flex justify-center text-stone-400 text-[12px] font-semibold">{i + 1}</div>
-                      <div className="col-span-5">
-                        <Input value={cat.name} onChange={e => {
-                          const arr = [...c.categories];
-                          arr[i] = { ...arr[i], name: e.target.value };
-                          updateConfig('categories', arr);
-                        }} placeholder="Nom affiché — Préparatifs" />
+                    <div key={i} style={neu.pressedSm} className="rounded-xl p-3">
+                      <div className="grid grid-cols-12 gap-2 items-center">
+                        <div className="col-span-1 flex justify-center text-stone-400 text-[12px] font-semibold">{i + 1}</div>
+                        <div className="col-span-5">
+                          <Input value={cat.name} onChange={e => {
+                            const arr = [...c.categories];
+                            // auto-remplit le sous-dossier depuis le nom tant qu'il n'a pas été édité
+                            const autoFolder = !cat.folder || cat.folder === slugify(cat.name);
+                            arr[i] = { ...arr[i], name: e.target.value, folder: autoFolder ? slugify(e.target.value) : cat.folder };
+                            updateConfig('categories', arr);
+                          }} placeholder="Nom affiché — Préparatifs" />
+                        </div>
+                        <div className="col-span-5">
+                          <Input value={cat.folder} onChange={e => {
+                            const arr = [...c.categories];
+                            arr[i] = { ...arr[i], folder: e.target.value };
+                            updateConfig('categories', arr);
+                          }} placeholder="Sous-dossier — preparatifs" />
+                        </div>
+                        <div className="col-span-1 flex justify-end">
+                          <button type="button" onClick={() => updateConfig('categories', c.categories.filter((_, j) => j !== i))} className="text-rose-500 p-1">
+                            <X size={14} />
+                          </button>
+                        </div>
                       </div>
-                      <div className="col-span-5">
-                        <Input value={cat.folder} onChange={e => {
-                          const arr = [...c.categories];
-                          arr[i] = { ...arr[i], folder: e.target.value };
-                          updateConfig('categories', arr);
-                        }} placeholder="Sous-dossier — preparatifs" />
-                      </div>
-                      <div className="col-span-1 flex justify-end">
-                        <button type="button" onClick={() => updateConfig('categories', c.categories.filter((_, j) => j !== i))} className="text-rose-500 p-1">
-                          <X size={14} />
-                        </button>
+                      <div className="mt-2.5 flex items-center gap-3 flex-wrap">
+                        <label className="cursor-pointer px-3 py-1.5 rounded-full text-[11.5px] font-semibold flex items-center gap-1.5 bg-stone-900 text-white hover:bg-stone-800 transition">
+                          <input type="file" accept="image/*" multiple hidden onChange={e => { handleCategoryPhotos(i, e.target.files); e.target.value = ''; }} />
+                          <Plus size={11} /> Ajouter des photos
+                        </label>
+                        {photoUp[i] && <span className="text-[11px] text-stone-500">{photoUp[i]}</span>}
                       </div>
                     </div>
                   ))}
                   {(!c.categories || c.categories.length === 0) && (
                     <div className="text-center text-[12px] text-stone-400 py-3 leading-relaxed">
-                      Laissez vide → toutes les catégories sont détectées et triées automatiquement.<br/>
-                      Ajoutez-les ici uniquement pour <strong>imposer un ordre</strong> ou <strong>renommer</strong> l'affichage.
+                      Clique <strong>« Ajouter »</strong> pour créer une catégorie, puis dépose tes photos dedans.<br/>
+                      Les catégories définissent aussi l'<strong>ordre</strong> et le <strong>nom affiché</strong> côté client.
                     </div>
                   )}
                 </div>

@@ -2,3 +2,6 @@ project_id = "vpbxeqjvaeiytxcpilxf"
 
 [functions.b2-sign]
 verify_jwt = false
+
+[functions.cloudinary-sign]
+verify_jwt = false

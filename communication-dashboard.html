@@ -288,6 +288,7 @@
         title:           m.title,
         url:             m.url || '',
         preview_url:     m.preview_url || '',
+        hover_url:       m.hover_url || '',
         date:            m.date_label || '',
         duration:        m.duration,
         size:            m.size_label,
@@ -296,6 +297,14 @@
         thumb_url:       m.thumb_url,
         shoot_id:        m.shoot_id,
         approval_status: m.approval_status || 'pending',
+        // Métadonnées réelles de l'original (affichage qualité côté client)
+        source_width:      m.source_width,
+        source_height:     m.source_height,
+        source_size_bytes: m.source_size_bytes,
+        // Cadrage de l'aperçu au survol (réglé dans l'admin)
+        preview_focus_x: m.preview_focus_x,
+        preview_focus_y: m.preview_focus_y,
+        preview_zoom:    m.preview_zoom,
       })),
       invoices: (invoicesRes.data || []).map(i => ({
         id: i.reference, date: i.date_label || '', amount: parseFloat(i.amount || 0),

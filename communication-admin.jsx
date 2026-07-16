@@ -29,6 +29,115 @@
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /* ════════════════════════════════════════════════════════════
+       ☁️ UPLOAD DIRECT VERS BACKBLAZE B2 (via Edge Function b2-sign)
+       Même modèle que ylvfeet : l'admin choisit un fichier, le
+       navigateur demande une URL signée puis PUT directement sur B2
+       (aucun fichier ne transite par Supabase). Les fichiers > 4 Go
+       (films de mariage) passent automatiquement en multipart.
+       ════════════════════════════════════════════════════════════ */
+    async function b2Sign(payload) {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session?.access_token) throw new Error('Session admin expirée — reconnecte-toi.');
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/b2-sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || `Signature B2 échouée (${res.status})`);
+      return json;
+    }
+
+    // PUT avec progression (fetch ne sait pas suivre l'upload → XHR)
+    function b2Put(url, body, contentType, onProgress) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', url);
+        // Le Content-Type doit correspondre EXACTEMENT à celui signé
+        // (sign-put). Pour les parts multipart, rien n'a été signé → pas d'en-tête.
+        if (contentType) xhr.setRequestHeader('Content-Type', contentType);
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+        };
+        xhr.onload = () => (xhr.status >= 200 && xhr.status < 300)
+          ? resolve(xhr)
+          : reject(new Error(`Upload B2 échoué (${xhr.status})`));
+        xhr.onerror = () => reject(new Error('Upload B2 échoué — réseau ou CORS du bucket (npm run b2-cors)'));
+        xhr.send(body);
+      });
+    }
+
+    const B2_MPU_THRESHOLD = 4 * 1024 * 1024 * 1024; // au-delà : multipart
+    const B2_MPU_PART_SIZE = 200 * 1024 * 1024;      // 200 Mo par part
+
+    // Uploade un fichier vers B2 et renvoie son URL publique.
+    async function b2UploadFile(file, key, onProgress) {
+      const contentType = file.type || 'application/octet-stream';
+
+      if (file.size <= B2_MPU_THRESHOLD) {
+        const { url, publicUrl } = await b2Sign({ action: 'sign-put', key, contentType });
+        await b2Put(url, file, contentType, onProgress);
+        return publicUrl;
+      }
+
+      // Multipart — gros fichiers (l'ETag de chaque part est exigé à la fin)
+      const { uploadId } = await b2Sign({ action: 'mpu-create', key, contentType });
+      try {
+        const partCount = Math.ceil(file.size / B2_MPU_PART_SIZE);
+        const parts = [];
+        let uploadedBytes = 0;
+        for (let start = 1; start <= partCount; start += 100) {
+          const batch = [];
+          for (let n = start; n <= Math.min(start + 99, partCount); n++) batch.push(n);
+          const { urls } = await b2Sign({ action: 'mpu-sign-parts', key, uploadId, partNumbers: batch });
+          for (const n of batch) {
+            const blob = file.slice((n - 1) * B2_MPU_PART_SIZE, Math.min(n * B2_MPU_PART_SIZE, file.size));
+            const xhr = await b2Put(urls[n], blob, null, (p) => {
+              if (onProgress) onProgress((uploadedBytes + p * blob.size) / file.size);
+            });
+            uploadedBytes += blob.size;
+            parts.push({ PartNumber: n, ETag: (xhr.getResponseHeader('ETag') || '').replace(/"/g, '') });
+          }
+        }
+        const { publicUrl } = await b2Sign({ action: 'mpu-complete', key, uploadId, parts });
+        return publicUrl;
+      } catch (err) {
+        await b2Sign({ action: 'mpu-abort', key, uploadId }).catch(() => {});
+        throw err;
+      }
+    }
+
+    // Lit les métadonnées réelles d'un fichier vidéo dans le navigateur.
+    // Peut échouer (ex : .mov ProRes non décodable par Chrome) → null,
+    // le script d'encodage remplira alors les valeurs exactes via ffprobe.
+    function readLocalVideoMeta(file) {
+      return new Promise((resolve) => {
+        const v = document.createElement('video');
+        v.preload = 'metadata';
+        const done = (meta) => { URL.revokeObjectURL(v.src); resolve(meta); };
+        v.onloadedmetadata = () => done({
+          width: v.videoWidth || null,
+          height: v.videoHeight || null,
+          duration: Math.round(v.duration || 0) || null,
+        });
+        v.onerror = () => done(null);
+        v.src = URL.createObjectURL(file);
+      });
+    }
+
+    const b2SafeName = (name) => (name || 'fichier').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
+    const fmtSizeFR = (bytes) => !bytes ? '' : (bytes >= 1e9
+      ? `${(bytes / 1e9).toFixed(1).replace('.', ',')} Go`
+      : `${Math.round(bytes / 1e6)} Mo`);
+    const fmtDurationLabel = (sec) => {
+      if (!sec) return '';
+      const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+      return h > 0
+        ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+        : `${m}:${String(s).padStart(2, '0')}`;
+    };
+
+    /* ════════════════════════════════════════════════════════════
        🎨 STYLES NÉOMORPHIQUES (harmonisés avec le dashboard client)
        LIGHT : cream warm (#e9e4d9) — DARK : graphite + ivoire (#e8d8be)
        ════════════════════════════════════════════════════════════ */
@@ -1373,6 +1482,8 @@
         afficherFilm: true,
         teaserUrls: { '1080p': '', '4K': '' },
         filmUrls:   { '1080p': '', '4K': '' },
+        teaserHls: '',   // master.m3u8 — lecture adaptative (prioritaire sur teaserUrls)
+        filmHls: '',     // master.m3u8 — lecture adaptative (prioritaire sur filmUrls)
         teaserDownloadUrl: '',
         filmDownloadUrl: '',
         defaultVideo: 'film',
@@ -1871,11 +1982,17 @@
                 {c.afficherTeaser && (
                   <>
                     <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mt-6 mb-1">Teaser</div>
+                    <Field label="URL HLS adaptative (master.m3u8 — recommandé)">
+                      <Input value={c.teaserHls || ''} onChange={e => updateConfig('teaserHls', e.target.value)} placeholder="https://…/master.m3u8" />
+                      <div className="text-[11px] text-stone-500 mt-1 leading-relaxed">
+                        La qualité s'adapte à la connexion (boutons AUTO · 4K · 1080p…). Générée par <code>npm run encode -- --prefix weddings/&lt;couple&gt;/teaser --input fichier.mp4</code>. Si renseignée, remplace les URLs fixes ci-dessous.
+                      </div>
+                    </Field>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Field label="URL 1080p">
+                      <Field label="URL 1080p (ancien système — qualité fixe)">
                         <Input value={c.teaserUrls?.['1080p'] || ''} onChange={e => updateConfig('teaserUrls', { ...c.teaserUrls, '1080p': e.target.value })} placeholder="https://..." />
                       </Field>
-                      <Field label="URL 4K">
+                      <Field label="URL 4K (ancien système — qualité fixe)">
                         <Input value={c.teaserUrls?.['4K'] || ''} onChange={e => updateConfig('teaserUrls', { ...c.teaserUrls, '4K': e.target.value })} placeholder="https://..." />
                       </Field>
                     </div>
@@ -1899,11 +2016,17 @@
                 {c.afficherFilm && (
                   <>
                     <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mt-6 mb-1">Film complet</div>
+                    <Field label="URL HLS adaptative (master.m3u8 — recommandé)">
+                      <Input value={c.filmHls || ''} onChange={e => updateConfig('filmHls', e.target.value)} placeholder="https://…/master.m3u8" />
+                      <div className="text-[11px] text-stone-500 mt-1 leading-relaxed">
+                        La qualité s'adapte à la connexion (boutons AUTO · 4K · 1080p…). Générée par <code>npm run encode -- --prefix weddings/&lt;couple&gt;/film --input fichier.mp4</code>. Si renseignée, remplace les URLs fixes ci-dessous.
+                      </div>
+                    </Field>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Field label="URL 1080p">
+                      <Field label="URL 1080p (ancien système — qualité fixe)">
                         <Input value={c.filmUrls?.['1080p'] || ''} onChange={e => updateConfig('filmUrls', { ...c.filmUrls, '1080p': e.target.value })} placeholder="https://..." />
                       </Field>
-                      <Field label="URL 4K">
+                      <Field label="URL 4K (ancien système — qualité fixe)">
                         <Input value={c.filmUrls?.['4K'] || ''} onChange={e => updateConfig('filmUrls', { ...c.filmUrls, '4K': e.target.value })} placeholder="https://..." />
                       </Field>
                     </div>
@@ -2378,6 +2501,13 @@
         shoot_id:    existing?.shoot_id    || '',
       });
       const [loading, setLoading] = useState(false);
+      // ── Upload direct B2 (pipeline vidéo adaptatif) ──
+      const [videoFile, setVideoFile]   = useState(null);
+      const [thumbFile, setThumbFile]   = useState(null);
+      const [upProgress, setUpProgress] = useState(null);  // { label, pct }
+      const [encodeHint, setEncodeHint] = useState(null);  // { id, filename } après upload de l'original
+      const [showUrlFields, setShowUrlFields] = useState(false);
+      const isHls = (u) => /\.m3u8(\?|$)/i.test(u || '');
 
       // Quand on change la date via le picker, auto-générer le libellé
       const handleMediaDate = (iso) => {
@@ -2386,9 +2516,9 @@
 
       const submit = async (e) => {
         e.preventDefault();
-        // ⚠️ Avertissement si vidéo sans URL allégée
-        if (form.type === 'video' && !form.preview_url.trim()) {
-          if (!window.confirm('⚠️ Aucune URL allégée renseignée.\n\nSans elle, la vidéo sera illisible sur mobile pour le client.\n\nVoulez-vous quand même enregistrer ?')) return;
+        // ⚠️ Avertissement si vidéo sans aucune source de lecture ni fichier
+        if (form.type === 'video' && !form.preview_url.trim() && !form.url.trim() && !videoFile) {
+          if (!window.confirm('⚠️ Aucun fichier ni URL renseigné.\n\nLa vidéo sera invisible pour le client.\n\nVoulez-vous quand même enregistrer ?')) return;
         }
         setLoading(true);
         const { date_iso_local, ...rest } = form;
@@ -2402,11 +2532,60 @@
           preview_focus_y: Number(form.preview_focus_y) || 50,
           preview_zoom:    Number(form.preview_zoom)    || 1,
         };
-        const result = existing
-          ? await sb.from('media').update(payload).eq('id', existing.id)
-          : await sb.from('media').insert(payload);
-        if (!result.error) onSaved();
-        else { alert(result.error.message); setLoading(false); }
+
+        let rowId = existing?.id || null;
+        let createdNow = false;
+        try {
+          // 1) La fiche d'abord — les fichiers sont rangés sous media/<id>/…
+          if (!rowId) {
+            const { data, error } = await sb.from('media').insert(payload).select('id').single();
+            if (error) throw new Error(error.message);
+            rowId = data.id; createdNow = true;
+          }
+
+          // 2) Uploads directs vers B2 (URL signée par l'Edge Function b2-sign)
+          const patch = {};
+          if (videoFile) {
+            const meta = await readLocalVideoMeta(videoFile);
+            const name = b2SafeName(videoFile.name);
+            patch.url = await b2UploadFile(videoFile, `media/${rowId}/original/${name}`, (p) =>
+              setUpProgress({ label: `Vidéo originale — ${videoFile.name}`, pct: Math.round(p * 100) }));
+            // Métadonnées réelles de l'original → affichage qualité côté client
+            patch.source_size_bytes = videoFile.size;
+            if (!form.size_label) patch.size_label = fmtSizeFR(videoFile.size);
+            if (meta) {
+              patch.source_width     = meta.width;
+              patch.source_height    = meta.height;
+              patch.duration_seconds = meta.duration;
+              if (!form.duration && meta.duration) patch.duration = fmtDurationLabel(meta.duration);
+            }
+          }
+          if (thumbFile) {
+            patch.thumb_url = await b2UploadFile(thumbFile, `media/${rowId}/thumb/${Date.now()}-${b2SafeName(thumbFile.name)}`, (p) =>
+              setUpProgress({ label: `Vignette — ${thumbFile.name}`, pct: Math.round(p * 100) }));
+          }
+          setUpProgress(null);
+
+          // 3) Enregistrement final (fiche + URLs des fichiers uploadés)
+          if (existing || Object.keys(patch).length > 0) {
+            const { error } = await sb.from('media').update({ ...payload, ...patch }).eq('id', rowId);
+            if (error) throw new Error(error.message);
+          }
+
+          if (videoFile) {
+            // Lecture adaptative pas encore générée → afficher la commande
+            setEncodeHint({ id: rowId, filename: videoFile.name });
+            setLoading(false);
+          } else {
+            onSaved();
+          }
+        } catch (err) {
+          // Pas de fiche fantôme si la publication a échoué en route
+          if (createdNow && rowId) { try { await sb.from('media').delete().eq('id', rowId); } catch (e2) {} }
+          setUpProgress(null);
+          setLoading(false);
+          alert(`✗ ${err.message || 'Erreur'} — la publication a été annulée, rien n'a été mis en ligne.`);
+        }
       };
 
       const gradients = [
@@ -2417,6 +2596,32 @@
         'linear-gradient(135deg,#1a2a3a 0%,#4a6a8a 100%)',
         'linear-gradient(135deg,#3a1a1a 0%,#6a3a3a 100%)',
       ];
+
+      // ── Écran post-upload : commande d'encodage HLS à lancer en local ──
+      // (ffmpeg ne tourne pas dans le navigateur ni sur Supabase — même
+      //  workflow que ylvfeet : upload depuis l'admin, encodage en local)
+      if (encodeHint) {
+        const cmd = `npm run encode -- --media-id ${encodeHint.id} --input "/chemin/vers/${encodeHint.filename}"`;
+        return (
+          <Modal title="Vidéo uploadée sur B2 ✓" kicker="Dernière étape" onClose={onSaved} size="lg">
+            <div className="space-y-4">
+              <p className="text-[13.5px] text-stone-600 leading-relaxed">
+                L'original est en ligne (téléchargement client OK). Pour activer la <strong>lecture adaptative</strong> — qualité auto selon la connexion, badge qualité, vignette, aperçu au survol, durée et poids exacts — lance sur ton Mac :
+              </p>
+              <div className="rounded-xl bg-stone-900 text-stone-100 px-4 py-3 font-mono text-[12px] leading-relaxed break-all select-all">
+                {cmd}
+              </div>
+              <div className="flex gap-3">
+                <Btn icon={Link2} onClick={() => { try { navigator.clipboard.writeText(cmd); } catch (e) {} }} full>Copier la commande</Btn>
+                <Btn kind="dark" icon={CheckCircle2} onClick={onSaved} full>Terminer</Btn>
+              </div>
+              <p className="text-[11px] text-stone-500 leading-relaxed">
+                💡 Remplace <code>/chemin/vers/…</code> par l'emplacement réel du fichier sur ton Mac (glisse-le dans le Terminal pour coller son chemin). Tant que l'encodage n'a pas tourné, le client voit la vidéo mais devra la télécharger pour la visionner.
+              </p>
+            </div>
+          </Modal>
+        );
+      }
 
       return (
         <Modal title={existing ? 'Modifier le média' : 'Ajouter un média'} kicker={existing ? 'Édition' : 'Nouveau'} onClose={onClose} size="lg">
@@ -2437,33 +2642,58 @@
             </Field>
             {form.type === 'video' ? (
               <>
-                <Field label="URL vidéo originale (haute qualité — pour le téléchargement)">
-                  <Input value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://… (fichier .mp4 original)" />
-                  <div className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
-                    💾 Fichier non compressé que le client peut télécharger. Souvent lourd, peu adapté à la lecture en direct.
-                  </div>
-                </Field>
-                <Field label="URL vidéo allégée (compressée — pour la lecture en direct)">
-                  <Input
-                    value={form.preview_url}
-                    onChange={e => setForm({...form, preview_url: e.target.value})}
-                    placeholder="https://… (.mp4 web, Streamable, Cloudinary…)"
-                    style={!form.preview_url ? { borderColor: '#f59e0b', boxShadow: '0 0 0 2px rgba(245,158,11,0.18)' } : {}}
+                <Field label="Fichier vidéo original (upload direct sur B2 — servira au téléchargement client)">
+                  <input
+                    type="file"
+                    accept="video/mp4,video/quicktime,video/webm,video/x-m4v"
+                    onChange={e => setVideoFile(e.target.files?.[0] || null)}
+                    className="w-full text-[13px] text-stone-600 file:mr-3 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-stone-900 file:text-white file:text-[12px] file:font-semibold file:cursor-pointer"
                   />
-                  {!form.preview_url ? (
-                    <div className="mt-2 flex items-start gap-2 rounded-lg px-3 py-2.5" style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.35)' }}>
-                      <span className="text-[15px] leading-none mt-px">⚠️</span>
-                      <div className="text-[11.5px] leading-relaxed" style={{ color: '#92400e' }}>
-                        <strong>Champ requis pour la lecture.</strong> Sans URL allégée, le client devra télécharger le fichier original (souvent plusieurs Go) pour visionner la vidéo — illisible sur mobile ou connexion lente.
-                        <div className="mt-1 opacity-80">→ Uploader sur <strong>Streamable</strong> ou utiliser une transformation <strong>Cloudinary</strong> (<code>q_auto,w_1280</code>).</div>
-                      </div>
+                  {videoFile ? (
+                    <div className="text-[11px] text-stone-500 mt-1.5">
+                      📦 {videoFile.name} · {fmtSizeFR(videoFile.size)}
+                      {videoFile.size > B2_MPU_THRESHOLD ? ' · gros fichier → upload multipart automatique' : ''}
                     </div>
+                  ) : form.url ? (
+                    <div className="text-[11px] text-emerald-700 mt-1.5 truncate">✅ Original déjà en ligne : {form.url}</div>
                   ) : (
-                    <div className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
-                      ✅ Vidéo allégée renseignée — lecture directe activée pour le client.
+                    <div className="text-[11px] text-stone-500 mt-1.5">
+                      💾 Le fichier part directement du navigateur vers B2 (rien ne transite par le site).
                     </div>
                   )}
                 </Field>
+
+                {/* État de la lecture adaptative (HLS) */}
+                {isHls(form.preview_url) ? (
+                  <div className="text-[11.5px] leading-relaxed rounded-lg px-3 py-2.5" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)', color: '#065f46' }}>
+                    ✅ <strong>Lecture adaptative active.</strong> La qualité s'ajuste à la connexion du client, avec badge de qualité sur le lecteur et mention de l'original téléchargeable.
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2 rounded-lg px-3 py-2.5" style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.35)' }}>
+                    <span className="text-[15px] leading-none mt-px">🎞</span>
+                    <div className="text-[11.5px] leading-relaxed" style={{ color: '#92400e' }}>
+                      <strong>Lecture adaptative pas encore générée.</strong> Après l'enregistrement, la commande d'encodage s'affiche : elle crée les qualités (4K → 480p) sur B2 et remplit automatiquement lecture, vignette, aperçu au survol, durée et poids.
+                      {form.preview_url && <div className="mt-1 opacity-80">Lecture actuelle : URL simple ({form.preview_url.includes('streamable') ? 'Streamable' : 'fichier direct'}) — fonctionne, mais qualité fixe.</div>}
+                    </div>
+                  </div>
+                )}
+
+                <button type="button" onClick={() => setShowUrlFields(v => !v)} className="text-[11.5px] text-stone-500 underline underline-offset-2 hover:text-stone-800 transition">
+                  {showUrlFields ? '▴ Masquer les URLs manuelles' : '▾ Coller des URLs manuellement (avancé)'}
+                </button>
+                {showUrlFields && (
+                  <>
+                    <Field label="URL vidéo originale (téléchargement)">
+                      <Input value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://… (fichier original sur B2)" />
+                    </Field>
+                    <Field label="URL de lecture (master.m3u8 HLS adaptatif — ou .mp4 léger)">
+                      <Input value={form.preview_url} onChange={e => setForm({...form, preview_url: e.target.value})} placeholder="https://…/master.m3u8" />
+                      <div className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
+                        Rempli automatiquement par <code>npm run encode</code>. Les anciens liens (.mp4, Streamable, Cloudinary) restent lisibles par le portail.
+                      </div>
+                    </Field>
+                  </>
+                )}
               </>
             ) : (
               <Field label="URL du fichier (Cloudinary, Drive, S3…)">
@@ -2496,13 +2726,21 @@
               </Field>
             </div>
 
-            <Field label={form.type === 'video' ? "Vignette personnalisée (optionnel — si vide, la vidéo joue automatiquement en aperçu)" : "URL de la miniature (optionnel)"}>
+            <Field label={form.type === 'video' ? "Vignette (optionnel — générée automatiquement à l'encodage si vide)" : "Miniature (optionnel)"}>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={e => setThumbFile(e.target.files?.[0] || null)}
+                className="w-full text-[13px] text-stone-600 file:mr-3 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-stone-200 file:text-stone-700 file:text-[12px] file:font-semibold file:cursor-pointer"
+              />
+              {thumbFile && <div className="text-[11px] text-stone-500 mt-1.5">🖼 {thumbFile.name} · {fmtSizeFR(thumbFile.size)} — sera uploadée sur B2</div>}
               <Input
                 value={form.thumb_url || ''}
                 onChange={e => setForm({...form, thumb_url: e.target.value})}
-                placeholder="https://… (laisser vide pour autoplay)"
+                placeholder="… ou coller une URL d'image"
+                style={{ marginTop: '8px' }}
               />
-              {form.thumb_url && (
+              {form.thumb_url && !thumbFile && (
                 <div className="mt-3 flex items-center gap-3">
                   <img src={form.thumb_url} alt="aperçu" className="h-20 rounded-lg object-cover ring-1 ring-stone-200" />
                   <button type="button" onClick={() => setForm({...form, thumb_url: ''})} className="text-[12px] text-stone-500 hover:text-rose-600">
@@ -2517,7 +2755,7 @@
             {form.type === 'video' && (
               <Field label="Cadrage de la vidéo au survol (élimine bandes noires intégrées, recentre le sujet)">
                 <PreviewCropper
-                  previewUrl={form.preview_url}
+                  previewUrl={isHls(form.preview_url) ? (existing?.hover_url || '') : form.preview_url}
                   fallbackThumbUrl={form.thumb_url}
                   focusX={Number(form.preview_focus_x) || 50}
                   focusY={Number(form.preview_focus_y) || 50}
@@ -2537,11 +2775,27 @@
                 ))}
               </div>
             </Field>
+            {/* Progression de l'upload B2 */}
+            {upProgress && (
+              <div className="rounded-xl px-4 py-3" style={neu.pressedSm}>
+                <div className="flex justify-between items-center text-[11.5px] font-semibold text-stone-600 mb-1.5">
+                  <span className="truncate pr-3">☁️ {upProgress.label}</span>
+                  <span className="shrink-0">{upProgress.pct}%</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-stone-300/60 overflow-hidden">
+                  <div className="h-full bg-stone-900 transition-all duration-300" style={{ width: `${upProgress.pct}%` }} />
+                </div>
+                <div className="text-[10.5px] text-stone-500 mt-1.5">Ne ferme pas cet onglet pendant l'upload.</div>
+              </div>
+            )}
+
             <div className="flex gap-3 pt-2">
-              <Btn onClick={onClose} full>Annuler</Btn>
+              <Btn onClick={onClose} full disabled={loading}>Annuler</Btn>
               <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}
-                style={form.type === 'video' && !form.preview_url ? { background: 'linear-gradient(135deg,#92400e,#b45309)', boxShadow: '0 0 0 2px rgba(245,158,11,0.4)' } : {}}>
-                {loading ? 'Enregistrement…' : ((form.type === 'video' && !form.preview_url ? '⚠️ ' : '') + (existing ? 'Mettre à jour' : 'Ajouter'))}
+                style={form.type === 'video' && !form.preview_url && !videoFile && !form.url ? { background: 'linear-gradient(135deg,#92400e,#b45309)', boxShadow: '0 0 0 2px rgba(245,158,11,0.4)' } : {}}>
+                {loading
+                  ? (upProgress ? 'Upload en cours…' : 'Enregistrement…')
+                  : ((form.type === 'video' && !form.preview_url && !videoFile && !form.url ? '⚠️ ' : '') + (existing ? 'Mettre à jour' : (videoFile ? 'Ajouter et uploader' : 'Ajouter')))}
               </Btn>
             </div>
           </form>

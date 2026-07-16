@@ -30,3 +30,6 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 supabase-config.local.js
+
+# Claude Code — préférences locales
+.claude/settings.local.json

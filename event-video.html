@@ -99,6 +99,8 @@
       upsellLien: 'mailto:service@timelesshouse.org',
       teaserUrls: { '1080p': '', '4K': '' },
       filmUrls:   { '1080p': '', '4K': '' },
+      teaserHls: '',   // master.m3u8 — lecture adaptative B2 (prioritaire)
+      filmHls: '',     // master.m3u8 — lecture adaptative B2 (prioritaire)
       teaserDownloadUrl: '',
       filmDownloadUrl: '',
       defaultVideo: 'film',
@@ -111,6 +113,14 @@
     cfg.accueilUrl = COUPLE_UNIVERSES.includes(client.universe)
       ? 'mariage.html'
       : (client.universe ? client.universe + '.html' : 'index.html');
+
+    // hls.js (lecture adaptative B2) — chargé UNIQUEMENT si la config
+    // contient une URL HLS, et posé sur window AVANT config-ready pour
+    // que le script classique de la page (setupHlsQuality) le trouve.
+    if (cfg.teaserHls || cfg.filmHls) {
+      const mod = await import('hls.js');
+      window.Hls = mod.default;
+    }
 
     window.WEDDING_CONFIG = cfg;
     window.__CLIENT = client;
@@ -877,8 +887,9 @@
       <span class="section-label">Archives</span>
       <h2 class="download-title" id="download-title">Téléchargements</h2>
       <p class="download-desc">
-        Disponibles en haute définition pendant 6 mois.<br />
-        Nous vous conseillons de télécharger les fichiers sur un ordinateur.
+        La lecture en ligne adapte la qualité à votre connexion —
+        vos fichiers originaux, eux, sont en pleine qualité.<br />
+        Disponibles pendant 6 mois. Nous vous conseillons de les télécharger sur un ordinateur.
       </p>
 
       <a href="#" id="downloadTeaser" class="btn-download" target="_blank" rel="noopener noreferrer">
@@ -1068,16 +1079,22 @@
     // ============================================
     // GESTION DU CHANGEMENT DE QUALITÉ VIDÉO ET AFFICHAGE SOON/UPSELL
     // ============================================
-    function setupVideoQuality(videoId, controlsId, soonId, urls) {
+    // Deux modes :
+    //  ▸ hlsUrl (master.m3u8, pipeline B2) → lecture ADAPTATIVE : la qualité
+    //    suit la connexion, boutons AUTO/4K/1080p/…, badge de la qualité
+    //    réellement jouée dans le bouton AUTO.
+    //  ▸ urls {1080p, 4K} (ancien système) → bascule manuelle entre 2 fichiers.
+    function setupVideoQuality(videoId, controlsId, soonId, urls, hlsUrl) {
       const video = document.getElementById(videoId);
       const controls = document.getElementById(controlsId);
       const soonContainer = document.getElementById(soonId);
-      
+
       const has1080p = urls["1080p"] && urls["1080p"].trim() !== "";
       const has4K = urls["4K"] && urls["4K"].trim() !== "";
+      const hasHls = hlsUrl && hlsUrl.trim() !== "";
 
       // S'il n'y a aucune URL fournie, on masque le lecteur et on affiche l'écran d'attente
-      if (!has1080p && !has4K) {
+      if (!has1080p && !has4K && !hasHls) {
         video.style.display = "none";
         controls.style.display = "none";
         soonContainer.style.display = "flex";
@@ -1100,6 +1117,12 @@
       // S'il y a une vidéo, on s'assure que l'écran d'attente est masqué et le lecteur visible
       soonContainer.style.display = "none";
       video.style.display = "block";
+
+      // ── LECTURE ADAPTATIVE (HLS, pipeline B2) — prioritaire ──
+      if (hasHls) {
+        setupHlsQuality(video, controls, hlsUrl.trim());
+        return;
+      }
 
       // S'il y a les deux qualités, on affiche le sélecteur
       if (has1080p && has4K) {
@@ -1148,6 +1171,82 @@
     }
 
     // ============================================
+    // LECTURE HLS ADAPTATIVE (pipeline B2)
+    // ============================================
+    // La qualité suit la connexion du couple en continu (hls.js).
+    // Le bouton AUTO affiche la qualité RÉELLEMENT jouée (« AUTO · 1080P »)
+    // pour qu'ils sachent que le fichier téléchargeable est supérieur.
+    // Les autres boutons (4K, 1080p, …) forcent un palier — sans recharger
+    // la vidéo, contrairement à l'ancien système à deux fichiers.
+    function setupHlsQuality(video, controls, src) {
+      const HlsLib = window.Hls;
+      const sideOf = (l) => Math.min(l.width || 0, l.height || 0) || (l.height || 0);
+      const labelOf = (side) => side >= 2160 ? "4K" : side + "p";
+
+      // hls.js indisponible ou navigateur sans MSE (vieux Safari iOS) :
+      // lecture HLS native — adaptative aussi, mais palier non lisible.
+      if (!HlsLib || !HlsLib.isSupported()) {
+        if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          controls.style.display = "flex";
+          controls.innerHTML = '<button class="quality-btn active" disabled>AUTO</button>';
+          video.src = src;
+        } else {
+          controls.style.display = "none";
+          video.src = src; // dernier recours
+        }
+        return;
+      }
+
+      controls.style.display = "flex";
+      controls.innerHTML = "";
+
+      const autoBtn = document.createElement("button");
+      autoBtn.className = "quality-btn active";
+      autoBtn.textContent = "AUTO";
+      controls.appendChild(autoBtn);
+
+      const hls = new HlsLib();
+      hls.loadSource(src);
+      hls.attachMedia(video);
+
+      hls.on(HlsLib.Events.MANIFEST_PARSED, (_evt, data) => {
+        const levels = (data.levels || [])
+          .map((l, i) => ({ i: i, side: sideOf(l) }))
+          .sort((a, b) => b.side - a.side);
+
+        const btns = [autoBtn];
+        const activate = (btn) => {
+          btns.forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+        };
+
+        levels.forEach(({ i, side }) => {
+          const b = document.createElement("button");
+          b.className = "quality-btn";
+          b.textContent = labelOf(side);
+          b.onclick = () => { hls.currentLevel = i; activate(b); autoBtn.textContent = "AUTO"; };
+          controls.appendChild(b);
+          btns.push(b);
+        });
+
+        autoBtn.onclick = () => { hls.currentLevel = -1; activate(autoBtn); };
+      });
+
+      // Badge : la qualité réellement jouée s'affiche dans le bouton AUTO
+      hls.on(HlsLib.Events.LEVEL_SWITCHED, (_evt, data) => {
+        const l = hls.levels[data.level];
+        if (l && hls.autoLevelEnabled) autoBtn.textContent = "AUTO · " + labelOf(sideOf(l));
+      });
+
+      // Résilience réseau/décodage (coupures Wi-Fi, etc.)
+      hls.on(HlsLib.Events.ERROR, (_evt, data) => {
+        if (!data.fatal) return;
+        if (data.type === HlsLib.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+        else if (data.type === HlsLib.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+      });
+    }
+
+    // ============================================
     // INJECTION DE LA CONFIGURATION DANS LA PAGE
     // ============================================
     (function applyConfig() {
@@ -1180,8 +1279,8 @@
       }
 
       // INITIALISATION DES LECTEURS ET DE LA QUALITÉ
-      setupVideoQuality("videoTeaser", "qualityControlsTeaser", "soonTeaser", c.teaserUrls);
-      setupVideoQuality("videoFilm", "qualityControlsFilm", "soonFilm", c.filmUrls);
+      setupVideoQuality("videoTeaser", "qualityControlsTeaser", "soonTeaser", c.teaserUrls, c.teaserHls);
+      setupVideoQuality("videoFilm", "qualityControlsFilm", "soonFilm", c.filmUrls, c.filmHls);
 
       // Liens de téléchargement directs
       if (document.getElementById('downloadTeaser')) document.getElementById('downloadTeaser').href = c.teaserDownloadUrl;

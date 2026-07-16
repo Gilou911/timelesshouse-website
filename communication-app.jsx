@@ -249,7 +249,14 @@ function getEmbed(url, type) {
     }
   }
 
-  // ⚡ Fichier vidéo direct (mp4, webm, mov, m4v) — Cloudinary, S3, Google Drive, etc.
+  // ⚡ HLS adaptatif (pipeline B2) : master.m3u8 → lecteur hls.js.
+  // La qualité s'ajuste automatiquement à la connexion du client,
+  // avec badge de qualité + menu manuel (composant HlsPlayer).
+  if (/\.m3u8(\?|$)/i.test(path)) {
+    return { kind: 'hls', src: url };
+  }
+
+  // ⚡ Fichier vidéo direct (mp4, webm, mov, m4v) — B2, S3, Cloudinary, etc.
   if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(path)) {
     return { kind: 'video', src: url };
   }
@@ -289,18 +296,23 @@ function getThumbUrl(media) {
   return null;
 }
 
-// Renvoie l'URL de la vidéo ALLÉGÉE (preview_url) pour l'aperçu au hover.
-// Ne retombe JAMAIS sur media.url (vidéo originale) : si pas de version
-// allégée, retourne null → aucune preview ne se lance (cas 3).
-// Renvoie aussi null pour YouTube/Vimeo/Streamable (cas 4).
+// Renvoie l'URL de la vidéo d'aperçu au hover.
+// Priorité : hover_url (mini-MP4 480p généré par le pipeline B2),
+// sinon preview_url si c'est un fichier direct. Ne retombe JAMAIS sur
+// media.url (vidéo originale) : si pas de version légère, retourne null
+// → aucune preview ne se lance (cas 3).
+// Renvoie aussi null pour YouTube/Vimeo/Streamable et les .m3u8
+// (HLS injouable dans un simple <video> hors Safari).
 function getPreviewVideoUrl(media) {
   if (media.type !== 'video') return null;
-  const src = media.preview_url; // version allégée UNIQUEMENT
+  const src = media.hover_url || media.preview_url; // versions légères UNIQUEMENT
   if (!src) return null;
   try {
     const u = new URL(src);
     const host = u.hostname.replace(/^www\./, '');
     const path = u.pathname;
+    // HLS : réservé au lecteur de la lightbox
+    if (/\.m3u8(\?|$)/i.test(path)) return null;
     // Fichier vidéo direct
     if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(path)) return src;
     // Cloudinary
@@ -309,6 +321,29 @@ function getPreviewVideoUrl(media) {
     if (host === 'streamable.com') return null;
   } catch (e) {}
   return null;
+}
+
+// ─── Qualité de l'ORIGINAL (métadonnées mesurées par le pipeline B2) ───
+// Sert à afficher au client que la lecture est une version adaptée et
+// que le fichier final téléchargeable est d'une qualité supérieure.
+function sourceQualityLabel(m) {
+  const w = Number(m.source_width), h = Number(m.source_height);
+  if (!w || !h) return null;
+  const side = Math.min(w, h); // petit côté : vaut aussi pour les vidéos verticales
+  if (side >= 2160) return '4K';
+  if (side >= 1440) return '1440p';
+  if (side >= 1080) return '1080p';
+  if (side >= 720)  return '720p';
+  return `${side}p`;
+}
+function sourceSizeLabel(m) {
+  const b = Number(m.source_size_bytes);
+  if (b > 0) {
+    return b >= 1e9
+      ? `${(b / 1e9).toFixed(1).replace('.', ',')} Go`
+      : `${Math.round(b / 1e6)} Mo`;
+  }
+  return m.size || null;
 }
 
 function sanitizeFilename(s) {
@@ -941,6 +976,137 @@ const Dashboard = ({ goTo }) => {
 };
 
 // ────────────────────────────────────────────────────────────
+// 🎞 LECTEUR HLS ADAPTATIF (pipeline B2)
+// La qualité s'ajuste en continu à la connexion du client (hls.js).
+// Le badge affiche la qualité RÉELLEMENT en cours de lecture — pour
+// que le client ne croie jamais que l'original a cette qualité — et
+// ouvre un menu de choix manuel (Auto / 1080p / 720p / 480p…).
+// Safari ancien (pas de MSE) : lecture HLS native, adaptative aussi,
+// mais palier illisible → badge "AUTO" seul.
+// ────────────────────────────────────────────────────────────
+const HlsPlayer = ({ src, onRatio, boxStyle }) => {
+  const videoRef = useRef(null);
+  const hlsRef = useRef(null);
+  const [levels, setLevels] = useState([]);           // paliers dispo, triés qualité desc
+  const [manualLevel, setManualLevel] = useState(-1); // -1 = auto
+  const [activeSide, setActiveSide] = useState(null); // palier réellement joué (1080, 720…)
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [nativeOnly, setNativeOnly] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    let hls = null, cancelled = false;
+    (async () => {
+      let Hls;
+      try { Hls = (await import('hls.js')).default; } catch (e) { Hls = null; }
+      if (cancelled) return;
+      if (Hls && Hls.isSupported()) {
+        hls = new Hls();
+        hlsRef.current = hls;
+        hls.on(Hls.Events.MANIFEST_PARSED, (_e, data) => {
+          if (cancelled) return;
+          const lv = (data.levels || [])
+            // petit côté = nom du palier (vaut aussi pour les vidéos verticales)
+            .map((l, i) => ({ index: i, side: Math.min(l.width || 0, l.height || 0) || (l.height || 0) }))
+            .sort((a, b) => b.side - a.side);
+          setLevels(lv);
+        });
+        hls.on(Hls.Events.LEVEL_SWITCHED, (_e, data) => {
+          if (cancelled) return;
+          const l = hls.levels[data.level];
+          if (l) setActiveSide(Math.min(l.width || 0, l.height || 0) || (l.height || 0));
+        });
+        hls.on(Hls.Events.ERROR, (_e, data) => {
+          if (cancelled || !data.fatal) return;
+          // Réseau : on retente ; sinon lecture impossible
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+          else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+          else setFailed(true);
+        });
+        hls.loadSource(src);
+        hls.attachMedia(video);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        setNativeOnly(true);
+        video.src = src;
+      } else {
+        setFailed(true);
+      }
+    })();
+    return () => { cancelled = true; if (hls) hls.destroy(); hlsRef.current = null; };
+  }, [src]);
+
+  const pick = (index) => {
+    setManualLevel(index);
+    setMenuOpen(false);
+    if (hlsRef.current) hlsRef.current.currentLevel = index; // -1 = auto
+  };
+
+  if (failed) {
+    return (
+      <div className="text-stone-400 text-[13px] text-center px-6">
+        Lecture impossible sur ce navigateur.<br />Utilisez le bouton Télécharger pour récupérer la vidéo.
+      </div>
+    );
+  }
+
+  const badge = nativeOnly
+    ? 'AUTO'
+    : activeSide
+      ? (manualLevel === -1 ? `AUTO · ${activeSide}p` : `${activeSide}p`)
+      : 'AUTO';
+
+  return (
+    <div style={{ ...boxStyle, position: 'relative' }} className="rounded-xl overflow-hidden bg-black">
+      <video
+        ref={videoRef}
+        controls
+        playsInline
+        onLoadedMetadata={(e) => {
+          const v = e.currentTarget;
+          if (v.videoWidth && v.videoHeight && onRatio) onRatio(v.videoWidth / v.videoHeight);
+        }}
+        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+      />
+      {/* Badge qualité + menu (au-dessus des contrôles natifs, en haut à droite) */}
+      <div className="absolute top-2.5 right-2.5 z-10 flex flex-col items-end gap-1.5">
+        <button
+          type="button"
+          onClick={() => setMenuOpen(o => !o)}
+          disabled={nativeOnly}
+          className="px-2.5 py-1 rounded-full bg-black/60 text-white text-[10px] font-semibold uppercase tracking-wider backdrop-blur-sm hover:bg-black/80 transition disabled:cursor-default"
+          title={nativeOnly ? 'Qualité automatique (gérée par votre appareil)' : 'Choisir la qualité'}
+        >
+          {badge}{!nativeOnly && <span className="ml-1 opacity-60">▾</span>}
+        </button>
+        {menuOpen && !nativeOnly && levels.length > 0 && (
+          <div className="rounded-xl bg-black/80 backdrop-blur-md py-1.5 min-w-[150px] shadow-xl">
+            <button
+              type="button"
+              onClick={() => pick(-1)}
+              className={`w-full text-left px-4 py-1.5 text-[12px] ${manualLevel === -1 ? 'text-white font-semibold' : 'text-white/60 hover:text-white'}`}
+            >
+              Auto (recommandé)
+            </button>
+            {levels.map(l => (
+              <button
+                key={l.index}
+                type="button"
+                onClick={() => pick(l.index)}
+                className={`w-full text-left px-4 py-1.5 text-[12px] ${manualLevel === l.index ? 'text-white font-semibold' : 'text-white/60 hover:text-white'}`}
+              >
+                {l.side}p
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ────────────────────────────────────────────────────────────
 // 💬 LIGHTBOX (image / vidéo + approbation + commentaires)
 // ────────────────────────────────────────────────────────────
 const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
@@ -1150,6 +1316,20 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
             />
           )}
 
+          {/* HLS adaptatif (B2) : qualité auto selon la connexion + badge */}
+          {embed && embed.kind === 'hls' && (
+            <HlsPlayer
+              src={embed.src}
+              onRatio={setMediaRatio}
+              boxStyle={{
+                height: '100%',
+                maxWidth: '100%',
+                width: 'auto',
+                aspectRatio: mediaRatio,
+              }}
+            />
+          )}
+
           {/* Iframe (Streamable, YouTube…) : dimensions cross-origin illisibles → 16/9 par défaut */}
           {embed && embed.kind === 'iframe' && (
             <div
@@ -1205,11 +1385,21 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
               {m.date}{m.duration ? ` · ${m.duration}` : ''}{m.size ? ` · ${m.size}` : ''}
             </div>
             <button onClick={downloadOne} className="mt-4 w-full px-4 py-3 rounded-full bg-stone-900 text-white text-[12.5px] font-semibold flex items-center justify-center gap-2 hover:bg-stone-800 active:scale-95 transition-transform">
-              <Download size={14} /> Télécharger{m.type === 'video' && m.preview_url ? ' (version HD)' : ''}
+              <Download size={14} /> Télécharger
+              {m.type === 'video' && m.preview_url
+                ? ` l'original${sourceQualityLabel(m) ? ' ' + sourceQualityLabel(m) : ''}`
+                : ''}
             </button>
             {m.type === 'video' && m.preview_url && (
               <div className="mt-2 text-[10.5px] text-stone-500 text-center leading-relaxed">
-                Vous regardez la version allégée. La version originale haute qualité (plus lourde) est disponible au téléchargement.
+                {(() => {
+                  const q = sourceQualityLabel(m);
+                  const s = sourceSizeLabel(m);
+                  const detail = [q, s].filter(Boolean).join(' · ');
+                  return detail
+                    ? <>La lecture s'adapte à votre connexion — la qualité affichée n'est pas celle du fichier final. Votre original ({detail}), non compressé, est disponible au téléchargement.</>
+                    : <>Vous regardez la version allégée. La version originale haute qualité (plus lourde) est disponible au téléchargement.</>;
+                })()}
               </div>
             )}
           </div>

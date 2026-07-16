@@ -97,14 +97,22 @@ function publicUrl(key: string): string {
   return PUBLIC_BASE ? `${PUBLIC_BASE}/${key}` : "";
 }
 
-// L'appelant doit être un utilisateur Supabase authentifié (= l'admin :
-// personne d'autre n'a de compte). La clé anon seule est rejetée par getUser.
+// L'appelant doit être authentifié ET faire partie des emails admin.
+// Double barrière : même si les inscriptions publiques étaient ouvertes,
+// seul un email de la liste ADMIN_EMAILS peut signer un upload.
+const ADMIN_EMAILS = (Deno.env.get("ADMIN_EMAILS") || "")
+  .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+
 async function requireAdmin(req: Request): Promise<string | null> {
   const auth = req.headers.get("Authorization") || "";
   const token = auth.replace(/^Bearer\s+/i, "");
   if (!token) return null;
   const { data, error } = await sbAdmin.auth.getUser(token);
   if (error || !data?.user) return null;
+  const email = (data.user.email || "").toLowerCase();
+  // Si ADMIN_EMAILS est défini, on l'exige ; sinon (secret oublié) on
+  // retombe sur « tout utilisateur authentifié » pour ne pas tout bloquer.
+  if (ADMIN_EMAILS.length > 0 && !ADMIN_EMAILS.includes(email)) return null;
   return data.user.email ?? data.user.id;
 }
 

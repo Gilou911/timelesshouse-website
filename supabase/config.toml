@@ -1,0 +1,4 @@
+project_id = "vpbxeqjvaeiytxcpilxf"
+
+[functions.b2-sign]
+verify_jwt = false

@@ -9,6 +9,25 @@
 > encodage HLS en local (ffmpeg ne tourne ni dans le navigateur ni sur
 > Supabase).
 
+## ✅ État du déploiement (fait le 16/07/2026)
+
+L'infrastructure est **déjà en place et testée de bout en bout** :
+
+- ✔ Migration SQL exécutée (colonnes qualité sur `media`)
+- ✔ Bucket B2 **`Timelesshouse-org`** (déjà public) — CORS ajouté pour
+  l'upload navigateur + la lecture. Les nouveaux fichiers vont sous
+  `media/` et `weddings/`, séparés du contenu existant.
+- ✔ Edge Function **`b2-sign` déployée** sur le projet `vpbxeqjvaeiytxcpilxf`,
+  avec ses secrets B2 + `ADMIN_EMAILS=service@timelesshouse.org`
+  (seul cet email peut signer un upload)
+- ✔ `.env.local` rempli (clés B2 + `service_role`) pour `npm run encode`
+- ✔ Chaîne validée : upload signé → PUT B2 → encodage HLS → lecture
+  publique avec CORS OK
+
+**Il ne reste, côté toi, que l'usage quotidien** (ci-dessous) et,
+optionnellement, brancher Cloudflare devant B2 (§ Cloudflare) pour la
+bande passante gratuite. Source de la fonction : `supabase/functions/b2-sign/index.ts`.
+
 ---
 
 ## 🗺 Architecture
@@ -59,13 +78,14 @@ et le CDN cache les segments près des clients.
 Exécuter `files/migration-video-b2.sql` dans Supabase → SQL Editor.
 
 ### 4. Edge Function b2-sign
+La fonction vit dans `supabase/functions/b2-sign/index.ts` :
 ```bash
-# copier files/b2-sign.index.ts vers supabase/functions/b2-sign/index.ts puis :
-supabase functions deploy b2-sign --no-verify-jwt
+supabase functions deploy b2-sign --project-ref <ref> --no-verify-jwt
 ```
 Secrets à définir (Dashboard → Edge Functions → Secrets) :
 `B2_ENDPOINT`, `B2_REGION`, `B2_BUCKET`, `B2_KEY_ID`, `B2_APP_KEY`,
-`B2_PUBLIC_BASE_URL` (la base publique de l'étape 2, sans slash final).
+`B2_PUBLIC_BASE_URL` (la base publique de l'étape 2, sans slash final),
+et `ADMIN_EMAILS` (emails autorisés à uploader, séparés par des virgules).
 
 ### 5. Variables locales + CORS
 1. Compléter `.env.local` avec le bloc B2 de `.env.example`

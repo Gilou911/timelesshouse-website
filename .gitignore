@@ -33,3 +33,7 @@ supabase-config.local.js
 
 # Claude Code — préférences locales
 .claude/settings.local.json
+
+# Supabase CLI (cache local)
+supabase/.temp
+supabase/.branches

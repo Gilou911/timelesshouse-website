@@ -21,12 +21,23 @@ L'infrastructure est **déjà en place et testée de bout en bout** :
   avec ses secrets B2 + `ADMIN_EMAILS=service@timelesshouse.org`
   (seul cet email peut signer un upload)
 - ✔ `.env.local` rempli (clés B2 + `service_role`) pour `npm run encode`
-- ✔ Chaîne validée : upload signé → PUT B2 → encodage HLS → lecture
-  publique avec CORS OK
+- ✔ **Cloudflare devant B2** : `media.timelesshouse.org` (CNAME proxied)
+  sert les fichiers → **egress gratuit** (Bandwidth Alliance) + URL de marque.
+  `B2_PUBLIC_BASE_URL` pointe désormais vers ce domaine.
+- ✔ Chaîne validée de bout en bout : upload signé → PUT B2 → encodage HLS
+  → lecture hls.js adaptative via `media.timelesshouse.org` (badge qualité,
+  CORS OK, cross-origin depuis timelesshouse.org)
 
-**Il ne reste, côté toi, que l'usage quotidien** (ci-dessous) et,
-optionnellement, brancher Cloudflare devant B2 (§ Cloudflare) pour la
-bande passante gratuite. Source de la fonction : `supabase/functions/b2-sign/index.ts`.
+**Il ne reste, côté toi, que l'usage quotidien** (ci-dessous).
+Source de la fonction : `supabase/functions/b2-sign/index.ts`.
+
+> **Bonus optionnel — cache CDN.** Aujourd'hui `cf-cache-status: DYNAMIC`
+> (Cloudflare relaie sans cacher ; l'egress reste gratuit). Pour cacher les
+> segments et accélérer les revisionnages, ajouter **une Cache Rule** dans le
+> dashboard Cloudflare : *Rules → Cache Rules → Create* → si `Hostname eq
+> media.timelesshouse.org` → *Eligible for cache* + *Edge TTL : respect origin*.
+> (Le token API fourni n'avait pas la permission Rules ; ça se fait en 1 min
+> à la main, ou en me redonnant un token avec `Cache Rules → Edit`.)
 
 ---
 

@@ -114,10 +114,56 @@
       ? 'mariage.html'
       : (client.universe ? client.universe + '.html' : 'index.html');
 
-    // hls.js (lecture adaptative B2) — chargé UNIQUEMENT si la config
-    // contient une URL HLS, et posé sur window AVANT config-ready pour
+    // ── Liste de vidéos (nombre et titres libres) ──────────────
+    // Modèle actuel : config.videos = [{ key, title, hls, urls, downloadUrl, chapitres }]
+    // Compat : les pages créées avant (teaser/film figés) n'ont pas `videos`
+    // → on la reconstruit depuis les anciens champs, comportement identique.
+    function normalizeVideos(c) {
+      // Les clés servent d'id HTML / de sélecteurs → on les assainit,
+      // et on garantit leur unicité même si deux titres se ressemblent.
+      const safeKey = (k, i) => {
+        const s = String(k || '').replace(/[^a-zA-Z0-9_-]/g, '');
+        return s || ('v' + i);
+      };
+      if (Array.isArray(c.videos) && c.videos.length) {
+        const seen = new Set();
+        return c.videos
+          .filter(v => v && (v.title || v.key))
+          .map((v, i) => {
+            let key = safeKey(v.key, i);
+            while (seen.has(key)) key += '-' + i;
+            seen.add(key);
+            return {
+              key,
+              title:       v.title || ('Vidéo ' + (i + 1)),
+              hls:         v.hls || '',
+              urls:        v.urls || {},
+              downloadUrl: v.downloadUrl || '',
+              chapitres:   Array.isArray(v.chapitres) ? v.chapitres : [],
+            };
+          });
+      }
+      const list = [];
+      if (c.afficherTeaser) list.push({
+        key: 'teaser', title: 'Teaser', hls: c.teaserHls || '', urls: c.teaserUrls || {},
+        downloadUrl: c.teaserDownloadUrl || '', chapitres: c.teaserChapitres || [],
+      });
+      if (c.afficherFilm) list.push({
+        key: 'film', title: 'Film Complet', hls: c.filmHls || '', urls: c.filmUrls || {},
+        downloadUrl: c.filmDownloadUrl || '', chapitres: c.filmChapitres || [],
+      });
+      return list;
+    }
+    cfg.videoList = normalizeVideos(cfg);
+    // Ancien 'defaultVideo' valait 'film'/'teaser' → ce sont déjà les clés legacy.
+    if (!cfg.videoList.some(v => v.key === cfg.defaultVideo)) {
+      cfg.defaultVideo = cfg.videoList[0] ? cfg.videoList[0].key : '';
+    }
+
+    // hls.js (lecture adaptative B2) — chargé UNIQUEMENT si au moins une
+    // vidéo a une URL HLS, et posé sur window AVANT config-ready pour
     // que le script classique de la page (setupHlsQuality) le trouve.
-    if (cfg.teaserHls || cfg.filmHls) {
+    if (cfg.videoList.some(v => v.hls)) {
       const mod = await import('hls.js');
       window.Hls = mod.default;
     }
@@ -262,16 +308,16 @@
       border-radius: 2px; padding: 4px;
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
+      max-width: 100%;
     }
+    /* Indicateur : position ET largeur calculées en JS depuis l'onglet actif
+       (les titres ont des largeurs libres : « Teaser », « Same Day Edit »…). */
     .selector-indicator {
-      position: absolute; top: 4px; bottom: 4px;
-      width: calc(50% - 4px);
-      background: var(--accent); border-radius: 1px;
-      transition: transform 0.6s var(--ease-cinema);
+      position: absolute; top: 4px; bottom: 4px; left: 0;
+      width: 0; background: var(--accent); border-radius: 1px;
+      transition: transform 0.6s var(--ease-cinema), width 0.6s var(--ease-cinema);
       z-index: 1;
     }
-    .selector-track[data-active="full"] .selector-indicator { transform: translateX(100%); }
-    .selector-track[data-active="teaser"] .selector-indicator { transform: translateX(0); }
     .selector-btn {
       position: relative; z-index: 2;
       background: transparent; border: none;
@@ -283,6 +329,7 @@
       cursor: pointer;
       transition: color 0.6s var(--ease-cinema);
       min-width: 160px;
+      white-space: nowrap;
     }
     .selector-btn.active { color: var(--bg-dark); font-weight: 500; }
 
@@ -513,7 +560,11 @@
       .download-subtitle { font-size: 11px; }
       .btn-download { padding: 16px 22px; font-size: 10px; gap: 14px; }
       .video-wrapper::before, .video-wrapper::after { width: 14px; height: 14px; }
-      .video-selector { flex-wrap: wrap; gap: 4px; }
+      /* Défilement horizontal plutôt que retour à la ligne : l'indicateur
+         est mesuré sur une seule rangée (plusieurs vidéos possibles). */
+      .video-selector { gap: 4px; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
+      .video-selector::-webkit-scrollbar { display: none; }
+      .selector-track { margin: 0 auto; }
       .selector-btn {
         padding: 10px 18px; min-width: 110px;
         font-size: 9px; letter-spacing: 0.22em;
@@ -528,8 +579,8 @@
     @media (max-width: 480px) {
       header { padding: 56px 16px 24px; }
       .download-title { font-size: 1.5rem; }
-      .video-selector { width: calc(100% - 32px); margin: 0 auto; }
-      .selector-btn { flex: 1; min-width: 0; padding: 9px 8px; font-size: 8.5px; letter-spacing: 0.18em; }
+      .video-selector { width: calc(100% - 32px); margin: 0 auto 30px; }
+      .selector-btn { min-width: 0; padding: 9px 12px; font-size: 8.5px; letter-spacing: 0.18em; }
       .btn-download { padding: 15px 18px; font-size: 9.5px; gap: 10px; }
       .quality-controls { top: 8px; right: 8px; }
       .quality-btn { padding: 3px 7px; font-size: 8.5px; letter-spacing: 0.1em; }
@@ -835,35 +886,17 @@
   </header>
 
   <main>
+    <!-- Sélecteur et slides sont générés par le JS depuis la liste de vidéos
+         (config.videos) — nombre et titres libres : Teaser, Film, Same Day Edit… -->
     <div class="video-selector" role="tablist" aria-label="Choix de la vidéo" id="mainVideoSelector">
-      <div class="selector-track" data-active="teaser">
+      <div class="selector-track" id="selectorTrack">
         <div class="selector-indicator" aria-hidden="true"></div>
-        <button class="selector-btn active" role="tab" aria-selected="true" data-target="teaser">
-          Teaser
-        </button>
-        <button class="selector-btn" role="tab" aria-selected="false" data-target="full">
-          Film Complet
-        </button>
       </div>
     </div>
 
     <section class="cinema-container" aria-label="Lecteur vidéo">
       <div class="video-wrapper">
-        <div class="video-stage">
-          
-          <div class="video-slide active" data-slide="teaser" role="tabpanel">
-            <div class="quality-controls" id="qualityControlsTeaser" style="display: none;"></div>
-            <video id="videoTeaser" controls playsinline preload="metadata"></video>
-            <div class="coming-soon" id="soonTeaser" style="display: none;"></div>
-          </div>
-          
-          <div class="video-slide" data-slide="full" role="tabpanel">
-            <div class="quality-controls" id="qualityControlsFilm" style="display: none;"></div>
-            <video id="videoFilm" controls playsinline preload="metadata"></video>
-            <div class="coming-soon" id="soonFilm" style="display: none;"></div>
-          </div>
-
-        </div>
+        <div class="video-stage" id="videoStage"></div>
         <div class="transition-veil" id="veil" aria-hidden="true"></div>
       </div>
     </section>
@@ -892,15 +925,8 @@
         Disponibles pendant 6 mois. Nous vous conseillons de les télécharger sur un ordinateur.
       </p>
 
-      <a href="#" id="downloadTeaser" class="btn-download" target="_blank" rel="noopener noreferrer">
-        <span>Teaser (4K)</span>
-        <span class="arrow" aria-hidden="true">→</span>
-      </a>
-
-      <a href="#" id="downloadFilm" class="btn-download primary" target="_blank" rel="noopener noreferrer">
-        <span>Film Complet (4K)</span>
-        <span class="arrow" aria-hidden="true">→</span>
-      </a>
+      <!-- Un lien par vidéo ayant une URL de téléchargement (généré par le JS) -->
+      <div id="downloadLinks"></div>
     </section>
 
     <section class="share-section" aria-labelledby="share-label">
@@ -998,9 +1024,9 @@
       }
 
       function render(target) {
-        const raw = target === 'teaser'
-          ? WEDDING_CONFIG.teaserChapitres
-          : WEDDING_CONFIG.filmChapitres;
+        // Chapitres de la vidéo active, quel que soit son nom/sa clé
+        const v = (WEDDING_CONFIG.videoList || []).find(x => x.key === target);
+        const raw = v ? v.chapitres : [];
         const chapters = normalize(raw);
         currentChapters = chapters;
         activeTarget = target;
@@ -1060,8 +1086,8 @@
 
       function attachTracker(target) {
         // Détache l'ancien listener s'il existe (évite les doublons quand on switch)
-        ['teaser', 'full'].forEach(t => {
-          const v = getVideoFor(t);
+        (WEDDING_CONFIG.videoList || []).forEach(item => {
+          const v = getVideoFor(item.key);
           if (v && v._chapterListener) {
             v.removeEventListener('timeupdate', v._chapterListener);
             v._chapterListener = null;
@@ -1278,13 +1304,65 @@
         }
       }
 
-      // INITIALISATION DES LECTEURS ET DE LA QUALITÉ
-      setupVideoQuality("videoTeaser", "qualityControlsTeaser", "soonTeaser", c.teaserUrls, c.teaserHls);
-      setupVideoQuality("videoFilm", "qualityControlsFilm", "soonFilm", c.filmUrls, c.filmHls);
+      // ── CONSTRUCTION DU LECTEUR DEPUIS LA LISTE DE VIDÉOS ──
+      // Nombre et titres libres (Teaser, Film Complet, Same Day Edit…).
+      const videos = c.videoList || [];
+      const stage  = document.getElementById('videoStage');
+      const track  = document.getElementById('selectorTrack');
+      const dlWrap = document.getElementById('downloadLinks');
 
-      // Liens de téléchargement directs
-      if (document.getElementById('downloadTeaser')) document.getElementById('downloadTeaser').href = c.teaserDownloadUrl;
-      if (document.getElementById('downloadFilm')) document.getElementById('downloadFilm').href = c.filmDownloadUrl;
+      videos.forEach((v, i) => {
+        // Slide (lecteur + contrôles qualité + écran d'attente)
+        const slide = document.createElement('div');
+        slide.className = 'video-slide' + (v.key === c.defaultVideo ? ' active' : '');
+        slide.dataset.slide = v.key;
+        slide.setAttribute('role', 'tabpanel');
+        slide.innerHTML =
+          '<div class="quality-controls" id="qc-' + v.key + '" style="display:none;"></div>' +
+          '<video id="video-' + v.key + '" controls playsinline preload="metadata"></video>' +
+          '<div class="coming-soon" id="soon-' + v.key + '" style="display:none;"></div>';
+        stage.appendChild(slide);
+
+        // Onglet du sélecteur
+        const btn = document.createElement('button');
+        btn.className = 'selector-btn' + (v.key === c.defaultVideo ? ' active' : '');
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', v.key === c.defaultVideo ? 'true' : 'false');
+        btn.dataset.target = v.key;
+        btn.textContent = v.title;
+        track.appendChild(btn);
+
+        // Lecteur + qualité adaptative
+        setupVideoQuality('video-' + v.key, 'qc-' + v.key, 'soon-' + v.key, v.urls || {}, v.hls);
+
+        // Lien de téléchargement (seulement si renseigné)
+        if (v.downloadUrl && v.downloadUrl.trim()) {
+          const a = document.createElement('a');
+          a.className = 'btn-download' + (v.key === c.defaultVideo ? ' primary' : '');
+          a.href = v.downloadUrl;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          const label = document.createElement('span');
+          label.textContent = v.title;                 // textContent : titre libre, aucun risque d'injection
+          const arrow = document.createElement('span');
+          arrow.className = 'arrow';
+          arrow.setAttribute('aria-hidden', 'true');
+          arrow.textContent = '→';
+          a.appendChild(label); a.appendChild(arrow);
+          dlWrap.appendChild(a);
+        }
+      });
+
+      // Un seul onglet (ou aucun) → pas de sélecteur à afficher
+      if (videos.length <= 1) {
+        const sel = document.getElementById('mainVideoSelector');
+        if (sel) sel.style.display = 'none';
+      }
+      // Aucun téléchargement disponible → on masque toute la section
+      if (!dlWrap.children.length) {
+        const dlSection = document.getElementById('downloadSection');
+        if (dlSection) dlSection.style.display = 'none';
+      }
     })();
 
     // ============================================
@@ -1301,80 +1379,83 @@
     // ============================================
     // SÉLECTEUR VIDÉO (Teaser vs Film Complet)
     // ============================================
-    const selectorTrack = document.querySelector('.selector-track');
+    const selectorTrack = document.getElementById('selectorTrack');
     const selectorBtns = document.querySelectorAll('.selector-btn');
     const slides = document.querySelectorAll('.video-slide');
     const veil = document.getElementById('veil');
     const nowPlaying = document.getElementById('nowPlaying');
+    const indicator = selectorTrack ? selectorTrack.querySelector('.selector-indicator') : null;
 
-    const labels = { teaser: 'Teaser', full: 'Film Complet' };
+    const VIDEOS = WEDDING_CONFIG.videoList || [];
+    const labelOfKey = (k) => { const v = VIDEOS.find(x => x.key === k); return v ? v.title : ''; };
 
-    let currentTarget = WEDDING_CONFIG.defaultVideo || 'teaser';
+    let currentTarget = WEDDING_CONFIG.defaultVideo || (VIDEOS[0] && VIDEOS[0].key) || '';
     let isAnimating = false;
+    // Cible de l'indicateur, mise à jour DÈS le clic : `currentTarget` ne bascule
+    // qu'à la fin de l'animation (800 ms), donc un recalcul déclenché entre-temps
+    // (ResizeObserver, polices) le renverrait sur l'onglet précédent.
+    let indicatorTarget = currentTarget;
 
-    // --- LOGIQUE POUR MASQUER LES ONGLETS ---
-    const btnTeaser = document.querySelector('.selector-btn[data-target="teaser"]');
-    const btnFilm = document.querySelector('.selector-btn[data-target="full"]');
-    const dlTeaser = document.getElementById('downloadTeaser');
-    const dlFilm = document.getElementById('downloadFilm');
-    const mainVideoSelector = document.getElementById('mainVideoSelector');
-
-    if (!WEDDING_CONFIG.afficherTeaser) {
-      if (btnTeaser) btnTeaser.style.display = 'none';
-      if (dlTeaser) dlTeaser.style.display = 'none';
-      currentTarget = 'full'; // Force l'ouverture sur le film
-    }
-    
-    if (!WEDDING_CONFIG.afficherFilm) {
-      if (btnFilm) btnFilm.style.display = 'none';
-      if (dlFilm) dlFilm.style.display = 'none';
-      currentTarget = 'teaser'; // Force l'ouverture sur le teaser
-    }
-
-    // Masquer toute la barre de sélection et les téléchargements si tout est masqué ou si 1 seul est affiché
-    if (!WEDDING_CONFIG.afficherTeaser || !WEDDING_CONFIG.afficherFilm) {
-      if (mainVideoSelector) mainVideoSelector.style.display = 'none';
-    }
-
-    // Si on masque les deux, on cache la section de téléchargement complète
-    if (!WEDDING_CONFIG.afficherTeaser && !WEDDING_CONFIG.afficherFilm) {
+    // Aucune vidéo configurée → rien à piloter
+    if (!VIDEOS.length) {
       const dlSection = document.getElementById('downloadSection');
       if (dlSection) dlSection.style.display = 'none';
     }
+
+    // Indicateur coulissant : mesuré sur l'onglet actif (les titres ont des
+    // largeurs libres, donc pas de calcul en pourcentage possible).
+    function moveIndicator(key) {
+      if (!indicator || !selectorTrack) return;
+      const btn = selectorTrack.querySelector('.selector-btn[data-target="' + key + '"]');
+      if (!btn) return;
+      indicator.style.width = btn.offsetWidth + 'px';
+      indicator.style.transform = 'translateX(' + (btn.offsetLeft - selectorTrack.clientLeft) + 'px)';
+    }
     // ----------------------------------------
 
-    // Applique la vidéo par défaut
-    if (currentTarget === 'full' && selectorTrack) {
-      selectorTrack.dataset.active = 'full';
-      selectorBtns.forEach(btn => {
-        const isActive = btn.dataset.target === 'full';
-        btn.classList.toggle('active', isActive);
-        btn.setAttribute('aria-selected', isActive);
-      });
-      slides.forEach(slide => {
-        slide.classList.toggle('active', slide.dataset.slide === 'full');
-      });
-      if(nowPlaying) nowPlaying.innerHTML = 'En cours — <span>' + labels.full + '</span>';
+    // Applique la vidéo par défaut (les slides/onglets sont déjà marqués
+    // « active » à la construction — ici on cale le libellé et l'indicateur).
+    function setNowPlaying(key) {
+      if (!nowPlaying) return;
+      nowPlaying.textContent = '';
+      const span = document.createElement('span');
+      span.textContent = labelOfKey(key);
+      nowPlaying.append('En cours — ', span);
     }
+    if (currentTarget) {
+      setNowPlaying(currentTarget);
+      moveIndicator(currentTarget);
+    }
+    // L'indicateur dépend de la largeur réelle des onglets, qui n'est pas
+    // connue tout de suite (polices web, animation d'apparition, viewport).
+    // Un ResizeObserver le recale dès que la barre prend sa taille définitive
+    // — plus fiable qu'un setTimeout deviné.
+    if (window.ResizeObserver && selectorTrack) {
+      new ResizeObserver(() => moveIndicator(indicatorTarget)).observe(selectorTrack);
+    }
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => moveIndicator(indicatorTarget)).catch(() => {});
+    }
+    window.addEventListener('resize', () => moveIndicator(indicatorTarget));
 
-    // Affiche les chapitres correspondant à la vidéo active
-    // (mapping : currentTarget 'full' → filmChapitres, 'teaser' → teaserChapitres)
-    Chapters.render(currentTarget === 'full' ? 'full' : 'teaser');
+    // Chapitres de la vidéo affichée au chargement
+    if (currentTarget) Chapters.render(currentTarget);
 
     function switchVideo(target) {
       if (target === currentTarget || isAnimating) return;
       isAnimating = true;
+      indicatorTarget = target;   // dès maintenant : tout recalcul vise le bon onglet
 
       // On met en pause la vidéo actuelle
       const currentVideo = document.querySelector(`.video-slide[data-slide="${currentTarget}"] video`);
       if (currentVideo) currentVideo.pause();
 
-      selectorTrack.dataset.active = target;
       selectorBtns.forEach(btn => {
         const isActive = btn.dataset.target === target;
         btn.classList.toggle('active', isActive);
         btn.setAttribute('aria-selected', isActive);
       });
+      moveIndicator(target);
 
       veil.classList.add('active');
       nowPlaying.classList.add('fading');
@@ -1383,7 +1464,7 @@
         slides.forEach(slide => {
           slide.classList.toggle('active', slide.dataset.slide === target);
         });
-        nowPlaying.innerHTML = 'En cours — <span>' + labels[target] + '</span>';
+        setNowPlaying(target);
         // Recharge la liste des chapitres pour la vidéo qui passe à l'écran
         Chapters.render(target);
       }, 400);

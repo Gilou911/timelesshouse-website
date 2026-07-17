@@ -56,21 +56,22 @@ const rawPrefix      = arg("prefix");
 const input          = arg("input");
 const uploadOriginal = hasFlag("upload-original");
 const eventPage      = arg("event-page");   // id d'une page vidéo (event_pages)
-const field          = arg("field");        // teaserHls | filmHls — champ à réécrire
+const field          = arg("field");        // legacy : teaserHls | filmHls
+const videoKey       = arg("video-key");    // actuel : clé dans config.videos[]
 
 if ((!mediaId && !rawPrefix) || !input) {
   console.error(`Usage :
   npm run encode -- --media-id <uuid> --input <fichier> [--upload-original]
   npm run encode -- --prefix weddings/<slug>/<film|teaser> --input <fichier> [--upload-original]
-  npm run encode -- --prefix weddings/<slug>/<film|teaser> --input <fichier> --event-page <id> --field <teaserHls|filmHls>`);
+  npm run encode -- --prefix weddings/<slug>/<clé> --input <fichier> --event-page <id> --video-key <clé>`);
   process.exit(1);
 }
 if (rawPrefix && !/^(media|weddings)\/[a-zA-Z0-9._\-/]+$/.test(rawPrefix)) {
   console.error("✗ --prefix doit commencer par media/ ou weddings/ (lettres, chiffres, - _ . /)");
   process.exit(1);
 }
-if (eventPage && !["teaserHls", "filmHls"].includes(field)) {
-  console.error("✗ --event-page requiert --field teaserHls ou --field filmHls");
+if (eventPage && !videoKey && !["teaserHls", "filmHls"].includes(field)) {
+  console.error("✗ --event-page requiert --video-key <clé> (ou, en legacy, --field teaserHls|filmHls)");
   process.exit(1);
 }
 
@@ -346,16 +347,36 @@ if (mediaId) {
   console.log(`  Qualités : ${rungs.map((r) => r.name).join(" / ")} (auto selon la connexion)`);
   console.log(`  Original affiché au client : ${qualityLabel(srcW, srcH)} · ${fmtSize(inputSize)}`);
 } else if (eventPage) {
-  // Réécriture automatique du champ HLS dans la config de la page vidéo
+  // Réécriture automatique de l'URL HLS dans la config de la page vidéo
   const { data: page } = await supabase.from("event_pages").select("config").eq("id", eventPage).maybeSingle();
-  const newConfig = { ...(page?.config || {}), [field]: masterUrl };
+  const config = page?.config || {};
+  let newConfig, cible;
+
+  if (videoKey) {
+    // Modèle actuel : liste videos[] (titres libres)
+    const list = Array.isArray(config.videos) ? config.videos : [];
+    const idx = list.findIndex((v) => v && v.key === videoKey);
+    if (idx === -1) {
+      console.error(`✗ Aucune vidéo « ${videoKey} » dans cette page (clés : ${list.map((v) => v && v.key).join(", ") || "aucune"}).`);
+      console.log(`  URL HLS générée, à renseigner manuellement : ${masterUrl}`);
+      process.exit(1);
+    }
+    const videos = list.map((v, i) => (i === idx ? { ...v, hls: masterUrl } : v));
+    newConfig = { ...config, videos };
+    cible = `« ${list[idx].title || videoKey} »`;
+  } else {
+    // Legacy : champ teaserHls / filmHls
+    newConfig = { ...config, [field]: masterUrl };
+    cible = field;
+  }
+
   const { error } = await supabase.from("event_pages").update({ config: newConfig }).eq("id", eventPage);
   if (error) {
     console.error("✗ Mise à jour de la page ÉCHOUÉE :", error.message);
-    console.log(`  À coller manuellement dans le champ ${field} : ${masterUrl}`);
+    console.log(`  À renseigner manuellement (${cible}) : ${masterUrl}`);
     process.exit(1);
   }
-  console.log(`\n✓ Lecture adaptative active — ${field} mis à jour automatiquement sur la page.`);
+  console.log(`\n✓ Lecture adaptative active — ${cible} mis à jour automatiquement sur la page.`);
   console.log(`  URL HLS : ${masterUrl}`);
   console.log(`  Qualités : ${rungs.map((r) => r.name).join(" / ")} · original ${qualityLabel(srcW, srcH)} · ${fmtSize(inputSize)}`);
   console.log(`  → Recharge la page vidéo dans l'admin pour voir le champ rempli.`);

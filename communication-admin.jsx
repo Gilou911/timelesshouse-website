@@ -141,6 +141,27 @@
     const slugify = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
+    // Convertit une config de page vidéo « ancien format » (teaser/film figés)
+    // vers le modèle liste videos[]. Les pages créées avant la liste sont ainsi
+    // éditables normalement ; le lecteur, lui, sait lire les deux formats.
+    function withVideoList(config, pageType) {
+      if (pageType !== 'video' || !config) return config;
+      if (Array.isArray(config.videos) && config.videos.length) return config;
+      const videos = [];
+      if (config.afficherTeaser) videos.push({
+        key: 'teaser', title: 'Teaser', hls: config.teaserHls || '', urls: config.teaserUrls || {},
+        downloadUrl: config.teaserDownloadUrl || '', chapitres: config.teaserChapitres || [],
+      });
+      if (config.afficherFilm) videos.push({
+        key: 'film', title: 'Film Complet', hls: config.filmHls || '', urls: config.filmUrls || {},
+        downloadUrl: config.filmDownloadUrl || '', chapitres: config.filmChapitres || [],
+      });
+      const defaultVideo = videos.some(v => v.key === config.defaultVideo)
+        ? config.defaultVideo
+        : (videos[0] ? videos[0].key : '');
+      return { ...config, videos, defaultVideo };
+    }
+
     /* ════════════════════════════════════════════════════════════
        📸 UPLOAD PHOTOS → CLOUDINARY (galeries) via Edge Function cloudinary-sign
        L'admin uploade ses photos sans quitter son espace ; elles vont dans
@@ -1380,7 +1401,13 @@
                       {videoPage.config?.date}{videoPage.config?.lieu ? ' · ' + videoPage.config.lieu : ''}
                     </div>
                     <div className="text-[11px] text-stone-500 mt-2">
-                      {videoPage.config?.afficherTeaser && '🎬 Teaser '}{videoPage.config?.afficherFilm && '🎥 Film'}
+                      {/* Titres des vidéos (gère aussi les pages à l'ancien format) */}
+                      {(() => {
+                        const vids = withVideoList(videoPage.config || {}, 'video').videos || [];
+                        return vids.length
+                          ? '🎬 ' + vids.map(v => v.title || v.key).join(' · ')
+                          : 'Aucune vidéo';
+                      })()}
                     </div>
                     <div className="flex gap-2 mt-4">
                       <Btn icon={Edit3} onClick={() => setEditing({ page_type: 'video', config: videoPage.config, id: videoPage.id })}>Modifier</Btn>
@@ -1517,17 +1544,12 @@
     function defaultVideoConfig(client) {
       const base = {
         couple: clientCouple(client),
-        afficherTeaser: true,
-        afficherFilm: true,
-        teaserUrls: { '1080p': '', '4K': '' },
-        filmUrls:   { '1080p': '', '4K': '' },
-        teaserHls: '',   // master.m3u8 — lecture adaptative (prioritaire sur teaserUrls)
-        filmHls: '',     // master.m3u8 — lecture adaptative (prioritaire sur filmUrls)
-        teaserDownloadUrl: '',
-        filmDownloadUrl: '',
+        // Liste de vidéos : nombre et titres libres (Teaser, Film, Same Day Edit…)
+        videos: [
+          { key: 'teaser', title: 'Teaser',       hls: '', urls: {}, downloadUrl: '', chapitres: [] },
+          { key: 'film',   title: 'Film Complet', hls: '', urls: {}, downloadUrl: '', chapitres: [] },
+        ],
         defaultVideo: 'film',
-        teaserChapitres: [],
-        filmChapitres: [],
         upsellBouton: false,
         upsellTexte: 'Commander ce film',
         upsellLien: 'mailto:service@timelesshouse.org',
@@ -1554,7 +1576,8 @@
     }
 
     function EventPageForm({ clientId, client, page_type, config, id: initialId, onClose, onSaved, onSavedQuiet }) {
-      const [c, setC] = useState(config);
+      // Les pages vidéo créées avant la liste sont converties à l'ouverture
+      const [c, setC] = useState(() => withVideoList(config, page_type));
       const [loading, setLoading] = useState(false);
       const [pageId, setPageId] = useState(initialId);          // bumped to real id after first insert
       const [savedVersion, setSavedVersion] = useState(initialId ? 1 : 0);
@@ -1619,21 +1642,63 @@
         }
       };
 
-      // ── Upload des vidéos teaser/film → B2 depuis l'admin (tous univers) ──
-      const [evUpload, setEvUpload] = useState({}); // { teaser|film: { pct, msg, cmd } }
+      // ── Liste de vidéos (titres libres) + upload → B2 (tous univers) ──
+      const videos = Array.isArray(c.videos) ? c.videos : [];
+      const setVideos = (arr) => updateConfig('videos', arr);
+      const updateVideo = (i, patch) => setVideos(videos.map((v, j) => (j === i ? { ...v, ...patch } : v)));
+
+      // Clé stable dérivée du titre : sert de dossier B2 et de repère pour l'encodage.
+      const keyFromTitle = (title, i) => {
+        const base = slugify(title) || ('video-' + (i + 1));
+        let key = base, n = 2;
+        while (videos.some((v, j) => j !== i && v.key === key)) key = base + '-' + (n++);
+        return key;
+      };
+      // Le titre pilote la clé TANT QUE rien n'est uploadé ; ensuite la clé est
+      // gelée (les fichiers B2 et les commandes d'encodage y font référence).
+      const onVideoTitle = (i, title) => {
+        const v = videos[i];
+        if (v.hls || v.downloadUrl) { updateVideo(i, { title }); return; }
+        const newKey = keyFromTitle(title, i);
+        const arr = videos.map((x, j) => (j === i ? { ...x, title, key: newKey } : x));
+        const patch = { videos: arr };
+        if (c.defaultVideo === v.key) patch.defaultVideo = newKey;
+        setC({ ...c, ...patch });
+      };
+      const addVideo = () => {
+        let key = 'video-' + (videos.length + 1), n = videos.length + 1;
+        while (videos.some(v => v.key === key)) key = 'video-' + (++n);
+        setVideos([...videos, { key, title: '', hls: '', urls: {}, downloadUrl: '', chapitres: [] }]);
+      };
+      const removeVideo = (i) => {
+        const arr = videos.filter((_, j) => j !== i);
+        const patch = { videos: arr };
+        if (c.defaultVideo === videos[i].key) patch.defaultVideo = arr[0] ? arr[0].key : '';
+        setC({ ...c, ...patch });
+      };
+      const moveVideo = (i, dir) => {
+        const j = i + dir;
+        if (j < 0 || j >= videos.length) return;
+        const arr = [...videos];
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+        setVideos(arr);
+      };
+
+      const [evUpload, setEvUpload] = useState({}); // { [clé]: { pct, msg, cmd } }
       const codeSlug = slugify(client?.code || '');
-      const uploadEventVideo = async (kind, file) => {
+      const uploadEventVideo = async (key, file) => {
         if (!file) return;
         if (!codeSlug) { alert("Le client doit avoir un code (fiche client) avant d'uploader une vidéo."); return; }
-        const dlKey    = kind === 'teaser' ? 'teaserDownloadUrl' : 'filmDownloadUrl';
-        const hlsField = kind === 'teaser' ? 'teaserHls' : 'filmHls';
+        const i = videos.findIndex(v => v.key === key);
+        if (i === -1) return;
         try {
-          setEvUpload(s => ({ ...s, [kind]: { pct: 0, msg: 'Upload en cours… (ne ferme pas l\'onglet)' } }));
-          const key = `weddings/${codeSlug}/${kind}/original/${b2SafeName(file.name)}`;
-          const url = await b2UploadFile(file, key, (p) =>
-            setEvUpload(s => ({ ...s, [kind]: { pct: Math.round(p * 100), msg: 'Upload en cours… (ne ferme pas l\'onglet)' } })));
+          setEvUpload(s => ({ ...s, [key]: { pct: 0, msg: 'Upload en cours… (ne ferme pas l\'onglet)' } }));
+          const b2key = `weddings/${codeSlug}/${key}/original/${b2SafeName(file.name)}`;
+          const url = await b2UploadFile(file, b2key, (p) =>
+            setEvUpload(s => ({ ...s, [key]: { pct: Math.round(p * 100), msg: 'Upload en cours… (ne ferme pas l\'onglet)' } })));
           // Persiste la config avec le lien de téléchargement + garantit un pageId
-          const newConfig = { ...c, [dlKey]: url };
+          const arr = videos.map((v, j) => (j === i ? { ...v, downloadUrl: url } : v));
+          const newConfig = { ...c, videos: arr };
           setC(newConfig);
           let pid = pageId;
           const res = pid
@@ -1642,25 +1707,25 @@
           if (res.error) throw new Error(res.error.message);
           pid = res.data.id; if (!pageId) setPageId(pid);
           setSavedVersion(v => v + 1); setSavedAt(Date.now());
-          const cmd = `npm run encode -- --prefix weddings/${codeSlug}/${kind} --input "/chemin/vers/${file.name}" --event-page ${pid} --field ${hlsField}`;
-          setEvUpload(s => ({ ...s, [kind]: { pct: 100, msg: '✅ Original en ligne (téléchargement client OK)', cmd } }));
+          const cmd = `npm run encode -- --prefix weddings/${codeSlug}/${key} --input "/chemin/vers/${file.name}" --event-page ${pid} --video-key ${key}`;
+          setEvUpload(s => ({ ...s, [key]: { pct: 100, msg: '✅ Original en ligne (téléchargement client OK)', cmd } }));
           (onSavedQuiet || onSaved)?.();
         } catch (err) {
-          setEvUpload(s => ({ ...s, [kind]: { msg: `✗ ${err.message}` } }));
+          setEvUpload(s => ({ ...s, [key]: { msg: `✗ ${err.message}` } }));
         }
       };
 
       // Bloc réutilisable : upload d'une vidéo (teaser ou film).
       // Fonction de rendu (pas un composant) → appelée inline, aucun remontage
       // du champ fichier pendant les re-renders de progression.
-      const renderVideoUpload = (kind) => {
-        const st = evUpload[kind];
+      const renderVideoUpload = (key) => {
+        const st = evUpload[key];
         return (
-          <Field label={`Fichier ${kind === 'teaser' ? 'teaser' : 'film'} — upload direct sur B2`}>
+          <Field label="Fichier vidéo — upload direct sur B2">
             <input
               type="file"
               accept="video/mp4,video/quicktime,video/webm,video/x-m4v"
-              onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) uploadEventVideo(kind, f); }}
+              onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) uploadEventVideo(key, f); }}
               className="w-full text-[13px] text-stone-600 file:mr-3 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-stone-900 file:text-white file:text-[12px] file:font-semibold file:cursor-pointer"
             />
             {st && (
@@ -2095,100 +2160,81 @@
             {/* Champs spécifiques VIDÉO */}
             {!isPhotos && (
               <>
-                <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mt-6 mb-2">Sections affichées</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <button type="button" onClick={() => updateConfig('afficherTeaser', !c.afficherTeaser)}
-                    style={c.afficherTeaser ? neu.dark : neu.pressedSm}
-                    className={`px-4 py-3 rounded-2xl flex items-center justify-between transition ${c.afficherTeaser ? 'text-white' : 'text-stone-700'}`}>
-                    <span className="text-[12.5px] font-semibold">🎬 Teaser</span>
-                    <div className={`w-9 h-5 rounded-full p-0.5 ${c.afficherTeaser ? 'bg-emerald-400' : 'bg-stone-300'}`}>
-                      <div className={`w-4 h-4 rounded-full bg-white transition-transform ${c.afficherTeaser ? 'translate-x-4' : ''}`} />
-                    </div>
-                  </button>
-                  <button type="button" onClick={() => updateConfig('afficherFilm', !c.afficherFilm)}
-                    style={c.afficherFilm ? neu.dark : neu.pressedSm}
-                    className={`px-4 py-3 rounded-2xl flex items-center justify-between transition ${c.afficherFilm ? 'text-white' : 'text-stone-700'}`}>
-                    <span className="text-[12.5px] font-semibold">🎥 Film complet</span>
-                    <div className={`w-9 h-5 rounded-full p-0.5 ${c.afficherFilm ? 'bg-emerald-400' : 'bg-stone-300'}`}>
-                      <div className={`w-4 h-4 rounded-full bg-white transition-transform ${c.afficherFilm ? 'translate-x-4' : ''}`} />
-                    </div>
+                <div className="flex items-center justify-between mt-6 mb-2">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Vidéos de la galerie</div>
+                  <button type="button" onClick={addVideo}
+                    style={neu.raisedXs} className="px-3 py-1.5 rounded-full text-[11.5px] flex items-center gap-1.5">
+                    <Plus size={11} /> Ajouter une vidéo
                   </button>
                 </div>
+                <div className="text-[11px] text-stone-500 mb-3 leading-relaxed">
+                  Chaque vidéo devient un onglet dans le lecteur du client, avec le titre que tu choisis
+                  (Teaser, Film Complet, Same Day Edit, Save The Date…). L'ordre ici = l'ordre des onglets.
+                </div>
 
-                {c.afficherTeaser && (
-                  <>
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mt-6 mb-1">Teaser</div>
-                    {renderVideoUpload('teaser')}
-                    <Field label="URL HLS adaptative (master.m3u8 — remplie automatiquement)">
-                      <Input value={c.teaserHls || ''} onChange={e => updateConfig('teaserHls', e.target.value)} placeholder="Se remplit après l'encodage — ou colle une URL" />
-                      <div className="text-[11px] text-stone-500 mt-1 leading-relaxed">
-                        La qualité s'adapte à la connexion (boutons AUTO · 4K · 1080p…). Renseignée automatiquement après l'upload + la commande d'encodage ci-dessus. Si présente, remplace les URLs fixes ci-dessous.
-                      </div>
-                    </Field>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Field label="URL 1080p (ancien système — qualité fixe)">
-                        <Input value={c.teaserUrls?.['1080p'] || ''} onChange={e => updateConfig('teaserUrls', { ...c.teaserUrls, '1080p': e.target.value })} placeholder="https://..." />
-                      </Field>
-                      <Field label="URL 4K (ancien système — qualité fixe)">
-                        <Input value={c.teaserUrls?.['4K'] || ''} onChange={e => updateConfig('teaserUrls', { ...c.teaserUrls, '4K': e.target.value })} placeholder="https://..." />
-                      </Field>
-                    </div>
-                    <Field label="Lien de téléchargement teaser">
-                      <Input value={c.teaserDownloadUrl || ''} onChange={e => updateConfig('teaserDownloadUrl', e.target.value)} placeholder="https://..." />
-                    </Field>
-                    <Field label="Chapitres du teaser (format YouTube — un par ligne, ex. 0:15 Cérémonie)">
-                      <Textarea
-                        rows={4}
-                        value={chaptersToText(c.teaserChapitres)}
-                        onChange={e => updateConfig('teaserChapitres', textToChapters(e.target.value))}
-                        placeholder={"0:00 Ouverture\n0:25 Préparatifs\n0:55 Cérémonie"}
-                      />
-                      <div className="text-[10px] text-stone-400 mt-1.5 leading-relaxed">
-                        Formats acceptés : <code className="font-mono">MM:SS</code> ou <code className="font-mono">HH:MM:SS</code>, suivis du titre. Une ligne vide ou invalide est ignorée. Tri auto par ordre chronologique.
-                      </div>
-                    </Field>
-                  </>
+                {videos.length === 0 && (
+                  <div style={neu.pressedSm} className="rounded-2xl text-center text-[12px] text-stone-400 py-5 leading-relaxed">
+                    Aucune vidéo pour l'instant.<br />Clique « Ajouter une vidéo » pour commencer.
+                  </div>
                 )}
 
-                {c.afficherFilm && (
-                  <>
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mt-6 mb-1">Film complet</div>
-                    {renderVideoUpload('film')}
-                    <Field label="URL HLS adaptative (master.m3u8 — remplie automatiquement)">
-                      <Input value={c.filmHls || ''} onChange={e => updateConfig('filmHls', e.target.value)} placeholder="Se remplit après l'encodage — ou colle une URL" />
-                      <div className="text-[11px] text-stone-500 mt-1 leading-relaxed">
-                        La qualité s'adapte à la connexion (boutons AUTO · 4K · 1080p…). Renseignée automatiquement après l'upload + la commande d'encodage ci-dessus. Si présente, remplace les URLs fixes ci-dessous.
+                <div className="space-y-4">
+                  {/* key={i} (et non v.key) : la clé suit le titre tant que rien n'est
+                      uploadé — la garder comme key React ferait perdre le focus à chaque frappe */}
+                  {videos.map((v, i) => (
+                    <div key={i} style={neu.pressedSm} className="rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-stone-400 font-semibold w-4 text-center shrink-0">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <Input value={v.title} onChange={e => onVideoTitle(i, e.target.value)} placeholder="Titre affiché — ex. Same Day Edit" />
+                        </div>
+                        <button type="button" onClick={() => moveVideo(i, -1)} disabled={i === 0}
+                          className="px-1.5 py-1 text-[11px] text-stone-400 hover:text-stone-800 disabled:opacity-25" title="Monter">▲</button>
+                        <button type="button" onClick={() => moveVideo(i, 1)} disabled={i === videos.length - 1}
+                          className="px-1.5 py-1 text-[11px] text-stone-400 hover:text-stone-800 disabled:opacity-25" title="Descendre">▼</button>
+                        <button type="button" onClick={() => removeVideo(i)} className="p-1 text-rose-500 hover:text-rose-700" title="Supprimer cette vidéo">
+                          <X size={14} />
+                        </button>
                       </div>
-                    </Field>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Field label="URL 1080p (ancien système — qualité fixe)">
-                        <Input value={c.filmUrls?.['1080p'] || ''} onChange={e => updateConfig('filmUrls', { ...c.filmUrls, '1080p': e.target.value })} placeholder="https://..." />
+                      <div className="text-[10.5px] text-stone-400 leading-relaxed">
+                        Dossier B2 : <code className="bg-stone-200/50 px-1 py-0.5 rounded">weddings/{codeSlug || 'code-client'}/{v.key}</code>
+                        {(v.hls || v.downloadUrl) ? ' · figé (fichiers déjà en ligne)' : ' · suit le titre tant que rien n\'est uploadé'}
+                      </div>
+
+                      {renderVideoUpload(v.key)}
+
+                      <Field label="URL HLS adaptative (remplie automatiquement après l'encodage)">
+                        <Input value={v.hls || ''} onChange={e => updateVideo(i, { hls: e.target.value })} placeholder="Se remplit toute seule — ou colle une URL master.m3u8" />
                       </Field>
-                      <Field label="URL 4K (ancien système — qualité fixe)">
-                        <Input value={c.filmUrls?.['4K'] || ''} onChange={e => updateConfig('filmUrls', { ...c.filmUrls, '4K': e.target.value })} placeholder="https://..." />
+                      <Field label="Lien de téléchargement (rempli automatiquement à l'upload)">
+                        <Input value={v.downloadUrl || ''} onChange={e => updateVideo(i, { downloadUrl: e.target.value })} placeholder="https://…" />
                       </Field>
+                      <Field label="Chapitres (un par ligne — ex. 2:30 Cérémonie)">
+                        <Textarea rows={4}
+                          value={chaptersToText(v.chapitres)}
+                          onChange={e => updateVideo(i, { chapitres: textToChapters(e.target.value) })}
+                          placeholder={"0:00 Ouverture\n2:30 Cérémonie"} />
+                      </Field>
+
+                      <details>
+                        <summary className="text-[11px] text-stone-500 cursor-pointer select-none">URLs à qualité fixe (ancien système)</summary>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                          <Field label="URL 1080p">
+                            <Input value={(v.urls || {})['1080p'] || ''} onChange={e => updateVideo(i, { urls: { ...(v.urls || {}), '1080p': e.target.value } })} placeholder="https://..." />
+                          </Field>
+                          <Field label="URL 4K">
+                            <Input value={(v.urls || {})['4K'] || ''} onChange={e => updateVideo(i, { urls: { ...(v.urls || {}), '4K': e.target.value } })} placeholder="https://..." />
+                          </Field>
+                        </div>
+                        <div className="text-[10.5px] text-stone-400 mt-1">Utilisées uniquement si l'URL HLS est vide (pas d'adaptation à la connexion).</div>
+                      </details>
                     </div>
-                    <Field label="Lien de téléchargement film">
-                      <Input value={c.filmDownloadUrl || ''} onChange={e => updateConfig('filmDownloadUrl', e.target.value)} placeholder="https://..." />
-                    </Field>
-                    <Field label="Chapitres du film (format YouTube — un par ligne, ex. 2:30 Cérémonie)">
-                      <Textarea
-                        rows={7}
-                        value={chaptersToText(c.filmChapitres)}
-                        onChange={e => updateConfig('filmChapitres', textToChapters(e.target.value))}
-                        placeholder={"0:00 Préparatifs\n2:30 Cérémonie\n8:00 Vin d'honneur\n14:20 Discours\n22:45 Première danse"}
-                      />
-                      <div className="text-[10px] text-stone-400 mt-1.5 leading-relaxed">
-                        Formats acceptés : <code className="font-mono">MM:SS</code> ou <code className="font-mono">HH:MM:SS</code>, suivis du titre. Une ligne vide ou invalide est ignorée. Tri auto par ordre chronologique.
-                      </div>
-                    </Field>
-                  </>
-                )}
+                  ))}
+                </div>
 
                 <Field label="Vidéo affichée par défaut">
-                  <Select value={c.defaultVideo || 'film'} onChange={e => updateConfig('defaultVideo', e.target.value)}>
-                    <option value="film">🎥 Film complet</option>
-                    <option value="teaser">🎬 Teaser</option>
+                  <Select value={c.defaultVideo || ''} onChange={e => updateConfig('defaultVideo', e.target.value)}>
+                    {videos.map((v, i) => <option key={i} value={v.key}>{v.title || v.key}</option>)}
                   </Select>
                 </Field>
 

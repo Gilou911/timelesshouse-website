@@ -131,27 +131,36 @@ brew install ffmpeg
    et **supprime les anciens encodages** du média.
    → La carte du média passe en « ✅ Lecture adaptative active ».
 
-### Films de mariage / pages vidéo (tous univers)
-Depuis l'admin, dans la page vidéo, chaque bloc **Teaser** et **Film** a un
-champ **« Fichier … — upload direct sur B2 »** :
-1. Choisis le fichier → il s'uploade sur B2 (`weddings/<code>/<teaser|film>/
-   original/`), le **lien de téléchargement** se remplit et la page est
-   sauvegardée. L'admin affiche alors une **commande d'encodage** avec
-   `--event-page` (bouton copier).
-2. Lance-la sur ton Mac :
+### Pages vidéo (tous univers : mariage, fiançailles, anniversaire…)
+La page vidéo contient une **liste de vidéos** : autant que tu veux, avec les
+**titres de ton choix** (Teaser, Film Complet, Same Day Edit, Save The Date…).
+Chaque vidéo devient un onglet dans le lecteur du client ; l'ordre de la liste
+= l'ordre des onglets.
+
+1. **Admin → page vidéo → « Ajouter une vidéo »**, donne-lui un titre.
+   Le dossier B2 se déduit du titre (`weddings/<code>/same-day-edit/`) et se
+   fige dès qu'un fichier est uploadé.
+2. **« Fichier vidéo — upload direct sur B2 »** : choisis le fichier → il part
+   sur B2, le **lien de téléchargement** se remplit, la page est sauvegardée,
+   et une **commande d'encodage** s'affiche (bouton copier).
+3. Lance-la sur ton Mac :
    ```bash
-   npm run encode -- --prefix weddings/<code>/film --input "/chemin/film.mp4" --event-page <id> --field filmHls
+   npm run encode -- --prefix weddings/<code>/<clé> --input "/chemin/video.mp4" --event-page <id> --video-key <clé>
    ```
-   Elle génère les qualités HLS **et réécrit l'URL HLS directement dans la
-   page** (`teaserHls`/`filmHls`) — plus aucun copier-coller. Recharge la
-   page dans l'admin pour voir le champ rempli.
-3. Alternative manuelle (sans passer par l'admin) :
+   Elle génère les qualités HLS **et réécrit l'URL HLS dans la bonne vidéo de
+   la liste** — aucun copier-coller. Recharge la page dans l'admin pour voir.
+4. **Vidéo affichée par défaut** : sélectionne-la en bas de la liste.
+5. Alternative manuelle (sans l'admin) :
    ```bash
    npm run encode -- --prefix weddings/<slug>/film --input "/chemin/film.mp4" --upload-original
    ```
-   puis coller l'URL HLS affichée dans « URL HLS adaptative ».
-4. Les anciens champs 1080p/4K restent fonctionnels — l'URL HLS est
-   prioritaire quand elle est renseignée.
+   puis coller l'URL HLS affichée dans le champ « URL HLS adaptative » de la vidéo.
+
+**Pages créées avant la liste** (Teaser/Film figés) : rien à faire. Le lecteur
+lit les deux formats, et l'admin les convertit automatiquement en liste à
+l'ouverture (titres « Teaser » / « Film Complet » conservés). Les anciennes
+URLs 1080p/4K restent utilisables (repliées sous « URLs à qualité fixe ») —
+l'URL HLS est prioritaire dès qu'elle est renseignée.
 
 ### Anciennes vidéos (Streamable, Cloudinary…)
 Rien ne casse : les liens existants continuent d'être lus (iframe/MP4).

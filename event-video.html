@@ -1272,6 +1272,16 @@
       });
     }
 
+    // URLs servies par notre stockage B2 (direct ou via media.timelesshouse.org).
+    // Ces fichiers portent un Content-Disposition: attachment → un simple clic
+    // les télécharge sur place, sans ouvrir d'onglet ni quitter la page.
+    function isB2DownloadUrl(url) {
+      try {
+        const h = new URL(url, window.location.href).hostname;
+        return h === 'media.timelesshouse.org' || h.endsWith('.backblazeb2.com');
+      } catch (e) { return false; }
+    }
+
     // ============================================
     // INJECTION DE LA CONFIGURATION DANS LA PAGE
     // ============================================
@@ -1340,8 +1350,11 @@
           const a = document.createElement('a');
           a.className = 'btn-download' + (v.key === c.defaultVideo ? ' primary' : '');
           a.href = v.downloadUrl;
-          a.target = '_blank';
           a.rel = 'noopener noreferrer';
+          // Fichiers B2 : Content-Disposition: attachment → téléchargement direct,
+          // aucun onglet ouvert. Pour toute autre URL (lien collé à la main), on
+          // garde l'ouverture en nouvel onglet, sinon on quitterait la page.
+          if (!isB2DownloadUrl(v.downloadUrl)) a.target = '_blank';
           const label = document.createElement('span');
           label.textContent = v.title;                 // textContent : titre libre, aucun risque d'injection
           const arrow = document.createElement('span');

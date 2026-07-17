@@ -97,6 +97,18 @@ function publicUrl(key: string): string {
   return PUBLIC_BASE ? `${PUBLIC_BASE}/${key}` : "";
 }
 
+// Les originaux (media/<id>/original/…, weddings/<code>/<clé>/original/…) sont
+// faits pour être TÉLÉCHARGÉS par le client : on leur pose un
+// Content-Disposition: attachment dès l'upload. Sans lui, le navigateur ouvre
+// la vidéo dans un onglet au lieu de l'enregistrer (et le portail devait
+// charger plusieurs Go en mémoire pour contourner ça).
+// Nom assaini côté serveur : jamais d'injection d'en-tête depuis le client.
+function dispositionFor(key: string): string | undefined {
+  if (!key.includes("/original/")) return undefined;
+  const name = (key.split("/").pop() || "fichier").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
+  return `attachment; filename="${name}"`;
+}
+
 // L'appelant doit être authentifié ET faire partie des emails admin.
 // Double barrière : même si les inscriptions publiques étaient ouvertes,
 // seul un email de la liste ADMIN_EMAILS peut signer un upload.
@@ -138,25 +150,32 @@ Deno.serve(async (req) => {
     switch (action) {
       // ── Upload simple (≤ ~4 Go) ──────────────────────────
       case "sign-put": {
+        const disposition = dispositionFor(key);
         const url = await getSignedUrl(
           s3,
           new PutObjectCommand({
             Bucket: B2_BUCKET,
             Key: key,
             ContentType: (body.contentType as string) || "application/octet-stream",
+            ...(disposition ? { ContentDisposition: disposition } : {}),
           }),
           { expiresIn: 3600 }
         );
-        return json(200, { url, key, publicUrl: publicUrl(key) });
+        // `disposition` est renvoyé : le navigateur DOIT envoyer cet en-tête à
+        // l'identique, sinon la signature ne correspond plus.
+        return json(200, { url, key, publicUrl: publicUrl(key), disposition });
       }
 
       // ── Multipart (gros fichiers, ex : films de mariage) ─
       case "mpu-create": {
+        // Content-Disposition posé ici : il est porté par l'upload multipart
+        // lui-même, les parts n'ont pas à le renvoyer.
         const res = await s3.send(
           new CreateMultipartUploadCommand({
             Bucket: B2_BUCKET,
             Key: key,
             ContentType: (body.contentType as string) || "application/octet-stream",
+            ...(dispositionFor(key) ? { ContentDisposition: dispositionFor(key) } : {}),
           })
         );
         return json(200, { uploadId: res.UploadId, key });

@@ -49,13 +49,16 @@
     }
 
     // PUT avec progression (fetch ne sait pas suivre l'upload → XHR)
-    function b2Put(url, body, contentType, onProgress) {
+    function b2Put(url, body, contentType, onProgress, disposition) {
       return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', url);
         // Le Content-Type doit correspondre EXACTEMENT à celui signé
         // (sign-put). Pour les parts multipart, rien n'a été signé → pas d'en-tête.
         if (contentType) xhr.setRequestHeader('Content-Type', contentType);
+        // Idem pour Content-Disposition : signé côté fonction pour les originaux,
+        // il doit être renvoyé tel quel sinon la signature est invalide.
+        if (disposition) xhr.setRequestHeader('Content-Disposition', disposition);
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
         };
@@ -77,10 +80,10 @@
     // Réessaie un PUT : sur un film de plusieurs Go découpé en dizaines de
     // morceaux, une coupure passagère est probable — sans reprise, tout l'upload
     // repartirait de zéro.
-    async function b2PutRetry(url, body, contentType, onProgress, tries = 3) {
+    async function b2PutRetry(url, body, contentType, onProgress, disposition, tries = 3) {
       let lastErr;
       for (let i = 1; i <= tries; i++) {
-        try { return await b2Put(url, body, contentType, onProgress); }
+        try { return await b2Put(url, body, contentType, onProgress, disposition); }
         catch (e) {
           lastErr = e;
           if (i < tries) await new Promise(r => setTimeout(r, 1500 * i));
@@ -94,8 +97,8 @@
       const contentType = file.type || 'application/octet-stream';
 
       if (file.size <= B2_MPU_THRESHOLD) {
-        const { url, publicUrl } = await b2Sign({ action: 'sign-put', key, contentType });
-        await b2PutRetry(url, file, contentType, onProgress);
+        const { url, publicUrl, disposition } = await b2Sign({ action: 'sign-put', key, contentType });
+        await b2PutRetry(url, file, contentType, onProgress, disposition);
         return publicUrl;
       }
 

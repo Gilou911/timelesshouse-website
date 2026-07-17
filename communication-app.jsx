@@ -372,13 +372,25 @@ const isIOS = () =>
 const isMobile = () => /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 /**
- * Détecte si l'URL est sur un CDN qu'on sait forcer à servir un
- * Content-Disposition: attachment côté serveur.
- * Note : Backblaze est désormais géré directement via les métadonnées du fichier.
+ * URLs servies par notre stockage B2 (directement ou via media.timelesshouse.org).
+ * Ces fichiers portent un Content-Disposition: attachment posé à l'upload :
+ * le navigateur les télécharge nativement.
+ */
+function isB2Url(url) {
+  if (!url) return false;
+  try {
+    const h = new URL(url).hostname;
+    return h === 'media.timelesshouse.org' || h.endsWith('.backblazeb2.com');
+  } catch (e) { return false; }
+}
+
+/**
+ * Détecte si l'URL est sur un stockage qu'on sait servir un
+ * Content-Disposition: attachment (téléchargement forcé sans intervention).
  */
 function isForceDownloadCDN(url) {
   if (!url) return false;
-  return url.includes('res.cloudinary.com');
+  return url.includes('res.cloudinary.com') || isB2Url(url);
 }
 
 /**
@@ -437,13 +449,27 @@ async function smartDownload(url, filename, type) {
   // et les forcer à lire la métadonnée Content-Disposition de Backblaze
   const noCacheUrl = url + (url.includes('?') ? '&' : '?') + 'nocache=' + Date.now();
 
-  // 2) iOS hors CDN reconnu : ouverture directe
+  // 2) Stockage B2 : le fichier porte déjà Content-Disposition: attachment
+  //    → navigation directe, le navigateur télécharge lui-même.
+  //    ⚠️ Ne PAS passer par fetch + blob ici : cela chargerait tout le fichier
+  //    en mémoire (nos originaux font 400 Mo à 5 Go) — ça échouait, et le repli
+  //    se contentait d'ouvrir la vidéo dans un onglet au lieu de la télécharger.
+  //    Bonus : marche aussi sur iOS, et le navigateur gère progression + reprise.
+  if (isB2Url(url)) {
+    const a = document.createElement('a');
+    a.href = noCacheUrl;
+    a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    return true;
+  }
+
+  // 3) iOS hors CDN reconnu : ouverture directe
   if (isIOS()) {
     window.location.href = noCacheUrl;
     return true;
   }
 
-  // 3) Desktop / Android : fetch + blob (technique éprouvée)
+  // 4) Desktop / Android : fetch + blob (technique éprouvée)
   try {
     const r = await fetch(noCacheUrl, { mode: 'cors' });
     if (!r.ok) throw new Error(r.status);

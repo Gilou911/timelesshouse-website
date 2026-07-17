@@ -67,8 +67,27 @@
       });
     }
 
-    const B2_MPU_THRESHOLD = 4 * 1024 * 1024 * 1024; // au-delà : multipart
-    const B2_MPU_PART_SIZE = 200 * 1024 * 1024;      // 200 Mo par part
+    // Au-delà de ce seuil → upload multipart (découpé en morceaux).
+    // Seuil volontairement bas : un PUT unique de plusieurs Go n'a aucune reprise
+    // possible (une micro-coupure = tout est perdu), alors qu'un morceau raté se
+    // réessaie seul. Cap S3 du PUT unique : 5 Go — inatteignable ici.
+    const B2_MPU_THRESHOLD = 100 * 1024 * 1024;      // 100 Mo
+    const B2_MPU_PART_SIZE = 100 * 1024 * 1024;      // 100 Mo par morceau
+
+    // Réessaie un PUT : sur un film de plusieurs Go découpé en dizaines de
+    // morceaux, une coupure passagère est probable — sans reprise, tout l'upload
+    // repartirait de zéro.
+    async function b2PutRetry(url, body, contentType, onProgress, tries = 3) {
+      let lastErr;
+      for (let i = 1; i <= tries; i++) {
+        try { return await b2Put(url, body, contentType, onProgress); }
+        catch (e) {
+          lastErr = e;
+          if (i < tries) await new Promise(r => setTimeout(r, 1500 * i));
+        }
+      }
+      throw lastErr;
+    }
 
     // Uploade un fichier vers B2 et renvoie son URL publique.
     async function b2UploadFile(file, key, onProgress) {
@@ -76,7 +95,7 @@
 
       if (file.size <= B2_MPU_THRESHOLD) {
         const { url, publicUrl } = await b2Sign({ action: 'sign-put', key, contentType });
-        await b2Put(url, file, contentType, onProgress);
+        await b2PutRetry(url, file, contentType, onProgress);
         return publicUrl;
       }
 
@@ -92,7 +111,7 @@
           const { urls } = await b2Sign({ action: 'mpu-sign-parts', key, uploadId, partNumbers: batch });
           for (const n of batch) {
             const blob = file.slice((n - 1) * B2_MPU_PART_SIZE, Math.min(n * B2_MPU_PART_SIZE, file.size));
-            const xhr = await b2Put(urls[n], blob, null, (p) => {
+            const xhr = await b2PutRetry(urls[n], blob, null, (p) => {
               if (onProgress) onProgress((uploadedBytes + p * blob.size) / file.size);
             });
             uploadedBytes += blob.size;

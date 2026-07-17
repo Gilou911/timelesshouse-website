@@ -186,18 +186,30 @@ Deno.serve(async (req) => {
         if (!uploadId || !Array.isArray(parts) || parts.length === 0) {
           return json(400, { error: "uploadId / parts manquants" });
         }
-        await s3.send(
-          new CompleteMultipartUploadCommand({
-            Bucket: B2_BUCKET,
-            Key: key,
-            UploadId: uploadId,
-            MultipartUpload: {
-              Parts: parts
-                .map((p) => ({ PartNumber: Number(p.PartNumber), ETag: String(p.ETag) }))
-                .sort((a, b) => a.PartNumber - b.PartNumber),
-            },
-          })
+        const sorted = parts
+          .map((p) => ({ PartNumber: Number(p.PartNumber), ETag: String(p.ETag).replace(/"/g, "") }))
+          .sort((a, b) => a.PartNumber - b.PartNumber);
+
+        // ⚠️ Ne PAS utiliser s3.send() ici : CompleteMultipartUpload envoie un
+        // corps XML, et le SDK AWS se bloque dessus dans le runtime Edge (la
+        // fonction meurt sur IDLE_TIMEOUT 150s → tout upload > seuil échouait).
+        // On signe l'URL (pas de réseau) puis on POST le XML via fetch natif.
+        const url = await getSignedUrl(
+          s3,
+          new CompleteMultipartUploadCommand({ Bucket: B2_BUCKET, Key: key, UploadId: uploadId }),
+          { expiresIn: 900 }
         );
+        const xml =
+          "<CompleteMultipartUpload>" +
+          sorted.map((p) => `<Part><PartNumber>${p.PartNumber}</PartNumber><ETag>&quot;${p.ETag}&quot;</ETag></Part>`).join("") +
+          "</CompleteMultipartUpload>";
+        const res = await fetch(url, { method: "POST", body: xml, headers: { "Content-Type": "application/xml" } });
+        const text = await res.text();
+        // S3 peut répondre 200 avec une <Error> dans le corps : on vérifie les deux.
+        if (!res.ok || text.includes("<Error>")) {
+          console.error("[b2-sign] mpu-complete échec:", res.status, text.slice(0, 300));
+          return json(502, { error: `Finalisation B2 échouée (${res.status})`, detail: text.slice(0, 200) });
+        }
         return json(200, { key, publicUrl: publicUrl(key) });
       }
 

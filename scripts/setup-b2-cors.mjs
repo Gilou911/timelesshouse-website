@@ -17,11 +17,21 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 dotenv.config({ path: ".env" });
 
+// ⚠️ b2_update_bucket REMPLACE les règles : la liste par défaut doit contenir
+// TOUTES les origines de prod, sinon un simple `npm run b2-cors` les efface.
+const DEFAULT_ORIGINS = [
+  "https://timelesshouse.org",
+  "https://www.timelesshouse.org",
+  "https://timelesshouse-website.pages.dev",              // URL Cloudflare Pages
+  "https://*.timelesshouse-website.pages.dev",            // déploiements de preview
+  "http://localhost:5173",                               // vite dev
+  "http://localhost:4173",                               // vite preview
+];
+
 const origins = process.argv.slice(2);
 if (origins.length === 0) {
-  origins.push("http://localhost:5173", "http://localhost:4173"); // vite dev + vite preview
-  console.log("ℹ Aucune origine fournie — configuration localhost uniquement.");
-  console.log("  Pour la prod : node scripts/setup-b2-cors.mjs https://timelesshouse.org …\n");
+  origins.push(...DEFAULT_ORIGINS);
+  console.log("ℹ Aucune origine fournie — application de la liste par défaut (prod + previews + localhost).\n");
 }
 
 const s3 = new S3Client({

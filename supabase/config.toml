@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.cloudinary-sign]
 verify_jwt = false
+
+[functions.social-oauth]
+verify_jwt = false
+
+[functions.sync-social]
+verify_jwt = false

@@ -2435,6 +2435,14 @@ const AnalyticsHeader = ({ accounts, platform, setPlatform, timeRange, setTimeRa
             </span>
           </Pill>
         ))}
+        {/* Connecter la plateforme manquante (Instagram/TikTok) */}
+        {['instagram', 'tiktok'].filter(p => !accounts.some(a => a.platform === p)).map(p => (
+          <a key={p}
+             href={`${SUPABASE_URL}/functions/v1/social-oauth/start/${p}?code=${encodeURIComponent(CLIENT.code || '')}`}
+             className="px-3 py-1.5 text-[11.5px] text-stone-400 hover:text-stone-800 whitespace-nowrap transition">
+            + {platformLabel(p)}
+          </a>
+        ))}
       </div>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5 px-3 py-2 rounded-full" style={neu.raisedXs}>
@@ -2992,18 +3000,14 @@ const AudienceTab = ({ accounts, posts }) => {
    ONBOARDING — aucun compte connecté
    ──────────────────────────────────────────────────────────── */
 const NoAccountsConnected = () => {
-  // Construction des URLs OAuth via les variables Vite déjà disponibles
-  // dans communication-app.jsx (SUPABASE_URL / SUPABASE_ANON_KEY).
-  // À implémenter quand les Edge Functions oauth-instagram / oauth-tiktok
-  // seront déployées (voir guide d'installation, phase suivante).
-  const connectInstagram = () => {
-    const url = `${SUPABASE_URL}/functions/v1/oauth-instagram?client_id=${D.id}`;
-    window.open(url, 'oauth-ig', 'width=600,height=700');
-  };
-  const connectTiktok = () => {
-    const url = `${SUPABASE_URL}/functions/v1/oauth-tiktok?client_id=${D.id}`;
-    window.open(url, 'oauth-tt', 'width=600,height=700');
-  };
+  // Redirection plein écran vers l'Edge Function social-oauth (start/<plateforme>),
+  // qui envoie vers Meta / TikTok puis revient sur le portail. Le code d'accès
+  // du client identifie qui connecte son compte.
+  const oauthStart = (platform) =>
+    `${SUPABASE_URL}/functions/v1/social-oauth/start/${platform}?code=${encodeURIComponent(CLIENT.code || '')}`;
+  // Affiche la raison si le retour OAuth est en erreur (?social=error&reason=…)
+  const qs = new URLSearchParams(window.location.search);
+  const oauthError = qs.get('social') === 'error' ? (qs.get('reason') || 'erreur inconnue') : null;
 
   return (
     <div style={neu.raised} className="rounded-[28px] p-10 text-center">
@@ -3012,20 +3016,30 @@ const NoAccountsConnected = () => {
       </div>
       <h3 className="text-[28px] tracking-tight" style={SERIF}>Connectez vos réseaux</h3>
       <p className="text-[13.5px] text-stone-500 mt-3 max-w-md mx-auto leading-relaxed">
-        Reliez vos comptes Instagram et TikTok pour activer le suivi temps réel :
-        posts, campagnes, ROAS, audience. Vos données restent privées et chiffrées.
+        Reliez vos comptes Instagram et TikTok pour activer le suivi :
+        posts, engagement, audience — mis à jour automatiquement toutes les 6 heures.
+        Vos données restent privées et vos accès chiffrés.
       </p>
+      {oauthError && (
+        <div className="mt-5 mx-auto max-w-md text-[12px] rounded-xl px-4 py-3"
+             style={{ background: 'rgba(225,29,72,0.08)', border: '1px solid rgba(225,29,72,0.25)', color: '#9f1239' }}>
+          La connexion a échoué : {oauthError}. Réessayez, ou contactez l'agence.
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row gap-3 justify-center mt-7">
-        <button onClick={connectInstagram} style={neu.dark}
-                className="text-white px-6 py-3.5 rounded-2xl text-[13px] font-semibold inline-flex items-center gap-2.5 justify-center">
+        <a href={oauthStart('instagram')} style={neu.dark}
+           className="text-white px-6 py-3.5 rounded-2xl text-[13px] font-semibold inline-flex items-center gap-2.5 justify-center">
           <Instagram size={16} /> Connecter Instagram
-        </button>
-        <button onClick={connectTiktok} style={neu.raisedSm}
-                className="px-6 py-3.5 rounded-2xl text-[13px] font-semibold inline-flex items-center gap-2.5 justify-center">
+        </a>
+        <a href={oauthStart('tiktok')} style={neu.raisedSm}
+           className="px-6 py-3.5 rounded-2xl text-[13px] font-semibold inline-flex items-center gap-2.5 justify-center">
           <Sparkles size={16} /> Connecter TikTok
-        </button>
+        </a>
       </div>
-      <p className="text-[11px] text-stone-400 mt-5">L'agence vous accompagnera lors de la première connexion.</p>
+      <p className="text-[11px] text-stone-400 mt-4 max-w-md mx-auto leading-relaxed">
+        Instagram : compte professionnel ou créateur requis.
+        L'agence vous accompagne lors de la première connexion.
+      </p>
     </div>
   );
 };

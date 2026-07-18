@@ -1,50 +1,343 @@
-<!doctype html>
-<html lang="fr">
+<!DOCTYPE html>
+<html lang="fr" data-theme="noir">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0a" />
   <!-- Galeries privées : jamais indexées. -->
-  <meta name="robots" content="noindex, nofollow">
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="description" content="Ta galerie photobooth — Timeless House" />
   <title>Ta galerie photobooth — Timeless House</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500&display=swap"
+    rel="stylesheet"
+  />
+
   <style>
-    :root{
-      --bg:#101012; --card:#1a1a1e; --line:#2a2a30; --text:#eee9df;
-      --muted:#9a958a; --accent:#c9a355; --accent-ink:#151109;
+    /* ── Palettes : parité exacte avec event-photos-cinematic ── */
+    :root {
+      --bg: #0a0a0a; --bg-deep: #050505; --bg-elev: #111110;
+      --ink: #f4f0eb; --ink-soft: #a39c8f; --ink-dim: #5a554b;
+      --accent: #b08968; --accent-dk: #97714f; --accent-gl: rgba(176,137,104,0.14);
+      --line: rgba(244,240,235,0.10); --line-soft: rgba(244,240,235,0.06);
+      --gap: 10px;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --shadow: 0 30px 90px rgba(0,0,0,0.7);
     }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);
-         font:16px/1.55 -apple-system,"Segoe UI",Roboto,sans-serif;
-         min-height:100vh}
-    .wrap{max-width:1040px;margin:0 auto;padding:34px 16px 80px}
-    h1{font-family:Georgia,"Times New Roman",serif;font-weight:600;
-       letter-spacing:.3px;margin:.15em 0 .35em;font-size:32px}
-    .kicker{text-transform:uppercase;letter-spacing:.28em;font-size:12px;
-            color:var(--accent);margin:0}
-    .lead{color:var(--muted);margin-top:0}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
-          padding:26px;text-align:center}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));
-          gap:12px;margin-top:20px}
-    .grid figure{margin:0;background:var(--card);border:1px solid var(--line);
-          border-radius:10px;overflow:hidden}
-    .grid img{width:100%;display:block;aspect-ratio:1;object-fit:cover;
-          background:#0d0d0f}
-    .grid .dl{display:block;text-align:center;padding:9px;font-size:13px;
-          color:var(--accent);text-decoration:none}
-    .grid .dl:hover{background:#202024}
-    .spin{width:34px;height:34px;border:3px solid var(--line);
-          border-top-color:var(--accent);border-radius:50%;
-          animation:s .8s linear infinite;margin:26px auto}
-    @keyframes s{to{transform:rotate(360deg)}}
-    footer{margin-top:44px;text-align:center;font-size:12.5px;color:var(--muted)}
-    footer a{color:var(--accent);text-decoration:none}
+    [data-theme="creme"] {
+      --bg:#f3eee7; --bg-deep:#ece5db; --bg-elev:#e7e0d6;
+      --ink:#1a1714; --ink-soft:#6b6560; --ink-dim:#a39d95;
+      --accent:#8b6a48; --accent-dk:#74552f; --accent-gl:rgba(139,106,72,0.12);
+      --line:rgba(26,23,20,0.10); --line-soft:rgba(26,23,20,0.06);
+      --shadow:0 30px 90px rgba(0,0,0,0.18);
+    }
+    [data-theme="ardoise"] {
+      --bg:#13161c; --bg-deep:#0d1014; --bg-elev:#1a1e26;
+      --ink:#e8eaef; --ink-soft:#828a98; --ink-dim:#4a505a;
+      --accent:#7fa0bd; --accent-dk:#6585a0; --accent-gl:rgba(127,160,189,0.15);
+      --line:rgba(232,234,239,0.09); --line-soft:rgba(232,234,239,0.05);
+    }
+    [data-theme="fumee"] {
+      --bg:#1a1714; --bg-deep:#131110; --bg-elev:#221e1a;
+      --ink:#ece5da; --ink-soft:#9c9286; --ink-dim:#5d5549;
+      --accent:#b1916f; --accent-dk:#957653; --accent-gl:rgba(177,145,111,0.13);
+      --line:rgba(236,229,218,0.09); --line-soft:rgba(236,229,218,0.05);
+    }
+    [data-theme="encre"] {
+      --bg:#0d0f14; --bg-deep:#090a0e; --bg-elev:#161922;
+      --ink:#e6e8ee; --ink-soft:#8b909e; --ink-dim:#4d525e;
+      --accent:#8a93a6; --accent-dk:#6f7889; --accent-gl:rgba(138,147,166,0.14);
+      --line:rgba(230,232,238,0.09); --line-soft:rgba(230,232,238,0.05);
+    }
+    [data-theme="sapin"] {
+      --bg:#0c0f0d; --bg-deep:#080a09; --bg-elev:#141813;
+      --ink:#e7ebe4; --ink-soft:#8a9387; --ink-dim:#4e564b;
+      --accent:#8a9c84; --accent-dk:#6f8169; --accent-gl:rgba(138,156,132,0.13);
+      --line:rgba(231,235,228,0.08); --line-soft:rgba(231,235,228,0.05);
+    }
+    [data-theme="lin"] {
+      --bg:#f1ece3; --bg-deep:#e9e2d6; --bg-elev:#e5ddcf;
+      --ink:#2b2620; --ink-soft:#7a7164; --ink-dim:#a89e8d;
+      --accent:#8a7458; --accent-dk:#6f5b41; --accent-gl:rgba(138,116,88,0.12);
+      --line:rgba(43,38,32,0.10); --line-soft:rgba(43,38,32,0.05);
+      --shadow:0 30px 90px rgba(0,0,0,0.16);
+    }
+    [data-theme="sauge"] {
+      --bg:#e8ebe4; --bg-deep:#dfe3d9; --bg-elev:#dbe0d3;
+      --ink:#242821; --ink-soft:#6f766a; --ink-dim:#9aa090;
+      --accent:#6e7d63; --accent-dk:#58654f; --accent-gl:rgba(110,125,99,0.12);
+      --line:rgba(36,40,33,0.10); --line-soft:rgba(36,40,33,0.05);
+      --shadow:0 30px 90px rgba(0,0,0,0.14);
+    }
+    [data-theme="brume"] {
+      --bg:#e9ebee; --bg-deep:#e0e3e7; --bg-elev:#dde0e5;
+      --ink:#21252b; --ink-soft:#6c7480; --ink-dim:#97a0ac;
+      --accent:#6b7785; --accent-dk:#56616e; --accent-gl:rgba(107,119,133,0.12);
+      --line:rgba(33,37,43,0.10); --line-soft:rgba(33,37,43,0.05);
+      --shadow:0 30px 90px rgba(0,0,0,0.14);
+    }
+    [data-theme="bordeaux"] {
+      --bg:#45100f; --bg-deep:#2c0a0a; --bg-elev:#531818;
+      --ink:#f3e7e0; --ink-soft:#b89a90; --ink-dim:#7a5953;
+      --accent:#d2b48c; --accent-dk:#b2916a; --accent-gl:rgba(210,180,140,0.16);
+      --line:rgba(243,231,224,0.10); --line-soft:rgba(243,231,224,0.05);
+    }
+    [data-theme="acajou"] {
+      --bg:#2a1812; --bg-deep:#1a0f0b; --bg-elev:#3a241b;
+      --ink:#efe4d9; --ink-soft:#b59a88; --ink-dim:#745b4b;
+      --accent:#c98a5e; --accent-dk:#a96f47; --accent-gl:rgba(201,138,94,0.15);
+      --line:rgba(239,228,217,0.09); --line-soft:rgba(239,228,217,0.05);
+    }
+    [data-theme="foret"] {
+      --bg:#0e2118; --bg-deep:#07140e; --bg-elev:#173025;
+      --ink:#e7efe7; --ink-soft:#8fa596; --ink-dim:#4f6356;
+      --accent:#c2a878; --accent-dk:#a48a5b; --accent-gl:rgba(194,168,120,0.15);
+      --line:rgba(231,239,231,0.08); --line-soft:rgba(231,239,231,0.05);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: "Jost", sans-serif; font-weight: 300;
+      background: var(--bg); color: var(--ink);
+      overflow-x: hidden; -webkit-font-smoothing: antialiased;
+    }
+    body.no-scroll { overflow: hidden; }
+    ::selection { background: var(--accent); color: var(--bg); }
+    :focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+    img { -webkit-user-drag: none; user-select: none; }
+    button { font-family: inherit; }
+
+    /* Grain cinéma */
+    .grain {
+      position: fixed; inset: 0; pointer-events: none; z-index: 3;
+      opacity: 0.035; mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    }
+
+    /* ── Loader ── */
+    .boot {
+      position: fixed; inset: 0; z-index: 9999; background: var(--bg-deep);
+      display: flex; align-items: center; justify-content: center; flex-direction: column;
+      transition: opacity 1s var(--ease), visibility 1s var(--ease);
+    }
+    .boot.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+    .boot-mark {
+      font-family: "Cormorant Garamond", serif; font-style: italic;
+      font-size: 1.7rem; color: var(--accent); letter-spacing: 0.06em;
+      opacity: 0; animation: bootIn 1.1s var(--ease) 0.15s forwards;
+    }
+    .boot-mark span { color: var(--ink-dim); }
+    .boot-line {
+      width: 1px; height: 0; background: var(--accent); margin: 22px auto 0;
+      animation: bootLine 1.5s var(--ease) 0.5s forwards;
+    }
+    @keyframes bootIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform:none; } }
+    @keyframes bootLine { to { height: 54px; } }
+
+    /* ── Héro ── */
+    .cover {
+      position: relative; height: 92svh; min-height: 520px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      overflow: hidden; text-align: center;
+    }
+    .cover-bg {
+      position: absolute; inset: -4%;
+      background-size: cover; background-position: center;
+      transform: scale(1.06);
+      animation: kenburns 26s ease-out infinite alternate;
+      filter: brightness(0.5) saturate(1.05);
+    }
+    .is-light .cover-bg { filter: brightness(0.62) saturate(1.02); }
+    @keyframes kenburns {
+      from { transform: scale(1.06) translate(0,0); }
+      to   { transform: scale(1.16) translate(-1.5%, -2%); }
+    }
+    .cover::after {
+      content: ""; position: absolute; inset: 0; z-index: 1;
+      background:
+        radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.45) 100%),
+        linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 25%, transparent 60%, rgba(0,0,0,0.55) 100%);
+    }
+    .cover.no-photo { height: 72svh; }
+    .cover.no-photo .cover-bg, .cover.no-photo::after { display: none; }
+    .cover.no-photo .cover-inner { color: var(--ink); }
+    .cover.no-photo h1 { text-shadow: none; }
+    .cover.no-photo .cover-photog, .cover.no-photo .cover-meta { color: var(--ink-soft); }
+
+    .cover-inner { position: relative; z-index: 2; padding: 0 24px; color: #fff; }
+    .cover-photog {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.42em;
+      color: rgba(255,255,255,0.7); margin-bottom: 30px; display: inline-block;
+      opacity: 0; animation: rise 1.3s var(--ease) 0.5s forwards;
+    }
+    .cover h1 {
+      font-family: "Cormorant Garamond", serif; font-weight: 300; font-style: italic;
+      font-size: clamp(2.8rem, 10vw, 7.5rem); line-height: 0.98;
+      text-shadow: 0 4px 40px rgba(0,0,0,0.4);
+      opacity: 0; animation: rise 1.5s var(--ease) 0.8s forwards;
+    }
+    .cover-meta {
+      margin-top: 26px; font-size: 10.5px; text-transform: uppercase;
+      letter-spacing: 0.4em; color: rgba(255,255,255,0.82);
+      display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap;
+      opacity: 0; animation: rise 1.3s var(--ease) 1.1s forwards;
+    }
+    .cover-meta i { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+    @keyframes rise { from { opacity:0; transform: translateY(26px); } to { opacity:1; transform:none; } }
+
+    .cover-scroll {
+      position: absolute; bottom: 30px; left: 0; right: 0; z-index: 2;
+      background: none; border: none; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      color: rgba(255,255,255,0.75);
+      font-size: 9px; text-transform: uppercase; letter-spacing: 0.34em;
+      opacity: 0; animation: rise 1.2s var(--ease) 1.5s forwards;
+    }
+    .cover.no-photo .cover-scroll { display: none; }
+    .cover-scroll span:not(.ln) { margin-left: 0.34em; }
+    .cover-scroll .ln { width: 1px; height: 44px; background: rgba(255,255,255,0.4); position: relative; overflow: hidden; }
+    .cover-scroll .ln::after {
+      content: ""; position: absolute; left: 0; top: -60%; width: 100%; height: 60%;
+      background: #fff; animation: scrollPulse 2.2s var(--ease) infinite;
+    }
+    @keyframes scrollPulse { 0%{ top:-60%; } 60%,100%{ top:120%; } }
+
+    /* ── Galerie ── */
+    .gallery { padding: clamp(40px, 7vh, 90px) clamp(14px, 3.5vw, 44px) 40px; max-width: 1560px; margin: 0 auto; }
+    .gallery-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap; margin-bottom: clamp(20px, 3.5vh, 40px);
+      padding-bottom: 16px; border-bottom: 1px solid var(--line-soft);
+    }
+    .gallery-title {
+      font-family: "Cormorant Garamond", serif; font-style: italic; font-weight: 300;
+      font-size: clamp(1.5rem, 3.4vw, 2.2rem); color: var(--ink);
+    }
+    .gallery-note { font-size: 10px; text-transform: uppercase; letter-spacing: 0.28em; color: var(--ink-dim); }
+
+    .grid-masonry { columns: 4 300px; column-gap: var(--gap); }
+    .grid-masonry .ph { margin-bottom: var(--gap); break-inside: avoid; }
+    .grid-masonry .ph img { width: 100%; display: block; }
+
+    .grid-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(46vw, 280px), 1fr)); gap: var(--gap); }
+    .grid-grille .ph { aspect-ratio: 1; }
+    .grid-grille .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .ph {
+      position: relative; overflow: hidden; cursor: zoom-in;
+      background: var(--bg-elev); box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+    }
+    .ph img { transition: transform 1.1s var(--ease), opacity 0.8s var(--ease); opacity: 0; }
+    .ph img.on { opacity: 1; }
+    .ph:hover img { transform: scale(1.035); }
+    .ph .dl {
+      position: absolute; right: 10px; bottom: 10px; z-index: 2;
+      width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.45); color: #fff; text-decoration: none;
+      font-size: 15px; backdrop-filter: blur(6px);
+      opacity: 0.85; transition: background 0.3s, opacity 0.3s;
+    }
+    .ph .dl:hover { background: var(--accent); color: var(--bg); }
+
+    /* ── Lightbox ── */
+    .lb {
+      position: fixed; inset: 0; z-index: 90; background: rgba(5,5,5,0.94);
+      display: none; align-items: center; justify-content: center;
+      backdrop-filter: blur(10px);
+    }
+    .lb.open { display: flex; }
+    .lb img {
+      max-width: min(94vw, 1500px); max-height: 84vh; object-fit: contain;
+      box-shadow: var(--shadow);
+    }
+    .lb-btn {
+      position: absolute; z-index: 2; background: none; border: 1px solid rgba(255,255,255,0.22);
+      color: #fff; width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; font-size: 17px;
+      transition: border-color 0.3s, background 0.3s;
+    }
+    .lb-btn:hover { border-color: var(--accent); background: var(--accent-gl); }
+    .lb-close { top: 20px; right: 20px; }
+    .lb-prev { left: 16px; top: 50%; transform: translateY(-50%); }
+    .lb-next { right: 16px; top: 50%; transform: translateY(-50%); }
+    .lb-bar {
+      position: absolute; bottom: 22px; left: 0; right: 0;
+      display: flex; align-items: center; justify-content: center; gap: 22px;
+      color: rgba(255,255,255,0.8); font-size: 10.5px;
+      text-transform: uppercase; letter-spacing: 0.3em;
+    }
+    .lb-bar a {
+      color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,0.25);
+      padding: 10px 22px; letter-spacing: 0.24em; font-size: 10px;
+      transition: border-color 0.3s, color 0.3s, background 0.3s;
+    }
+    .lb-bar a:hover { border-color: var(--accent); background: var(--accent-gl); color: #fff; }
+    @media (max-width: 640px) {
+      .lb-prev, .lb-next { display: none; }
+      .lb img { max-height: 76vh; }
+    }
+
+    /* ── États vides / erreurs ── */
+    .state {
+      min-height: 100svh; display: flex; align-items: center; justify-content: center;
+      padding: 24px; text-align: center;
+    }
+    .state-box { max-width: 460px; }
+    .state-mark {
+      font-family: "Cormorant Garamond", serif; font-style: italic;
+      font-size: clamp(2rem, 6vw, 3rem); color: var(--accent); letter-spacing: 0.02em;
+    }
+    .state-mark span { color: var(--ink-dim); }
+    .state-sep { width: 40px; height: 1px; background: var(--accent); opacity: 0.4; margin: 20px auto; }
+    .state-kicker { font-size: 11px; letter-spacing: 0.25em; color: var(--ink-dim); text-transform: uppercase; margin-bottom: 16px; }
+    .state-title {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(1.4rem, 4vw, 1.9rem); color: var(--ink); margin-bottom: 16px; line-height: 1.3;
+    }
+    .state p { font-size: 13px; color: var(--ink-soft); line-height: 1.7; margin-bottom: 28px; }
+    .state a {
+      display: inline-block; padding: 12px 28px; border: 1px solid var(--line);
+      color: var(--accent); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+      text-decoration: none; transition: border-color 0.2s;
+    }
+    .state a:hover { border-color: var(--accent); }
+
+    footer.site {
+      padding: 40px 20px 56px; text-align: center;
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.3em; color: var(--ink-dim);
+    }
+    footer.site a { color: var(--accent); text-decoration: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+      .boot { display: none; }
+      .cover-photog, .cover h1, .cover-meta, .cover-scroll, .ph img { opacity: 1 !important; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <p class="kicker">Photobooth</p>
-    <div id="app"><div class="spin" role="status" aria-label="Chargement"></div></div>
-    <footer>Photos et souvenirs par <a href="https://timelesshouse.org">Timeless House</a></footer>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="boot" id="boot" aria-hidden="true">
+    <div class="boot-mark">TimelessHouse<span>.</span></div>
+    <div class="boot-line"></div>
+  </div>
+
+  <div id="app"></div>
+
+  <div class="lb" id="lb" role="dialog" aria-label="Photo en grand">
+    <button class="lb-btn lb-close" id="lb-close" aria-label="Fermer">✕</button>
+    <button class="lb-btn lb-prev" id="lb-prev" aria-label="Précédente">←</button>
+    <button class="lb-btn lb-next" id="lb-next" aria-label="Suivante">→</button>
+    <img id="lb-img" alt="Photo">
+    <div class="lb-bar">
+      <span id="lb-count"></span>
+      <a id="lb-dl" href="#">Télécharger</a>
+    </div>
   </div>
 
   <script type="module">
@@ -55,53 +348,190 @@
       import.meta.env.VITE_SUPABASE_ANON_KEY
     );
 
-    const app = document.getElementById('app');
+    const app   = document.getElementById('app');
+    const boot  = document.getElementById('boot');
     const token = new URLSearchParams(location.search).get('g');
+
+    const LIGHT_THEMES = new Set(['creme', 'lin', 'sauge', 'brume']);
+    const KNOWN_THEMES = new Set(['noir','creme','ardoise','fumee','encre','sapin',
+                                  'lin','sauge','brume','bordeaux','acajou','foret']);
 
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
       (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-    function message(title, body) {
-      app.innerHTML = `<h1>${esc(title)}</h1>
-        <div class="card"><p class="lead" style="margin:6px 0">${esc(body)}</p></div>`;
+    function applyTheme(cfg) {
+      const theme = KNOWN_THEMES.has(cfg.theme) ? cfg.theme : 'noir';
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.classList.toggle('is-light', LIGHT_THEMES.has(theme));
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta && bg) meta.setAttribute('content', bg);
     }
+
+    function stateScreen(kicker, title, body) {
+      boot.classList.add('gone');
+      app.innerHTML = `
+        <div class="state"><div class="state-box">
+          <div class="state-mark">TimelessHouse<span>.</span></div>
+          <div class="state-sep"></div>
+          <div class="state-kicker">${esc(kicker)}</div>
+          <div class="state-title">${esc(title)}</div>
+          <p>${esc(body)}</p>
+          <a href="mailto:service@timelesshouse.org">Contacter Timeless House</a>
+        </div></div>`;
+    }
+
+    /* ── Lightbox ── */
+    const lb = document.getElementById('lb');
+    const lbImg = document.getElementById('lb-img');
+    const lbCount = document.getElementById('lb-count');
+    const lbDl = document.getElementById('lb-dl');
+    let FLAT = [];
+    let lbIndex = -1;
+
+    function lbShow(i) {
+      if (!FLAT.length) return;
+      lbIndex = (i + FLAT.length) % FLAT.length;
+      const photo = FLAT[lbIndex];
+      lbImg.src = photo.url;
+      lbDl.href = photo.url;
+      lbCount.textContent = (lbIndex + 1) + ' / ' + FLAT.length;
+      lb.classList.add('open');
+      document.body.classList.add('no-scroll');
+    }
+    function lbClose() {
+      lb.classList.remove('open');
+      document.body.classList.remove('no-scroll');
+      lbIndex = -1;
+    }
+    document.getElementById('lb-close').addEventListener('click', lbClose);
+    document.getElementById('lb-prev').addEventListener('click', () => lbShow(lbIndex - 1));
+    document.getElementById('lb-next').addEventListener('click', () => lbShow(lbIndex + 1));
+    window.addEventListener('keydown', (e) => {
+      if (!lb.classList.contains('open')) return;
+      if (e.key === 'Escape') lbClose();
+      if (e.key === 'ArrowLeft') lbShow(lbIndex - 1);
+      if (e.key === 'ArrowRight') lbShow(lbIndex + 1);
+    });
+    let touchX = null;
+    lb.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+    lb.addEventListener('touchend', (e) => {
+      if (touchX === null) return;
+      const dx = e.changedTouches[0].clientX - touchX;
+      if (Math.abs(dx) > 48) lbShow(lbIndex + (dx < 0 ? 1 : -1));
+      touchX = null;
+    }, { passive: true });
+
+    /* ── Rendu ── */
+    function render(data) {
+      const cfg = data.config || {};
+      applyTheme(cfg);
+
+      const photos = data.photos || [];
+      FLAT = photos;
+      const eventName = cfg.event_name || '';
+      const count = photos.length;
+      const layout = cfg.layout === 'grille' ? 'grille' : 'masonry';
+      const coverUrl = count ? photos[count - 1].url : '';
+
+      app.innerHTML = `
+        <header class="cover ${count ? '' : 'no-photo'}">
+          ${count ? `<div class="cover-bg" style="background-image:url('${esc(coverUrl)}')"></div>` : ''}
+          <div class="cover-inner">
+            <span class="cover-photog">Timeless House — Photobooth</span>
+            <h1>${esc(data.first_name)}</h1>
+            <div class="cover-meta">
+              ${eventName ? `<span>${esc(eventName)}</span><i></i>` : ''}
+              <span>${count ? count + ' photo' + (count > 1 ? 's' : '') : 'Tes photos arrivent'}</span>
+            </div>
+          </div>
+          <button class="cover-scroll" id="to-gallery" type="button">
+            <span>Découvrir</span><span class="ln"></span>
+          </button>
+        </header>
+
+        ${count ? `
+        <main class="gallery" id="gallery">
+          <div class="gallery-head">
+            <div class="gallery-title">La galerie</div>
+            <div class="gallery-note">Un clic sur une photo pour l'ouvrir · ⬇ pour l'enregistrer</div>
+          </div>
+          <div class="grid-${layout}">
+            ${photos.map((p, i) => `
+              <figure class="ph" data-i="${i}">
+                <img src="${esc(p.thumb_url || p.url)}" alt="Photo ${esc(p.stem)}" loading="lazy">
+                <a class="dl" href="${esc(p.url)}" title="Enregistrer" aria-label="Enregistrer">⬇</a>
+              </figure>`).join('')}
+          </div>
+        </main>` : `
+        <main class="gallery">
+          <div class="gallery-head">
+            <div class="gallery-title">Encore un peu de patience…</div>
+            <div class="gallery-note">La page se met à jour toute seule</div>
+          </div>
+          <p style="color:var(--ink-soft); font-size:14px; line-height:1.8; max-width:480px">
+            Passe devant l'objectif : chaque photo où tu apparais rejoint cette
+            galerie automatiquement, quelques secondes après la prise de vue.
+          </p>
+        </main>`}
+
+        <footer class="site">Photos &amp; souvenirs par
+          <a href="https://timelesshouse.org">Timeless House</a></footer>
+      `;
+
+      const toGallery = document.getElementById('to-gallery');
+      if (toGallery) toGallery.addEventListener('click', () => {
+        const g = document.getElementById('gallery');
+        if (g) g.scrollIntoView({ behavior: 'smooth' });
+      });
+
+      app.querySelectorAll('.ph').forEach((fig) => {
+        const img = fig.querySelector('img');
+        if (img.complete) img.classList.add('on');
+        else img.addEventListener('load', () => img.classList.add('on'));
+        fig.addEventListener('click', (e) => {
+          if (e.target.closest('.dl')) return;  // le bouton ⬇ télécharge
+          lbShow(Number(fig.dataset.i));
+        });
+      });
+
+      boot.classList.add('gone');
+    }
+
+    /* ── Chargement + rafraîchissement ── */
+    let lastCount = -1;
 
     async function load(first) {
       if (!token) {
-        message('Galerie introuvable',
-          'Ce lien est incomplet. Utilise le lien exact reçu par email.');
+        stateScreen('Accès', 'Lien incomplet.',
+          "Utilise le lien personnel reçu par email de Timeless House — "
+          + "cherche « Timeless House » dans ta boîte mail (pense aux spams).");
         return;
       }
       const { data, error } = await sb.rpc('photobooth_gallery', { p_token: token });
       if (error) {
-        if (first) message('Petit souci de connexion', 'Réessaie dans un instant.');
+        if (first) stateScreen('Connexion', 'Petit souci de réseau.',
+          'Réessaie dans un instant — tes photos sont bien à l’abri.');
         console.error(error);
         return;
       }
       if (!data) {
-        message('Galerie introuvable',
-          'Ce lien ne correspond à aucune galerie. Vérifie le lien reçu par email.');
+        stateScreen('Accès', 'Galerie introuvable.',
+          'Ce lien ne correspond à aucune galerie. Vérifie le lien exact reçu '
+          + 'par email, ou écris-nous.');
         return;
       }
-      const photos = data.photos || [];
-      app.innerHTML = `
-        <h1>Photos de ${esc(data.first_name)}</h1>
-        <p class="lead">${photos.length} photo${photos.length > 1 ? 's' : ''}
-          — un clic sur « Enregistrer » télécharge l'image.</p>
-        ${photos.length === 0
-          ? `<div class="card"><p class="lead" style="margin:6px 0">Tes photos arrivent
-             au fil de la soirée — cette page se met à jour toute seule.</p></div>`
-          : `<div class="grid">${photos.map((p) => `
-              <figure>
-                <a href="${esc(p.url)}"><img src="${esc(p.url)}" alt="Photo ${esc(p.stem)}" loading="lazy"></a>
-                <a class="dl" href="${esc(p.url)}">⬇︎ Enregistrer</a>
-              </figure>`).join('')}</div>`}
-      `;
+      const count = (data.photos || []).length;
+      if (count !== lastCount) {
+        lastCount = count;
+        render(data);
+      }
     }
 
     load(true);
-    //  Pendant l'événement, les photos continuent d'arriver.
-    setInterval(() => load(false), 60_000);
+    //  Les photos tombent au fil de la soirée. On ne re-rend pas pendant
+    //  qu'une photo est ouverte en grand.
+    setInterval(() => { if (!lb.classList.contains('open')) load(false); }, 45_000);
   </script>
 </body>
 </html>

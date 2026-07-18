@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Galeries privées : jamais indexées. -->
+  <meta name="robots" content="noindex, nofollow">
+  <title>Ta galerie photobooth — Timeless House</title>
+  <style>
+    :root{
+      --bg:#101012; --card:#1a1a1e; --line:#2a2a30; --text:#eee9df;
+      --muted:#9a958a; --accent:#c9a355; --accent-ink:#151109;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);
+         font:16px/1.55 -apple-system,"Segoe UI",Roboto,sans-serif;
+         min-height:100vh}
+    .wrap{max-width:1040px;margin:0 auto;padding:34px 16px 80px}
+    h1{font-family:Georgia,"Times New Roman",serif;font-weight:600;
+       letter-spacing:.3px;margin:.15em 0 .35em;font-size:32px}
+    .kicker{text-transform:uppercase;letter-spacing:.28em;font-size:12px;
+            color:var(--accent);margin:0}
+    .lead{color:var(--muted);margin-top:0}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+          padding:26px;text-align:center}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));
+          gap:12px;margin-top:20px}
+    .grid figure{margin:0;background:var(--card);border:1px solid var(--line);
+          border-radius:10px;overflow:hidden}
+    .grid img{width:100%;display:block;aspect-ratio:1;object-fit:cover;
+          background:#0d0d0f}
+    .grid .dl{display:block;text-align:center;padding:9px;font-size:13px;
+          color:var(--accent);text-decoration:none}
+    .grid .dl:hover{background:#202024}
+    .spin{width:34px;height:34px;border:3px solid var(--line);
+          border-top-color:var(--accent);border-radius:50%;
+          animation:s .8s linear infinite;margin:26px auto}
+    @keyframes s{to{transform:rotate(360deg)}}
+    footer{margin-top:44px;text-align:center;font-size:12.5px;color:var(--muted)}
+    footer a{color:var(--accent);text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="kicker">Photobooth</p>
+    <div id="app"><div class="spin" role="status" aria-label="Chargement"></div></div>
+    <footer>Photos et souvenirs par <a href="https://timelesshouse.org">Timeless House</a></footer>
+  </div>
+
+  <script type="module">
+    import { createClient } from '@supabase/supabase-js';
+
+    const sb = createClient(
+      import.meta.env.VITE_SUPABASE_URL,
+      import.meta.env.VITE_SUPABASE_ANON_KEY
+    );
+
+    const app = document.getElementById('app');
+    const token = new URLSearchParams(location.search).get('g');
+
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
+      (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    function message(title, body) {
+      app.innerHTML = `<h1>${esc(title)}</h1>
+        <div class="card"><p class="lead" style="margin:6px 0">${esc(body)}</p></div>`;
+    }
+
+    async function load(first) {
+      if (!token) {
+        message('Galerie introuvable',
+          'Ce lien est incomplet. Utilise le lien exact reçu par email.');
+        return;
+      }
+      const { data, error } = await sb.rpc('photobooth_gallery', { p_token: token });
+      if (error) {
+        if (first) message('Petit souci de connexion', 'Réessaie dans un instant.');
+        console.error(error);
+        return;
+      }
+      if (!data) {
+        message('Galerie introuvable',
+          'Ce lien ne correspond à aucune galerie. Vérifie le lien reçu par email.');
+        return;
+      }
+      const photos = data.photos || [];
+      app.innerHTML = `
+        <h1>Photos de ${esc(data.first_name)}</h1>
+        <p class="lead">${photos.length} photo${photos.length > 1 ? 's' : ''}
+          — un clic sur « Enregistrer » télécharge l'image.</p>
+        ${photos.length === 0
+          ? `<div class="card"><p class="lead" style="margin:6px 0">Tes photos arrivent
+             au fil de la soirée — cette page se met à jour toute seule.</p></div>`
+          : `<div class="grid">${photos.map((p) => `
+              <figure>
+                <a href="${esc(p.url)}"><img src="${esc(p.url)}" alt="Photo ${esc(p.stem)}" loading="lazy"></a>
+                <a class="dl" href="${esc(p.url)}">⬇︎ Enregistrer</a>
+              </figure>`).join('')}</div>`}
+      `;
+    }
+
+    load(true);
+    //  Pendant l'événement, les photos continuent d'arriver.
+    setInterval(() => load(false), 60_000);
+  </script>
+</body>
+</html>

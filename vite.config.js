@@ -44,6 +44,7 @@ export default defineConfig({
         eventVideo:             resolve(__dirname, 'event-video.html'),
         eventPhotos:            resolve(__dirname, 'event-photos.html'),
         eventPhotosCinematic:   resolve(__dirname, 'event-photos-cinematic.html'),
+        photobooth:             resolve(__dirname, 'photobooth.html'),
 
         // — Outils / démo internes —
         demoToggle:             resolve(__dirname, 'demo-toggle.html'),

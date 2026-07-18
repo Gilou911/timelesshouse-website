@@ -88,7 +88,9 @@ function json(status: number, body: unknown): Response {
 }
 
 // Un chemin B2 valide : préfixe connu, segments sûrs, pas de traversée.
-const KEY_RE = /^(media|weddings|invoices|documents)\/[a-zA-Z0-9._\-/]{1,400}$/;
+// photobooth/ : photos d'événement poussées par l'app locale (compte machine
+// photobooth@timelesshouse.org, listé dans ADMIN_EMAILS).
+const KEY_RE = /^(media|weddings|invoices|documents|photobooth)\/[a-zA-Z0-9._\-/]{1,400}$/;
 function validKey(key: unknown): key is string {
   return typeof key === "string" && KEY_RE.test(key) && !key.includes("..") && !key.includes("//");
 }
@@ -143,7 +145,7 @@ Deno.serve(async (req) => {
   const key    = body.key;
 
   if (!validKey(key)) {
-    return json(400, { error: "Chemin de fichier invalide (préfixes autorisés : media/, weddings/)" });
+    return json(400, { error: "Chemin de fichier invalide (préfixes autorisés : media/, weddings/, invoices/, documents/, photobooth/)" });
   }
 
   try {

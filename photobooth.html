@@ -6,12 +6,12 @@
   <meta name="theme-color" content="#0a0a0a" />
   <!-- Galeries privées : jamais indexées. -->
   <meta name="robots" content="noindex, nofollow" />
-  <meta name="description" content="Ta galerie photobooth — Timeless House" />
-  <title>Ta galerie photobooth — Timeless House</title>
+  <meta name="description" content="Ta galerie photobooth — TimelessHouse" />
+  <title>Ta galerie photobooth — TimelessHouse</title>
 
   <!-- Aperçu quand le lien est partagé (WhatsApp, iMessage…) : visuel de
        marque, jamais les photos privées de l'invité. -->
-  <meta property="og:title" content="Ta galerie photobooth — Timeless House" />
+  <meta property="og:title" content="Ta galerie photobooth — TimelessHouse" />
   <meta property="og:description" content="Tes photos de la soirée, prêtes à télécharger." />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="https://timelesshouse.org/og-photobooth.jpg?v=1" />
@@ -345,7 +345,7 @@
     }
     .state a:hover { border-color: var(--accent); }
 
-    /* ── Invitation Timeless House (fin de galerie) ── */
+    /* ── Invitation TimelessHouse (fin de galerie) ── */
     .cta {
       max-width: 640px; margin: 0 auto; padding: clamp(48px, 9vh, 110px) 24px 20px;
       text-align: center;
@@ -448,7 +448,7 @@
           <div class="state-kicker">${esc(kicker)}</div>
           <div class="state-title">${esc(title)}</div>
           <p>${esc(body)}</p>
-          <a href="mailto:service@timelesshouse.org">Contacter Timeless House</a>
+          <a href="mailto:service@timelesshouse.org">Contacter TimelessHouse</a>
         </div></div>`;
     }
 
@@ -511,7 +511,7 @@
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({ files: [file] });
         } else {
-          await navigator.share({ title: 'Ma photo — Timeless House', url: location.href });
+          await navigator.share({ title: 'Ma photo — TimelessHouse', url: location.href });
         }
         track('share');
       } catch (err) {
@@ -566,7 +566,7 @@
         <header class="cover ${count ? '' : 'no-photo'}">
           ${count ? `<div class="cover-bg" style="background-image:url('${esc(coverUrl)}')"></div>` : ''}
           <div class="cover-inner">
-            <span class="cover-photog">Timeless House — Photobooth</span>
+            <span class="cover-photog">TimelessHouse — Photobooth</span>
             <h1>${esc(data.first_name)}</h1>
             <div class="cover-meta">
               ${eventName ? `<span>${esc(eventName)}</span><i></i>` : ''}
@@ -605,16 +605,16 @@
 
         <section class="cta">
           <div class="ln"></div>
-          <p class="cta-kicker">Timeless House</p>
+          <p class="cta-kicker">TimelessHouse</p>
           <h2>Vous organisez un mariage,<br>un événement&nbsp;?</h2>
           <p>Films, photographie &amp; photobooth — des souvenirs racontés
             avec le soin que tu viens de voir.</p>
           <a href="https://timelesshouse.org/?utm_source=photobooth&utm_medium=gallery&utm_campaign=${encodeURIComponent(data.event_code || 'photobooth')}">
-            Découvrir Timeless House</a>
+            Découvrir TimelessHouse</a>
         </section>
 
         <footer class="site">Photos &amp; souvenirs par
-          <a href="https://timelesshouse.org">Timeless House</a>
+          <a href="https://timelesshouse.org">TimelessHouse</a>
           <span class="help">Un souci avec tes photos&nbsp;?
             <a href="mailto:service@timelesshouse.org?subject=${encodeURIComponent('Photobooth — besoin d\'aide')}&body=${encodeURIComponent('Mon lien de galerie : ' + location.href)}">Écris-nous</a></span>
         </footer>
@@ -648,8 +648,8 @@
     async function load(first) {
       if (!token) {
         stateScreen('Accès', 'Lien incomplet.',
-          "Utilise le lien personnel reçu par email de Timeless House — "
-          + "cherche « Timeless House » dans ta boîte mail (pense aux spams).");
+          "Utilise le lien personnel reçu par email de TimelessHouse — "
+          + "cherche « TimelessHouse » dans ta boîte mail (pense aux spams).");
         return;
       }
       const { data, error } = await sb.rpc('photobooth_gallery', { p_token: token });

@@ -9,6 +9,17 @@
   <meta name="description" content="Ta galerie photobooth — Timeless House" />
   <title>Ta galerie photobooth — Timeless House</title>
 
+  <!-- Aperçu quand le lien est partagé (WhatsApp, iMessage…) : visuel de
+       marque, jamais les photos privées de l'invité. -->
+  <meta property="og:title" content="Ta galerie photobooth — Timeless House" />
+  <meta property="og:description" content="Tes photos de la soirée, prêtes à télécharger." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://timelesshouse.org/og-photobooth.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" type="image/png" href="/favicon-th.png" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -334,11 +345,36 @@
     }
     .state a:hover { border-color: var(--accent); }
 
+    /* ── Invitation Timeless House (fin de galerie) ── */
+    .cta {
+      max-width: 640px; margin: 0 auto; padding: clamp(48px, 9vh, 110px) 24px 20px;
+      text-align: center;
+    }
+    .cta .ln { width: 1px; height: 52px; background: var(--accent); opacity: 0.45; margin: 0 auto 26px; }
+    .cta-kicker {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.4em;
+      color: var(--ink-dim); margin: 0 0 18px;
+    }
+    .cta h2 {
+      font-family: "Cormorant Garamond", serif; font-weight: 300; font-style: italic;
+      font-size: clamp(1.7rem, 4.6vw, 2.6rem); line-height: 1.15; margin: 0 0 14px;
+      color: var(--ink);
+    }
+    .cta p { font-size: 13.5px; color: var(--ink-soft); line-height: 1.7; margin: 0 0 30px; }
+    .cta a {
+      display: inline-block; padding: 14px 34px; border: 1px solid var(--accent);
+      color: var(--accent); font-size: 10.5px; letter-spacing: 0.26em;
+      text-transform: uppercase; text-decoration: none;
+      transition: background 0.3s, color 0.3s;
+    }
+    .cta a:hover { background: var(--accent); color: var(--bg); }
+
     footer.site {
       padding: 40px 20px 56px; text-align: center;
       font-size: 10px; text-transform: uppercase; letter-spacing: 0.3em; color: var(--ink-dim);
     }
     footer.site a { color: var(--accent); text-decoration: none; }
+    footer.site .help { display: block; margin-top: 12px; letter-spacing: 0.22em; }
 
     @media (prefers-reduced-motion: reduce) {
       * { animation: none !important; transition: none !important; }
@@ -527,8 +563,21 @@
           </p>
         </main>`}
 
+        <section class="cta">
+          <div class="ln"></div>
+          <p class="cta-kicker">Timeless House</p>
+          <h2>Vous organisez un mariage,<br>un événement&nbsp;?</h2>
+          <p>Films, photographie &amp; photobooth — des souvenirs racontés
+            avec le soin que tu viens de voir.</p>
+          <a href="https://timelesshouse.org/?utm_source=photobooth&utm_medium=gallery&utm_campaign=${encodeURIComponent(data.event_code || 'photobooth')}">
+            Découvrir Timeless House</a>
+        </section>
+
         <footer class="site">Photos &amp; souvenirs par
-          <a href="https://timelesshouse.org">Timeless House</a></footer>
+          <a href="https://timelesshouse.org">Timeless House</a>
+          <span class="help">Un souci avec tes photos&nbsp;?
+            <a href="mailto:service@timelesshouse.org?subject=${encodeURIComponent('Photobooth — besoin d\'aide')}&body=${encodeURIComponent('Mon lien de galerie : ' + location.href)}">Écris-nous</a></span>
+        </footer>
       `;
 
       const toGallery = document.getElementById('to-gallery');

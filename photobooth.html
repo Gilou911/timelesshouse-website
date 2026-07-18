@@ -104,6 +104,8 @@
       font-family: "Jost", sans-serif; font-weight: 300;
       background: var(--bg); color: var(--ink);
       overflow-x: hidden; -webkit-font-smoothing: antialiased;
+      overscroll-behavior-y: contain;  /* coupe le pull-to-refresh parasite */
+      touch-action: manipulation;      /* supprime le délai double-tap (300ms) */
     }
     body.no-scroll { overflow: hidden; }
     ::selection { background: var(--accent); color: var(--bg); }
@@ -249,6 +251,8 @@
       position: fixed; inset: 0; z-index: 90; background: rgba(5,5,5,0.94);
       display: none; align-items: center; justify-content: center;
       backdrop-filter: blur(10px);
+      /* Tactile : aucun geste ne doit atteindre la page derrière. */
+      touch-action: none; overscroll-behavior: contain;
     }
     .lb.open { display: flex; }
     .lb img {
@@ -280,6 +284,21 @@
     @media (max-width: 640px) {
       .lb-prev, .lb-next { display: none; }
       .lb img { max-height: 76vh; }
+    }
+
+    /* ── Mobile (≤600px) : 2 colonnes, respiration réduite ── */
+    @media (max-width: 600px) {
+      :root { --gap: 6px; }
+      .grid-masonry { columns: 2; }
+      .gallery { padding-left: 10px; padding-right: 10px; }
+    }
+
+    /* ── Écrans tactiles : zones pressables au pouce (≥44px) ── */
+    @media (pointer: coarse) {
+      .ph .dl { width: 44px; height: 44px; font-size: 18px; opacity: 0.92; }
+      .lb-btn { width: 48px; height: 48px; font-size: 19px; }
+      .lb-close { top: max(14px, env(safe-area-inset-top)); right: 14px; }
+      .lb-bar a { padding: 13px 26px; }
     }
 
     /* ── États vides / erreurs ── */
@@ -389,19 +408,40 @@
     let FLAT = [];
     let lbIndex = -1;
 
+    /* Verrouillage du fond, version iOS-safe (même technique que les
+       galeries mariage) : overflow:hidden ne suffit pas sur iOS Safari —
+       la page continue de défiler sous le doigt. On fige <body> à sa
+       position via position:fixed + top négatif, restauré à la fermeture. */
+    let savedScrollY = 0;
+    function lockBody() {
+      savedScrollY = window.scrollY || 0;
+      const b = document.body.style;
+      b.position = 'fixed';
+      b.top = `-${savedScrollY}px`;
+      b.left = '0'; b.right = '0'; b.width = '100%';
+      document.body.classList.add('no-scroll'); // ceinture + bretelles (Android)
+    }
+    function unlockBody() {
+      const b = document.body.style;
+      b.position = ''; b.top = ''; b.left = ''; b.right = ''; b.width = '';
+      document.body.classList.remove('no-scroll');
+      window.scrollTo(0, savedScrollY);
+    }
+
     function lbShow(i) {
       if (!FLAT.length) return;
+      const wasOpen = lb.classList.contains('open');
       lbIndex = (i + FLAT.length) % FLAT.length;
       const photo = FLAT[lbIndex];
       lbImg.src = photo.url;
       lbDl.href = photo.url;
       lbCount.textContent = (lbIndex + 1) + ' / ' + FLAT.length;
       lb.classList.add('open');
-      document.body.classList.add('no-scroll');
+      if (!wasOpen) lockBody();
     }
     function lbClose() {
       lb.classList.remove('open');
-      document.body.classList.remove('no-scroll');
+      unlockBody();
       lbIndex = -1;
     }
     document.getElementById('lb-close').addEventListener('click', lbClose);
@@ -413,9 +453,13 @@
       if (e.key === 'ArrowLeft') lbShow(lbIndex - 1);
       if (e.key === 'ArrowRight') lbShow(lbIndex + 1);
     });
+    //  Aucun geste ne traverse la lightbox : preventDefault non-passif sur
+    //  touchmove (les swipes utilisent touchstart/touchend, jamais bloqués).
+    lb.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
     let touchX = null;
     lb.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
     lb.addEventListener('touchend', (e) => {
+      if (e.target.closest('a, button')) { touchX = null; return; }
       if (touchX === null) return;
       const dx = e.changedTouches[0].clientX - touchX;
       if (Math.abs(dx) > 48) lbShow(lbIndex + (dx < 0 ? 1 : -1));

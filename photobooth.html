@@ -400,6 +400,7 @@
     <div class="lb-bar">
       <span id="lb-count"></span>
       <a id="lb-dl" href="#">Télécharger</a>
+      <a id="lb-share" href="#" hidden>Partager</a>
     </div>
   </div>
 
@@ -477,12 +478,42 @@
       const wasOpen = lb.classList.contains('open');
       lbIndex = (i + FLAT.length) % FLAT.length;
       const photo = FLAT[lbIndex];
-      lbImg.src = photo.url;
+      //  Version 2048px à l'écran ; l'original (pleine taille) reste
+      //  réservé au téléchargement.
+      lbImg.src = photo.display_url || photo.url;
       lbDl.href = photo.url;
       lbCount.textContent = (lbIndex + 1) + ' / ' + FLAT.length;
       lb.classList.add('open');
       if (!wasOpen) lockBody();
     }
+
+    /* ── Partage natif : la photo elle-même (logos incrustés) part sur
+       WhatsApp/Instagram/iMessage. Repli : partage du lien de galerie. ── */
+    const lbShare = document.getElementById('lb-share');
+    if (navigator.share) lbShare.hidden = false;
+    lbShare.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const photo = FLAT[lbIndex];
+      if (!photo) return;
+      const original = lbShare.textContent;
+      lbShare.textContent = 'Préparation…';
+      try {
+        const resp = await fetch(photo.display_url || photo.url);
+        const blob = await resp.blob();
+        const file = new File([blob], (photo.stem || 'photo') + '.jpg', { type: 'image/jpeg' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file] });
+        } else {
+          await navigator.share({ title: 'Ma photo — Timeless House', url: location.href });
+        }
+      } catch (err) {
+        //  Fermeture du volet de partage par l'invité : pas une erreur.
+        if (err && err.name !== 'AbortError') {
+          try { await navigator.share({ url: location.href }); } catch (e2) {}
+        }
+      }
+      lbShare.textContent = original;
+    });
     function lbClose() {
       lb.classList.remove('open');
       unlockBody();
@@ -520,7 +551,7 @@
       const eventName = cfg.event_name || '';
       const count = photos.length;
       const layout = cfg.layout === 'grille' ? 'grille' : 'masonry';
-      const coverUrl = count ? photos[count - 1].url : '';
+      const coverUrl = count ? (photos[count - 1].display_url || photos[count - 1].url) : '';
 
       app.innerHTML = `
         <header class="cover ${count ? '' : 'no-photo'}">

@@ -19,6 +19,10 @@
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="icon" type="image/png" href="/favicon-th.png?v=1" />
+  <!-- Épinglage sur l'écran d'accueil : vraie icône TimelessHouse. -->
+  <link rel="apple-touch-icon" href="/apple-touch-icon-th.png?v=1" />
+  <link rel="manifest" href="/photobooth.webmanifest?v=1" />
+  <meta name="apple-mobile-web-app-title" content="Ma galerie" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -301,6 +305,10 @@
     }
     .lb-bar a:hover { color: #fff; }
     .lb-bar a:hover::after { opacity: 1; }
+    /* Lien de retrait : présent mais en retrait — c'est un recours, pas
+       une action courante. */
+    #lb-report { color: rgba(255,255,255,0.4); font-size: 9px; }
+    #lb-report::after { display: none; }
     @media (max-width: 640px) {
       .lb-prev, .lb-next { display: none; }
       .lb img { max-height: 76vh; }
@@ -401,6 +409,7 @@
       <span id="lb-count"></span>
       <a id="lb-dl" href="#">Télécharger</a>
       <a id="lb-share" href="#" hidden>Partager</a>
+      <a id="lb-report" href="#" title="Demander le retrait de cette photo">Un souci&nbsp;?</a>
     </div>
   </div>
 
@@ -528,6 +537,20 @@
       lbIndex = -1;
     }
     lbDl.addEventListener('click', () => track('download'));
+
+    //  Droit de retrait praticable : mailto pré-rempli avec la référence
+    //  exacte de la photo — Gil retire ensuite le match depuis sa revue.
+    document.getElementById('lb-report').addEventListener('click', (e) => {
+      e.preventDefault();
+      const photo = FLAT[lbIndex];
+      if (!photo) return;
+      const subject = encodeURIComponent('Photobooth — retirer une photo');
+      const body = encodeURIComponent(
+        'Bonjour,\n\nJe souhaite retirer cette photo de ma galerie :\n'
+        + 'Photo : ' + photo.stem + '\nGalerie : ' + location.href + '\n\nMerci.'
+      );
+      location.href = 'mailto:service@timelesshouse.org?subject=' + subject + '&body=' + body;
+    });
     document.getElementById('lb-close').addEventListener('click', lbClose);
     document.getElementById('lb-prev').addEventListener('click', () => lbShow(lbIndex - 1));
     document.getElementById('lb-next').addEventListener('click', () => lbShow(lbIndex + 1));
@@ -606,7 +629,7 @@
         <section class="cta">
           <div class="ln"></div>
           <p class="cta-kicker">TimelessHouse</p>
-          <h2>Vous organisez un mariage,<br>un événement&nbsp;?</h2>
+          <h2>Tu organises un mariage,<br>un événement&nbsp;?</h2>
           <p>Films, photographie &amp; photobooth — des souvenirs racontés
             avec le soin que tu viens de voir.</p>
           <a href="https://timelesshouse.org/?utm_source=photobooth&utm_medium=gallery&utm_campaign=${encodeURIComponent(data.event_code || 'photobooth')}">

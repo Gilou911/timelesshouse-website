@@ -236,15 +236,19 @@
     .ph img { transition: transform 1.1s var(--ease), opacity 0.8s var(--ease); opacity: 0; }
     .ph img.on { opacity: 1; }
     .ph:hover img { transform: scale(1.035); }
+    /* Bouton de téléchargement minimaliste : un simple glyphe, zone de
+       pression conservée (44px) — visible au survol, discret au tactile. */
     .ph .dl {
-      position: absolute; right: 10px; bottom: 10px; z-index: 2;
-      width: 34px; height: 34px; border-radius: 50%;
+      position: absolute; right: 0; bottom: 0; z-index: 2;
+      width: 44px; height: 44px;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.45); color: #fff; text-decoration: none;
-      font-size: 15px; backdrop-filter: blur(6px);
-      opacity: 0.85; transition: background 0.3s, opacity 0.3s;
+      color: #fff; text-decoration: none; font-size: 14px;
+      text-shadow: 0 1px 8px rgba(0,0,0,0.75);
+      opacity: 0; transition: opacity 0.3s;
     }
-    .ph .dl:hover { background: var(--accent); color: var(--bg); }
+    .ph:hover .dl, .ph:focus-within .dl { opacity: 0.7; }
+    .ph .dl:hover { opacity: 1; }
+    @media (pointer: coarse) { .ph .dl { opacity: 0.55; } }
 
     /* ── Lightbox ── */
     .lb {
@@ -276,11 +280,16 @@
       text-transform: uppercase; letter-spacing: 0.3em;
     }
     .lb-bar a {
-      color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,0.25);
-      padding: 10px 22px; letter-spacing: 0.24em; font-size: 10px;
-      transition: border-color 0.3s, color 0.3s, background 0.3s;
+      color: rgba(255,255,255,0.85); text-decoration: none; position: relative;
+      padding: 10px 4px; letter-spacing: 0.24em; font-size: 10px;
+      transition: color 0.3s;
     }
-    .lb-bar a:hover { border-color: var(--accent); background: var(--accent-gl); color: #fff; }
+    .lb-bar a::after {
+      content: ""; position: absolute; left: 4px; right: 4px; bottom: 6px;
+      height: 1px; background: var(--accent); opacity: 0.7; transition: opacity 0.3s;
+    }
+    .lb-bar a:hover { color: #fff; }
+    .lb-bar a:hover::after { opacity: 1; }
     @media (max-width: 640px) {
       .lb-prev, .lb-next { display: none; }
       .lb img { max-height: 76vh; }
@@ -295,10 +304,9 @@
 
     /* ── Écrans tactiles : zones pressables au pouce (≥44px) ── */
     @media (pointer: coarse) {
-      .ph .dl { width: 44px; height: 44px; font-size: 18px; opacity: 0.92; }
       .lb-btn { width: 48px; height: 48px; font-size: 19px; }
       .lb-close { top: max(14px, env(safe-area-inset-top)); right: 14px; }
-      .lb-bar a { padding: 13px 26px; }
+      .lb-bar a { padding: 13px 10px; }
     }
 
     /* ── États vides / erreurs ── */

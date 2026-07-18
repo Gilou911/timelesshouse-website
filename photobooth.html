@@ -432,6 +432,13 @@
       if (meta && bg) meta.setAttribute('content', bg);
     }
 
+    /* ── Compteurs anonymes (audience de l'événement, visibles dans
+       l'admin de l'app). Silencieux en cas d'échec : jamais bloquant. ── */
+    function track(metric) {
+      try { sb.rpc('photobooth_track', { p_token: token, p_metric: metric }); }
+      catch (e) { /* hors ligne : tant pis, l'expérience prime */ }
+    }
+
     function stateScreen(kicker, title, body) {
       boot.classList.add('gone');
       app.innerHTML = `
@@ -506,6 +513,7 @@
         } else {
           await navigator.share({ title: 'Ma photo — Timeless House', url: location.href });
         }
+        track('share');
       } catch (err) {
         //  Fermeture du volet de partage par l'invité : pas une erreur.
         if (err && err.name !== 'AbortError') {
@@ -519,6 +527,7 @@
       unlockBody();
       lbIndex = -1;
     }
+    lbDl.addEventListener('click', () => track('download'));
     document.getElementById('lb-close').addEventListener('click', lbClose);
     document.getElementById('lb-prev').addEventListener('click', () => lbShow(lbIndex - 1));
     document.getElementById('lb-next').addEventListener('click', () => lbShow(lbIndex + 1));
@@ -622,10 +631,13 @@
         if (img.complete) img.classList.add('on');
         else img.addEventListener('load', () => img.classList.add('on'));
         fig.addEventListener('click', (e) => {
-          if (e.target.closest('.dl')) return;  // le bouton ⬇ télécharge
+          if (e.target.closest('.dl')) { track('download'); return; }  // le bouton ⬇ télécharge
           lbShow(Number(fig.dataset.i));
         });
       });
+
+      const ctaLink = app.querySelector('.cta a');
+      if (ctaLink) ctaLink.addEventListener('click', () => track('cta_click'));
 
       boot.classList.add('gone');
     }
@@ -657,6 +669,12 @@
       if (count !== lastCount) {
         lastCount = count;
         render(data);
+      }
+      //  Une ouverture de galerie par session de navigation, pas par
+      //  rafraîchissement automatique.
+      if (first && !sessionStorage.getItem('pb-open-' + token)) {
+        sessionStorage.setItem('pb-open-' + token, '1');
+        track('gallery_open');
       }
     }
 

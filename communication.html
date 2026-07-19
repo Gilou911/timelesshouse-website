@@ -739,7 +739,9 @@
       btn.disabled = true; err.style.display = 'none';
 
       try {
-        const { data, error } = await sb.from('clients').select('code, active').eq('code', code).eq('active', true).maybeSingle();
+        // RPC scellée (SaaS B.2) : le code est vérifié côté serveur,
+        // plus aucun select direct sur la table clients avec la clé anon.
+        const { data, error } = await sb.rpc('resolve_client_code', { p_code: code });
         if (error || !data) { err.style.display = 'block'; btn.disabled = false; return; }
         sessionStorage.setItem('access_granted', code);
         // PWA : mémorise le code pour que l'app installée reste connectée

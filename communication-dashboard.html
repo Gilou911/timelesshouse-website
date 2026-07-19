@@ -256,28 +256,24 @@
 
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const { data: client, error: cErr } = await sb
-      .from('clients').select('*').eq('code', code).eq('active', true).maybeSingle();
+    // RPC scellée (SaaS B.2) : tout le portail en un appel, vérifié
+    // côté serveur par le code d'accès — remplace 8 selects anon.
+    const { data: portal, error: cErr } = await sb.rpc('get_client_portal', { p_code: code });
 
-    if (cErr || !client) {
+    if (cErr || !portal) {
       sessionStorage.removeItem('access_granted');
       window.location.href = 'communication.html';
       throw new Error('Client not found');
     }
 
-    const [mediaRes, invoicesRes, shootsRes, analyticsRes, documentsRes, strategiesRes] = await Promise.all([
-      sb.from('media').select('*').eq('client_id', client.id).order('date_iso', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }),
-      sb.from('invoices').select('*').eq('client_id', client.id).order('created_at', { ascending: false }),
-      sb.from('shoots').select('*').eq('client_id', client.id).order('year').order('date_day'),
-      sb.from('analytics').select('*').eq('client_id', client.id).maybeSingle(),
-      sb.from('documents').select('*').eq('client_id', client.id).order('position').order('created_at', { ascending: false }),
-      sb.from('strategies').select('*').eq('client_id', client.id).eq('status', 'published').order('position').order('created_at', { ascending: false }),
-    ]);
-
-    const mediaIds = (mediaRes.data || []).map(m => m.id);
-    const { data: allComments } = mediaIds.length
-      ? await sb.from('media_comments').select('*').in('media_id', mediaIds).order('created_at')
-      : { data: [] };
+    const client = portal.client;
+    const mediaRes      = { data: portal.media };
+    const invoicesRes   = { data: portal.invoices };
+    const shootsRes     = { data: portal.shoots };
+    const analyticsRes  = { data: portal.analytics };
+    const documentsRes  = { data: portal.documents };
+    const strategiesRes = { data: portal.strategies };
+    const allComments   = portal.comments;
 
     // Exposé global pour que l'app React puisse rappeler Supabase (commentaires, approbations)
     window.__SUPABASE = sb;

@@ -2406,9 +2406,10 @@
       err.style.display = 'none';
 
       try {
-        const { data, error } = await sb.from('clients').select('code, universe, redirect_url, active')
-          .eq('code', code).eq('active', true).eq('universe', 'immobilier').maybeSingle();
-        if (error || !data) {
+        // RPC scellée (SaaS B.2) : validation du code côté serveur ;
+        // le filtre « univers immobilier » reste appliqué ici
+        const { data, error } = await sb.rpc('resolve_client_code', { p_code: code });
+        if (error || !data || data.universe !== 'immobilier') {
           err.style.display = 'block';
           document.getElementById('clientCode').style.borderColor = 'rgba(217,112,112,0.5)';
           setTimeout(function() { document.getElementById('clientCode').style.borderColor = ''; }, 1500);

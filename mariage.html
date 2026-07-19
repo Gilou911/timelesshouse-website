@@ -1537,9 +1537,10 @@
       err.style.display = 'none';
 
       try {
-        const { data, error } = await sb.from('clients').select('code, universe, redirect_url, active')
-          .eq('code', code).eq('active', true).in('universe', COUPLE_UNIVERSES).maybeSingle();
-        if (error || !data) { err.style.display = 'block'; return; }
+        // RPC scellée (SaaS B.2) : validation du code côté serveur ;
+        // le filtre « univers couple » reste appliqué ici
+        const { data, error } = await sb.rpc('resolve_client_code', { p_code: code });
+        if (error || !data || !COUPLE_UNIVERSES.includes(data.universe)) { err.style.display = 'block'; return; }
         sessionStorage.setItem('access_granted', code);
         // legacy → redirect_url ; sinon template selon univers
         let dest;

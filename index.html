@@ -805,7 +805,8 @@
       err.style.display = 'none';
 
       try {
-        const { data, error } = await sb.from('clients').select('code, universe, redirect_url, active').eq('code', code).eq('active', true).maybeSingle();
+        // RPC scellée (SaaS B.2) : validation du code côté serveur
+        const { data, error } = await sb.rpc('resolve_client_code', { p_code: code });
         if (error || !data) { err.style.display = 'block'; if (btn) btn.disabled = false; return; }
         sessionStorage.setItem('access_granted', code);
         let dest;

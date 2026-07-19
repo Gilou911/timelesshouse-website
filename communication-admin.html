@@ -6,6 +6,15 @@
   <style>/* HIG : contenu hors de l'encoche en paysage iPhone */body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);}</style>
   <title>TimelessHouse — Admin</title>
 
+  <!-- PWA : app installable -->
+  <link rel="manifest" href="/manifest-admin.webmanifest" />
+  <meta name="theme-color" content="#e9e4d9" />
+  <link rel="apple-touch-icon" href="/icons/admin-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="TH Admin" />
+  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />

@@ -10,6 +10,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
 
+  <!-- PWA : app installable (écran d'accueil, plein écran) -->
+  <link rel="manifest" href="/manifest-client.webmanifest" />
+  <meta name="theme-color" content="#e9e4d9" />
+  <link rel="apple-touch-icon" href="/icons/client-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="TimelessHouse" />
+  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
+
 
   <!-- Apply theme BEFORE rendering to avoid flash -->
   <script>
@@ -237,7 +246,12 @@
 
     import { createClient } from '@supabase/supabase-js';
 
-    const code = sessionStorage.getItem('access_granted');
+    let code = sessionStorage.getItem('access_granted');
+    if (!code) {
+      // App installée / nouvel onglet : reprend le code mémorisé au login
+      try { code = localStorage.getItem('th_access_code'); } catch (e) {}
+      if (code) sessionStorage.setItem('access_granted', code);
+    }
     if (!code) { window.location.href = 'communication.html'; throw new Error('No access'); }
 
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

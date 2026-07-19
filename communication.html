@@ -742,6 +742,8 @@
         const { data, error } = await sb.from('clients').select('code, active').eq('code', code).eq('active', true).maybeSingle();
         if (error || !data) { err.style.display = 'block'; btn.disabled = false; return; }
         sessionStorage.setItem('access_granted', code);
+        // PWA : mémorise le code pour que l'app installée reste connectée
+        try { localStorage.setItem('th_access_code', code); } catch (e) {}
         window.location.href = 'communication-dashboard.html';
       } catch (e) {
         console.error(e); err.style.display = 'block'; btn.disabled = false;

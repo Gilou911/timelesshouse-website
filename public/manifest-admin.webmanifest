@@ -1,0 +1,17 @@
+{
+  "name": "TimelessHouse Admin",
+  "short_name": "TH Admin",
+  "description": "Gestion des clients, médias, factures et tournages TimelessHouse.",
+  "id": "/communication-admin.html",
+  "start_url": "/communication-admin.html?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#e9e4d9",
+  "theme_color": "#e9e4d9",
+  "lang": "fr",
+  "icons": [
+    { "src": "/icons/admin-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/admin-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/admin-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -3738,6 +3738,7 @@ function App() {
 
   const handleLogout = () => {
     sessionStorage.removeItem('access_granted');
+    try { localStorage.removeItem('th_access_code'); } catch (e) {}
     window.location.href = 'communication.html';
   };
 

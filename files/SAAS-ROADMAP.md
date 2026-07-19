@@ -48,8 +48,19 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
 
 ## B.3 — Produit
 
-- **Onboarding** : inscription d'une agence (email → compte → 1ᵉʳ espace
-  client guidé), rôles admin supplémentaires.
+- **Création d'agences depuis l'admin ✅ (fait le 20/07/2026)** :
+  section « Agences » dans l'admin, visible UNIQUEMENT par le
+  propriétaire de la plateforme (owner de l'agence « timelesshouse » —
+  première garde par rôles, pas d'ADMIN_EMAILS). Liste des locataires
+  (plan, clients, couleurs, propriétaires) + formulaire de création :
+  l'Edge Function `create-agency` crée l'agence ET le compte du patron
+  (mot de passe temporaire affiché une seule fois, à transmettre ;
+  email déjà connu → compte rattaché tel quel). RPC
+  `platform_is_owner` / `platform_list_agencies` + helper
+  `admin_user_id_by_email` : `files/migration-saas-b3-agences.sql`.
+- **Onboarding self-serve** (reste à faire) : inscription publique d'une
+  agence (email → compte → 1ᵉʳ espace client guidé), page de changement
+  de mot de passe, rôles admin supplémentaires.
 - **Marque blanche visible** : logo/couleurs de l'agence dans l'espace
   client, les pages événement ET les emails (notify-client paramétré par
   agence) ; sous-domaine ou domaine perso plus tard.

@@ -18,7 +18,7 @@
       Loader2, MessageSquare, Bell, Send, CheckCircle2, RefreshCw, Link2,
       FolderOpen, Download,
       Maximize2, Monitor, Smartphone, ChevronDown, ChevronUp,
-      Lightbulb, Copy, Power
+      Lightbulb, Copy, Power, Building2
     } from 'lucide-react';
     import AdminPortfolio from './admin-portfolio.jsx';
 
@@ -4583,6 +4583,170 @@
     }
 
     /* ════════════════════════════════════════════════════════════
+       🏢 AGENCES — réservé au propriétaire de la plateforme (SaaS B.3)
+       ────────────────────────────────────────────────────────────
+       Liste les agences locataires et en crée de nouvelles via
+       l'Edge Function create-agency (qui crée aussi le compte du
+       patron et renvoie son mot de passe temporaire UNE seule fois).
+       ════════════════════════════════════════════════════════════ */
+    const PLAN_LABELS = {
+      fondateur: 'Fondateur', decouverte: 'Découverte (3 Go)', essentiel: 'Essentiel (100 Go)',
+      studio: 'Studio (500 Go)', cinema: 'Cinéma (2 To)', prestige: 'Prestige (5 To)',
+    };
+
+    function AdminAgencies({ agencies, refresh }) {
+      const empty = { name: '', owner_email: '', slug: '', contact_email: '', plan: 'fondateur', accent_color: '#2a2620', bg_color: '#e9e4d9', logo_url: '' };
+      const [form, setForm] = useState(empty);
+      const [busy, setBusy] = useState(false);
+      const [error, setError] = useState('');
+      const [result, setResult] = useState(null); // { agency, owner } — affiché une seule fois
+      const [copied, setCopied] = useState(false);
+
+      const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+      const autoSlug = form.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/&/g, ' ').trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+
+      const submit = async () => {
+        setError(''); setResult(null); setBusy(true);
+        try {
+          const { data: { session } } = await sb.auth.getSession();
+          if (!session?.access_token) throw new Error('Session admin expirée — reconnecte-toi.');
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/create-agency`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ ...form, slug: form.slug || autoSlug }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json.error || `Création échouée (${res.status})`);
+          setResult(json);
+          setForm(empty);
+          refresh();
+        } catch (e) { setError(e.message); }
+        setBusy(false);
+      };
+
+      const copyCreds = () => {
+        try {
+          navigator.clipboard.writeText(`Espace admin : ${window.location.origin}/communication-admin.html\nEmail : ${result.owner.email}\nMot de passe temporaire : ${result.owner.temp_password}`);
+          setCopied(true); setTimeout(() => setCopied(false), 2000);
+        } catch (e) {}
+      };
+
+      return (
+        <div className="space-y-6">
+          {/* ─── Identifiants générés : affichés UNE fois ─── */}
+          {result && (
+            <div style={neu.dark} className="rounded-3xl p-6 text-white">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+                <div className="text-[15px] font-semibold tracking-tight">Agence « {result.agency.name} » créée</div>
+              </div>
+              {result.owner.temp_password ? (
+                <>
+                  <div className="text-[12.5px] text-stone-300 mt-3 leading-relaxed">
+                    Transmets ces identifiants à ton client — le mot de passe ne sera <strong>plus jamais affiché</strong>.
+                  </div>
+                  <div className="mt-4 grid gap-2 text-[13.5px] font-mono bg-white/10 rounded-2xl p-4 break-all">
+                    <div>{result.owner.email}</div>
+                    <div className="tracking-wider">{result.owner.temp_password}</div>
+                  </div>
+                  <div className="mt-4">
+                    <Btn icon={Copy} onClick={copyCreds}>{copied ? 'Copié ✓' : 'Copier les identifiants'}</Btn>
+                  </div>
+                </>
+              ) : (
+                <div className="text-[12.5px] text-stone-300 mt-3 leading-relaxed">
+                  L'email <span className="font-mono">{result.owner.email}</span> avait déjà un compte : il a été rattaché
+                  comme propriétaire de cette agence, avec son mot de passe habituel.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── Nouvelle agence ─── */}
+          <div style={neu.raised} className="rounded-[28px] p-6 lg:p-7">
+            <div className="text-[17px] tracking-tight mb-5" style={SERIF}>Nouvelle agence</div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field label="Nom de l'agence *">
+                <Input value={form.name} onChange={set('name')} placeholder="Studio Lumière" />
+              </Field>
+              <Field label="Email du propriétaire *">
+                <Input type="email" value={form.owner_email} onChange={set('owner_email')} placeholder="contact@studio-lumiere.fr" />
+              </Field>
+              <Field label="Slug (URLs & stockage)">
+                <Input value={form.slug} onChange={set('slug')} placeholder={autoSlug || 'studio-lumiere'} />
+              </Field>
+              <Field label="Plan">
+                <select value={form.plan} onChange={set('plan')} style={neu.pressedSm}
+                  className="w-full px-4 py-3 rounded-xl bg-transparent text-[16px] sm:text-[14px] appearance-none">
+                  {Object.entries(PLAN_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </Field>
+              <Field label="Couleur accent">
+                <div className="flex items-center gap-3">
+                  <input type="color" value={form.accent_color} onChange={set('accent_color')} aria-label="Couleur accent"
+                    className="w-11 h-11 rounded-xl border-0 bg-transparent cursor-pointer shrink-0" style={neu.pressedSm} />
+                  <Input value={form.accent_color} onChange={set('accent_color')} className="font-mono" />
+                </div>
+              </Field>
+              <Field label="Couleur de fond">
+                <div className="flex items-center gap-3">
+                  <input type="color" value={form.bg_color} onChange={set('bg_color')} aria-label="Couleur de fond"
+                    className="w-11 h-11 rounded-xl border-0 bg-transparent cursor-pointer shrink-0" style={neu.pressedSm} />
+                  <Input value={form.bg_color} onChange={set('bg_color')} className="font-mono" />
+                </div>
+              </Field>
+              <Field label="Email de contact (sinon celui du propriétaire)">
+                <Input type="email" value={form.contact_email} onChange={set('contact_email')} placeholder="hello@studio-lumiere.fr" />
+              </Field>
+              <Field label="Logo (URL https, optionnel)">
+                <Input value={form.logo_url} onChange={set('logo_url')} placeholder="https://…/logo.png" />
+              </Field>
+            </div>
+            {error && (
+              <div className="flex items-center gap-2 mt-4 text-[13px] text-rose-600">
+                <AlertCircle size={15} className="shrink-0" /> {error}
+              </div>
+            )}
+            <div className="mt-5">
+              <Btn kind="dark" icon={busy ? Loader2 : Plus} onClick={submit} disabled={busy || !form.name.trim() || !form.owner_email.trim()}>
+                {busy ? 'Création…' : "Créer l'agence + le compte du patron"}
+              </Btn>
+            </div>
+          </div>
+
+          {/* ─── Agences existantes ─── */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            {(agencies || []).map(a => (
+              <div key={a.id} style={neu.raised} className="rounded-[28px] p-5.5 p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[16.5px] tracking-tight truncate" style={SERIF}>{a.name}</div>
+                    <div className="text-[11.5px] text-stone-400 font-mono mt-0.5 truncate">{a.slug}</div>
+                  </div>
+                  <span className="shrink-0 inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.12em] font-semibold text-stone-500">
+                    <span className={`w-2 h-2 rounded-full ${a.active ? 'bg-emerald-500' : 'bg-stone-400'}`} />
+                    {a.active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-4 text-[12.5px] text-stone-500">
+                  <span className="font-medium text-stone-700">{PLAN_LABELS[a.plan] || a.plan}</span>
+                  <span>{a.clients_count} client{a.clients_count > 1 ? 's' : ''}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-3.5 h-3.5 rounded-full border border-black/10" style={{ background: a.accent_color }} />
+                    <span className="w-3.5 h-3.5 rounded-full border border-black/10" style={{ background: a.bg_color }} />
+                  </span>
+                </div>
+                <div className="text-[12px] text-stone-500 mt-2 truncate">{(a.owners || []).join(', ') || '— pas de propriétaire —'}</div>
+                <div className="text-[11px] text-stone-400 mt-1">Créée le {new Date(a.created_at).toLocaleDateString('fr-FR')}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
        🌳 ROOT APP
        ════════════════════════════════════════════════════════════ */
     function App() {
@@ -4595,6 +4759,8 @@
       const [selectedClient, setSelectedClient] = useState(null);
       const [clients, setClients] = useState([]);
       const [overviewData, setOverviewData] = useState({ totalMedia: 0, totalRevenue: 0, upcomingShoots: 0 });
+      // null = pas propriétaire de la plateforme (section Agences masquée)
+      const [agencies, setAgencies] = useState(null);
 
       // Vérification session au mount
       useEffect(() => {
@@ -4626,10 +4792,18 @@
         });
       };
 
+      // Section Agences (SaaS B.3) : la RPC échoue pour quiconque n'est pas
+      // owner de l'agence plateforme → la section reste simplement masquée.
+      const loadAgencies = async () => {
+        const { data, error } = await sb.rpc('platform_list_agencies');
+        setAgencies(error ? null : (data || []));
+      };
+
       useEffect(() => {
         if (user) {
           loadClients();
           loadOverview();
+          loadAgencies();
         }
       }, [user]);
 
@@ -4645,6 +4819,7 @@
         overview: { t: `Bonjour`, s: 'Vue d\'ensemble de votre studio.' },
         clients:  { t: 'Mes clients', s: 'Tous les espaces que vous avez créés.' },
         portfolio:{ t: 'Portfolio', s: 'Vitrine et espaces de prospection.' },
+        agences:  { t: 'Agences', s: 'Les locataires de votre plateforme marque blanche.' },
       };
 
       return (
@@ -4692,6 +4867,7 @@
                   { id: 'overview', icon: Home, label: 'Vue d\'ensemble' },
                   { id: 'clients', icon: Users, label: 'Clients' },
                   { id: 'portfolio', icon: ImageIcon, label: 'Portfolio' },
+                  ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),
                 ].map(n => (
                   <button
                     key={n.id}
@@ -4737,6 +4913,8 @@
                 <Overview clients={clients} {...overviewData} />
               ) : section === 'portfolio' ? (
                 <AdminPortfolio sb={sb} neu={neu} SERIF={SERIF} isDark={isDark} />
+              ) : section === 'agences' && agencies !== null ? (
+                <AdminAgencies agencies={agencies} refresh={loadAgencies} />
               ) : (
                 <ClientsList clients={clients} onSelect={setSelectedClient} refresh={loadClients} />
               )}
@@ -4757,6 +4935,7 @@
               { id: 'overview', icon: Home, label: 'Aperçu' },
               { id: 'clients', icon: Users, label: 'Clients' },
               { id: 'portfolio', icon: ImageIcon, label: 'Portfolio' },
+              ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),
             ].map(n => {
               const Icon = n.icon;
               const active = section === n.id && !selectedClient;

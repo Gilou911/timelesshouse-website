@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.sync-social]
 verify_jwt = false
+
+[functions.create-agency]
+verify_jwt = false

@@ -42,6 +42,7 @@ TimelessHouse est seul locataire — **bloquant avant d'en accueillir un 2ᵉ**.
   vidéos lourdes, masters jamais compressés = argument de vente) :
   | Offre | Stockage | Prix suggéré |
   |---|---|---|
+  | Découverte | 3 Go | 0 € — 1 espace client, badge « propulsé par », rétention 90 j (purge des médias inactifs après alerte), quota strict sans dépassement |
   | Essentiel | 100 Go | 29 €/mois |
   | Studio | 500 Go | 49 €/mois |
   | Cinéma | 2 To | 89 €/mois |

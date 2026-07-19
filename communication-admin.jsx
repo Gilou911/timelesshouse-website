@@ -398,11 +398,13 @@
       </div>
     );
 
+    // HIG : 16px minimum sur mobile — en dessous, iOS zoome toute la page au
+    // focus de chaque champ. Le rendu desktop (sm:) reste inchangé.
     const Input = (props) => (
       <input
         {...props}
         style={{ ...neu.pressedSm, ...(props.style || {}) }}
-        className={`w-full px-4 py-3 rounded-xl bg-transparent text-[14px] placeholder:text-stone-400 ${props.className || ''}`}
+        className={`w-full px-4 py-3 rounded-xl bg-transparent text-[16px] sm:text-[14px] placeholder:text-stone-400 ${props.className || ''}`}
       />
     );
 
@@ -410,12 +412,12 @@
       <textarea
         {...props}
         style={{ ...neu.pressedSm, ...(props.style || {}) }}
-        className={`w-full px-4 py-3 rounded-xl bg-transparent text-[13px] placeholder:text-stone-400 resize-y font-mono ${props.className || ''}`}
+        className={`w-full px-4 py-3 rounded-xl bg-transparent text-[16px] sm:text-[13px] placeholder:text-stone-400 resize-y font-mono ${props.className || ''}`}
       />
     );
 
     const Select = ({ value, onChange, children }) => (
-      <select value={value} onChange={onChange} style={neu.pressedSm} className="w-full px-4 py-3 rounded-xl bg-transparent text-[14px]">
+      <select value={value} onChange={onChange} style={neu.pressedSm} className="w-full px-4 py-3 rounded-xl bg-transparent text-[16px] sm:text-[14px]">
         {children}
       </select>
     );
@@ -441,11 +443,23 @@
       );
     };
 
-    const Modal = ({ title, kicker, onClose, children, size = 'md' }) => (
+    const Modal = ({ title, kicker, onClose, children, size = 'md' }) => {
+      // HIG : verrouille le scroll de la page derrière la modale (sinon le fond
+      // défile pendant qu'on la fait défiler — scroll chaining).
+      useEffect(() => {
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = prev; };
+      }, []);
+
+      return (
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6 bg-stone-900/40 backdrop-blur-sm" onClick={onClose}>
+        {/* dvh (pas vh) : tient compte de la barre d'URL iOS — sinon le bas de
+            la modale (boutons Enregistrer) passe sous la barre.
+            overscroll-contain : le scroll interne ne « fuit » pas vers la page. */}
         <div
           style={neu.raised}
-          className={`rounded-t-[28px] sm:rounded-[32px] p-5 sm:p-7 max-h-[92vh] sm:max-h-[90vh] overflow-y-auto w-full ${size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
+          className={`rounded-t-[28px] sm:rounded-[32px] p-5 sm:p-7 max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto overscroll-contain w-full ${size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
           onClick={e => e.stopPropagation()}
         >
           {/* Drag handle mobile */}
@@ -460,7 +474,8 @@
           {children}
         </div>
       </div>
-    );
+      );
+    };
 
     /* ════════════════════════════════════════════════════════════
        🔐 LOGIN

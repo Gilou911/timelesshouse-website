@@ -1475,17 +1475,19 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
             <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold mb-3">Validation</div>
             <div className="mb-3"><ApprovalBadge status={localStatus} size="lg" /></div>
             <div className="grid grid-cols-2 gap-2">
+              {/* HIG : min-h-[44px] — actions principales du client, cible tactile
+                  complète + retour d'enfoncement au tap */}
               <button onClick={() => setApproval('approved')} disabled={savingApproval || localStatus === 'approved'}
-                className={`px-3 py-2.5 rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5 transition ${localStatus === 'approved' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'} disabled:opacity-50`}>
+                className={`px-3 py-2.5 min-h-[44px] rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5 transition active:scale-95 ${localStatus === 'approved' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'} disabled:opacity-50 disabled:active:scale-100`}>
                 <ThumbsUp size={13} /> Approuver
               </button>
               <button onClick={() => setApproval('changes_requested')} disabled={savingApproval || localStatus === 'changes_requested'}
-                className={`px-3 py-2.5 rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5 transition ${localStatus === 'changes_requested' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'} disabled:opacity-50`}>
+                className={`px-3 py-2.5 min-h-[44px] rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5 transition active:scale-95 ${localStatus === 'changes_requested' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'} disabled:opacity-50 disabled:active:scale-100`}>
                 <RefreshCw size={13} /> Changements
               </button>
             </div>
             {localStatus !== 'pending' && (
-              <button onClick={() => setApproval('pending')} disabled={savingApproval} className="mt-2 w-full px-3 py-1.5 text-[11px] text-stone-500 hover:text-stone-900">
+              <button onClick={() => setApproval('pending')} disabled={savingApproval} className="mt-1 w-full px-3 min-h-[44px] text-[11px] text-stone-500 hover:text-stone-900 active:scale-95 transition">
                 Remettre en attente
               </button>
             )}

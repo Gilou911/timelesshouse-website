@@ -61,9 +61,10 @@
     const code = sessionStorage.getItem('access_granted');
     if (!code) { window.location.href = 'mariage.html'; throw new Error('No access'); }
 
-    const { data: client, error: cErr } = await sb.from('clients')
-      .select('id, code, name, universe, agency_name')
-      .eq('code', code).eq('active', true).maybeSingle();
+    // RPC scellée (SaaS B.2) : client + pages événement en un appel,
+    // vérifié côté serveur par le code d'accès
+    const { data: portal, error: cErr } = await sb.rpc('get_event_portal', { p_code: code });
+    const client = portal ? portal.client : null;
 
     if (cErr || !client) {
       sessionStorage.removeItem('access_granted');
@@ -71,9 +72,7 @@
       throw new Error('Client not found');
     }
 
-    const { data: pages } = await sb.from('event_pages')
-      .select('page_type, config')
-      .eq('client_id', client.id);
+    const pages = portal.pages;
 
     const photosPage = (pages || []).find(p => p.page_type === 'photos');
     const videoPage  = (pages || []).find(p => p.page_type === 'video');

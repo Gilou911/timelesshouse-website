@@ -20,16 +20,31 @@
   paid_videos, purchases. `media_comments` garde son écriture invités.
 - Migration : `files/migration-saas-b1.sql` (exécutée).
 
-## B.2 — Isolation des LECTURES ⚠️ obligatoire avant la 1ʳᵉ agence externe
+## B.2 — Isolation des LECTURES ✅ (fait le 20/07/2026)
 
-Aujourd'hui les lectures restent publiques (héritage single-tenant) : la clé
-anon peut lire les données de toutes les agences. Sans danger tant que
-TimelessHouse est seul locataire — **bloquant avant d'en accueillir un 2ᵉ**.
-- Accès client par **RPC scellé** (le code d'accès devient un jeton vérifié
-  côté serveur, cloisonné par agence) au lieu de `select` directs anon.
-- Suppression des politiques « lecture publique » table par table.
-- Adapter le chargeur du dashboard client + pages événement.
-- Codes d'accès uniques PAR agence (aujourd'hui uniques globalement).
+Plus aucune donnée produit lisible avec la seule clé anon : l'espace client
+est **scellé par le code d'accès**, vérifié côté serveur et cloisonné par
+agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
+- **RPC scellées** (security definer) : `resolve_client_code` (login),
+  `get_client_portal` (dashboard), `get_event_portal` (pages événement),
+  `get_client_social` (analyses), `get_media_comments` /
+  `add_media_comment` (commentaires — l'écriture invités est scellée
+  aussi), `update_media_approval` (admin par rôle d'agence, client par
+  code ; l'ancienne version n'avait AUCUNE vérification).
+- **22 politiques « lecture publique » supprimées**, plus les écritures
+  legacy cross-tenant restées de B.1 (`allow auth insert/update/delete`) ;
+  vues `v_social_accounts_public` / `v_campaign_kpis` en
+  `security_invoker` (fin du contournement RLS).
+- **Codes d'accès uniques PAR agence** (`unique (agency_id, code)`).
+  Un code présent dans 2 agences est refusé des deux côtés (fail closed)
+  tant que B.3 n'apporte pas le contexte d'agence par domaine — dans ce
+  cas rarissime, régénérer le code de l'un des deux clients.
+- Vérifié : clé anon = 0 ligne sur 24 tables + 2 vues ; aucune fuite
+  inter-agences (2ᵉ agence de test créée puis nettoyée) ; portail,
+  pages événement, galerie photos, analyses et partage de stratégie
+  intacts. Bonus : fix du hook social client (`CLIENT_DATA.id` jamais
+  peuplé — la page Analyses restait bloquée sur « Connectez vos réseaux »).
+- Migration : `files/migration-saas-b2.sql` (exécutée).
 
 ## B.3 — Produit
 

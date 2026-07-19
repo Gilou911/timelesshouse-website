@@ -38,8 +38,22 @@ TimelessHouse est seul locataire — **bloquant avant d'en accueillir un 2ᵉ**.
 - **Marque blanche visible** : logo/couleurs de l'agence dans l'espace
   client, les pages événement ET les emails (notify-client paramétré par
   agence) ; sous-domaine ou domaine perso plus tard.
-- **Stripe abonnements** (modèle éprouvé sur ylvfeet) + quotas stockage
-  (préfixes B2 par agence : `agencies/<slug>/…`).
+- **Offres par paliers de STOCKAGE** (décidé 19/07/2026 — clientèle à
+  vidéos lourdes, masters jamais compressés = argument de vente) :
+  | Offre | Stockage | Prix suggéré |
+  |---|---|---|
+  | Essentiel | 100 Go | 29 €/mois |
+  | Studio | 500 Go | 49 €/mois |
+  | Cinéma | 2 To | 89 €/mois |
+  | Prestige | 5 To | 149 €/mois |
+  +10 €/To de dépassement souple ; -2 mois en annuel. (~30 Go par film
+  4K livré : master + HLS.)
+- **Mécanique quotas** : cron nocturne mesurant l'usage B2 par préfixe
+  d'agence → `agencies.storage_used_bytes` + jauge dans l'admin ;
+  `b2-sign` vérifie le quota (alerte 80 %, tolérance, upgrade proposé —
+  jamais de blocage en plein upload) ; rétention/archivage = soupape.
+- **Stripe abonnements** (modèle éprouvé sur ylvfeet), un produit par
+  palier, mensuel + annuel. Préfixes B2 par agence : `agencies/<slug>/…`.
 - Gardes Edge Functions : remplacer `ADMIN_EMAILS` par les rôles
   `agency_members`.
 

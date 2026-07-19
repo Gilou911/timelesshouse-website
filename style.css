@@ -4,3 +4,6 @@
    invisible agrandit la surface cliquable de 6px tout autour. */
 .tap-ext { position: relative; }
 .tap-ext::after { content: ""; position: absolute; inset: -6px; }
+
+/* ── HIG : supprime le double-tap-zoom accidentel sur les contrôles ── */
+button, a, [role="button"], [role="switch"], select, summary { touch-action: manipulation; }

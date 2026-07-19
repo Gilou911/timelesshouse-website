@@ -462,7 +462,7 @@
             overscroll-contain : le scroll interne ne « fuit » pas vers la page. */}
         <div
           style={neu.raised}
-          className={`rounded-t-[28px] sm:rounded-[32px] p-5 sm:p-7 max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto overscroll-contain w-full ${size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
+          className={`rounded-t-[28px] sm:rounded-[32px] p-5 sm:p-7 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-7 max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto overscroll-contain w-full ${size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
           onClick={e => e.stopPropagation()}
         >
           {/* Drag handle mobile */}

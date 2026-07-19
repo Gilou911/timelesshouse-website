@@ -1170,7 +1170,8 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
     setNewComment('');
     let cancelled = false;
     (async () => {
-      const { data } = await sb.from('media_comments').select('*').eq('media_id', m.id).order('created_at');
+      // RPC scellée (SaaS B.2) : lecture vérifiée par le code d'accès
+      const { data } = await sb.rpc('get_media_comments', { p_code: window.__CLIENT.code, p_media_id: m.id });
       if (!cancelled) setComments(data || []);
     })();
     return () => { cancelled = true; };
@@ -1224,7 +1225,14 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
       is_admin:    false,
       comment:     newComment.trim(),
     };
-    const { data, error } = await sb.from('media_comments').insert(payload).select().single();
+    // RPC scellée (SaaS B.2) : l'insert vérifie côté serveur que le média
+    // appartient bien au client du code d'accès
+    const { data, error } = await sb.rpc('add_media_comment', {
+      p_code:        window.__CLIENT.code,
+      p_media_id:    m.id,
+      p_author_name: payload.author_name,
+      p_comment:     payload.comment,
+    });
     if (!error && data) {
       setComments([...comments, data]);
       setNewComment('');
@@ -1250,7 +1258,8 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
 
   const setApproval = async (status) => {
     setSavingApproval(true);
-    const { error } = await sb.rpc('update_media_approval', { p_media_id: m.id, p_status: status });
+    // Signature scellée (SaaS B.2) : le code d'accès authentifie le client
+    const { error } = await sb.rpc('update_media_approval', { p_code: window.__CLIENT.code, p_media_id: m.id, p_status: status });
     if (!error) {
       setLocalStatus(status);
       onMediaUpdate && onMediaUpdate(m.id, status);
@@ -2259,52 +2268,45 @@ const useSocialData = (clientId, { platform = 'all', range = '30j' } = {}) => {
   });
 
   useEffect(() => {
-    if (!sb || !clientId) {
+    // Le jeton d'accès est le code client (RPC scellée SaaS B.2) ;
+    // clientId ne sert plus qu'à invalider le hook si le client change.
+    const code = window.__CLIENT && window.__CLIENT.code;
+    if (!sb || !code) {
       setState(s => ({ ...s, loading: false }));
       return;
     }
     let cancelled = false;
 
-    const since = (() => {
-      const d = new Date();
-      const days = { '24h': 1, '7j': 7, '30j': 30, '12m': 365 }[range] || 30;
-      d.setDate(d.getDate() - days);
-      return d.toISOString();
-    })();
-
     (async () => {
       setState(s => ({ ...s, loading: true }));
 
       try {
-        const [accountsRes, postsRes, campaignsRes, alertsRes, insightsRes] = await Promise.all([
-          sb.from('v_social_accounts_public').select('*').eq('client_id', clientId).eq('active', true),
-          sb.from('social_posts').select('*').eq('client_id', clientId).gte('published_at', since).order('published_at', { ascending: false }),
-          sb.from('v_campaign_kpis').select('*').eq('client_id', clientId).order('start_date', { ascending: false }),
-          sb.from('social_alerts').select('*').eq('client_id', clientId).is('acknowledged_at', null).order('created_at', { ascending: false }).limit(5),
-          sb.from('ai_insights').select('*').eq('client_id', clientId).eq('scope', 'weekly_summary').order('created_at', { ascending: false }).limit(1).maybeSingle(),
-        ]);
+        // RPC scellée (SaaS B.2) : toutes les données sociales en un appel,
+        // vérifié par le code d'accès (la fenêtre temporelle est calculée
+        // côté serveur depuis p_range)
+        const { data, error } = await sb.rpc('get_client_social', {
+          p_code:  code,
+          p_range: range,
+        });
+        if (error) throw error;
 
         if (cancelled) return;
 
-        // Pour chaque campagne, récupérer la liste des post_ids associés
-        const campaigns = campaignsRes.data || [];
-        if (campaigns.length > 0) {
-          const { data: links } = await sb
-            .from('campaign_posts')
-            .select('campaign_id, post_id, ad_spend, role')
-            .in('campaign_id', campaigns.map(c => c.campaign_id));
-          campaigns.forEach(c => {
-            c.post_ids = (links || []).filter(l => l.campaign_id === c.campaign_id).map(l => l.post_id);
-          });
-        }
+        const d = data || {};
+        // Pour chaque campagne, la liste des post_ids associés
+        const campaigns = d.campaigns || [];
+        const links     = d.campaign_posts || [];
+        campaigns.forEach(c => {
+          c.post_ids = links.filter(l => l.campaign_id === c.campaign_id).map(l => l.post_id);
+        });
 
         setState({
           loading: false,
-          accounts: accountsRes.data || [],
-          posts: (postsRes.data || []).filter(p => platform === 'all' || p.platform === platform),
+          accounts: d.accounts || [],
+          posts: (d.posts || []).filter(p => platform === 'all' || p.platform === platform),
           campaigns,
-          alerts: alertsRes.data || [],
-          insights: insightsRes.data || null,
+          alerts: d.alerts || [],
+          insights: d.insights || null,
         });
       } catch (err) {
         console.error('[Analytics v2] data load failed:', err);

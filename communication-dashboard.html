@@ -280,6 +280,7 @@
     window.__CLIENT = client;
 
     window.CLIENT_DATA = {
+      id:         client.id,
       name:       client.name,
       greeting:   client.greeting || (client.name || '').split(' ')[0],
       initials:   client.initials || '',

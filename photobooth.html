@@ -238,7 +238,7 @@
 
     .grid-masonry { columns: 4 300px; column-gap: var(--gap); }
     .grid-masonry .ph { margin-bottom: var(--gap); break-inside: avoid; }
-    .grid-masonry .ph img { width: 100%; display: block; }
+    .grid-masonry .ph img { width: 100%; display: block; height: auto; }
 
     .grid-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(46vw, 280px), 1fr)); gap: var(--gap); }
     .grid-grille .ph { aspect-ratio: 1; }
@@ -263,6 +263,7 @@
     }
     .ph:hover .dl, .ph:focus-within .dl { opacity: 0.7; }
     .ph .dl:hover { opacity: 1; }
+    .ph .dl:active { opacity: 1; transform: scale(0.9); }
     @media (pointer: coarse) { .ph .dl { opacity: 0.55; } }
 
     /* ── Lightbox ── */
@@ -274,6 +275,10 @@
       touch-action: none; overscroll-behavior: contain;
     }
     .lb.open { display: flex; }
+    @supports not (backdrop-filter: blur(1px)) { .lb { background: rgba(5,5,5,0.985); } }
+    @media (prefers-reduced-transparency: reduce) {
+      .lb { background: #050505; backdrop-filter: none; }
+    }
     .lb img {
       max-width: min(94vw, 1500px); max-height: 84vh; object-fit: contain;
       box-shadow: var(--shadow);
@@ -285,6 +290,8 @@
       transition: border-color 0.3s, background 0.3s;
     }
     .lb-btn:hover { border-color: var(--accent); background: var(--accent-gl); }
+    .lb-btn:active { transform: scale(0.94); background: var(--accent-gl); }
+    .lb-prev:active, .lb-next:active { transform: translateY(-50%) scale(0.94); }
     .lb-close { top: 20px; right: 20px; }
     .lb-prev { left: 16px; top: 50%; transform: translateY(-50%); }
     .lb-next { right: 16px; top: 50%; transform: translateY(-50%); }
@@ -303,6 +310,7 @@
       content: ""; position: absolute; left: 4px; right: 4px; bottom: 6px;
       height: 1px; background: var(--accent); opacity: 0.7; transition: opacity 0.3s;
     }
+    .lb-bar a:active { opacity: 0.6; }
     .lb-bar a:hover { color: #fff; }
     .lb-bar a:hover::after { opacity: 1; }
     /* Lien de retrait : présent mais en retrait — c'est un recours, pas
@@ -376,6 +384,7 @@
       transition: background 0.3s, color 0.3s;
     }
     .cta a:hover { background: var(--accent); color: var(--bg); }
+    .cta a:active { transform: scale(0.97); }
 
     footer.site {
       padding: 40px 20px 56px; text-align: center;
@@ -468,6 +477,8 @@
     const lbDl = document.getElementById('lb-dl');
     let FLAT = [];
     let lbIndex = -1;
+    let lastFocus = null;
+    let lbInHistory = false;
 
     /* Verrouillage du fond, version iOS-safe (même technique que les
        galeries mariage) : overflow:hidden ne suffit pas sur iOS Safari —
@@ -500,7 +511,15 @@
       lbDl.href = photo.url;
       lbCount.textContent = (lbIndex + 1) + ' / ' + FLAT.length;
       lb.classList.add('open');
-      if (!wasOpen) lockBody();
+      if (!wasOpen) {
+        lockBody();
+        //  Accessibilité + navigation : focus dans la visionneuse, et le
+        //  bouton retour du téléphone la ferme au lieu de quitter la page.
+        lastFocus = document.activeElement;
+        document.getElementById('lb-close').focus();
+        history.pushState({ pbLightbox: true }, '');
+        lbInHistory = true;
+      }
     }
 
     /* ── Partage natif : la photo elle-même (logos incrustés) part sur
@@ -531,11 +550,27 @@
       }
       lbShare.textContent = original;
     });
-    function lbClose() {
+    function lbClose(fromHistory = false) {
       lb.classList.remove('open');
       unlockBody();
       lbIndex = -1;
+      if (lastFocus && lastFocus.focus) { lastFocus.focus(); lastFocus = null; }
+      if (lbInHistory && !fromHistory) { lbInHistory = false; history.back(); }
+      else lbInHistory = false;
     }
+    window.addEventListener('popstate', () => {
+      if (lb.classList.contains('open')) lbClose(true);
+    });
+    //  Le focus clavier reste dans la visionneuse tant qu'elle est ouverte.
+    lb.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab') return;
+      const focusables = [...lb.querySelectorAll('button, a[href]')]
+        .filter((el) => !el.hidden && el.offsetParent !== null);
+      if (!focusables.length) return;
+      const first = focusables[0], last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
     lbDl.addEventListener('click', () => track('download'));
 
     //  Droit de retrait praticable : mailto pré-rempli avec la référence
@@ -610,7 +645,8 @@
           <div class="grid-${layout}">
             ${photos.map((p, i) => `
               <figure class="ph" data-i="${i}">
-                <img src="${esc(p.thumb_url || p.url)}" alt="Photo ${esc(p.stem)}" loading="lazy">
+                <img src="${esc(p.thumb_url || p.url)}" alt="Photo ${esc(p.stem)}" loading="lazy"
+                     ${p.thumb_w && p.thumb_h ? `style="aspect-ratio:${p.thumb_w}/${p.thumb_h}"` : ''}>
                 <a class="dl" href="${esc(p.url)}" title="Enregistrer" aria-label="Enregistrer">⬇</a>
               </figure>`).join('')}
           </div>

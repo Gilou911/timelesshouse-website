@@ -1,1 +1,6 @@
 @import "tailwindcss";
+/* ── HIG : étend la zone tactile à ≥44-48px sans changer le visuel ──
+   À poser sur les boutons-icônes ≤36px (w-9 et moins). L'::after
+   invisible agrandit la surface cliquable de 6px tout autour. */
+.tap-ext { position: relative; }
+.tap-ext::after { content: ""; position: absolute; inset: -6px; }

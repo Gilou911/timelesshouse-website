@@ -180,8 +180,11 @@ const DarkToggle = ({ isDark, onToggle }) => {
         outline: 'none',
         overflow: 'visible',
         transition: 'box-shadow 0.4s ease',
+        position: 'relative',
       }}
     >
+      {/* HIG : étend la zone tactile à ~64×44 sans toucher au visuel 42×22 */}
+      <span aria-hidden="true" style={{ position: 'absolute', inset: -11 }} />
       <svg width="42" height="22" viewBox="0 0 42 22" preserveAspectRatio="none"
            style={{ display: 'block', width: 42, height: 22, flex: '0 0 auto', overflow: 'visible', pointerEvents: 'none' }}>
         <rect x="1.2" y="1.2" width="39.6" height="19.6" rx="9.8" ry="9.8" pathLength="100"
@@ -937,7 +940,7 @@ const Dashboard = ({ goTo }) => {
         <div style={neu.raised} className={`rounded-[24px] lg:rounded-[28px] p-5 lg:p-6 ${CLIENT.invoicesEnabled ? 'lg:col-span-7' : 'lg:col-span-12'}`}>
           <div className="flex items-end justify-between mb-5 gap-3">
             <h3 className="text-[20px] lg:text-[22px] tracking-tight leading-none" style={SERIF}>Prochains tournages</h3>
-            <button onClick={() => goTo('calendar')} className="text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0 min-h-[32px]">
+            <button onClick={() => goTo('calendar')} className="text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0 min-h-[44px]">
               Tout voir <ArrowRight size={13} />
             </button>
           </div>
@@ -972,7 +975,7 @@ const Dashboard = ({ goTo }) => {
         <div style={neu.raised} className={`rounded-[24px] lg:rounded-[28px] p-5 lg:p-6 ${CLIENT.shootsEnabled ? 'lg:col-span-5' : 'lg:col-span-12'}`}>
           <div className="flex items-end justify-between mb-5 gap-3">
             <h3 className="text-[20px] lg:text-[22px] tracking-tight leading-none" style={SERIF}>Dernières factures</h3>
-            <button onClick={() => goTo('invoices')} className="text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0 min-h-[32px]">
+            <button onClick={() => goTo('invoices')} className="text-[12px] text-stone-500 flex items-center gap-1 hover:text-stone-900 shrink-0 min-h-[44px]">
               Tout voir <ArrowRight size={13} />
             </button>
           </div>
@@ -1650,13 +1653,13 @@ const Media = ({ navTarget, clearTarget }) => {
         <div style={neu.raisedXs} className="rounded-full p-1 flex items-center shrink-0">
           <button onClick={() => setView('grid')}
             style={view === 'grid' ? neu.darkSm : {}}
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition active:scale-95 ${view === 'grid' ? 'text-white' : 'text-stone-500'}`}
+            className={`w-9 h-9 tap-ext rounded-full flex items-center justify-center transition active:scale-95 ${view === 'grid' ? 'text-white' : 'text-stone-500'}`}
             title="Vue grille">
             <Grid size={15} />
           </button>
           <button onClick={() => setView('list')}
             style={view === 'list' ? neu.darkSm : {}}
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition active:scale-95 ${view === 'list' ? 'text-white' : 'text-stone-500'}`}
+            className={`w-9 h-9 tap-ext rounded-full flex items-center justify-center transition active:scale-95 ${view === 'list' ? 'text-white' : 'text-stone-500'}`}
             title="Vue liste">
             <List size={15} />
           </button>
@@ -1676,11 +1679,12 @@ const Media = ({ navTarget, clearTarget }) => {
       {allTags.length >= 2 && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold shrink-0">Tag</span>
-          <div className="flex items-center gap-1.5 flex-wrap">
+          {/* HIG : chips ≥44px (mesurées 30px) + 8px d'espacement entre cibles */}
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setActiveTag('')}
               style={!activeTag ? neu.darkSm : neu.raisedXs}
-              className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition active:scale-95 ${!activeTag ? 'text-white' : 'text-stone-600'}`}>
+              className={`px-4 py-2 min-h-[44px] rounded-full text-[12px] font-medium transition active:scale-95 ${!activeTag ? 'text-white' : 'text-stone-600'}`}>
               Tous
             </button>
             {allTags.map(tag => (
@@ -1688,7 +1692,7 @@ const Media = ({ navTarget, clearTarget }) => {
                 key={tag}
                 onClick={() => setActiveTag(activeTag === tag ? '' : tag)}
                 style={activeTag === tag ? neu.darkSm : neu.raisedXs}
-                className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition active:scale-95 ${activeTag === tag ? 'text-white' : 'text-stone-600'}`}>
+                className={`px-4 py-2 min-h-[44px] rounded-full text-[12px] font-medium transition active:scale-95 ${activeTag === tag ? 'text-white' : 'text-stone-600'}`}>
                 {tag}
               </button>
             ))}
@@ -1866,7 +1870,7 @@ const Media = ({ navTarget, clearTarget }) => {
                     </div>
                     {/* Bouton ouvrir */}
                     <div className="col-span-1 flex justify-end">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 group-hover:text-stone-900 group-hover:bg-stone-100 transition">
+                      <div className="w-8 h-8 tap-ext rounded-full flex items-center justify-center text-stone-400 group-hover:text-stone-900 group-hover:bg-stone-100 transition">
                         <Maximize2 size={13} />
                       </div>
                     </div>
@@ -2045,7 +2049,7 @@ const Invoices = ({ goTo }) => {
                   {inv.url && (
                     <button
                       onClick={() => smartDownload(inv.url, `Facture-${inv.id}`, 'pdf')}
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100"
+                      className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100"
                       title="Télécharger la facture"
                     >
                       <Download size={13} />
@@ -3193,12 +3197,12 @@ const Calendar = ({ navTarget, clearTarget, goTo }) => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button onClick={prevMonth} aria-label="Mois précédent"
-                  style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center hidden lg:flex">
+                  style={neu.raisedXs} className="w-9 h-9 tap-ext rounded-full flex items-center justify-center hidden lg:flex">
             <ChevronLeft size={15} />
           </button>
           <h3 className="text-[20px] lg:text-[22px] tracking-tight" style={SERIF}>{monthLabel}</h3>
           <button onClick={nextMonth} aria-label="Mois suivant"
-                  style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center hidden lg:flex">
+                  style={neu.raisedXs} className="w-9 h-9 tap-ext rounded-full flex items-center justify-center hidden lg:flex">
             <ChevronRight size={15} />
           </button>
         </div>

@@ -306,8 +306,10 @@
     .modal-overlay.active .modal-content { transform: translateY(0) scale(1); }
 
     .modal-close {
-      position: absolute; top: 18px; right: 18px;
-      width: 34px; height: 34px; border-radius: 50%;
+      /* HIG : cible tactile 44px (34px auparavant) — position compensée
+         pour garder le même placement optique du symbole */
+      position: absolute; top: 13px; right: 13px;
+      width: 44px; height: 44px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
       background: var(--surface);
       box-shadow: 3px 3px 7px var(--shadow-dark-xs), -3px -3px 7px var(--shadow-light-xs);

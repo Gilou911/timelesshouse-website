@@ -315,7 +315,10 @@
             outline: 'none',
             overflow: 'visible',
             transition: 'box-shadow 0.4s ease',
+            position: 'relative',
           }}>
+          {/* HIG : étend la zone tactile à ~64×44 sans toucher au visuel 42×22 */}
+          <span aria-hidden="true" style={{ position: 'absolute', inset: -11 }} />
           <svg width="42" height="22" viewBox="0 0 42 22" preserveAspectRatio="none"
                style={{ display: 'block', width: 42, height: 22, flex: '0 0 auto', overflow: 'visible', pointerEvents: 'none' }}>
             <rect x="1.2" y="1.2" width="39.6" height="19.6" rx="9.8" ry="9.8" pathLength="100"
@@ -469,7 +472,7 @@
               {kicker && <div className="text-[10.5px] sm:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">{kicker}</div>}
               <h2 className="text-[20px] sm:text-[24px] tracking-tight mt-1 leading-tight" style={SERIF}>{title}</h2>
             </div>
-            <button style={neu.raisedXs} onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"><X size={15} /></button>
+            <button style={neu.raisedXs} onClick={onClose} className="w-9 h-9 tap-ext rounded-full flex items-center justify-center shrink-0"><X size={15} /></button>
           </div>
           {children}
         </div>
@@ -522,7 +525,9 @@
                 <div className="relative">
                   <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
                   <Input type={showPwd ? 'text' : 'password'} required value={pwd} onChange={e => setPwd(e.target.value)} placeholder="••••••••" style={{ paddingLeft: '42px', paddingRight: '42px' }} />
-                  <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700">
+                  {/* HIG : zone tactile 44px (l'icône seule faisait 15×15) */}
+                  <button type="button" onClick={() => setShowPwd(!showPwd)} aria-label={showPwd ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-stone-400 hover:text-stone-700">
                     {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
@@ -1165,19 +1170,19 @@
             </div>
             <button type="button" onClick={refresh} title="Rafraîchir" disabled={disabled}
               style={neu.raisedXs}
-              className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40">
+              className="w-8 h-8 tap-ext rounded-full flex items-center justify-center disabled:opacity-40">
               <RefreshCw size={12} className={loading && !disabled ? 'animate-spin' : ''} />
             </button>
             {!compact && (
               <button type="button" onClick={() => setExpanded(true)} title="Plein écran" disabled={disabled}
                 style={neu.raisedXs}
-                className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40">
+                className="w-8 h-8 tap-ext rounded-full flex items-center justify-center disabled:opacity-40">
                 <Maximize2 size={12} />
               </button>
             )}
             <button type="button" onClick={openTab} title="Ouvrir dans un nouvel onglet" disabled={disabled}
               style={neu.raisedXs}
-              className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40">
+              className="w-8 h-8 tap-ext rounded-full flex items-center justify-center disabled:opacity-40">
               <ExternalLink size={12} />
             </button>
           </div>
@@ -1259,7 +1264,7 @@
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button type="button" onClick={refresh} title="Rafraîchir"
-                      style={neu.raisedXs} className="w-9 h-9 rounded-full flex items-center justify-center">
+                      style={neu.raisedXs} className="w-9 h-9 tap-ext rounded-full flex items-center justify-center">
                       <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
                     </button>
                     <button type="button" onClick={openTab} style={neu.raisedXs}
@@ -1267,7 +1272,7 @@
                       <ExternalLink size={11} /> Nouvel onglet
                     </button>
                     <button type="button" onClick={() => setExpanded(false)} style={neu.raisedXs}
-                      className="w-9 h-9 rounded-full flex items-center justify-center">
+                      className="w-9 h-9 tap-ext rounded-full flex items-center justify-center">
                       <X size={15} />
                     </button>
                   </div>
@@ -3251,12 +3256,12 @@
                       </div>
                       <div className="col-span-1 flex items-center justify-end gap-1.5">
                         {client?.client_email && (
-                          <button onClick={() => notifyInvoiceReady(inv)} disabled={notifying === inv.id} aria-label="Notifier le client" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100 disabled:opacity-50" title="Prévenir le client que la facture est prête">
+                          <button onClick={() => notifyInvoiceReady(inv)} disabled={notifying === inv.id} aria-label="Notifier le client" className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100 disabled:opacity-50" title="Prévenir le client que la facture est prête">
                             {notifying === inv.id ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
                           </button>
                         )}
-                        <button onClick={() => { setEditing(inv); setShowForm(true); }} aria-label="Modifier" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100"><Edit3 size={13} /></button>
-                        <button onClick={() => remove(inv.id)} aria-label="Supprimer" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500 hover:bg-rose-50"><Trash2 size={13} /></button>
+                        <button onClick={() => { setEditing(inv); setShowForm(true); }} aria-label="Modifier" className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100"><Edit3 size={13} /></button>
+                        <button onClick={() => remove(inv.id)} aria-label="Supprimer" className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500 hover:bg-rose-50"><Trash2 size={13} /></button>
                       </div>
                     </div>
                   </div>
@@ -3475,9 +3480,9 @@
                         <div className="col-span-2 text-[12px] text-stone-500">{doc.date_label}</div>
                         <div className="col-span-2 text-[12px] text-stone-500 truncate">{doc.size_label || '—'}</div>
                         <div className="col-span-1 flex items-center justify-end gap-1.5">
-                          <a href={doc.file_url} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir le document" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100" title="Ouvrir le document"><ExternalLink size={13} /></a>
-                          <button onClick={() => { setEditing(doc); setShowForm(true); }} aria-label="Modifier" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100"><Edit3 size={13} /></button>
-                          <button onClick={() => remove(doc.id)} aria-label="Supprimer" className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500 hover:bg-rose-50"><Trash2 size={13} /></button>
+                          <a href={doc.file_url} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir le document" className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100" title="Ouvrir le document"><ExternalLink size={13} /></a>
+                          <button onClick={() => { setEditing(doc); setShowForm(true); }} aria-label="Modifier" className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100"><Edit3 size={13} /></button>
+                          <button onClick={() => remove(doc.id)} aria-label="Supprimer" className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500 hover:bg-rose-50"><Trash2 size={13} /></button>
                         </div>
                       </div>
                     </div>
@@ -3809,13 +3814,13 @@
                               )}
                               <code className="text-[11px] text-stone-500 truncate flex-1 font-mono min-w-[120px]">{shareLink(s)}</code>
                               <button onClick={() => copyLink(s)} aria-label="Copier le lien"
-                                className="w-9 h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform shrink-0" title="Copier le lien">
+                                className="w-9 h-9 tap-ext rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform shrink-0" title="Copier le lien">
                                 {copiedId === s.id ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
                               </button>
                               <a href={shareLink(s)} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir l'aperçu"
-                                className="w-9 h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform shrink-0" title="Ouvrir l'aperçu public"><ExternalLink size={13} /></a>
+                                className="w-9 h-9 tap-ext rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform shrink-0" title="Ouvrir l'aperçu public"><ExternalLink size={13} /></a>
                               <button onClick={() => regenToken(s)} aria-label="Régénérer le lien"
-                                className="w-9 h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform shrink-0" title="Régénérer le lien (révoque l'ancien)"><RefreshCw size={13} /></button>
+                                className="w-9 h-9 tap-ext rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform shrink-0" title="Régénérer le lien (révoque l'ancien)"><RefreshCw size={13} /></button>
                             </div>
                           ) : (
                             <div className="text-[11.5px] text-stone-400 leading-snug">Activez le lien pour permettre au client de le partager publiquement.</div>
@@ -3862,11 +3867,11 @@
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <button type="button" onClick={() => onMove(index, -1)} disabled={index === 0} aria-label="Monter"
-                className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-stone-500 disabled:opacity-30 active:scale-95"><ChevronUp size={14} /></button>
+                className="w-8 h-8 tap-ext rounded-full flex items-center justify-center bg-white text-stone-500 disabled:opacity-30 active:scale-95"><ChevronUp size={14} /></button>
               <button type="button" onClick={() => onMove(index, 1)} disabled={index === total - 1} aria-label="Descendre"
-                className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-stone-500 disabled:opacity-30 active:scale-95"><ChevronDown size={14} /></button>
+                className="w-8 h-8 tap-ext rounded-full flex items-center justify-center bg-white text-stone-500 disabled:opacity-30 active:scale-95"><ChevronDown size={14} /></button>
               <button type="button" onClick={() => onRemove(index)} aria-label="Supprimer le concept"
-                className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-rose-500 active:scale-95"><Trash2 size={13} /></button>
+                className="w-8 h-8 tap-ext rounded-full flex items-center justify-center bg-white text-rose-500 active:scale-95"><Trash2 size={13} /></button>
             </div>
           </div>
 

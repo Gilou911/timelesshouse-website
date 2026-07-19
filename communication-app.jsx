@@ -1095,13 +1095,16 @@ const HlsPlayer = ({ src, onRatio, boxStyle }) => {
         }}
         style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
       />
-      {/* Badge qualité + menu (au-dessus des contrôles natifs, en haut à droite) */}
-      <div className="absolute top-2.5 right-2.5 z-10 flex flex-col items-end gap-1.5">
+      {/* Badge qualité + menu. Sur mobile, décalé SOUS la zone de la croix
+          de fermeture de la lightbox (top-14) pour ne jamais la recouvrir ;
+          en haut à droite classique sur desktop. */}
+      <div className="absolute top-14 lg:top-2.5 right-2.5 z-10 flex flex-col items-end gap-1.5">
         <button
           type="button"
+          aria-label="Choisir la qualité de lecture"
           onClick={() => setMenuOpen(o => !o)}
           disabled={nativeOnly}
-          className="px-2.5 py-1 rounded-full bg-black/60 text-white text-[10px] font-semibold uppercase tracking-wider backdrop-blur-sm hover:bg-black/80 transition disabled:cursor-default"
+          className="px-3 py-1.5 lg:px-2.5 lg:py-1 rounded-full bg-black/60 text-white text-[11px] lg:text-[10px] font-semibold uppercase tracking-wider backdrop-blur-sm hover:bg-black/80 transition disabled:cursor-default"
           title={nativeOnly ? 'Qualité automatique (gérée par votre appareil)' : 'Choisir la qualité'}
         >
           {badge}{!nativeOnly && <span className="ml-1 opacity-60">▾</span>}
@@ -1111,7 +1114,7 @@ const HlsPlayer = ({ src, onRatio, boxStyle }) => {
             <button
               type="button"
               onClick={() => pick(-1)}
-              className={`w-full text-left px-4 py-1.5 text-[12px] ${manualLevel === -1 ? 'text-white font-semibold' : 'text-white/60 hover:text-white'}`}
+              className={`w-full text-left px-4 py-2.5 lg:py-1.5 text-[13px] lg:text-[12px] ${manualLevel === -1 ? 'text-white font-semibold' : 'text-white/60 hover:text-white'}`}
             >
               Auto (recommandé)
             </button>
@@ -1120,7 +1123,7 @@ const HlsPlayer = ({ src, onRatio, boxStyle }) => {
                 key={l.index}
                 type="button"
                 onClick={() => pick(l.index)}
-                className={`w-full text-left px-4 py-1.5 text-[12px] ${manualLevel === l.index ? 'text-white font-semibold' : 'text-white/60 hover:text-white'}`}
+                className={`w-full text-left px-4 py-2.5 lg:py-1.5 text-[13px] lg:text-[12px] ${manualLevel === l.index ? 'text-white font-semibold' : 'text-white/60 hover:text-white'}`}
               >
                 {l.side}p
               </button>
@@ -1180,6 +1183,34 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [index, items.length, onIndex, onClose]);
+
+  // 🔒 Verrouille le défilement de la page derrière la lightbox.
+  // body en position:fixed = seule technique fiable sur Safari iOS (overflow
+  // hidden seul laisse passer le scroll tactile). Position restaurée à la
+  // fermeture.
+  useEffect(() => {
+    const y = window.scrollY;
+    const b = document.body.style;
+    const prev = {
+      position: b.position, top: b.top, left: b.left,
+      right: b.right, width: b.width, overflow: b.overflow,
+    };
+    b.position = 'fixed';
+    b.top = `-${y}px`;
+    b.left = '0';
+    b.right = '0';
+    b.width = '100%';
+    b.overflow = 'hidden';
+    return () => {
+      b.position = prev.position;
+      b.top = prev.top;
+      b.left = prev.left;
+      b.right = prev.right;
+      b.width = prev.width;
+      b.overflow = prev.overflow;
+      window.scrollTo(0, y);
+    };
+  }, []);
 
   const sendComment = async () => {
     if (!newComment.trim()) return;
@@ -1262,7 +1293,14 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
   const [tab, setTab] = useState('info'); // mobile uniquement : info | comments
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col lg:flex-row bg-stone-900/95 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex flex-col lg:flex-row bg-stone-900/95 backdrop-blur-sm"
+      style={{
+        // Encoche/barre iPhone : les contrôles ne passent jamais dessous.
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
+    >
       {/* Zone média — hauteur fixe sur mobile pour ne pas déborder sur l'aside
           Desktop : lg:h-full + lg:min-h-screen → la chaîne de h-full peut se résoudre
           jusqu'au <video>/<img> (sinon, height: 100% reste en "auto" et le média
@@ -1270,12 +1308,12 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
       <div className="flex items-center justify-center relative p-3 sm:p-6 lg:p-8 min-w-0 lg:flex-1 h-[55vh] lg:h-full lg:min-h-screen shrink-0 overflow-hidden">
         {/* Nav buttons */}
         {index > 0 && (
-          <button onClick={() => onIndex(index - 1)} className="absolute left-2 lg:left-4 top-1/2 -translate-y-1/2 w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur z-10">
+          <button aria-label="Média précédent" onClick={() => onIndex(index - 1)} className="absolute left-2 lg:left-4 top-1/2 -translate-y-1/2 w-11 h-11 lg:w-12 lg:h-12 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center backdrop-blur z-20">
             <ChevronLeft size={20} />
           </button>
         )}
         {index < items.length - 1 && (
-          <button onClick={() => onIndex(index + 1)} className="absolute right-2 lg:right-4 top-1/2 -translate-y-1/2 w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur z-10">
+          <button aria-label="Média suivant" onClick={() => onIndex(index + 1)} className="absolute right-2 lg:right-4 top-1/2 -translate-y-1/2 w-11 h-11 lg:w-12 lg:h-12 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center backdrop-blur z-20">
             <ChevronRight size={20} />
           </button>
         )}
@@ -1284,8 +1322,10 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
           {index + 1} / {items.length}
         </div>
 
-        <button onClick={onClose} className="absolute top-3 right-3 lg:top-4 lg:right-4 w-9 h-9 lg:w-10 lg:h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur z-10">
-          <X size={16} />
+        {/* Croix : TOUJOURS au-dessus du lecteur (z-30 > badge qualité z-10),
+            cible tactile 44px, fond sombre lisible sur vidéo claire. */}
+        <button aria-label="Fermer" onClick={onClose} className="absolute top-3 right-3 lg:top-4 lg:right-4 w-11 h-11 lg:w-10 lg:h-10 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur z-30">
+          <X size={18} />
         </button>
 
         <div className="flex items-center justify-center w-full h-full min-h-0 min-w-0">
@@ -1398,7 +1438,7 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
         </div>
 
         {/* Conteneur info (header + validation) — scrollable sur mobile */}
-        <div className={`${tab !== 'info' ? 'hidden lg:block' : 'flex flex-col'} lg:block lg:overflow-visible overflow-y-auto`}>
+        <div className={`${tab !== 'info' ? 'hidden lg:block' : 'flex flex-col'} lg:block lg:overflow-visible overflow-y-auto overscroll-contain`}>
           {/* Header + actions */}
           <div className="p-5 lg:p-6 border-b border-stone-200">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -1461,7 +1501,7 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 lg:px-6 pt-4 lg:pt-0 space-y-3 pb-3">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-5 lg:px-6 pt-4 lg:pt-0 space-y-3 pb-3">
             {comments.length === 0 && <div className="text-[12px] text-stone-400 text-center py-6">Aucun commentaire.<br/>Démarrez la conversation.</div>}
             {comments.map(c => (
               <div key={c.id} className={`flex flex-col ${c.is_admin ? 'items-start' : 'items-end'}`}>

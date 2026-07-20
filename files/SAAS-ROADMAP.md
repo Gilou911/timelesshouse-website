@@ -477,6 +477,35 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   non-régression sur le film d'Ezla & Davy (Streamable, sans drapeau,
   toujours visible).
 
+- **Audit HIG complet ✅ (fait le 20/07/2026, 3 vagues)** : audit MESURÉ
+  dans le navigateur (auditeur maison : cibles, contrastes calculés,
+  tailles de police, débordements) sur les 7 surfaces de l'app, en
+  375 px et 1280 px, clair et sombre.
+  **Vague 1 (P0)** : focus clavier invisible (`outline:none` sans
+  remplacement) sur 5 pages ; contrastes du texte secondaire à 3.3:1 et
+  des libellés de formulaire à 2.2:1 ; cibles sous 44 px (pieds de page,
+  logos, interrupteur jour/nuit 42×22 — zone étendue, dessin conservé) ;
+  champ de recherche à 14 px (iOS zoomait) ; `prefers-reduced-motion`
+  ignoré partout ; safe areas et `color-scheme` ajoutés.
+  **Bug de marque blanche** : la galerie appliquait l'accent de l'agence
+  — choisi pour un fond CLAIR — sur son fond noir. L'accent
+  TimelessHouse tombait à 1.3:1, le sur-titre disparaissait ; tout
+  locataire à couleur foncée aurait été touché. `readableOnDark()`
+  éclaircit l'accent jusqu'à 4.5:1 en gardant sa teinte.
+  **Vague 2 (P1)** : la modale de la console ne gérait que le verrou de
+  défilement — ajout d'Échap, du piège à focus, de la restitution du
+  focus et de `role=dialog/aria-modal` ; `h1` manquant sur /app ; saut
+  h1→h3 dans la console.
+  **Vague 3 (P2)** : lexique (trois noms pour la même action sur le même
+  écran), valeurs techniques d'univers affichées telles quelles,
+  tutoiement isolé dans une interface qui vouvoie, états vides
+  reformulés sans « Cliquez », infobulles des boutons icône.
+  Écarts P0 restants mesurés : 0 sur /app, /galerie, la console,
+  /inscription et /offres. Faux positifs écartés en cours de route :
+  couleurs `oklch()` de Tailwind v4 mal lues par l'auditeur, et fonds en
+  dégradé qu'il ne sait pas inspecter.
+
+
 ## C — Apps stores (après B)
 
 Capacitor + **notifications push** (« Vos photos sont livrées ») —

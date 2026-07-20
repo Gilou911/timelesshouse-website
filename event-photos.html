@@ -35,6 +35,9 @@
 
     import { createClient } from '@supabase/supabase-js';
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Partagé avec le script classique de la page : loadDynamic() appelle
+    // la RPC get_client_gallery (galerie B2 des locataires) via ce client.
+    window.__SB = sb;
 
     function showError(type, clientName) {
       document.body.style.opacity = '1';
@@ -1219,13 +1222,24 @@
     /* ── Loader d'entrée ── */
     setTimeout(() => $('boot').classList.add('gone'), 1500);
 
-    /* ── Cloudinary helpers ── */
+    /* ── Helpers d'URL — B2 (galeries locataires) ou Cloudinary (héritage) ──
+       Les photos B2 portent des URLs figées (aucune transformation à la
+       volée) : url_grid pour la grille, url_view pour la lightbox,
+       url_original pour le téléchargement. B2MAP (id → ligne gallery_photos)
+       est rempli par loadDynamic() quand la RPC get_client_gallery répond ;
+       vide, tout passe par Cloudinary comme avant. */
     const CLOUD = C.cloudName, ROOT = C.rootFolder;
-    const url = (id, t) => 'https://res.cloudinary.com/' + CLOUD + '/image/upload/' + t + '/' + id;
-    const HD    = id => url(id, 'q_auto:best,f_auto');
-    const VIEW  = id => url(id, 'c_limit,w_2000,q_auto:good,f_auto');
-    const GRID  = id => url(id, 'c_scale,w_1000,q_auto:good,f_auto');
-    const BLUR  = id => url(id, 'c_scale,w_36,e_blur:900,q_auto:low,f_auto');
+    const B2MAP = new Map();
+    const b2 = id => B2MAP.get(id);
+    const cld = (id, t) => 'https://res.cloudinary.com/' + CLOUD + '/image/upload/' + t + '/' + id;
+    // `url` sert aussi à la couverture : transfo floue → grid, grande → view
+    const url = (id, t) => b2(id)
+      ? (t.indexOf('blur') > -1 ? (b2(id).url_grid || b2(id).url_view) : (b2(id).url_view || b2(id).url_original))
+      : cld(id, t);
+    const HD    = id => b2(id) ? (b2(id).url_original || b2(id).url_view) : cld(id, 'q_auto:best,f_auto');
+    const VIEW  = id => b2(id) ? (b2(id).url_view || b2(id).url_original) : cld(id, 'c_limit,w_2000,q_auto:good,f_auto');
+    const GRID  = id => b2(id) ? (b2(id).url_grid || b2(id).url_view) : cld(id, 'c_scale,w_1000,q_auto:good,f_auto');
+    const BLUR  = id => b2(id) ? (b2(id).url_grid || b2(id).url_view) : cld(id, 'c_scale,w_36,e_blur:900,q_auto:low,f_auto');
 
     /* ── Favoris (persistés localement, sans casser en privé) ── */
     const FAV_KEY = 'th_fav_' + (sessionStorage.getItem('access_granted') || 'x');
@@ -1241,6 +1255,37 @@
       const code = sessionStorage.getItem('access_granted');
       const base = (window.SUPABASE_URL || '').replace(/\/+$/, '');
       if (!code || !base) throw new Error('Contexte Supabase manquant');
+
+      /* 1) Galerie B2 (pipeline locataires — SaaS B.3, brique 11) :
+         RPC scellée par le code d'accès, prioritaire. Sans photo B2,
+         l'héritage Cloudinary (list-gallery) puis le legacy
+         (config.categories) s'appliquent comme avant — les galeries
+         existantes ne changent pas d'un pixel. */
+      try {
+        const { data, error } = await window.__SB.rpc('get_client_gallery', { p_code: code });
+        if (!error && data && Array.isArray(data.categories)) {
+          const scenes = data.categories
+            .filter(cat => Array.isArray(cat.photos) && cat.photos.length)
+            .map(cat => {
+              const slug = (cat.category || 'photos').toLowerCase().normalize('NFD')
+                .replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'photos';
+              return {
+                folder: 'b2:' + slug,
+                name: cat.category,
+                photos: cat.photos.map((p, i) => {
+                  B2MAP.set(p.id, p);
+                  return {
+                    id: p.id, w: p.width || null, h: p.height || null,
+                    fileName: slug + '-' + String(i + 1).padStart(3, '0') + '.jpg',
+                  };
+                }),
+              };
+            });
+          if (scenes.length) { SCENES = scenes; return; }
+        }
+      } catch (e) { console.warn('[galerie] B2 indisponible :', e); }
+
+      /* 2) Héritage Cloudinary (list-gallery) */
       const resp = await fetch(base + '/functions/v1/list-gallery', {
         method: 'POST',
         headers: {

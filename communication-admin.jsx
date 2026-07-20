@@ -193,9 +193,72 @@
     }
 
     /* ════════════════════════════════════════════════════════════
+       📸 GALERIE B2 — variantes générées DANS LE NAVIGATEUR
+       (SaaS B.3, brique 11 — pipeline photos des locataires)
+       Chaque photo part sur B2 en 3 fichiers sous
+       weddings/<code>/galerie/<slug-catégorie>/<uuid>/ :
+         · original.jpg — le fichier intact (téléchargement client)
+         · view.jpg     — ≤ 2000 px de large, JPEG q0.82 (lightbox)
+         · grid.jpg     — ≤ 1000 px de large, JPEG q0.80 (grille)
+       La ligne gallery_photos porte les URLs publiques ; l'espace
+       client les lit via la RPC scellée get_client_gallery.
+       ════════════════════════════════════════════════════════════ */
+
+    // Décode une image (EXIF respecté) — createImageBitmap, sinon <img>.
+    async function decodeGalleryImage(file) {
+      try {
+        return await createImageBitmap(file, { imageOrientation: 'from-image' });
+      } catch (e) {
+        return await new Promise((resolve, reject) => {
+          const im = new Image();
+          im.onload = () => resolve(im);
+          im.onerror = () => reject(new Error(`Image illisible : ${file.name || 'fichier'}`));
+          im.src = URL.createObjectURL(file);
+        });
+      }
+    }
+
+    // Variante JPEG ≤ maxW px de large (jamais agrandie).
+    function galleryVariant(source, maxW, quality) {
+      const w = source.width || source.naturalWidth, h = source.height || source.naturalHeight;
+      const r = Math.min(1, maxW / w);
+      const cw = Math.max(1, Math.round(w * r)), ch = Math.max(1, Math.round(h * r));
+      const canvas = document.createElement('canvas');
+      canvas.width = cw; canvas.height = ch;
+      canvas.getContext('2d').drawImage(source, 0, 0, cw, ch);
+      return new Promise((resolve, reject) => canvas.toBlob(
+        (b) => b ? resolve(b) : reject(new Error('Génération de variante échouée')),
+        'image/jpeg', quality));
+    }
+
+    // Uploade UNE photo (original + 2 variantes) et insère sa ligne.
+    // onProgress(0..1) — l'original pèse le plus lourd : 70/20/10.
+    async function uploadGalleryPhoto({ client, category, position, file, onProgress }) {
+      const src = await decodeGalleryImage(file);
+      const width  = src.width  || src.naturalWidth  || null;
+      const height = src.height || src.naturalHeight || null;
+      const [viewBlob, gridBlob] = await Promise.all([
+        galleryVariant(src, 2000, 0.82),
+        galleryVariant(src, 1000, 0.80),
+      ]);
+      if (src.close) src.close();
+
+      const dir = `weddings/${client.code}/galerie/${slugify(category) || 'galerie'}/${crypto.randomUUID()}`;
+      const url_original = await b2UploadFile(file,     `${dir}/original.jpg`, (p) => onProgress?.(p * 0.7));
+      const url_view     = await b2UploadFile(viewBlob, `${dir}/view.jpg`,     (p) => onProgress?.(0.7 + p * 0.2));
+      const url_grid     = await b2UploadFile(gridBlob, `${dir}/grid.jpg`,     (p) => onProgress?.(0.9 + p * 0.1));
+
+      const { error } = await sb.from('gallery_photos').insert({
+        client_id: client.id, category, position,
+        width, height, url_original, url_view, url_grid,
+      });
+      if (error) throw new Error(error.message);
+    }
+
+    /* ════════════════════════════════════════════════════════════
        📸 UPLOAD PHOTOS → CLOUDINARY (galeries) via Edge Function cloudinary-sign
-       L'admin uploade ses photos sans quitter son espace ; elles vont dans
-       rootFolder/catégorie/ et la galerie (list-gallery) les liste toute seule.
+       ⚠️ HÉRITAGE TimelessHouse : cloudinary-sign est verrouillée aux
+       membres de la plateforme. Les locataires passent par la Galerie B2.
        ════════════════════════════════════════════════════════════ */
     async function cloudinarySign(payload) {
       const { data: { session } } = await sb.auth.getSession();
@@ -1771,6 +1834,9 @@
             </div>
           </div>
 
+          {/* Galerie photos B2 — pipeline locataires (SaaS B.3, brique 11) */}
+          <GalleryB2Manager client={client} hasPhotosPage={!!photosPage} />
+
           {editing && (
             <EventPageForm
               clientId={clientId}
@@ -1780,6 +1846,256 @@
               onSaved={() => { setEditing(null); load(); }}
               onSavedQuiet={() => load()}
             />
+          )}
+        </div>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       📸 GALERIE B2 — gestionnaire de la galerie photos du client
+       Catégories + photos stockées sur B2 (weddings/<code>/galerie/…),
+       lignes en base (gallery_photos, RLS par agence). L'espace client
+       les lit via la RPC scellée get_client_gallery — prioritaire sur
+       l'héritage Cloudinary dans event-photos(.-cinematic).html.
+       ════════════════════════════════════════════════════════════ */
+    function GalleryB2Manager({ client, hasPhotosPage }) {
+      const [rows, setRows] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [pendingCats, setPendingCats] = useState([]);  // catégories créées, encore vides
+      const [newCat, setNewCat] = useState('');
+      const [renames, setRenames] = useState({});          // { [cat]: brouillon de nom }
+      const [up, setUp] = useState({});                    // { [cat]: { done, total, pct, msg, err } }
+      const [busy, setBusy] = useState(false);
+
+      const load = async () => {
+        setLoading(true);
+        const { data, error } = await sb.from('gallery_photos').select('*')
+          .eq('client_id', client.id)
+          .order('position', { ascending: true })
+          .order('created_at', { ascending: true });
+        if (!error) setRows(data || []);
+        setLoading(false);
+      };
+      useEffect(() => { load(); }, [client.id]);
+
+      // Catégories ordonnées comme la RPC : min(position), min(created_at)
+      const cats = useMemo(() => {
+        const by = new Map();
+        rows.forEach(r => {
+          if (!by.has(r.category)) by.set(r.category, { name: r.category, photos: [] });
+          by.get(r.category).photos.push(r);
+        });
+        // Même ordre que la RPC get_client_gallery : min(position),
+        // min(created_at) — les ISO se comparent en texte — puis nom.
+        const minCreated = (c) => c.photos.reduce(
+          (m, p) => (p.created_at && p.created_at < m) ? p.created_at : m,
+          c.photos[0]?.created_at || '');
+        const list = [...by.values()].sort((a, b) => {
+          const pa = Math.min(...a.photos.map(p => p.position ?? 0));
+          const pb = Math.min(...b.photos.map(p => p.position ?? 0));
+          if (pa !== pb) return pa - pb;
+          const ca = minCreated(a), cb = minCreated(b);
+          return ca < cb ? -1 : ca > cb ? 1 : a.name.localeCompare(b.name);
+        });
+        pendingCats.forEach(name => { if (!by.has(name)) list.push({ name, photos: [] }); });
+        return list;
+      }, [rows, pendingCats]);
+
+      const totalPhotos = rows.length;
+
+      const addCategory = () => {
+        const name = newCat.trim();
+        if (!name) return;
+        if (cats.some(c => c.name === name)) { alert('Cette catégorie existe déjà.'); return; }
+        setPendingCats(p => [...p, name]);
+        setNewCat('');
+      };
+
+      const renameCategory = async (oldName) => {
+        const name = (renames[oldName] ?? oldName).trim();
+        if (!name || name === oldName) { setRenames(r => ({ ...r, [oldName]: undefined })); return; }
+        if (cats.some(c => c.name === name)) { alert('Cette catégorie existe déjà.'); return; }
+        setPendingCats(p => p.map(n => n === oldName ? name : n));
+        const hasRows = rows.some(r => r.category === oldName);
+        if (hasRows) {
+          const { error } = await sb.from('gallery_photos')
+            .update({ category: name }).eq('client_id', client.id).eq('category', oldName);
+          if (error) { alert(error.message); return; }
+          await load();
+        }
+        setRenames(r => ({ ...r, [oldName]: undefined }));
+      };
+
+      const removeEmptyCategory = (name) => setPendingCats(p => p.filter(n => n !== name));
+
+      // Suppression d'une photo : ligne SQL seulement — la purge des
+      // fichiers B2 est différée (acceptable : ils deviennent orphelins,
+      // nettoyables plus tard par un script de ménage côté plateforme).
+      const deletePhoto = async (p) => {
+        if (!confirm('Supprimer cette photo de la galerie ?')) return;
+        const { error } = await sb.from('gallery_photos').delete().eq('id', p.id);
+        if (error) { alert(error.message); return; }
+        setRows(rs => rs.filter(r => r.id !== p.id));
+      };
+
+      // Réordonnancement simple : échange de positions avec le voisin.
+      // Si les positions ne sont pas discriminantes, on ré-indexe la catégorie.
+      const movePhoto = async (cat, idx, dir) => {
+        const j = idx + dir;
+        if (j < 0 || j >= cat.photos.length || busy) return;
+        setBusy(true);
+        try {
+          const a = cat.photos[idx], b = cat.photos[j];
+          if ((a.position ?? 0) !== (b.position ?? 0)) {
+            const r1 = await sb.from('gallery_photos').update({ position: b.position }).eq('id', a.id);
+            const r2 = await sb.from('gallery_photos').update({ position: a.position }).eq('id', b.id);
+            if (r1.error || r2.error) throw new Error((r1.error || r2.error).message);
+          } else {
+            const arr = [...cat.photos];
+            [arr[idx], arr[j]] = [arr[j], arr[idx]];
+            for (let k = 0; k < arr.length; k++) {
+              const { error } = await sb.from('gallery_photos').update({ position: k }).eq('id', arr[k].id);
+              if (error) throw new Error(error.message);
+            }
+          }
+          await load();
+        } catch (e) { alert(e.message); }
+        setBusy(false);
+      };
+
+      const uploadFiles = async (cat, fileList) => {
+        const files = Array.from(fileList || []).filter(f => f.type.startsWith('image/'));
+        if (!files.length) return;
+        if (!client.code) { alert("Le client doit avoir un code d'accès avant d'uploader des photos."); return; }
+        let position = cat.photos.length
+          ? Math.max(...cat.photos.map(p => p.position ?? 0)) + 1 : 0;
+        setBusy(true);
+        for (let i = 0; i < files.length; i++) {
+          setUp(s => ({ ...s, [cat.name]: { done: i, total: files.length, pct: 0, msg: `Photo ${i + 1}/${files.length}…` } }));
+          try {
+            await uploadGalleryPhoto({
+              client, category: cat.name, position: position + i, file: files[i],
+              onProgress: (p) => setUp(s => ({ ...s, [cat.name]: { ...(s[cat.name] || {}), done: i, total: files.length, pct: Math.round(((i + p) / files.length) * 100), msg: `Photo ${i + 1}/${files.length}…` } })),
+            });
+          } catch (err) {
+            setUp(s => ({ ...s, [cat.name]: { err: true, msg: `✗ ${err.message} (photo ${i + 1}/${files.length})` } }));
+            setBusy(false);
+            await load();
+            return;
+          }
+        }
+        setUp(s => ({ ...s, [cat.name]: { msg: `✅ ${files.length} photo${files.length > 1 ? 's' : ''} en ligne` } }));
+        setPendingCats(p => p.filter(n => n !== cat.name));
+        setBusy(false);
+        await load();
+      };
+
+      return (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Livraison photos</div>
+              <h3 className="text-[20px] lg:text-[22px] tracking-tight mt-1" style={SERIF}>Galerie B2</h3>
+            </div>
+            {totalPhotos > 0 && (
+              <span className="text-[11px] text-stone-500 font-medium mt-1">
+                {totalPhotos} photo{totalPhotos > 1 ? 's' : ''} · {cats.filter(c => c.photos.length).length} catégorie{cats.filter(c => c.photos.length).length > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+          <p className="text-[12px] lg:text-[13px] text-stone-500 mt-2 leading-relaxed">
+            Les photos partent directement sur votre stockage (originaux intacts + variantes d'affichage
+            générées dans le navigateur). La galerie du client les affiche automatiquement, catégorie par catégorie.
+          </p>
+          {!hasPhotosPage && totalPhotos > 0 && (
+            <div className="mt-3 rounded-xl px-3.5 py-2.5 text-[11.5px] leading-relaxed" style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.30)', color: '#92400e' }}>
+              <strong>Page manquante :</strong> créez la page « Galerie photos » ci-dessus pour que le client voie ces photos.
+            </div>
+          )}
+
+          {loading ? (
+            <div className="py-8 flex justify-center"><Loader2 size={18} className="animate-spin text-stone-400" /></div>
+          ) : (
+            <div className="space-y-3 mt-4">
+              {cats.map((cat) => (
+                <div key={cat.name} style={neu.pressedSm} className="rounded-2xl p-4">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex-1 min-w-[180px]">
+                      <Input
+                        value={renames[cat.name] ?? cat.name}
+                        onChange={e => setRenames(r => ({ ...r, [cat.name]: e.target.value }))}
+                        onBlur={() => renameCategory(cat.name)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+                        aria-label="Nom de la catégorie"
+                      />
+                    </div>
+                    <span className="text-[11px] text-stone-500 whitespace-nowrap">{cat.photos.length} photo{cat.photos.length > 1 ? 's' : ''}</span>
+                    <label className={`cursor-pointer px-3 py-2 min-h-[36px] rounded-full text-[11.5px] font-semibold flex items-center gap-1.5 bg-stone-900 text-white hover:bg-stone-800 transition ${busy ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {/* ⚠️ FileList est VIVANTE : la copier en Array AVANT
+                          de vider l'input, sinon elle devient vide. */}
+                      <input type="file" accept="image/*" multiple hidden
+                        onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; uploadFiles(cat, files); }} />
+                      <Plus size={11} /> Ajouter des photos
+                    </label>
+                    {cat.photos.length === 0 && (
+                      <button type="button" onClick={() => removeEmptyCategory(cat.name)} aria-label="Retirer la catégorie vide" className="text-rose-500 p-2">
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {up[cat.name] && (
+                    <div className="mt-2.5">
+                      {up[cat.name].pct != null && !up[cat.name].err && (
+                        <div className="h-1.5 rounded-full bg-stone-300/60 overflow-hidden mb-1.5">
+                          <div className="h-full bg-stone-900 transition-all" style={{ width: `${up[cat.name].pct}%` }} />
+                        </div>
+                      )}
+                      <div className={`text-[11.5px] font-medium ${up[cat.name].err ? 'text-rose-600' : 'text-stone-600'}`}>{up[cat.name].msg}</div>
+                    </div>
+                  )}
+
+                  {cat.photos.length > 0 && (
+                    <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))' }}>
+                      {cat.photos.map((p, idx) => (
+                        <div key={p.id} className="relative group rounded-lg overflow-hidden" style={{ aspectRatio: '1', background: 'rgba(0,0,0,0.08)' }}>
+                          <img src={p.url_grid || p.url_view} alt="" loading="lazy" className="w-full h-full object-cover" />
+                          <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 py-1 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
+                            <button type="button" disabled={busy || idx === 0} onClick={() => movePhoto(cat, idx, -1)} aria-label="Monter" className="text-white p-1 disabled:opacity-30">
+                              <ChevronUp size={13} />
+                            </button>
+                            <button type="button" disabled={busy || idx === cat.photos.length - 1} onClick={() => movePhoto(cat, idx, 1)} aria-label="Descendre" className="text-white p-1 disabled:opacity-30">
+                              <ChevronDown size={13} />
+                            </button>
+                            <button type="button" disabled={busy} onClick={() => deletePhoto(p)} aria-label="Supprimer la photo" className="text-rose-300 p-1 disabled:opacity-30">
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Input
+                    value={newCat}
+                    onChange={e => setNewCat(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } }}
+                    placeholder="Nouvelle catégorie — Préparatifs, Cérémonie…"
+                    aria-label="Nom de la nouvelle catégorie"
+                  />
+                </div>
+                <Btn icon={Plus} onClick={addCategory} disabled={!newCat.trim()}>Créer</Btn>
+              </div>
+              {cats.length === 0 && (
+                <div className="text-center text-[12px] text-stone-400 py-2 leading-relaxed">
+                  Créez une catégorie (Préparatifs, Cérémonie…) puis déposez vos photos dedans.
+                </div>
+              )}
+            </div>
           )}
         </div>
       );
@@ -2171,13 +2487,16 @@
             {/* Champs spécifiques PHOTOS */}
             {isPhotos && (
               <>
-                <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mt-6 mb-1">Cloudinary</div>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mt-6 mb-1">Cloudinary — héritage TimelessHouse (optionnel)</div>
+                <div className="text-[11px] text-stone-500 mb-2 leading-relaxed">
+                  Les photos se livrent désormais via la section <strong>« Galerie B2 »</strong> de l'onglet Page client — ces champs ne servent qu'aux anciennes galeries Cloudinary.
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Cloud Name">
-                    <Input required value={c.cloudName || ''} onChange={e => updateConfig('cloudName', e.target.value)} placeholder="dyfa4zztq" />
+                    <Input value={c.cloudName || ''} onChange={e => updateConfig('cloudName', e.target.value)} placeholder="dyfa4zztq" />
                   </Field>
                   <Field label="Dossier racine">
-                    <Input required value={c.rootFolder || ''} onChange={e => updateConfig('rootFolder', e.target.value)} placeholder="Photos_precieuse-ronny" />
+                    <Input value={c.rootFolder || ''} onChange={e => updateConfig('rootFolder', e.target.value)} placeholder="Photos_precieuse-ronny" />
                   </Field>
                 </div>
 

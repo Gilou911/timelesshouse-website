@@ -28,6 +28,12 @@ const SB_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "La Loge <service@timelesshouse.org>";
 const FROM_ADDR = (FROM_EMAIL.match(/<(.+)>/) || [null, FROM_EMAIL])[1];
+// Destinataire des notifications de la plateforme (Gil)
+const PLATFORM_EMAIL = Deno.env.get("ADMIN_EMAIL") ?? "service@timelesshouse.org";
+// Au-delà de ce nombre d'agences locataires, les inscriptions passent
+// en file d'attente : le compte est créé mais l'agence reste inactive
+// jusqu'à validation manuelle depuis la section « Agences ».
+const SIGNUP_AUTO_LIMIT = 10;
 
 const sbAdmin = createClient(SB_URL, SB_SERVICE_KEY);
 
@@ -54,6 +60,79 @@ function slugify(s: string): string {
     .normalize("NFD").replace(/[̀-ͯ]/g, "")
     .replace(/&/g, " ").trim()
     .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+}
+
+// Envoi best effort : une inscription ne doit jamais échouer parce
+// qu'un email n'est pas parti.
+function sendMail(to: string, subject: string, html: string, replyTo?: string) {
+  if (!RESEND_API_KEY) return;
+  fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: `La Loge <${FROM_ADDR}>`, to, subject, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
+  }).catch(() => {});
+}
+
+function shell(title: string, body: string) {
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#f5f0e8;font-family:Georgia,serif;color:#2a2620">
+  <div style="max-width:580px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 32px rgba(42,38,32,.10)">
+    <div style="background:#2a2620;padding:32px 40px;text-align:center">
+      <h1 style="margin:0;color:#e8d8be;font-size:13px;letter-spacing:.25em;text-transform:uppercase;font-weight:400;font-family:sans-serif">La Loge</h1>
+    </div>
+    <div style="padding:40px">
+      <h2 style="margin:0 0 20px;font-size:22px;font-weight:400;line-height:1.4">${title}</h2>
+      ${body}
+    </div>
+    <div style="padding:24px 40px;border-top:1px solid #f0ece4;text-align:center;font-size:11px;font-family:sans-serif;color:#a09890">
+      La Loge &nbsp;·&nbsp; <a href="https://laloge.app" style="color:#a09890;text-decoration:none">laloge.app</a>
+    </div>
+  </div>
+</body></html>`;
+}
+
+// Notification à la plateforme (Gil) à CHAQUE inscription
+function notifyPlatform(name: string, slug: string, email: string, total: number, pending: boolean) {
+  const body = `
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a4540">
+      <strong>${name}</strong> vient de ${pending ? "demander" : "créer"} une loge.
+    </p>
+    <div style="margin:18px 0;padding:18px 22px;background:#f9f7f3;border-left:3px solid #e8d8be;border-radius:0 10px 10px 0;font-family:sans-serif;font-size:13.5px;line-height:1.9;color:#4a4540">
+      <strong>Studio&nbsp;:</strong> ${name}<br/>
+      <strong>Adresse&nbsp;:</strong> ${slug}.laloge.house<br/>
+      <strong>Contact&nbsp;:</strong> ${email}<br/>
+      <strong>Agences locataires&nbsp;:</strong> ${total}
+    </div>
+    ${pending
+      ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a4540">
+           Au-delà de ${SIGNUP_AUTO_LIMIT} agences, les inscriptions attendent votre validation :
+           cette loge est <strong>en attente</strong> et ne peut rien publier pour l'instant.
+         </p>
+         <div style="text-align:center">
+           <a href="https://laloge.app/communication-admin.html" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Valider dans la console</a>
+         </div>`
+      : `<div style="text-align:center">
+           <a href="https://laloge.app/communication-admin.html" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Voir mes agences</a>
+         </div>`}`;
+  sendMail(PLATFORM_EMAIL, `${pending ? "⏳ Demande" : "🎭 Nouvelle loge"} — ${name}`, shell(pending ? "Une loge attend votre validation" : "Nouvelle inscription", body), email);
+}
+
+// Accusé de réception quand l'inscription part en file d'attente
+function pendingHtml(name: string) {
+  return shell("Votre demande est enregistrée", `
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a4540">
+      Merci ${name} ! Votre compte est créé. Chaque nouvelle loge étant désormais
+      validée à la main, nous vérifions votre demande et vous ouvrons l'accès
+      très vite — en général sous 24&nbsp;heures.
+    </p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a4540">
+      Vous pouvez déjà vous connecter : votre console vous confirmera l'état de
+      votre demande.
+    </p>
+    <div style="text-align:center">
+      <a href="https://laloge.app/communication-admin.html" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Voir ma console</a>
+    </div>`);
 }
 
 function welcomeHtml(name: string, slug: string) {
@@ -144,9 +223,17 @@ Deno.serve(async (req) => {
     }
     userId = created.user.id;
 
+    // File d'attente : au-delà de SIGNUP_AUTO_LIMIT agences locataires,
+    // l'agence est créée INACTIVE (my_agency_ids la filtre → aucune
+    // écriture possible) jusqu'à validation depuis la section Agences.
+    const { count: tenantCount } = await sbAdmin.from("agencies")
+      .select("id", { count: "exact", head: true }).neq("slug", "timelesshouse");
+    const pending = (tenantCount || 0) >= SIGNUP_AUTO_LIMIT;
+
     const { data: agency, error: aErr } = await sbAdmin.from("agencies").insert({
       name, slug, contact_email: email, plan: "decouverte",
       features_analytics: false, features_portfolio: false,
+      active: !pending, status: pending ? "pending" : "active",
     }).select().single();
     if (aErr || !agency) {
       await sbAdmin.auth.admin.deleteUser(userId).catch(() => {});
@@ -162,20 +249,21 @@ Deno.serve(async (req) => {
       return json(500, { error: "Rattachement impossible. Réessayez dans un instant." });
     }
 
-    // Email de bienvenue (best effort — l'inscription reste valide sans)
-    if (RESEND_API_KEY) {
-      fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: `La Loge <${FROM_ADDR}>`, to: email,
-          subject: "Votre loge est ouverte 🎭",
-          html: welcomeHtml(name, slug),
-        }),
-      }).catch(() => {});
+    // Emails (best effort) : accusé au studio + notification plateforme
+    if (pending) {
+      sendMail(email, "Votre demande est bien reçue — La Loge", pendingHtml(name));
+    } else {
+      sendMail(email, "Votre loge est ouverte 🎭", welcomeHtml(name, slug));
     }
+    notifyPlatform(name, slug, email, (tenantCount || 0) + 1, pending);
 
-    return json(200, { ok: true, slug, space_url: `https://${slug}.laloge.house` });
+    return json(200, {
+      ok: true, slug, pending,
+      space_url: `https://${slug}.laloge.house`,
+      message: pending
+        ? "Votre compte est créé. Votre loge sera ouverte dès validation (sous 24 h en général)."
+        : undefined,
+    });
   } catch (err) {
     console.error("[signup-agency]", err);
     if (userId) await sbAdmin.auth.admin.deleteUser(userId).catch(() => {});

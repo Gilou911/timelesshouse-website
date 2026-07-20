@@ -75,6 +75,20 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   Vérifié de bout en bout : inscription réelle depuis le navigateur,
   lien de récupération suivi jusqu'au changement effectif (ancien mot
   de passe refusé, nouveau accepté), puis fixtures nettoyées.
+- **Notification + file d'attente ✅ (fait le 20/07/2026)** : email à la
+  plateforme (ADMIN_EMAIL) à CHAQUE inscription (studio, adresse,
+  contact, nombre d'agences). Au-delà de **10 agences locataires**
+  (`SIGNUP_AUTO_LIMIT` dans signup-agency), les nouvelles inscriptions
+  sont créées **inactives** (`status = 'pending'`) : le studio reçoit un
+  accusé de réception, voit un écran « votre loge ouvre bientôt » dans
+  la console, et **ne peut rien écrire** — le verrou est central,
+  `my_agency_ids()` (qui alimente toutes les policies « agency write »)
+  ne renvoie plus que les agences actives. Validation en un clic depuis
+  la section Agences (« Ouvrir la loge » / « Suspendre », action de
+  l'Edge Function create-agency) → l'email de bienvenue part à
+  l'ouverture. Vérifié en réel : 10 agences créées pour atteindre le
+  seuil, 11ᵉ inscription mise en attente, écriture refusée par la RLS,
+  validation depuis la console, écriture débloquée — puis tout nettoyé.
 - Rôles admin supplémentaires par agence : reste à faire.
 - **Identité d'application (étage 1 ✅ fait le 20/07/2026)** : porte
   d'entrée dédiée `app.html` (connexion client par code + accès console

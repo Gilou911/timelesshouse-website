@@ -316,5 +316,76 @@ create table if not exists signup_log (
 alter table signup_log enable row level security;
 create index if not exists signup_log_ip_idx on signup_log (ip, created_at desc);
 
--- ✅ Briques 1→9 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
+-- ── Brique 10 : file d'attente d'inscriptions ───────────────
+-- Au-delà de SIGNUP_AUTO_LIMIT agences locataires (10, constante de
+-- l'Edge Function signup-agency), les nouvelles inscriptions sont
+-- créées INACTIVES : le compte existe, mais l'agence attend la
+-- validation du propriétaire de la plateforme.
+alter table agencies add column if not exists status text default 'active';
+update agencies set status = 'active' where status is null;
+
+-- ⚠️ Verrou central : une agence inactive ne peut RIEN écrire.
+-- my_agency_ids() alimente toutes les policies « agency write » (B.1),
+-- donc filtrer ici suffit à geler clients, médias, factures, etc.
+create or replace function my_agency_ids() returns setof uuid
+language sql stable security definer set search_path = public as
+$$ select am.agency_id from agency_members am
+   join agencies a on a.id = am.agency_id
+   where am.user_id = auth.uid() and coalesce(a.active, true) $$;
+
+-- Statut de MON agence (écran d'attente de la console)
+create or replace function my_agency_status() returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('name', a.name, 'slug', a.slug,
+    'active', coalesce(a.active, true), 'status', coalesce(a.status, 'active'),
+    'contact_email', a.contact_email)
+  from agencies a
+  where a.id in (select agency_id from agency_members where user_id = auth.uid())
+  limit 1 $$;
+revoke execute on function my_agency_status() from public, anon;
+grant  execute on function my_agency_status() to authenticated;
+
+-- Approbation / suspension par le propriétaire de la plateforme
+create or replace function platform_set_agency_active(p_agency_id uuid, p_active boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare a agencies;
+begin
+  if not platform_is_owner() then
+    raise exception 'réservé au propriétaire de la plateforme';
+  end if;
+  update agencies set active = p_active,
+         status = case when p_active then 'active' else 'suspended' end
+   where id = p_agency_id returning * into a;
+  if a.id is null then raise exception 'agence introuvable'; end if;
+  return jsonb_build_object('id', a.id, 'name', a.name, 'slug', a.slug,
+    'active', a.active, 'status', a.status, 'contact_email', a.contact_email);
+end $$;
+revoke execute on function platform_set_agency_active(uuid, boolean) from public, anon;
+grant  execute on function platform_set_agency_active(uuid, boolean) to authenticated;
+
+-- platform_list_agencies : + statut (pour la file d'attente)
+create or replace function platform_list_agencies() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not platform_is_owner() then
+    raise exception 'réservé au propriétaire de la plateforme';
+  end if;
+  return coalesce((select jsonb_agg(jsonb_build_object(
+    'id', a.id, 'name', a.name, 'slug', a.slug, 'plan', a.plan,
+    'active', coalesce(a.active, true), 'status', coalesce(a.status, 'active'),
+    'contact_email', a.contact_email, 'logo_url', a.logo_url,
+    'accent_color', a.accent_color, 'bg_color', a.bg_color,
+    'created_at', a.created_at,
+    'clients_count', (select count(*) from clients c where c.agency_id = a.id),
+    'owners', (select coalesce(jsonb_agg(u.email), '[]'::jsonb)
+               from agency_members am join auth.users u on u.id = am.user_id
+               where am.agency_id = a.id and am.role = 'owner'),
+    'storage_used_bytes', coalesce(a.storage_used_bytes, 0),
+    'storage_quota_bytes', plan_quota_bytes(a.plan),
+    'storage_measured_at', a.storage_measured_at
+  ) order by (case when coalesce(a.active, true) then 1 else 0 end), a.created_at)
+  from agencies a), '[]'::jsonb);
+end $$;
+
+-- ✅ Briques 1→10 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
 --    cloisonnement des dossiers Cloudinary (ou Cloudflare Images).

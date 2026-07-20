@@ -36,6 +36,9 @@ const corsHeaders = {
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
+const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "La Loge <service@timelesshouse.org>";
+const FROM_ADDR = (FROM_EMAIL.match(/<(.+)>/) || [null, FROM_EMAIL])[1];
 const sbAdmin = createClient(SB_URL, SB_SERVICE_KEY);
 
 function json(status: number, body: unknown): Response {
@@ -91,6 +94,50 @@ Deno.serve(async (req) => {
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json(400, { error: "JSON invalide" }); }
+
+  // ── Validation / suspension d'une loge en attente (SaaS B.3) ──
+  if (body.action === "approve" || body.action === "suspend") {
+    const agencyId = String(body.agency_id || "");
+    if (!agencyId) return json(400, { error: "agency_id manquant" });
+    const activate = body.action === "approve";
+    const { data: ag, error } = await sbAdmin.from("agencies")
+      .update({ active: activate, status: activate ? "active" : "suspended" })
+      .eq("id", agencyId).select().single();
+    if (error || !ag) return json(500, { error: error?.message || "Agence introuvable" });
+
+    // À l'ouverture, le studio reçoit enfin son email de bienvenue
+    if (activate && RESEND_API_KEY && ag.contact_email) {
+      fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: `La Loge <${FROM_ADDR}>`, to: ag.contact_email,
+          subject: "Votre loge est ouverte 🎭",
+          html: `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#f5f0e8;font-family:Georgia,serif;color:#2a2620">
+  <div style="max-width:580px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 32px rgba(42,38,32,.10)">
+    <div style="background:#2a2620;padding:32px 40px;text-align:center">
+      <h1 style="margin:0;color:#e8d8be;font-size:13px;letter-spacing:.25em;text-transform:uppercase;font-weight:400;font-family:sans-serif">La Loge</h1>
+    </div>
+    <div style="padding:40px">
+      <h2 style="margin:0 0 20px;font-size:22px;font-weight:400">Votre loge est ouverte, ${ag.name}&nbsp;!</h2>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a4540">
+        Votre demande est validée. Vos clients vous retrouveront ici&nbsp;:
+      </p>
+      <div style="text-align:center;margin:18px 0">
+        <div style="display:inline-block;padding:12px 24px;background:#f5f0e8;border:1px solid #e0dbd0;border-radius:10px;font-family:monospace;font-size:15px">${ag.slug}.laloge.house</div>
+      </div>
+      <div style="text-align:center">
+        <a href="https://laloge.app/communication-admin.html" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Ouvrir ma console</a>
+      </div>
+    </div>
+  </div>
+</body></html>`,
+        }),
+      }).catch(() => {});
+    }
+    return json(200, { ok: true, agency: ag });
+  }
 
   // ─── Validation ───────────────────────────────────────────
   const name = String(body.name || "").trim().slice(0, 80);

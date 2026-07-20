@@ -593,6 +593,48 @@
     }
 
     /* ════════════════════════════════════════════════════════════
+       ⏳ LOGE EN ATTENTE DE VALIDATION
+       ════════════════════════════════════════════════════════════ */
+    function PendingScreen({ agency, onLogout }) {
+      const suspendue = agency.status === 'suspended';
+      return (
+        <div className="min-h-screen flex items-center justify-center p-6">
+          <div style={neu.raised} className="rounded-[32px] p-9 lg:p-10 max-w-lg w-full text-center">
+            <div style={neu.dark} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mx-auto mb-5">
+              <Clock size={20} />
+            </div>
+            <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">
+              {suspendue ? 'Accès suspendu' : 'Demande enregistrée'}
+            </div>
+            <h1 className="text-[28px] lg:text-[32px] tracking-tight mt-2 leading-tight" style={SERIF}>
+              {suspendue ? 'Votre loge est fermée' : 'Votre loge ouvre bientôt'}
+            </h1>
+            <p className="text-[13.5px] text-stone-500 mt-4 leading-relaxed">
+              {suspendue
+                ? "L'accès à cette loge a été suspendu. Écrivez-nous pour faire le point : nous répondons vite."
+                : <>Merci&nbsp;! Votre compte <strong className="text-stone-700">{agency.name}</strong> est créé.
+                    Chaque nouvelle loge est validée à la main : nous vous ouvrons l'accès très vite,
+                    en général sous 24&nbsp;heures. Vous recevrez un email dès que c'est fait.</>}
+            </p>
+            {!suspendue && (
+              <div style={neu.pressedSm} className="rounded-2xl px-5 py-4 mt-6 text-left">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold">Votre future adresse</div>
+                <div className="font-mono text-[13.5px] mt-1.5 break-all">{agency.slug}.laloge.house</div>
+              </div>
+            )}
+            <div className="flex gap-3 justify-center mt-7 flex-wrap">
+              <Btn icon={Mail} onClick={() => { window.location.href = 'mailto:service@timelesshouse.org?subject=Ma%20loge%20La%20Loge'; }}>
+                Nous écrire
+              </Btn>
+              <Btn icon={RefreshCw} onClick={() => window.location.reload()}>Actualiser</Btn>
+              <Btn icon={LogOut} onClick={onLogout}>Déconnexion</Btn>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
        🏠 OVERVIEW
        ════════════════════════════════════════════════════════════ */
     // Octets → libellé lisible (jauges de stockage — SaaS B.3)
@@ -4852,6 +4894,26 @@
       const [error, setError] = useState('');
       const [result, setResult] = useState(null); // { agency, owner } — affiché une seule fois
       const [copied, setCopied] = useState(false);
+      const [busyId, setBusyId] = useState(null);
+
+      // Ouvrir (valider) ou suspendre une loge — l'Edge Function envoie
+      // l'email de bienvenue au studio à l'ouverture.
+      const setActive = async (agency, activate) => {
+        if (!activate && !confirm(`Suspendre l'accès de « ${agency.name} » ? Ses espaces clients resteront en ligne mais l'agence ne pourra plus rien publier.`)) return;
+        setBusyId(agency.id); setError('');
+        try {
+          const { data: { session } } = await sb.auth.getSession();
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/create-agency`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ action: activate ? 'approve' : 'suspend', agency_id: agency.id }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json.error || `Échec (${res.status})`);
+          refresh();
+        } catch (e) { setError(e.message); }
+        setBusyId(null);
+      };
 
       const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
       const autoSlug = form.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -4975,9 +5037,9 @@
                     <div className="text-[16.5px] tracking-tight truncate" style={SERIF}>{a.name}</div>
                     <div className="text-[11.5px] text-stone-400 font-mono mt-0.5 truncate">{a.slug}</div>
                   </div>
-                  <span className="shrink-0 inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.12em] font-semibold text-stone-500">
-                    <span className={`w-2 h-2 rounded-full ${a.active ? 'bg-emerald-500' : 'bg-stone-400'}`} />
-                    {a.active ? 'Active' : 'Inactive'}
+                  <span className={`shrink-0 inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.12em] font-semibold ${a.status === 'pending' ? 'text-amber-600' : 'text-stone-500'}`}>
+                    <span className={`w-2 h-2 rounded-full ${a.active ? 'bg-emerald-500' : (a.status === 'pending' ? 'bg-amber-500' : 'bg-stone-400')}`} />
+                    {a.active ? 'Active' : (a.status === 'pending' ? 'En attente' : 'Suspendue')}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-4 text-[12.5px] text-stone-500">
@@ -4991,6 +5053,19 @@
                 <div className="text-[12px] text-stone-500 mt-2 truncate">{(a.owners || []).join(', ') || '— pas de propriétaire —'}</div>
                 <StorageGauge compact storage={{ used_bytes: a.storage_used_bytes, quota_bytes: a.storage_quota_bytes }} />
                 <div className="text-[11px] text-stone-400 mt-2">Créée le {new Date(a.created_at).toLocaleDateString('fr-FR')}</div>
+                {a.slug !== 'timelesshouse' && (
+                  <div className="flex gap-2 mt-4 flex-wrap">
+                    {a.active ? (
+                      <Btn icon={Power} onClick={() => setActive(a, false)} disabled={busyId === a.id}>
+                        {busyId === a.id ? '…' : 'Suspendre'}
+                      </Btn>
+                    ) : (
+                      <Btn kind="dark" icon={CheckCircle2} onClick={() => setActive(a, true)} disabled={busyId === a.id}>
+                        {busyId === a.id ? '…' : 'Ouvrir la loge'}
+                      </Btn>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -5014,6 +5089,7 @@
       // null = pas propriétaire de la plateforme (section Agences masquée)
       const [agencies, setAgencies] = useState(null);
       const [featuresReady, setFeaturesReady] = useState(false);
+      const [myAgency, setMyAgency] = useState(null);
 
       // Vérification session au mount
       useEffect(() => {
@@ -5060,9 +5136,11 @@
       // Renseigne FEATURES avant le premier rendu des sections.
       const loadFeatures = async () => {
         const { data } = await sb.from('agencies')
-          .select('features_analytics, features_portfolio').limit(1).maybeSingle();
+          .select('name, slug, active, status, contact_email, features_analytics, features_portfolio')
+          .limit(1).maybeSingle();
         FEATURES.analytics = data?.features_analytics === true;
         FEATURES.portfolio = data?.features_portfolio === true;
+        setMyAgency(data || null);
         setFeaturesReady(true);
       };
 
@@ -5088,6 +5166,13 @@
       }
 
       if (!user) return <LoginScreen onLogin={setUser} />;
+
+      // Loge en attente de validation (SaaS B.3) : au-delà du seuil
+      // d'inscriptions automatiques, l'agence est inactive tant que la
+      // plateforme ne l'a pas ouverte — et ne peut rien écrire (RLS).
+      if (featuresReady && myAgency && myAgency.active === false) {
+        return <PendingScreen agency={myAgency} onLogout={logout} />;
+      }
 
       const titles = {
         overview: { t: `Bonjour`, s: 'Vue d\'ensemble de votre studio.' },

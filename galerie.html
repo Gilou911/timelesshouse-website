@@ -226,6 +226,13 @@
       const { data, error } = await sb.rpc('get_gallery_by_code', { p_code: code });
       if (error || !data || !data.gallery) return null;
 
+      // La Loge : sur le sous-domaine d'une agence, la galerie d'une AUTRE
+      // agence est refusée (cohérence espace ↔ marque, comme app.html et
+      // les pages event-*). Le lien de partage canonique d'une galerie
+      // porte toujours le sous-domaine de son agence.
+      if (AGENCY_SLUG && data.agency && data.agency.slug &&
+          data.agency.slug !== AGENCY_SLUG) return null;
+
       const g = data.gallery, cfg = g.config || {}, T = tpl(g.template);
       applyBrand(data.agency);
 
@@ -238,6 +245,14 @@
       const bits = [who, cfg.date || '', cfg.lieu || ''].filter(Boolean);
       el('vSub').textContent = bits.join(' · ');
 
+      // ⚠️ La galerie est révélée AVANT le montage : la grille justifiée
+      // mesure la largeur réelle de son conteneur, qui vaut 0 tant que
+      // #view est en display:none (toutes les cellules tomberaient alors
+      // sur la largeur plancher de 80 px).
+      el('gate').hidden = true;
+      el('view').classList.add('on');
+      document.body.classList.add('ready');
+
       // Vidéos — 'video' et 'mixte'
       if (kind === 'video' || kind === 'mixte') {
         const vids = normalizeVideos(cfg);
@@ -247,10 +262,6 @@
       if (kind === 'photos' || kind === 'mixte') {
         mountPhotos(el('photos'), data.photos || [], { favKey: code, title: g.title });
       }
-
-      el('gate').hidden = true;
-      el('view').classList.add('on');
-      document.body.classList.add('ready');
       return true;
     }
 

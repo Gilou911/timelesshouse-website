@@ -275,23 +275,27 @@ export function mountPhotos(mount, categories, opts = {}) {
     return base + '-' + String(i + 1).padStart(3, '0') + '.jpg';
   };
 
-  /* ── Chargement paresseux ──
-     Les photos B2 n'ont pas de variante « blur » minuscule (url_grid est
-     déjà la plus petite) : inutile de reprendre le recyclage blur-up de
-     event-photos.html, qui n'a de sens qu'avec les transformations
-     Cloudinary. On charge url_grid à l'approche, en fondu. */
-  const io = new IntersectionObserver((ents) => {
-    ents.forEach(e => {
-      if (!e.isIntersecting) return;
-      const cell = e.target;
-      io.unobserve(cell);
-      const img = cell.querySelector('img');
-      if (!img || img.src) return;
-      img.src = cell.dataset.grid;
-      img.onload = () => img.classList.add('on');
-      img.onerror = () => { cell.style.display = 'none'; };
-    });
-  }, { rootMargin: '500px 0px', threshold: 0.01 });
+  /* ── Chargement paresseux : loading="lazy" NATIF ──
+     Deux raisons de ne PAS reprendre l'IntersectionObserver de
+     event-photos.html :
+     1. son blur-up + recyclage mémoire n'a de sens qu'avec les
+        transformations Cloudinary (variante floue 36 px à la volée) ;
+        les photos B2 portent des URLs figées dont url_grid est déjà la
+        plus petite — il n'y a rien à dégrader ;
+     2. sans variante à dégrader, l'observer ne ferait que réimplémenter
+        `loading="lazy"` à la main — donc du code en plus, un chemin de
+        panne en plus (un observer qui ne se déclenche pas laisse la
+        galerie vide), pour le même résultat. Le moteur de rendu fait
+        déjà ce travail, et mieux (il tient compte de la vitesse de
+        défilement et du type de connexion).
+     Le fondu reste piloté par la classe .on, posée au load. */
+  const fadeIn = (cell) => {
+    const img = cell.querySelector('img');
+    if (!img) return;
+    if (img.complete && img.naturalWidth > 0) { img.classList.add('on'); return; }
+    img.addEventListener('load', () => img.classList.add('on'), { once: true });
+    img.addEventListener('error', () => { cell.style.display = 'none'; }, { once: true });
+  };
 
   /* ── Construction ── */
   mount.innerHTML = '';
@@ -317,18 +321,24 @@ export function mountPhotos(mount, categories, opts = {}) {
   });
 
   function layoutAll() {
-    const gap = window.innerWidth <= 760 ? 6 : 10;
-    const targetH = window.innerWidth <= 480 ? 200
-                  : window.innerWidth <= 760 ? 240
-                  : window.innerWidth <= 1200 ? 320 : 380;
-    document.documentElement.style.setProperty('--g-gap', gap + 'px');
-
     sections.forEach(({ rowsWrap, photos, from }) => {
       rowsWrap.innerHTML = '';
       // Mesure après vidage : largeur sous-pixel exacte. -1 px absorbe
       // les erreurs d'arrondi float → px qui feraient déborder la rangée.
       const bcr = rowsWrap.getBoundingClientRect();
       const containerW = Math.max(Math.floor(bcr.width > 1 ? bcr.width : rowsWrap.offsetWidth) - 1, 80);
+
+      // Le gabarit suit la largeur RÉELLE du conteneur, pas window.innerWidth :
+      // c'est la seule mesure qui décrit la place dont la grille dispose. Les
+      // deux divergent dès que la galerie n'occupe pas toute la fenêtre (colonne
+      // étroite, aperçu admin) — s'appuyer sur innerWidth produit alors des
+      // rangées calibrées pour un écran large dans un conteneur étroit, qui
+      // débordent horizontalement.
+      const gap = containerW <= 760 ? 6 : 10;
+      const targetH = containerW <= 480 ? 200
+                    : containerW <= 760 ? 240
+                    : containerW <= 1200 ? 320 : 380;
+      rowsWrap.style.setProperty('--g-gap', gap + 'px');
 
       justify(photos, containerW, targetH, gap).forEach(r => {
         const rowEl = document.createElement('div');
@@ -345,7 +355,7 @@ export function mountPhotos(mount, categories, opts = {}) {
           cell.setAttribute('role', 'button');
           cell.setAttribute('aria-label', 'Ouvrir la photo en grand');
           cell.innerHTML =
-            `<img alt="${(p.category || title).replace(/"/g, '&quot;')}" decoding="async" />` +
+            `<img src="${GRID(p)}" alt="${(p.category || title).replace(/"/g, '&quot;')}" loading="lazy" decoding="async" />` +
             `<div class="g-fav-badge">${ICON.heartFull}</div>` +
             `<div class="g-tools">` +
               `<button class="g-tool${favs.has(p.id) ? ' fav' : ''}" data-act="fav" aria-label="Ajouter aux favoris"><span>${ICON.heart}</span></button>` +
@@ -366,7 +376,7 @@ export function mountPhotos(mount, categories, opts = {}) {
           });
 
           rowEl.appendChild(cell);
-          io.observe(cell);
+          fadeIn(cell);
         });
         rowsWrap.appendChild(rowEl);
       });
@@ -506,6 +516,17 @@ export function mountPhotos(mount, categories, opts = {}) {
   let rsT;
   const onResize = () => { clearTimeout(rsT); rsT = setTimeout(layoutAll, 220); };
   window.addEventListener('resize', onResize, { passive: true });
+  // Le conteneur peut changer de largeur SANS que la fenêtre bouge (rotation
+  // gérée en CSS, colonne repliée, barre d'outils mobile). ResizeObserver
+  // observe la vraie cause ; l'écouteur `resize` reste le filet des
+  // navigateurs qui ne l'ont pas.
+  if (window.ResizeObserver) {
+    let first = true;
+    new ResizeObserver(() => {
+      if (first) { first = false; return; } // l'observation initiale n'est pas un changement
+      onResize();
+    }).observe(mount);
+  }
 
   return { relayout: layoutAll, count: FLAT.length };
 }

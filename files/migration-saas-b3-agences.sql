@@ -612,11 +612,14 @@ begin
       return v_try;
     end if;
     i := i + 1;
-    v_try := v_base || '-' || substr(encode(gen_random_bytes(4), 'hex'), 1, 4);
+    v_try := v_base || '-' || substr(md5(random()::text || clock_timestamp()::text), 1, 4);
   end loop;
   -- Filet : suffixe long, collision statistiquement impossible
-  return v_base || '-' || substr(encode(gen_random_bytes(8), 'hex'), 1, 12);
+  return v_base || '-' || substr(md5(random()::text || clock_timestamp()::text), 1, 12);
 end $$;
+-- NB : le suffixe vient de md5(random()) et NON de gen_random_bytes —
+-- pgcrypto vit dans le schéma `extensions` chez Supabase, donc hors du
+-- `search_path = public` que ces fonctions figent par sécurité.
 revoke execute on function gallery_code_suggest(uuid, text) from public, anon;
 grant  execute on function gallery_code_suggest(uuid, text) to authenticated;
 

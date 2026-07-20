@@ -1,0 +1,143 @@
+/* ════════════════════════════════════════════════════════════
+   Pages juridiques de La Loge — feuille de style commune
+   Palette et typographie de la vitrine, conformité HIG dès
+   l'origine (cibles 44 px, contrastes ≥ 4.5:1, focus visible,
+   animations réductibles, encoche iPhone).
+   ════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: light dark;
+  --bg: #e9e4d9;
+  --surface: #efeae0;
+  --ink: #2a2620;
+  --muted: #635c50;     /* 5.2:1 sur --bg */
+  --faint: #6b6357;     /* 4.7:1 sur --bg */
+  --line: rgba(42, 38, 32, 0.12);
+  --accent: #2a2620;
+  --warn-bg: rgba(245, 158, 11, 0.10);
+  --warn-line: rgba(245, 158, 11, 0.38);
+  --warn-ink: #7a4d06;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #181b20;
+    --surface: #22262d;
+    --ink: #e8e4dc;
+    --muted: #b6bac2;
+    --faint: #8b93a1;
+    --line: rgba(255, 255, 255, 0.10);
+    --accent: #e8d8be;
+    --warn-bg: rgba(251, 191, 36, 0.10);
+    --warn-line: rgba(251, 191, 36, 0.32);
+    --warn-ink: #fcd34d;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 16.5px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+
+header.top {
+  border-bottom: 0.5px solid var(--line);
+  background: var(--bg);
+  position: sticky; top: 0; z-index: 10;
+}
+header.top .wrap { display: flex; align-items: center; justify-content: space-between; min-height: 62px; gap: 12px; }
+.logo {
+  font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+  font-size: 22px; color: var(--ink); text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px;
+  white-space: nowrap;
+}
+.logo span { color: var(--faint); }
+header.top a.back {
+  font-size: 13.5px; font-weight: 600; color: var(--muted); text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px;
+  white-space: nowrap;
+}
+header.top a.back:hover { color: var(--ink); }
+
+main { padding: 40px 0 70px; }
+h1 {
+  font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+  font-size: clamp(1.9rem, 5.5vw, 2.6rem); line-height: 1.12; letter-spacing: -0.015em;
+}
+.kicker {
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 12px;
+}
+.maj { font-size: 13.5px; color: var(--faint); margin-top: 14px; }
+
+h2 {
+  font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+  font-size: 1.45rem; line-height: 1.25; margin: 40px 0 12px;
+  padding-top: 22px; border-top: 0.5px solid var(--line);
+}
+h3 { font-size: 1.02rem; font-weight: 700; margin: 24px 0 8px; }
+p { margin: 12px 0; }
+ul, ol { margin: 12px 0 12px 22px; }
+li { margin: 7px 0; }
+strong { font-weight: 700; }
+a { color: var(--ink); text-underline-offset: 3px; }
+a:hover { opacity: 0.75; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em; background: var(--surface);
+  padding: 2px 6px; border-radius: 5px;
+}
+
+/* Encadré « à compléter » : ce qui relève de Gil, pas du code. */
+.todo {
+  background: var(--warn-bg); border: 1px solid var(--warn-line);
+  border-radius: 14px; padding: 14px 16px; margin: 16px 0;
+  font-size: 14.5px; line-height: 1.6; color: var(--warn-ink);
+}
+.todo strong { color: inherit; }
+
+.note {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px 18px; margin: 18px 0;
+  font-size: 15px;
+}
+
+/* Tableaux (sous-traitants, durées) : défilables sans casser la page. */
+.tw { overflow-x: auto; margin: 18px 0; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14.5px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 0.5px solid var(--line); vertical-align: top; }
+th { font-weight: 700; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+footer.bottom {
+  border-top: 0.5px solid var(--line); padding: 26px 0 40px;
+  font-size: 13.5px; color: var(--faint);
+}
+footer.bottom a {
+  color: var(--muted); text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px;
+}
+footer.bottom a:hover { color: var(--ink); }
+footer.bottom .links { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+
+/* HIG §16 : focus clavier toujours visible. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+/* HIG §16 : respecter « réduire les animations ». */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -455,5 +455,62 @@ begin
 end $$;
 grant execute on function get_client_gallery(text) to anon, authenticated;
 
--- ✅ Briques 1→11 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
+-- ── Brique 12 : écran « Ma marque » ─────────────────────────
+-- Chaque agence règle ELLE-MÊME son identité (nom, logo, couleurs,
+-- email de contact) depuis la carte « Ma marque » de sa console.
+-- RPC réservée aux OWNERS de l'agence, qui ne touche QUE les champs
+-- de marque. Volontairement PAS de policy UPDATE sur agencies : la
+-- table porte trop de colonnes sensibles (plan, active, status, slug,
+-- stripe_*, features_*, storage_*) — cette RPC est le SEUL chemin
+-- d'écriture, et la marque se propage partout dès la ligne modifiée
+-- (get_client_portal, get_event_portal, resolve_agency_brand, emails).
+create or replace function update_my_agency_brand(
+  p_name          text,
+  p_logo_url      text default null,
+  p_accent_color  text default null,
+  p_bg_color      text default null,
+  p_contact_email text default null
+) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  v_agency uuid;
+  v_name   text := trim(coalesce(p_name, ''));
+  v_logo   text := nullif(trim(coalesce(p_logo_url, '')), '');
+  v_accent text := lower(trim(coalesce(p_accent_color, '')));
+  v_bg     text := lower(trim(coalesce(p_bg_color, '')));
+  v_email  text := nullif(lower(trim(coalesce(p_contact_email, ''))), '');
+  a agencies;
+begin
+  select am.agency_id into v_agency from agency_members am
+   where am.user_id = auth.uid() and am.role = 'owner' limit 1;
+  if v_agency is null then
+    raise exception 'réservé au propriétaire de l''agence';
+  end if;
+  if char_length(v_name) < 2 or char_length(v_name) > 80 then
+    raise exception 'nom invalide (2 à 80 caractères)';
+  end if;
+  if v_logo is not null and (char_length(v_logo) > 500 or v_logo !~* '^https://\S+$') then
+    raise exception 'logo invalide (URL https, 500 caractères max)';
+  end if;
+  if v_accent !~ '^#[0-9a-f]{6}$' or v_bg !~ '^#[0-9a-f]{6}$' then
+    raise exception 'couleur invalide (format #rrggbb attendu)';
+  end if;
+  if v_email is not null and (char_length(v_email) > 200
+      or v_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$') then
+    raise exception 'email de contact invalide';
+  end if;
+  update agencies set
+    name = v_name, logo_url = v_logo,
+    accent_color = v_accent, bg_color = v_bg,
+    contact_email = v_email
+  where id = v_agency
+  returning * into a;
+  return jsonb_build_object('name', a.name, 'slug', a.slug,
+    'logo_url', a.logo_url, 'accent_color', a.accent_color,
+    'bg_color', a.bg_color, 'contact_email', a.contact_email);
+end $$;
+revoke execute on function update_my_agency_brand(text, text, text, text, text) from public, anon;
+grant  execute on function update_my_agency_brand(text, text, text, text, text) to authenticated;
+
+-- ✅ Briques 1→12 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
 --    cloisonnement des dossiers Cloudinary (ou Cloudflare Images).

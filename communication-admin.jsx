@@ -47,7 +47,7 @@
        galeries (<slug>.laloge.house, ou timelesshouse.org pour la
        plateforme) depuis n'importe quel composant, sans faire descendre
        l'agence par les props sur toute la profondeur de l'arbre. */
-    const AGENCY = { slug: null, name: null };
+    const AGENCY = { slug: null, name: null, plan: null, maxClients: null };
 
     /* ════════════════════════════════════════════════════════════
        ☁️ UPLOAD DIRECT VERS BACKBLAZE B2 (via Edge Function b2-sign)
@@ -537,20 +537,52 @@
     };
 
     const Modal = ({ title, kicker, onClose, children, size = 'md' }) => {
-      // HIG : verrouille le scroll de la page derrière la modale (sinon le fond
-      // défile pendant qu'on la fait défiler — scroll chaining).
+      const boxRef = useRef(null);
+
+      // HIG §12 : une modale verrouille le scroll derrière elle, se ferme
+      // par Échap, garde le focus clavier à l'intérieur, et le rend à
+      // l'élément d'origine en partant. Sans ces quatre règles, la
+      // navigation au clavier sort de la modale et se perd dans la page.
       useEffect(() => {
         const prev = document.body.style.overflow;
+        const origine = document.activeElement;
         document.body.style.overflow = 'hidden';
-        return () => { document.body.style.overflow = prev; };
-      }, []);
+
+        // Focus initial : le premier champ, sinon la boîte elle-même.
+        const box = boxRef.current;
+        const focusables = () => [...(box?.querySelectorAll(
+          'a[href], button:not([disabled]), input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) || [])].filter(el => el.offsetParent !== null);
+        const premier = focusables()[0];
+        (premier || box)?.focus?.();
+
+        const onKey = (e) => {
+          if (e.key === 'Escape') { e.stopPropagation(); onClose?.(); return; }
+          if (e.key !== 'Tab') return;
+          const f = focusables();
+          if (!f.length) return;
+          const debut = f[0], fin = f[f.length - 1];
+          if (e.shiftKey && document.activeElement === debut) { e.preventDefault(); fin.focus(); }
+          else if (!e.shiftKey && document.activeElement === fin) { e.preventDefault(); debut.focus(); }
+        };
+        document.addEventListener('keydown', onKey, true);
+
+        return () => {
+          document.removeEventListener('keydown', onKey, true);
+          document.body.style.overflow = prev;
+          if (origine && origine.focus) origine.focus();
+        };
+      }, [onClose]);
 
       return (
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6 bg-stone-900/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6 bg-stone-900/40 backdrop-blur-sm" onClick={onClose}
+           role="dialog" aria-modal="true" aria-label={title}>
         {/* dvh (pas vh) : tient compte de la barre d'URL iOS — sinon le bas de
             la modale (boutons Enregistrer) passe sous la barre.
             overscroll-contain : le scroll interne ne « fuit » pas vers la page. */}
         <div
+          ref={boxRef}
+          tabIndex={-1}
           style={neu.raised}
           className={`rounded-t-[28px] sm:rounded-[32px] p-5 sm:p-7 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-7 max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto overscroll-contain w-full ${size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
           onClick={e => e.stopPropagation()}
@@ -1118,6 +1150,9 @@
         [clients, search]
       );
 
+      // Plafond d'espaces clients de l'offre (null = illimité).
+      const quotaAtteint = AGENCY.maxClients != null && clients.length >= AGENCY.maxClients;
+
       return (
         <div className="space-y-5 lg:space-y-6">
           {/* Search + nouveau bouton — alignés sur tous écrans */}
@@ -1134,9 +1169,22 @@
                 className="bg-transparent outline-none text-[16px] flex-1 placeholder:text-stone-500 min-w-0 self-stretch"
               />
             </div>
-            <Btn kind="dark" icon={Plus} onClick={() => setShowNew(true)} full={false} className="w-full sm:w-auto">
-              Nouveau client
-            </Btn>
+            {/* Offre Découverte : 1 espace client. On désactive le bouton
+                AVANT le clic et on dit quoi faire (HIG §10 : l'erreur est
+                formulée en solution) — la base refuse de toute façon. */}
+            {quotaAtteint ? (
+              <div style={neu.pressedSm} className="rounded-2xl px-4 py-3 text-[12.5px] text-stone-600 leading-relaxed w-full sm:w-auto sm:max-w-sm">
+                Votre offre Découverte comprend 1 espace client.{' '}
+                <a href="/offres" target="_blank" rel="noopener" className="font-semibold underline underline-offset-2">
+                  Passez à l'offre Essentiel
+                </a>{' '}
+                pour en créer d'autres.
+              </div>
+            ) : (
+              <Btn kind="dark" icon={Plus} onClick={() => setShowNew(true)} full={false} className="w-full sm:w-auto">
+                Nouveau client
+              </Btn>
+            )}
           </div>
 
           {/* Grille clients */}
@@ -1151,7 +1199,7 @@
                     {c.active ? 'actif' : 'pause'}
                   </span>
                 </div>
-                <h3 className="text-[19px] lg:text-[20px] tracking-tight mt-4 leading-tight truncate" style={SERIF}>{c.name}</h3>
+                <h2 className="text-[19px] lg:text-[20px] tracking-tight mt-4 leading-tight truncate" style={SERIF}>{c.name}</h2>
                 <div className="text-[12px] text-stone-500 mt-1 truncate">{c.sector || '—'}</div>
                 <div className="flex items-center gap-2 mt-4 flex-wrap">
                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-stone-200 text-stone-700 font-semibold uppercase tracking-wider text-[9.5px] leading-none">
@@ -6282,6 +6330,14 @@
         FEATURES.allUniverses = data?.features_all_universes === true;
         AGENCY.slug = data?.slug || null;
         AGENCY.name = data?.name || null;
+        AGENCY.plan = data?.plan || null;
+        // Limites de l'offre (brique 17) : l'offre Découverte plafonne à
+        // 1 espace client. On les lit ici pour PRÉVENIR dans l'interface
+        // plutôt que de laisser l'admin buter sur une erreur de base.
+        try {
+          const { data: lim } = await sb.rpc('plan_limits', { p_plan: data?.plan || '' });
+          AGENCY.maxClients = lim?.max_clients ?? null;
+        } catch (_) { AGENCY.maxClients = null; }
         setMyAgency(data || null);
         setFeaturesReady(true);
       };

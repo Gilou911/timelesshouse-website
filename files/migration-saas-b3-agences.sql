@@ -832,3 +832,106 @@ notify pgrst, 'reload schema';
 --    cloisonnement des dossiers Cloudinary (ou Cloudflare Images),
 --    et la BASCULE d'event_pages vers galleries (convergence des pages
 --    event-*.html sur galerie-rendu.js).
+
+-- ════════════════════════════════════════════════════════════
+-- BRIQUE 15 — File d'attente d'encodage HLS (worker automatique)
+-- ════════════════════════════════════════════════════════════
+-- Un locataire uploade un MP4 : il est lisible IMMÉDIATEMENT en
+-- progressif (une seule qualité, servie telle quelle par B2). Pour
+-- obtenir la lecture adaptative — le lecteur choisit 4K/1080p/720p/
+-- 480p selon la connexion, comme les films de la plateforme — il faut
+-- transcoder, et ffmpeg ne tourne ni dans le navigateur ni sur
+-- Supabase. Cette table est la boîte aux lettres entre la console
+-- (qui dépose un ticket après l'upload) et le worker
+-- workers/encoder/worker-encode.mjs (qui encode et range le résultat).
+--
+-- La plateforme n'enfile RIEN : Gil garde son `npm run encode` manuel.
+
+create table if not exists encode_jobs (
+  id          uuid primary key default gen_random_uuid(),
+  kind        text not null check (kind in ('media','gallery_video')),
+  media_id    uuid references media(id)     on delete cascade,
+  gallery_id  uuid references galleries(id) on delete cascade,
+  video_key   text,                              -- clé dans config.videos[]
+  source_url  text not null,                     -- MP4 d'origine sur B2
+  agency_id   uuid references agencies(id)  on delete cascade,
+  status      text not null default 'pending'
+              check (status in ('pending','processing','done','error')),
+  attempts    int  not null default 0,
+  error       text,
+  claimed_at  timestamptz,
+  done_at     timestamptz,
+  created_at  timestamptz not null default now(),
+  -- Un job désigne sa cible sans ambiguïté
+  constraint encode_jobs_target_ck check (
+    (kind = 'media'         and media_id   is not null and gallery_id is null)
+    or
+    (kind = 'gallery_video' and gallery_id is not null and video_key  is not null and media_id is null)
+  )
+);
+
+create index if not exists encode_jobs_queue_idx  on encode_jobs (status, created_at);
+create index if not exists encode_jobs_agency_idx on encode_jobs (agency_id);
+
+-- Anti-doublon : ré-enregistrer une galerie ou recliquer sur
+-- « Publier » ne doit pas empiler dix fois le même encodage.
+create unique index if not exists encode_jobs_media_active
+  on encode_jobs (media_id) where status in ('pending','processing');
+create unique index if not exists encode_jobs_gallery_active
+  on encode_jobs (gallery_id, video_key) where status in ('pending','processing');
+
+-- agency_id auto-rempli depuis la cible (media ou galerie) : la
+-- console n'a pas à le fournir, et il ne peut pas être falsifié.
+create or replace function trg_agency_from_encode_target() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.agency_id is null then
+    if new.media_id is not null then
+      select agency_id into new.agency_id from media where id = new.media_id;
+    elsif new.gallery_id is not null then
+      select agency_id into new.agency_id from galleries where id = new.gallery_id;
+    end if;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists set_agency on encode_jobs;
+create trigger set_agency before insert on encode_jobs
+  for each row execute function trg_agency_from_encode_target();
+
+alter table encode_jobs enable row level security;
+
+-- L'admin dépose et suit SES jobs, jamais ceux d'une autre agence.
+drop policy if exists "agency write" on encode_jobs;
+create policy "agency write" on encode_jobs for all to authenticated
+  using (agency_id in (select my_agency_ids()))
+  with check (agency_id in (select my_agency_ids()));
+
+-- ── Réclamation atomique par le worker ──────────────────────
+-- `for update skip locked` garantit que deux workers (ou deux
+-- lancements concurrents) ne prennent jamais le même job. Réservée
+-- au service role : le worker tourne sur la machine de Gil, jamais
+-- dans un navigateur.
+create or replace function claim_encode_job() returns encode_jobs
+language plpgsql volatile security definer set search_path = public as $$
+declare j encode_jobs;
+begin
+  update encode_jobs set
+    status     = 'processing',
+    attempts   = attempts + 1,
+    claimed_at = now()
+  where id = (
+    select id from encode_jobs
+    where status = 'pending'
+    order by created_at
+    for update skip locked
+    limit 1
+  )
+  returning * into j;
+  return j;
+end $$;
+
+revoke all on function claim_encode_job() from public, anon, authenticated;
+grant execute on function claim_encode_job() to service_role;
+
+notify pgrst, 'reload schema';

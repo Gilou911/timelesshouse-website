@@ -818,7 +818,7 @@ const MobileHeader = ({ onLogout, isDark, toggleDark }) => (
       <div style={neu.raisedXs} className="h-11 px-3 rounded-full flex items-center justify-center">
         <DarkToggle isDark={isDark} onToggle={toggleDark} />
       </div>
-      <button onClick={onLogout} aria-label="Déconnexion" style={neu.raisedXs}
+      <button onClick={onLogout} aria-label="Déconnexion" title="Déconnexion" style={neu.raisedXs}
         className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
         <LogOut size={16} />
       </button>

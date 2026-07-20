@@ -44,6 +44,17 @@ export const UNIVERSES_LEGACY = [
   { value: 'autre',                label: '📁 Autre (héritage)' },
 ];
 
+/** Libellé lisible d'un univers, pour l'AFFICHAGE (jamais la valeur brute).
+ *  Les cartes clients montraient « celebration » ou « anniversaire-mariage »
+ *  — de la plomberie technique servie au locataire (HIG §15). */
+export function universeLabel(universe) {
+  const all = [...UNIVERSES_TENANT, ...UNIVERSES_LEGACY];
+  const found = all.find(u => u.value === universe);
+  if (!found) return universe || 'Espace';
+  // Sans l'émoji : la carte porte déjà ses propres repères visuels.
+  return found.label.replace(/^\p{Extended_Pictographic}+\s*/u, '').replace(' (héritage)', '');
+}
+
 /** Liste offerte dans le formulaire client, selon les droits de l'agence. */
 export function universeOptions(allUniverses) {
   return allUniverses ? [...UNIVERSES_TENANT, ...UNIVERSES_LEGACY] : UNIVERSES_TENANT;

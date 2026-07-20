@@ -22,7 +22,7 @@
     } from 'lucide-react';
     import AdminPortfolio from './admin-portfolio.jsx';
     import {
-      universeOptions, isCelebration, allowsAnalytics, hasDeliveryTab,
+      universeOptions, universeLabel, isCelebration, allowsAnalytics, hasDeliveryTab,
       videoPageFor, GALLERY_TEMPLATES, GALLERY_KINDS, templateLabel, kindLabel,
     } from './univers.js';
 
@@ -1203,7 +1203,7 @@
                 <div className="text-[12px] text-stone-500 mt-1 truncate">{c.sector || '—'}</div>
                 <div className="flex items-center gap-2 mt-4 flex-wrap">
                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-stone-200 text-stone-700 font-semibold uppercase tracking-wider text-[9.5px] leading-none">
-                    {c.universe || 'communication'}
+                    {universeLabel(c.universe || 'communication')}
                   </span>
                   <code style={neu.pressedSm} className="px-2.5 py-1 rounded-md font-mono text-[11px] leading-none">{c.code}</code>
                   {c.analytics_enabled && FEATURES.analytics && (
@@ -1217,13 +1217,18 @@
                 </div>
               </button>
             ))}
-            <button onClick={() => setShowNew(true)} style={neu.pressed} className="rounded-[22px] lg:rounded-[24px] p-6 flex flex-col items-center justify-center text-center min-h-[200px] hover:scale-[1.01] active:scale-[0.99] transition-transform">
-              <div style={neu.dark} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-4">
-                <Plus size={20} />
-              </div>
-              <div className="text-[15px] font-semibold">Créer un espace</div>
-              <div className="text-[12.5px] text-stone-500 mt-1">Onboarder un nouveau client</div>
-            </button>
+            {/* Même action, même nom que le bouton du haut (HIG §15 : un
+                concept = un mot). Et elle disparaît au plafond de l'offre,
+                comme le bouton — sinon le clic menait droit à une erreur. */}
+            {!quotaAtteint && (
+              <button onClick={() => setShowNew(true)} style={neu.pressed} className="rounded-[22px] lg:rounded-[24px] p-6 flex flex-col items-center justify-center text-center min-h-[200px] hover:scale-[1.01] active:scale-[0.99] transition-transform">
+                <div style={neu.dark} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-4">
+                  <Plus size={20} />
+                </div>
+                <div className="text-[15px] font-semibold">Nouveau client</div>
+                <div className="text-[12.5px] text-stone-500 mt-1">Ouvrir un espace privé</div>
+              </button>
+            )}
           </div>
 
           {showNew && <ClientForm onClose={() => setShowNew(false)} onSaved={(c) => { setShowNew(false); refresh(); onCreate && onCreate(c); }} />}
@@ -1360,7 +1365,7 @@
                 </div>
                 <Field label="Code d'accès (sans espaces)">
                   <Input required value={form.code} onChange={e => setForm({...form, code: e.target.value})} placeholder="precieuse-ronny" />
-                  <div className="text-[11px] text-stone-500 mt-1.5">Le code est auto-suggéré depuis les prénoms. Tu peux le personnaliser.</div>
+                  <div className="text-[11px] text-stone-500 mt-1.5">Le code est suggéré à partir des prénoms. Vous pouvez le personnaliser.</div>
                 </Field>
               </>
             ) : (
@@ -1510,7 +1515,7 @@
               </div>
               {hasDeliveryTab(form.universe) && (
                 <div className="text-[11px] text-stone-500 mt-2.5">
-                  💡 Pour les univers événement, ces modules complètent l'espace galerie/film. Tu peux par exemple n'activer que les Médias pour donner accès à des photos/vidéos additionnelles, ou laisser tout désactivé pour une page de livraison pure.
+                  💡 Ces modules complètent la page de livraison. Vous pouvez n'activer que les Médias pour proposer des photos ou vidéos supplémentaires, ou tout laisser désactivé pour une livraison épurée.
                 </div>
               )}
             </Field>
@@ -3883,7 +3888,7 @@
                   </div>
                 );
               })}
-              {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucun média. Cliquez sur "Ajouter un média" pour commencer.</div>}
+              {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucun média livré pour l'instant. Ajoutez-en un pour démarrer la livraison.</div>}
             </div>
           )}
 
@@ -4746,7 +4751,7 @@
                     </div>
                   </div>
                 ))}
-                {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucune facture.</div>}
+                {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucune facture pour l'instant.</div>}
               </div>
             )}
           </div>
@@ -4967,7 +4972,7 @@
                       </div>
                     </div>
                   ))}
-                  {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucun document. Cliquez sur « Ajouter un document » pour commencer.</div>}
+                  {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucun document partagé pour l'instant.</div>}
                 </div>
               )}
             </div>
@@ -5309,7 +5314,7 @@
                       </div>
                     );
                   })}
-                  {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucune stratégie. Cliquez sur « Nouvelle stratégie » pour commencer.</div>}
+                  {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucune stratégie pour l'instant.</div>}
                 </div>
               )}
             </div>
@@ -6403,7 +6408,7 @@
               <a href="communication.html" aria-label="Espace client" style={neu.raisedXs} className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
                 <Eye size={16} />
               </a>
-              <button onClick={logout} aria-label="Déconnexion" style={neu.raisedXs} className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
+              <button onClick={logout} aria-label="Déconnexion" title="Déconnexion" style={neu.raisedXs} className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
                 <LogOut size={16} />
               </button>
             </div>

@@ -270,6 +270,43 @@
         scroll-behavior: auto !important;
       }
     }
+    /* ── Champs date et heure sur iOS (audit HIG du 20/07/2026) ──
+       Safari donne aux <input type="date|time"> une largeur INTRINSÈQUE
+       calculée sur le gabarit natif, qui l'emporte sur `width: 100%` :
+       le champ débordait du cadre de la modale, seul élément du
+       formulaire à ne pas s'aligner sur les autres (HIG §3, une
+       interface s'adapte à son conteneur ; §13, champs de largeur
+       cohérente). Trois règles suffisent :
+         · appearance: none  → retire le gabarit natif qui impose la largeur
+         · min-width: 0      → autorise la réduction sous la largeur mini
+         · width/max-width   → aligne exactement sur les autres champs   */
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      /* Safari centre verticalement de travers sans hauteur explicite. */
+      min-height: 48px;
+      /* HIG §13 : 16 px minimum, sinon iOS zoome la page au focus. */
+      font-size: 16px;
+      font-family: inherit;
+      color: inherit;
+    }
+    /* L'icône native de calendrier reste cliquable et alignée à droite. */
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="time"]::-webkit-calendar-picker-indicator {
+      margin-left: auto;
+      opacity: 0.55;
+      cursor: pointer;
+    }
+    input[type="date"]::-webkit-date-and-time-value {
+      text-align: left;
+    }
   </style>
 </head>
 <body>

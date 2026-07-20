@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Inscription self-serve d'une agence (SaaS B.3, brique 9) :
+       crée le compte + l'agence via l'Edge Function signup-agency,
+       puis connecte automatiquement et ouvre la console. -->
+  <title>Créer votre loge — La Loge</title>
+  <meta name="description" content="Ouvrez votre espace client en marque blanche en une minute. Offre Découverte gratuite, 3 Go, sans carte bancaire." />
+  <meta name="theme-color" content="#e9e4d9" />
+  <link rel="icon" href="/favicon-th.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:#e9e4d9; --surface:#efeae0; --pressed:#e3ddd0; --ink:#2a2620;
+      --muted:#7c756a; --faint:#a49b8d;
+      --shadow-d:rgba(168,156,134,0.32); --shadow-l:rgba(255,253,247,0.92);
+      --btn-bg:#2a2620; --btn-text:#f5f1e6; --ok:#3f7d54;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:#181b20; --surface:#22262d; --pressed:#14171c; --ink:#e8e4dc;
+        --muted:#9aa0ab; --faint:#6b7280;
+        --shadow-d:rgba(0,0,0,0.55); --shadow-l:rgba(54,60,72,0.28);
+        --btn-bg:#e8e4dc; --btn-text:#181b20; --ok:#6fbf8a;
+      }
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      min-height:100vh; min-height:100dvh; background:var(--bg); color:var(--ink);
+      font-family:'Manrope',-apple-system,sans-serif;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      padding:24px; gap:24px;
+    }
+    a.logo { font-family:'Instrument Serif',Georgia,serif; font-style:italic; font-size:26px; text-decoration:none; color:var(--ink); }
+    a.logo span { color:var(--faint); }
+    .head { text-align:center; }
+    .head h1 { font-family:'Instrument Serif',Georgia,serif; font-weight:400; font-size:clamp(1.7rem,5vw,2.2rem); margin-top:10px; letter-spacing:-.01em; }
+    .head p { font-size:14px; color:var(--muted); margin-top:8px; }
+    .card {
+      width:100%; max-width:440px; background:var(--surface); border-radius:28px; padding:28px 26px;
+      box-shadow:10px 10px 24px var(--shadow-d), -10px -10px 24px var(--shadow-l);
+    }
+    label { display:block; font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--faint); font-weight:700; margin:0 0 8px; }
+    .row + .row { margin-top:16px; }
+    input {
+      width:100%; min-height:48px; padding:0 18px; border:none; border-radius:999px;
+      background:var(--pressed); color:var(--ink); font-size:16px; font-family:inherit; outline:none;
+      box-shadow:inset 3px 3px 6px var(--shadow-d), inset -3px -3px 6px var(--shadow-l);
+    }
+    .addr { font-size:12.5px; color:var(--muted); margin-top:8px; padding-left:4px; }
+    .addr b { color:var(--ink); font-family:monospace; }
+    .btn {
+      display:inline-flex; align-items:center; justify-content:center; width:100%;
+      min-height:50px; margin-top:22px; border:none; border-radius:999px;
+      background:var(--btn-bg); color:var(--btn-text);
+      font-family:inherit; font-size:14.5px; font-weight:700; cursor:pointer; text-decoration:none;
+      transition:transform .12s ease;
+    }
+    .btn:active { transform:scale(.97); }
+    .btn[disabled] { opacity:.55; }
+    .msg { font-size:13px; line-height:1.55; margin-top:14px; display:none; }
+    .msg.err { color:#c2413f; }
+    .msg.ok { color:var(--ok); }
+    .legal { font-size:11.5px; color:var(--faint); line-height:1.7; margin-top:16px; text-align:center; }
+    .legal a { color:inherit; }
+    footer { font-size:12px; color:var(--faint); text-align:center; }
+    footer a { color:inherit; }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <a class="logo" href="/offres">La Loge<span>.</span></a>
+    <h1>Ouvrez votre loge</h1>
+    <p>Offre Découverte — 3 Go, gratuite, sans carte bancaire.</p>
+  </div>
+
+  <main class="card">
+    <form id="form">
+      <div class="row">
+        <label for="studio">Nom de votre studio</label>
+        <input id="studio" required maxlength="80" placeholder="Studio Lumière" autocomplete="organization" />
+        <div class="addr">Adresse de vos clients : <b id="addr">votre-studio</b>.laloge.house</div>
+      </div>
+      <div class="row">
+        <label for="email">Votre email</label>
+        <input id="email" type="email" required placeholder="contact@studio-lumiere.fr" autocomplete="email" />
+      </div>
+      <div class="row">
+        <label for="pwd">Mot de passe</label>
+        <input id="pwd" type="password" required minlength="8" placeholder="8 caractères minimum" autocomplete="new-password" />
+      </div>
+      <button class="btn" type="submit" id="btn">Créer ma loge</button>
+    </form>
+    <div class="msg" id="msg"></div>
+    <div class="legal">
+      En créant votre loge, vous acceptez nos
+      <a href="/cgu.html">conditions d'utilisation</a> et notre
+      <a href="/confidentialite.html">politique de confidentialité</a>.
+    </div>
+  </main>
+
+  <footer>Vous avez déjà un compte&nbsp;? <a href="/communication-admin.html">Se connecter</a></footer>
+
+  <script type="module">
+    import { createClient } from '@supabase/supabase-js';
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const el = (id) => document.getElementById(id);
+    const say = (text, kind) => { const m = el('msg'); m.textContent = text; m.className = 'msg ' + (kind || ''); m.style.display = 'block'; };
+
+    const slugify = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/&/g, ' ').trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+
+    // Aperçu de l'adresse en direct
+    el('studio').addEventListener('input', () => {
+      el('addr').textContent = slugify(el('studio').value) || 'votre-studio';
+    });
+
+    el('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const studio_name = el('studio').value.trim();
+      const email = el('email').value.trim();
+      const password = el('pwd').value;
+      const slug = slugify(studio_name);
+      if (!slug) return say('Indiquez le nom de votre studio.', 'err');
+      if (password.length < 8) return say('Le mot de passe doit faire au moins 8 caractères.', 'err');
+
+      el('btn').disabled = true; say('Création de votre loge…');
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/signup-agency`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ studio_name, email, password, slug }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json.error || `Inscription impossible (${res.status})`);
+
+        say('Loge créée — connexion en cours…', 'ok');
+        const { error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) { // compte bien créé, mais connexion auto échouée
+          say('Votre loge est créée ! Connectez-vous pour démarrer.', 'ok');
+          setTimeout(() => { window.location.href = '/communication-admin.html'; }, 1600);
+          return;
+        }
+        setTimeout(() => { window.location.href = '/communication-admin.html'; }, 900);
+      } catch (err) {
+        say(err.message, 'err');
+        el('btn').disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

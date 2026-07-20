@@ -291,5 +291,30 @@ begin
   return res;
 end $$;
 
--- ✅ Briques 1→7 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
+-- ── Brique 8 : récupération de mot de passe ─────────────────
+-- Journal des demandes (anti-bombardement d'emails) : l'Edge Function
+-- account-recovery refuse au-delà de 5 demandes par heure et par
+-- email. Table sans policy → service role uniquement.
+create table if not exists auth_recovery_log (
+  id         bigserial primary key,
+  email      text not null,
+  created_at timestamptz default now()
+);
+alter table auth_recovery_log enable row level security;
+create index if not exists auth_recovery_log_email_idx on auth_recovery_log (lower(email), created_at desc);
+
+-- ── Brique 9 : inscription self-serve ───────────────────────
+-- Journal des inscriptions publiques (anti-abus : 3 créations par
+-- heure et par IP côté Edge Function signup-agency). Sans policy →
+-- service role uniquement.
+create table if not exists signup_log (
+  id         bigserial primary key,
+  email      text,
+  ip         text,
+  created_at timestamptz default now()
+);
+alter table signup_log enable row level security;
+create index if not exists signup_log_ip_idx on signup_log (ip, created_at desc);
+
+-- ✅ Briques 1→9 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
 --    cloisonnement des dossiers Cloudinary (ou Cloudflare Images).

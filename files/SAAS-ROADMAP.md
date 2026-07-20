@@ -58,9 +58,24 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   email déjà connu → compte rattaché tel quel). RPC
   `platform_is_owner` / `platform_list_agencies` + helper
   `admin_user_id_by_email` : `files/migration-saas-b3-agences.sql`.
-- **Onboarding self-serve** (reste à faire) : inscription publique d'une
-  agence (email → compte → 1ᵉʳ espace client guidé), page de changement
-  de mot de passe, rôles admin supplémentaires.
+- **Onboarding self-serve ✅ (fait le 20/07/2026)** : page publique
+  `/inscription` (nom du studio → aperçu en direct de l'adresse
+  `<slug>.laloge.house`, email, mot de passe) → Edge Function
+  `signup-agency` (plan **decouverte forcé**, fonctionnalités
+  plateforme désactivées, slugs réservés, 3 inscriptions/h/IP,
+  rollback si une étape échoue, email de bienvenue Resend) →
+  connexion automatique et arrivée dans la console. Les CTA de la
+  vitrine pointent tous vers l'inscription (fin du « demander un accès »
+  par email). **Mots de passe** : lien « Mot de passe oublié ? » sur la
+  connexion → `account-recovery` (lien Supabase envoyé par Resend à la
+  marque de l'agence, 5 demandes/h/email, aucune énumération de
+  comptes) → page `/reinitialiser` ; et carte « Sécurité » dans la
+  console pour changer son mot de passe. Auth Supabase configurée
+  (site_url laloge.app + liste d'URL de redirection autorisées).
+  Vérifié de bout en bout : inscription réelle depuis le navigateur,
+  lien de récupération suivi jusqu'au changement effectif (ancien mot
+  de passe refusé, nouveau accepté), puis fixtures nettoyées.
+- Rôles admin supplémentaires par agence : reste à faire.
 - **Identité d'application (étage 1 ✅ fait le 20/07/2026)** : porte
   d'entrée dédiée `app.html` (connexion client par code + accès console
   agence, sans vitrine autour, HIG, mode sombre, noindex) — en prod sur

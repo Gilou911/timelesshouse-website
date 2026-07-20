@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.stripe-billing]
 verify_jwt = false
+
+[functions.account-recovery]
+verify_jwt = false
+
+[functions.signup-agency]
+verify_jwt = false

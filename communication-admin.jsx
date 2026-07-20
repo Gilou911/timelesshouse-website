@@ -497,6 +497,23 @@
       const [showPwd, setShowPwd] = useState(false);
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState('');
+      const [sending, setSending] = useState(false);
+      const [sent, setSent] = useState(false);
+
+      // Demande de réinitialisation : réponse toujours identique côté
+      // serveur (aucune énumération de comptes possible).
+      const forgot = async () => {
+        if (!email.trim()) { setError("Renseignez d'abord votre email, puis recliquez sur « Mot de passe oublié ? »."); return; }
+        setSending(true); setError('');
+        try {
+          await fetch(`${SUPABASE_URL}/functions/v1/account-recovery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body: JSON.stringify({ email: email.trim(), redirect_to: `${window.location.origin}/reinitialiser` }),
+          });
+        } catch (e) { /* réponse volontairement identique en cas d'échec */ }
+        setSent(true); setSending(false);
+      };
 
       const submit = async (e) => {
         e.preventDefault();
@@ -552,8 +569,23 @@
               </Btn>
             </form>
 
+            {/* Mot de passe oublié (SaaS B.3) : email de récupération à la
+                marque de l'agence, envoyé par l'Edge Function dédiée */}
+            <div className="text-center mt-5">
+              <button type="button" onClick={forgot} disabled={sending}
+                className="text-[12.5px] text-stone-500 hover:text-stone-800 underline underline-offset-4 min-h-[44px] px-3">
+                {sending ? 'Envoi…' : 'Mot de passe oublié ?'}
+              </button>
+            </div>
+            {sent && (
+              <div className="flex items-start gap-2 mt-1 p-3 rounded-xl bg-emerald-50 text-emerald-800 text-[12.5px]">
+                <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
+                Si un compte existe pour cet email, un lien de réinitialisation vient d'être envoyé. Pensez à vérifier vos indésirables.
+              </div>
+            )}
+
             <p className="text-[11px] text-stone-400 text-center mt-6">
-              Compte créé via Supabase → Authentication → Users.
+              Pas encore de compte ? <a href="/inscription" className="underline underline-offset-2">Créer votre agence</a>.
             </p>
           </div>
         </div>
@@ -695,6 +727,56 @@
       );
     }
 
+    // ── Sécurité : changer son mot de passe depuis la console ──
+    function PasswordCard() {
+      const [open, setOpen] = useState(false);
+      const [pwd, setPwd] = useState('');
+      const [pwd2, setPwd2] = useState('');
+      const [busy, setBusy] = useState(false);
+      const [msg, setMsg] = useState(null); // { kind: 'ok'|'err', text }
+
+      const save = async () => {
+        if (pwd.length < 8) return setMsg({ kind: 'err', text: 'Le mot de passe doit faire au moins 8 caractères.' });
+        if (pwd !== pwd2) return setMsg({ kind: 'err', text: 'Les deux mots de passe ne correspondent pas.' });
+        setBusy(true); setMsg(null);
+        const { error } = await sb.auth.updateUser({ password: pwd });
+        setBusy(false);
+        if (error) return setMsg({ kind: 'err', text: error.message || "Impossible d'enregistrer ce mot de passe." });
+        setPwd(''); setPwd2(''); setOpen(false);
+        setMsg({ kind: 'ok', text: 'Mot de passe mis à jour.' });
+      };
+
+      return (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>Sécurité</h2>
+            <Btn icon={Lock} onClick={() => { setOpen(!open); setMsg(null); }}>
+              {open ? 'Annuler' : 'Changer mon mot de passe'}
+            </Btn>
+          </div>
+          {open && (
+            <div className="grid sm:grid-cols-3 gap-3 items-end mt-5">
+              <Field label="Nouveau mot de passe">
+                <Input type="password" autoComplete="new-password" value={pwd} onChange={e => setPwd(e.target.value)} placeholder="8 caractères minimum" />
+              </Field>
+              <Field label="Confirmation">
+                <Input type="password" autoComplete="new-password" value={pwd2} onChange={e => setPwd2(e.target.value)} placeholder="Retapez le mot de passe" />
+              </Field>
+              <Btn kind="dark" onClick={save} disabled={busy} className="w-full">
+                {busy ? 'Enregistrement…' : 'Enregistrer'}
+              </Btn>
+            </div>
+          )}
+          {msg && (
+            <div className={`flex items-center gap-2 mt-4 text-[12.5px] ${msg.kind === 'ok' ? 'text-emerald-700' : 'text-rose-600'}`}>
+              {msg.kind === 'ok' ? <CheckCircle2 size={14} className="shrink-0" /> : <AlertCircle size={14} className="shrink-0" />}
+              {msg.text}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function Overview({ clients, totalMedia, totalRevenue, upcomingShoots, storage, billing }) {
       const pct = storage?.quota_bytes ? Math.round((storage.used_bytes || 0) / storage.quota_bytes * 100) : null;
       return (
@@ -730,6 +812,9 @@
 
           {/* Abonnement (SaaS B.3 — Stripe) */}
           <BillingCard billing={billing} />
+
+          {/* Sécurité — changement de mot de passe */}
+          <PasswordCard />
 
           {/* Hero card */}
           <div style={neu.dark} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7 text-white relative overflow-hidden">

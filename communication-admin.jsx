@@ -16,7 +16,7 @@
       Save, Eye, EyeOff, AlertCircle, ChevronRight, Lock, Mail, ArrowUpRight,
       Filter, Video, Camera, Clock, MapPin, TrendingUp, Sparkles, ExternalLink,
       Loader2, MessageSquare, Bell, Send, CheckCircle2, RefreshCw, Link2,
-      FolderOpen, Download,
+      FolderOpen, Download, Upload,
       Maximize2, Monitor, Smartphone, ChevronDown, ChevronUp,
       Lightbulb, Copy, Power, Building2
     } from 'lucide-react';
@@ -882,7 +882,156 @@
       );
     }
 
-    function Overview({ clients, totalMedia, totalRevenue, upcomingShoots, storage, billing }) {
+    // ── Ma marque (SaaS B.3) : l'agence règle ELLE-MÊME son identité ──
+    // Nom, logo, couleurs et email de contact — écrits via la RPC
+    // update_my_agency_brand (owners uniquement). C'est la SEULE voie
+    // d'écriture sur agencies (aucune policy UPDATE : plan, active,
+    // stripe_* et autres champs sensibles restent hors de portée).
+    // La marque se propage immédiatement : portail client, pages
+    // événement, écran de connexion <slug>.laloge.house, emails.
+    const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+    function BrandCard({ agency, onSaved }) {
+      const [form, setForm] = useState({ name: '', logo_url: '', accent_color: '#2a2620', bg_color: '#e9e4d9', contact_email: '' });
+      const [busy, setBusy] = useState(false);
+      const [up, setUp] = useState(null);   // progression upload logo (0..1)
+      const [msg, setMsg] = useState(null); // { kind: 'ok'|'err', text }
+      const fileRef = useRef(null);
+
+      useEffect(() => {
+        if (!agency) return;
+        setForm({
+          name: agency.name || '',
+          logo_url: agency.logo_url || '',
+          accent_color: agency.accent_color || '#2a2620',
+          bg_color: agency.bg_color || '#e9e4d9',
+          contact_email: agency.contact_email || '',
+        });
+      }, [agency]);
+
+      if (!agency) return null;
+      const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+      // Logo ≤ 2 Mo, uploadé sous agencies/<slug>/logo/… (préfixe
+      // vérifié par b2-sign : membre de l'agence du slug uniquement).
+      const uploadLogo = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        setMsg(null);
+        if (!/^image\/(png|jpe?g|svg\+xml|webp)$/.test(file.type)) {
+          return setMsg({ kind: 'err', text: 'Formats acceptés : PNG, JPG, SVG ou WebP.' });
+        }
+        if (file.size > 2 * 1024 * 1024) {
+          return setMsg({ kind: 'err', text: 'Logo trop lourd — 2 Mo maximum.' });
+        }
+        setUp(0);
+        try {
+          const url = await b2UploadFile(file, `agencies/${agency.slug}/logo/${Date.now()}-${b2SafeName(file.name)}`, setUp);
+          setForm(f => ({ ...f, logo_url: url }));
+        } catch (err) {
+          setMsg({ kind: 'err', text: err.message || 'Upload du logo échoué.' });
+        }
+        setUp(null);
+      };
+
+      const save = async () => {
+        setMsg(null);
+        const name = form.name.trim();
+        const logo = form.logo_url.trim();
+        if (name.length < 2 || name.length > 80) return setMsg({ kind: 'err', text: 'Le nom du studio doit faire entre 2 et 80 caractères.' });
+        if (!HEX_RE.test(form.accent_color.trim()) || !HEX_RE.test(form.bg_color.trim())) return setMsg({ kind: 'err', text: 'Couleurs au format #rrggbb (ex : #2a2620).' });
+        if (logo && !/^https:\/\//i.test(logo)) return setMsg({ kind: 'err', text: 'Le logo doit être une URL https — ou passez par « Téléverser ».' });
+        setBusy(true);
+        const { error } = await sb.rpc('update_my_agency_brand', {
+          p_name: name,
+          p_logo_url: logo || null,
+          p_accent_color: form.accent_color.trim().toLowerCase(),
+          p_bg_color: form.bg_color.trim().toLowerCase(),
+          p_contact_email: form.contact_email.trim() || null,
+        });
+        setBusy(false);
+        if (error) {
+          return setMsg({
+            kind: 'err',
+            text: /propriétaire/.test(error.message || '')
+              ? "Seul le propriétaire de l'agence peut modifier la marque."
+              : (error.message || 'Enregistrement échoué.'),
+          });
+        }
+        setMsg({ kind: 'ok', text: 'Marque enregistrée — vos clients voient les changements immédiatement.' });
+        onSaved?.();
+      };
+
+      return (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+            <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>Ma marque</h2>
+            <span className="text-[11px] uppercase tracking-[0.14em] text-stone-400 font-semibold">
+              {agency.slug}.laloge.house · {PLAN_LABELS[agency.plan] || agency.plan || 'plan —'}
+            </span>
+          </div>
+          <p className="text-[12.5px] text-stone-500 mt-2 leading-relaxed">
+            Votre identité, appliquée partout : espaces clients, pages événement, écran de connexion et emails.
+          </p>
+
+          <div className="grid sm:grid-cols-2 gap-4 mt-5">
+            <Field label="Nom du studio">
+              <Input value={form.name} onChange={set('name')} placeholder="Studio Lumière" />
+            </Field>
+            <Field label="Email de contact">
+              <Input type="email" value={form.contact_email} onChange={set('contact_email')} placeholder="hello@studio-lumiere.fr" />
+            </Field>
+            <Field label="Couleur accent">
+              <div className="flex items-center gap-3">
+                <input type="color" value={HEX_RE.test(form.accent_color) ? form.accent_color : '#2a2620'} onChange={set('accent_color')} aria-label="Couleur accent"
+                  className="w-11 h-11 rounded-xl border-0 bg-transparent cursor-pointer shrink-0" style={neu.pressedSm} />
+                <Input value={form.accent_color} onChange={set('accent_color')} className="font-mono" />
+              </div>
+            </Field>
+            <Field label="Couleur de fond">
+              <div className="flex items-center gap-3">
+                <input type="color" value={HEX_RE.test(form.bg_color) ? form.bg_color : '#e9e4d9'} onChange={set('bg_color')} aria-label="Couleur de fond"
+                  className="w-11 h-11 rounded-xl border-0 bg-transparent cursor-pointer shrink-0" style={neu.pressedSm} />
+                <Input value={form.bg_color} onChange={set('bg_color')} className="font-mono" />
+              </div>
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Logo (URL https, optionnel)">
+                <div className="flex items-center gap-3 flex-wrap">
+                  {form.logo_url.trim() && (
+                    <div style={neu.pressedSm} className="h-11 px-2.5 rounded-xl flex items-center shrink-0">
+                      <img src={form.logo_url.trim()} alt="Aperçu du logo" className="h-8 max-w-[120px] object-contain" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-[180px]">
+                    <Input value={form.logo_url} onChange={set('logo_url')} placeholder="https://…/logo.png" />
+                  </div>
+                  <Btn icon={Upload} onClick={() => fileRef.current?.click()} disabled={up != null}>
+                    {up != null ? `Téléversement… ${Math.round(up * 100)} %` : 'Téléverser'}
+                  </Btn>
+                  <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={uploadLogo} />
+                </div>
+              </Field>
+            </div>
+          </div>
+
+          {msg && (
+            <div className={`flex items-center gap-2 mt-4 text-[12.5px] ${msg.kind === 'ok' ? 'text-emerald-700' : 'text-rose-600'}`}>
+              {msg.kind === 'ok' ? <CheckCircle2 size={14} className="shrink-0" /> : <AlertCircle size={14} className="shrink-0" />}
+              {msg.text}
+            </div>
+          )}
+          <div className="mt-5">
+            <Btn kind="dark" icon={busy ? Loader2 : Save} onClick={save} disabled={busy || up != null}>
+              {busy ? 'Enregistrement…' : 'Enregistrer ma marque'}
+            </Btn>
+          </div>
+        </div>
+      );
+    }
+
+    function Overview({ clients, totalMedia, totalRevenue, upcomingShoots, storage, billing, agency, refreshBrand }) {
       const pct = storage?.quota_bytes ? Math.round((storage.used_bytes || 0) / storage.quota_bytes * 100) : null;
       return (
         <div className="space-y-5 lg:space-y-6">
@@ -914,6 +1063,9 @@
               )}
             </div>
           )}
+
+          {/* Ma marque (SaaS B.3) — l'agence règle sa propre identité */}
+          <BrandCard agency={agency} onSaved={refreshBrand} />
 
           {/* Abonnement (SaaS B.3 — Stripe) */}
           <BillingCard billing={billing} />
@@ -5455,7 +5607,7 @@
       // Renseigne FEATURES avant le premier rendu des sections.
       const loadFeatures = async () => {
         const { data } = await sb.from('agencies')
-          .select('name, slug, active, status, contact_email, features_analytics, features_portfolio')
+          .select('name, slug, active, status, plan, contact_email, logo_url, accent_color, bg_color, features_analytics, features_portfolio')
           .limit(1).maybeSingle();
         FEATURES.analytics = data?.features_analytics === true;
         FEATURES.portfolio = data?.features_portfolio === true;
@@ -5588,7 +5740,7 @@
               {selectedClient ? (
                 <ClientDetail client={selectedClient} onBack={() => setSelectedClient(null)} refresh={() => { loadClients(); loadOverview(); }} />
               ) : section === 'overview' ? (
-                <Overview clients={clients} {...overviewData} />
+                <Overview clients={clients} {...overviewData} agency={myAgency} refreshBrand={loadFeatures} />
               ) : section === 'portfolio' && FEATURES.portfolio ? (
                 <AdminPortfolio sb={sb} neu={neu} SERIF={SERIF} isDark={isDark} />
               ) : section === 'agences' && agencies !== null ? (

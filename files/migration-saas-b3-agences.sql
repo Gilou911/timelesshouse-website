@@ -512,5 +512,264 @@ end $$;
 revoke execute on function update_my_agency_brand(text, text, text, text, text) from public, anon;
 grant  execute on function update_my_agency_brand(text, text, text, text, text) to authenticated;
 
--- ✅ Briques 1→12 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
---    cloisonnement des dossiers Cloudinary (ou Cloudflare Images).
+-- ── Brique 13 : GALERIES AUTONOMES (fondation) ──────────────
+-- Décision du 20/07/2026 : les galeries de livraison deviennent des
+-- OBJETS DE PREMIER RANG (modèle Pic-Time). Jusqu'ici une livraison
+-- était une `event_pages` accrochée au client : UNE page vidéo + UNE
+-- page photos maximum, atteignables uniquement en passant par le code
+-- de l'espace client. Désormais une galerie a SON PROPRE code et SON
+-- PROPRE lien (https://<slug>.laloge.house/galerie?c=<code>) — on peut
+-- en livrer autant qu'on veut à un même client, et en partager une
+-- sans donner accès à l'espace client.
+--
+-- DEUX ESPACES DE NOMS DISTINCTS, VOLONTAIREMENT ÉTANCHES :
+--   · clients.code    → l'espace client (dashboard, factures, médias)
+--   · galleries.access_code → une livraison précise
+-- Un code doit rester NON AMBIGU pour un humain : le trigger refuse
+-- qu'une galerie prenne le code d'un client de la même agence, et le
+-- générateur évite en plus toute collision à l'échelle de la
+-- plateforme (voir gallery_code_suggest).
+--
+-- ⚠️ `event_pages` N'EST PAS SUPPRIMÉE ni désactivée. Elle reste la
+-- SOURCE DE VÉRITÉ des pages event-*.html, qui continuent de servir
+-- les ~17 clients de production exactement comme aujourd'hui. Cette
+-- brique ne fait que DUPLIQUER l'existant dans `galleries` (migration
+-- idempotente ci-dessous) pour poser le modèle sans risque. La console
+-- de gestion (session suivante) écrira dans `galleries` et portera la
+-- bascule/synchro puis, seulement à ce moment, la sortie d'event_pages.
+
+-- Slug ASCII partagé (titres → codes lisibles). Même normalisation que
+-- le front (app.html) : minuscules, accents aplatis, tout le reste en
+-- tirets. Volontairement `immutable` : sert aussi dans les index/checks.
+create or replace function gallery_slug(p_text text) returns text
+language sql immutable set search_path = public as $$
+  select coalesce(nullif(
+    regexp_replace(
+      regexp_replace(
+        lower(translate(coalesce(p_text, ''),
+          'àáâãäåçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ',
+          'aaaaaaceeeeiiiinooooouuuuyyAAAAAACEEEEIIIINOOOOOUUUUY')),
+        '[^a-z0-9]+', '-', 'g'),
+      '(^-+|-+$)', '', 'g'), ''), 'galerie') $$;
+
+-- ── La table ────────────────────────────────────────────────
+create table if not exists galleries (
+  id            uuid primary key default gen_random_uuid(),
+  client_id     uuid not null references clients(id) on delete cascade,
+  agency_id     uuid references agencies(id),
+  title         text not null,
+  -- 'photos' | 'video' | 'mixte' — pilote les sections rendues
+  kind          text not null default 'photos' check (kind in ('photos', 'video', 'mixte')),
+  -- Gabarit de rendu : 'mariage' | 'fiancailles' | 'anniversaire' |
+  -- 'evenement' | 'mannequinat' | 'immobilier' | 'corporate'…
+  -- PAS de CHECK volontairement : la liste doit pouvoir s'allonger sans
+  -- migration (un nouveau métier = un nouveau gabarit). La validation
+  -- se fait côté applicatif ; un gabarit inconnu retombe sur 'evenement'.
+  template      text not null default 'evenement',
+  config        jsonb default '{}'::jsonb,
+  access_code   text,
+  share_enabled boolean not null default true,
+  position      int default 0,
+  created_at    timestamptz default now()
+);
+create index if not exists galleries_client_pos  on galleries (client_id, position);
+create index if not exists galleries_agency_idx  on galleries (agency_id);
+
+-- Unicité du code PAR AGENCE (modèle clients_agency_code_key, phase C de B.2)
+alter table galleries drop constraint if exists galleries_agency_code_key;
+alter table galleries add  constraint galleries_agency_code_key unique (agency_id, access_code);
+
+alter table galleries enable row level security;
+
+-- Écritures admin : cloisonnées par agence (modèle B.1)
+drop policy if exists "agency write" on galleries;
+create policy "agency write" on galleries for all to authenticated
+  using (agency_id in (select my_agency_ids()))
+  with check (agency_id in (select my_agency_ids()));
+
+-- agency_id auto-rempli depuis le client (modèle B.1)
+drop trigger if exists set_agency on galleries;
+create trigger set_agency before insert on galleries
+  for each row execute function trg_agency_from_client();
+
+-- ── Codes d'accès ───────────────────────────────────────────
+-- Propose un code libre pour une agence, à partir d'un libellé (titre).
+-- Évite : les codes de galerie ET les codes d'espace client — non
+-- seulement dans l'agence (là où porte la contrainte d'unicité) mais
+-- SUR TOUTE LA PLATEFORME, pour qu'un code reste non ambigu pour un
+-- humain (get_gallery_by_code refuse les codes servis par 2 agences,
+-- comme portal_client le fait déjà).
+create or replace function gallery_code_suggest(p_agency uuid, p_base text) returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  v_base text := left(gallery_slug(p_base), 48);
+  v_try  text := left(gallery_slug(p_base), 48);
+  i      int  := 0;
+begin
+  while i < 40 loop
+    if not exists (select 1 from galleries g where g.access_code = v_try)
+       and not exists (select 1 from clients c where c.code = v_try) then
+      return v_try;
+    end if;
+    i := i + 1;
+    v_try := v_base || '-' || substr(encode(gen_random_bytes(4), 'hex'), 1, 4);
+  end loop;
+  -- Filet : suffixe long, collision statistiquement impossible
+  return v_base || '-' || substr(encode(gen_random_bytes(8), 'hex'), 1, 12);
+end $$;
+revoke execute on function gallery_code_suggest(uuid, text) from public, anon;
+grant  execute on function gallery_code_suggest(uuid, text) to authenticated;
+
+-- Remplit le code s'il est vide ; REFUSE toute collision avec le code
+-- d'un espace client de la même agence (les deux espaces de noms
+-- doivent rester lisibles séparément par un humain).
+create or replace function trg_gallery_code() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare v_code text := nullif(trim(coalesce(new.access_code, '')), '');
+begin
+  if v_code is null then
+    new.access_code := gallery_code_suggest(new.agency_id, new.title);
+    return new;
+  end if;
+  v_code := gallery_slug(v_code);
+  if length(v_code) < 4 then
+    raise exception 'code de galerie trop court (4 caractères minimum) : « % »', v_code;
+  end if;
+  if exists (select 1 from clients c
+             where c.agency_id is not distinct from new.agency_id and c.code = v_code) then
+    raise exception 'code « % » déjà utilisé par un espace client de cette agence', v_code;
+  end if;
+  new.access_code := v_code;
+  return new;
+end $$;
+
+-- set_agency (alphabétiquement avant) a déjà posé agency_id quand
+-- celui-ci s'exécute : le contrôle de collision porte sur la bonne agence.
+drop trigger if exists set_gallery_code on galleries;
+create trigger set_gallery_code before insert on galleries
+  for each row execute function trg_gallery_code();
+
+drop trigger if exists set_gallery_code_upd on galleries;
+create trigger set_gallery_code_upd before update of access_code on galleries
+  for each row when (new.access_code is distinct from old.access_code)
+  execute function trg_gallery_code();
+
+-- ── gallery_photos : rattachement à une galerie ─────────────
+-- `client_id` est CONSERVÉ et reste rempli : get_client_gallery (brique
+-- 11) et event-photos.html continuent de fonctionner à l'identique.
+alter table gallery_photos add column if not exists gallery_id uuid references galleries(id) on delete cascade;
+create index if not exists gallery_photos_gallery_pos on gallery_photos (gallery_id, position);
+
+-- ── Migration des livraisons existantes (idempotente) ───────
+-- Chaque event_pages obtient sa galerie miroir. Relancer ce bloc ne
+-- crée jamais de doublon (garde `not exists` sur client_id + kind).
+insert into galleries (client_id, agency_id, title, kind, template, config, position)
+select ep.client_id,
+       c.agency_id,
+       (case ep.page_type when 'video' then 'Film — ' else 'Galerie photos — ' end)
+         || coalesce(nullif(trim(c.name), ''), c.code),
+       ep.page_type,
+       case c.universe
+         when 'anniversaire-mariage' then 'anniversaire'
+         when 'fiancailles'          then 'fiancailles'
+         else                             'mariage' end,
+       coalesce(ep.config, '{}'::jsonb),
+       case ep.page_type when 'video' then 0 else 1 end
+from event_pages ep
+join clients c on c.id = ep.client_id
+where not exists (select 1 from galleries g
+                  where g.client_id = ep.client_id and g.kind = ep.page_type);
+
+-- Les photos B2 déjà livrées rejoignent la galerie photos de leur client.
+update gallery_photos gp set gallery_id = g.id
+from galleries g
+where gp.gallery_id is null and g.client_id = gp.client_id and g.kind = 'photos';
+
+-- ── RPC scellées par le CODE DE LA GALERIE ──────────────────
+-- Helper INTERNE (modèle portal_client) : code → ligne galleries.
+-- Refuse : code vide/trop court, partage coupé, agence inactive, et
+-- code AMBIGU (servi par 2 agences) — on refuse plutôt que de servir
+-- la mauvaise agence. Volontairement INDÉPENDANT de clients.active :
+-- une galerie est autonome, elle vit tant que share_enabled le dit.
+create or replace function portal_gallery(p_code text) returns galleries
+language plpgsql stable security definer set search_path = public as $$
+declare g galleries; n int; v_code text;
+begin
+  v_code := lower(trim(coalesce(p_code, '')));
+  if length(v_code) < 4 then return null; end if;
+  select count(*) into n
+    from galleries gg join agencies a on a.id = gg.agency_id
+   where gg.access_code = v_code and gg.share_enabled and a.active;
+  if n <> 1 then return null; end if;
+  select gg.* into g
+    from galleries gg join agencies a on a.id = gg.agency_id
+   where gg.access_code = v_code and gg.share_enabled and a.active;
+  return g;
+end $$;
+revoke execute on function portal_gallery(text) from public, anon, authenticated;
+
+-- Page publique galerie.html : tout le contenu en un appel.
+-- N'expose JAMAIS clients.code (le code de l'espace client) : détenir
+-- le lien d'une galerie ne doit pas ouvrir le dashboard du client.
+-- `photos` porte les mêmes groupes {category, photos} que
+-- get_client_gallery (brique 11) — même rendu côté front.
+create or replace function get_gallery_by_code(p_code text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare g galleries; c clients;
+begin
+  g := portal_gallery(p_code);
+  if g.id is null then return null; end if;
+  select * into c from clients where id = g.client_id;
+  return jsonb_build_object(
+    'gallery', jsonb_build_object(
+      'id', g.id, 'title', g.title, 'kind', g.kind,
+      'template', g.template, 'config', coalesce(g.config, '{}'::jsonb)),
+    'client', jsonb_build_object('name', c.name),
+    'agency', (select jsonb_build_object('name', a.name, 'slug', a.slug,
+                 'logo_url', a.logo_url, 'accent_color', a.accent_color,
+                 'bg_color', a.bg_color, 'contact_email', a.contact_email)
+               from agencies a where a.id = g.agency_id),
+    'photos', coalesce((
+      select jsonb_agg(jsonb_build_object('category', q.category, 'photos', q.photos)
+                       order by q.cat_pos, q.cat_born, q.category)
+      from (
+        select gp.category,
+               min(gp.position)   as cat_pos,
+               min(gp.created_at) as cat_born,
+               jsonb_agg(jsonb_build_object(
+                 'id', gp.id, 'width', gp.width, 'height', gp.height,
+                 'url_original', gp.url_original, 'url_view', gp.url_view,
+                 'url_grid', gp.url_grid
+               ) order by gp.position, gp.created_at) as photos
+        from gallery_photos gp
+        where gp.gallery_id = g.id
+        group by gp.category
+      ) q), '[]'::jsonb)
+  );
+end $$;
+grant execute on function get_gallery_by_code(text) to anon, authenticated;
+
+-- Hall des galeries dans l'espace client : scellé par le code CLIENT.
+-- Renvoie access_code (le client a le droit de repartager SES galeries).
+create or replace function get_client_galleries(p_code text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare c clients;
+begin
+  c := portal_client(p_code);
+  if c.id is null then return null; end if;
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'id', g.id, 'title', g.title, 'kind', g.kind, 'template', g.template,
+      'access_code', g.access_code, 'share_enabled', g.share_enabled,
+      'photos_count', (select count(*) from gallery_photos gp where gp.gallery_id = g.id)
+    ) order by g.position, g.created_at)
+    from galleries g where g.client_id = c.id and g.share_enabled), '[]'::jsonb);
+end $$;
+grant execute on function get_client_galleries(text) to anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ✅ Briques 1→13 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
+--    cloisonnement des dossiers Cloudinary (ou Cloudflare Images),
+--    et la CONSOLE des galeries (création/édition/partage depuis
+--    l'admin, puis bascule d'event_pages vers galleries).

@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "encode": "node scripts/encode-hls.mjs",
-    "b2-cors": "node scripts/setup-b2-cors.mjs"
+    "b2-cors": "node scripts/setup-b2-cors.mjs",
+    "worker-encode": "node workers/encoder/worker-encode.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

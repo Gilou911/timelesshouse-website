@@ -37,3 +37,9 @@ supabase-config.local.js
 # Supabase CLI (cache local)
 supabase/.temp
 supabase/.branches
+
+# Encodage HLS : dossiers de travail et journal du worker
+tmp-hls/
+workers/encoder/worker.log
+workers/encoder/launchd.out.log
+workers/encoder/launchd.err.log

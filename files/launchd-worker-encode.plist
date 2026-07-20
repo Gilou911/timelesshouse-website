@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Worker d'encodage HLS — démarrage automatique au login (macOS).
+
+  NON INSTALLÉ par défaut : c'est un réglage de ta machine.
+  Pour l'activer (voir files/WORKER-ENCODE.md) :
+
+    cp files/launchd-worker-encode.plist \
+       ~/Library/LaunchAgents/org.timelesshouse.worker-encode.plist
+    launchctl load ~/Library/LaunchAgents/org.timelesshouse.worker-encode.plist
+
+  Vérifie d'abord les deux chemins ci-dessous :
+    · ProgramArguments[0] doit correspondre à `which node`
+    · WorkingDirectory doit être la racine du projet
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>org.timelesshouse.worker-encode</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/node</string>
+        <string>workers/encoder/worker-encode.mjs</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/gil/Desktop/timelesshouse-website</string>
+
+    <!-- ffmpeg et ffprobe vivent dans /opt/homebrew/bin : launchd ne
+         charge pas le PATH du shell, il faut le lui donner. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Relance le worker s'il s'arrête (sauf arrêt volontaire). -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <!-- Pas de rafale de relances si quelque chose cloche. -->
+    <key>ThrottleInterval</key>
+    <integer>60</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/gil/Desktop/timelesshouse-website/workers/encoder/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/gil/Desktop/timelesshouse-website/workers/encoder/launchd.err.log</string>
+
+    <!-- Encodage vidéo : on laisse la priorité à l'interface pour ne
+         pas ralentir le Mac pendant le montage. -->
+    <key>Nice</key>
+    <integer>5</integer>
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

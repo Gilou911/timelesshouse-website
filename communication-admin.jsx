@@ -555,7 +555,45 @@
     /* ════════════════════════════════════════════════════════════
        🏠 OVERVIEW
        ════════════════════════════════════════════════════════════ */
-    function Overview({ clients, totalMedia, totalRevenue, upcomingShoots }) {
+    // Octets → libellé lisible (jauges de stockage — SaaS B.3)
+    const fmtBytes = (b) => {
+      if (b == null) return '—';
+      if (b >= 1099511627776) return (b / 1099511627776).toFixed(2).replace('.', ',') + ' To';
+      if (b >= 1073741824)    return (b / 1073741824).toFixed(b >= 10737418240 ? 0 : 1).replace('.', ',') + ' Go';
+      return Math.max(0, Math.round(b / 1048576)) + ' Mo';
+    };
+
+    // Jauge de stockage (Vue d'ensemble + cartes agences) — alerte 80 %,
+    // dépassement souple : on n'empêche jamais un upload.
+    function StorageGauge({ storage, compact }) {
+      if (!storage) return null;
+      const used = storage.used_bytes || 0;
+      const quota = storage.quota_bytes || null;
+      const pct = quota ? Math.min(100, Math.round(used / quota * 100)) : null;
+      const over = quota && used > quota;
+      const warn = pct != null && pct >= 80;
+      const barColor = over ? '#e11d48' : warn ? '#f59e0b' : (neu.accent || '#2a2620');
+      return (
+        <div className={compact ? 'mt-4' : ''}>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[12px] text-stone-500 font-medium">
+              {fmtBytes(used)}{quota ? ` / ${fmtBytes(quota)}` : ' utilisés'}
+            </span>
+            {pct != null && (
+              <span className={`text-[11.5px] font-semibold ${over ? 'text-rose-600' : warn ? 'text-amber-600' : 'text-stone-400'}`}>
+                {over ? 'dépassement' : pct + ' %'}
+              </span>
+            )}
+          </div>
+          <div style={neu.pressedSm} className="h-2.5 rounded-full mt-2 overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: (pct ?? 4) + '%', background: barColor }} />
+          </div>
+        </div>
+      );
+    }
+
+    function Overview({ clients, totalMedia, totalRevenue, upcomingShoots, storage }) {
+      const pct = storage?.quota_bytes ? Math.round((storage.used_bytes || 0) / storage.quota_bytes * 100) : null;
       return (
         <div className="space-y-5 lg:space-y-6">
           {/* Stats — 2 col mobile, 4 col desktop */}
@@ -565,6 +603,27 @@
             <StatCard label="Médias livrés" value={totalMedia} />
             <StatCard label="Tournages prévus" value={upcomingShoots} />
           </div>
+
+          {/* Stockage (SaaS B.3) — jauge + alerte à 80 % du plan */}
+          {storage && (
+            <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
+              <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>Stockage</h2>
+                <span className="text-[11px] uppercase tracking-[0.14em] text-stone-400 font-semibold">
+                  Plan {storage.plan || 'fondateur'}{storage.measured_at ? ` · mesuré le ${new Date(storage.measured_at).toLocaleDateString('fr-FR')}` : ''}
+                </span>
+              </div>
+              <StorageGauge storage={storage} compact />
+              {pct != null && pct >= 80 && (
+                <div className="flex items-center gap-2 mt-4 text-[12.5px] text-amber-700">
+                  <AlertCircle size={14} className="shrink-0" />
+                  {pct >= 100
+                    ? 'Quota dépassé — vos uploads continuent de fonctionner (dépassement souple), pensez à passer au palier supérieur.'
+                    : `Vous approchez de votre quota (${pct} %). Pensez au palier supérieur pour rester serein.`}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Hero card */}
           <div style={neu.dark} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7 text-white relative overflow-hidden">
@@ -4738,7 +4797,8 @@
                   </span>
                 </div>
                 <div className="text-[12px] text-stone-500 mt-2 truncate">{(a.owners || []).join(', ') || '— pas de propriétaire —'}</div>
-                <div className="text-[11px] text-stone-400 mt-1">Créée le {new Date(a.created_at).toLocaleDateString('fr-FR')}</div>
+                <StorageGauge compact storage={{ used_bytes: a.storage_used_bytes, quota_bytes: a.storage_quota_bytes }} />
+                <div className="text-[11px] text-stone-400 mt-2">Créée le {new Date(a.created_at).toLocaleDateString('fr-FR')}</div>
               </div>
             ))}
           </div>
@@ -4779,16 +4839,18 @@
       };
 
       const loadOverview = async () => {
-        const [m, i, s] = await Promise.all([
+        const [m, i, s, st] = await Promise.all([
           sb.from('media').select('id', { count: 'exact', head: true }),
           sb.from('invoices').select('amount'),
           sb.from('shoots').select('id', { count: 'exact', head: true }),
+          sb.rpc('my_agency_storage'),
         ]);
         const totalRevenue = (i.data || []).reduce((a, b) => a + parseFloat(b.amount || 0), 0);
         setOverviewData({
           totalMedia: m.count || 0,
           totalRevenue,
           upcomingShoots: s.count || 0,
+          storage: st.data || null,
         });
       };
 

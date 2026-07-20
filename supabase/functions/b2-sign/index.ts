@@ -138,35 +138,52 @@ async function requireAgencyMember(req: Request): Promise<Caller | null> {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Le chemin demandé appartient-il au périmètre de l'agence de l'appelant ?
-async function keyInCallerScope(caller: Caller, key: string): Promise<boolean> {
+// Renvoie l'agency_id du chemin (pour l'info quota), ou null = refusé.
+async function keyAgencyScope(caller: Caller, key: string): Promise<string | null> {
   const [prefix, second] = key.split("/");
   if (prefix === "media") {
     // media/<id>/… : la fiche média est créée AVANT l'upload → vérifiable
-    if (!UUID_RE.test(second || "")) return false;
-    const { data } = await sbAdmin.from("media").select("id")
+    if (!UUID_RE.test(second || "")) return null;
+    const { data } = await sbAdmin.from("media").select("agency_id")
       .eq("id", second).in("agency_id", caller.agencyIds).maybeSingle();
-    return !!data;
+    return data?.agency_id ?? null;
   }
   if (prefix === "weddings") {
     // weddings/<code client>/…
-    if (!second) return false;
-    const { data } = await sbAdmin.from("clients").select("id")
+    if (!second) return null;
+    const { data } = await sbAdmin.from("clients").select("agency_id")
       .eq("code", second).in("agency_id", caller.agencyIds).maybeSingle();
-    return !!data;
+    return data?.agency_id ?? null;
   }
   if (prefix === "invoices" || prefix === "documents") {
     // invoices|documents/<id client>/…
-    if (!UUID_RE.test(second || "")) return false;
-    const { data } = await sbAdmin.from("clients").select("id")
+    if (!UUID_RE.test(second || "")) return null;
+    const { data } = await sbAdmin.from("clients").select("agency_id")
       .eq("id", second).in("agency_id", caller.agencyIds).maybeSingle();
-    return !!data;
+    return data?.agency_id ?? null;
   }
   if (prefix === "photobooth") {
     const { data } = await sbAdmin.from("agencies").select("id")
       .eq("slug", "timelesshouse").in("id", caller.agencyIds).maybeSingle();
-    return !!data;
+    return data?.id ?? null;
   }
-  return false;
+  return null;
+}
+
+// État du quota de l'agence (SaaS B.3) : joint aux réponses sign-put /
+// mpu-create pour la jauge et l'alerte 80 % côté admin — INFORMATIF
+// uniquement, aucun upload n'est jamais bloqué (dépassement souple).
+async function storageInfo(agencyId: string) {
+  const { data } = await sbAdmin.from("agencies")
+    .select("storage_used_bytes, plan").eq("id", agencyId).single();
+  if (!data) return null;
+  const { data: quota } = await sbAdmin.rpc("plan_quota_bytes", { p_plan: data.plan });
+  const used = data.storage_used_bytes || 0;
+  return {
+    used_bytes: used,
+    quota_bytes: quota ?? null,
+    pct: quota ? Math.round(used / (quota as number) * 100) : null,
+  };
 }
 
 // ─── Handler ────────────────────────────────────────────────
@@ -186,7 +203,8 @@ Deno.serve(async (req) => {
   if (!validKey(key)) {
     return json(400, { error: "Chemin de fichier invalide (préfixes autorisés : media/, weddings/, invoices/, documents/, photobooth/)" });
   }
-  if (!(await keyInCallerScope(caller, key))) {
+  const keyAgency = await keyAgencyScope(caller, key);
+  if (!keyAgency) {
     return json(403, { error: "Chemin hors du périmètre de votre agence." });
   }
 
@@ -207,7 +225,7 @@ Deno.serve(async (req) => {
         );
         // `disposition` est renvoyé : le navigateur DOIT envoyer cet en-tête à
         // l'identique, sinon la signature ne correspond plus.
-        return json(200, { url, key, publicUrl: publicUrl(key), disposition });
+        return json(200, { url, key, publicUrl: publicUrl(key), disposition, storage: await storageInfo(keyAgency) });
       }
 
       // ── Multipart (gros fichiers, ex : films de mariage) ─
@@ -222,7 +240,7 @@ Deno.serve(async (req) => {
             ...(dispositionFor(key) ? { ContentDisposition: dispositionFor(key) } : {}),
           })
         );
-        return json(200, { uploadId: res.UploadId, key });
+        return json(200, { uploadId: res.UploadId, key, storage: await storageInfo(keyAgency) });
       }
 
       case "mpu-sign-parts": {

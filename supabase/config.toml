@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.notify-client]
 verify_jwt = false
+
+[functions.measure-storage]
+verify_jwt = false

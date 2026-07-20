@@ -84,10 +84,19 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   | Prestige | 5 To | 149 €/mois |
   +10 €/To de dépassement souple ; -2 mois en annuel. (~30 Go par film
   4K livré : master + HLS.)
-- **Mécanique quotas** : cron nocturne mesurant l'usage B2 par préfixe
-  d'agence → `agencies.storage_used_bytes` + jauge dans l'admin ;
-  `b2-sign` vérifie le quota (alerte 80 %, tolérance, upgrade proposé —
-  jamais de blocage en plein upload) ; rétention/archivage = soupape.
+- **Mécanique quotas ✅ (fait le 20/07/2026)** : Edge Function
+  `measure-storage` (cron nocturne 02:30 UTC) liste le bucket B2 et
+  classe chaque objet par agence (media/<id>, weddings/<code>,
+  invoices|documents/<clientId>, photobooth → TimelessHouse) →
+  `agencies.storage_used_bytes` ; quotas par plan (`plan_quota_bytes`,
+  fondateur = illimité) ; jauge dans l'admin (Vue d'ensemble via
+  `my_agency_storage` + cartes de la section Agences) avec alerte 80 %
+  et message dépassement souple ; `b2-sign` joint l'état du quota aux
+  réponses sign-put/mpu-create (informatif — jamais de blocage).
+  1ʳᵉ mesure réelle : 1223 objets, ~718 Go TimelessHouse. 🔧 Réparé au
+  passage : le cron sync-social-6h envoyait un placeholder au lieu du
+  secret depuis son installation (tous ses appels étaient refusés).
+  Rétention/archivage = soupape (plus tard).
 - **Stripe abonnements** (modèle éprouvé sur ylvfeet), un produit par
   palier, mensuel + annuel. Préfixes B2 par agence : `agencies/<slug>/…`.
 - **Gardes Edge Functions par rôles ✅ (fait le 20/07/2026)** :

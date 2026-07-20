@@ -124,6 +124,82 @@ begin
   );
 end $$;
 
--- ✅ Briques 1, 2 & 3 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
---    quotas stockage, Stripe, inscription self-serve, cloisonnement des
---    dossiers Cloudinary (ou migration Cloudflare Images).
+-- ── Brique 4 : quotas de stockage par agence ────────────────
+-- L'Edge Function measure-storage (cron nocturne) liste le bucket B2,
+-- classe chaque objet par agence (media/<id>, weddings/<code>,
+-- invoices|documents/<clientId>, photobooth → TimelessHouse) et met à
+-- jour agencies.storage_used_bytes. Jauge dans l'admin (Vue d'ensemble
+-- + section Agences), alerte à 80 % — jamais de blocage d'upload
+-- (dépassement souple facturé plus tard via Stripe).
+alter table agencies add column if not exists storage_used_bytes bigint default 0;
+alter table agencies add column if not exists storage_measured_at timestamptz;
+
+-- Quota du plan en octets — null = illimité (plan fondateur)
+create or replace function plan_quota_bytes(p_plan text) returns bigint
+language sql immutable as $$
+  select case p_plan
+    when 'decouverte' then 3::bigint    * 1073741824
+    when 'essentiel'  then 100::bigint  * 1073741824
+    when 'studio'     then 500::bigint  * 1073741824
+    when 'cinema'     then 2048::bigint * 1073741824
+    when 'prestige'   then 5120::bigint * 1073741824
+    else null
+  end $$;
+
+-- Jauge de l'admin connecté : le stockage de SON agence
+create or replace function my_agency_storage() returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'name', a.name, 'plan', a.plan,
+    'used_bytes', coalesce(a.storage_used_bytes, 0),
+    'quota_bytes', plan_quota_bytes(a.plan),
+    'measured_at', a.storage_measured_at)
+  from agencies a
+  where a.id in (select agency_id from agency_members where user_id = auth.uid())
+  limit 1 $$;
+revoke execute on function my_agency_storage() from public, anon;
+grant  execute on function my_agency_storage() to authenticated;
+
+-- platform_list_agencies : + stockage (pour la section Agences)
+create or replace function platform_list_agencies() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not platform_is_owner() then
+    raise exception 'réservé au propriétaire de la plateforme';
+  end if;
+  return coalesce((select jsonb_agg(jsonb_build_object(
+    'id',            a.id,
+    'name',          a.name,
+    'slug',          a.slug,
+    'plan',          a.plan,
+    'active',        a.active,
+    'contact_email', a.contact_email,
+    'logo_url',      a.logo_url,
+    'accent_color',  a.accent_color,
+    'bg_color',      a.bg_color,
+    'created_at',    a.created_at,
+    'clients_count', (select count(*) from clients c where c.agency_id = a.id),
+    'owners',        (select coalesce(jsonb_agg(u.email), '[]'::jsonb)
+                      from agency_members am join auth.users u on u.id = am.user_id
+                      where am.agency_id = a.id and am.role = 'owner'),
+    'storage_used_bytes',  coalesce(a.storage_used_bytes, 0),
+    'storage_quota_bytes', plan_quota_bytes(a.plan),
+    'storage_measured_at', a.storage_measured_at
+  ) order by a.created_at) from agencies a), '[]'::jsonb);
+end $$;
+
+-- Cron nocturne de mesure (02:30 UTC) — __CRON_SECRET__ remplacé par le
+-- vrai secret à l'exécution (jamais dans ce fichier) :
+-- select cron.schedule('measure-storage-nightly', '30 2 * * *', $cron$
+--   select net.http_post(
+--     url := 'https://vpbxeqjvaeiytxcpilxf.supabase.co/functions/v1/measure-storage',
+--     headers := jsonb_build_object('Content-Type','application/json','x-cron-key','__CRON_SECRET__'),
+--     body := '{}'::jsonb) $cron$);
+-- 🔧 Réparé au passage : le cron sync-social-6h (jobid 3) envoyait le
+--    PLACEHOLDER __CRON_SECRET__ littéral depuis son installation — tous
+--    ses appels étaient refusés en 401 (les runs pg_cron « succeeded »
+--    ne couvrent que l'envoi HTTP). Recréé avec le vrai secret.
+
+-- ✅ Briques 1→4 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
+--    Stripe (en attente du compte), inscription self-serve,
+--    cloisonnement des dossiers Cloudinary (ou Cloudflare Images).

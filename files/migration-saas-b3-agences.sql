@@ -1041,3 +1041,23 @@ notify pgrst, 'reload schema';
 -- dérivé de la production. Réflexe à garder : avant de rejouer une
 -- fonction, comparer avec `pg_get_functiondef` — sinon on écrase
 -- silencieusement des correctifs faits en base.
+
+-- ── Correctif du 20/07/2026 : ORDRE DES TRIGGERS ────────────
+-- PostgreSQL exécute les triggers BEFORE INSERT par ordre
+-- ALPHABÉTIQUE de nom. « enforce_client_quota » passait donc avant
+-- « set_agency » : new.agency_id était encore NULL, la fonction ne
+-- trouvait aucun plan, et la limite n'était JAMAIS appliquée.
+--
+-- Le test initial ne l'avait pas vu parce qu'il insérait agency_id
+-- explicitement en SQL — alors que la console laisse le trigger le
+-- remplir. Un test doit emprunter le MÊME chemin que le produit.
+--
+-- Constaté en vrai : l'agence visonmike (offre Découverte, 1 espace)
+-- en avait créé 2 depuis la console sans être bloquée.
+--
+-- On renomme le trigger pour qu'il passe APRÈS set_agency.
+
+drop trigger if exists enforce_client_quota on clients;
+drop trigger if exists z_enforce_client_quota on clients;
+create trigger z_enforce_client_quota before insert on clients
+  for each row execute function trg_enforce_client_quota();

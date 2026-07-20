@@ -1619,25 +1619,13 @@
                   {client.client_email && (
                     <div className="text-[12px] text-stone-500 mt-1 truncate hidden sm:block">{client.client_email}</div>
                   )}
-                  {/* Accès client : LE couple lien + code à communiquer.
-                      Rendu visible et copiable ici — avant, le code n'était
-                      qu'une puce décorative et l'admin ne savait pas quoi
-                      transmettre à son client. */}
-                  <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                    <span className="text-[10px] uppercase tracking-[0.15em] text-stone-400 font-semibold">Accès client</span>
-                    <code style={neu.pressedSm} className="px-2.5 py-1.5 rounded-md font-mono text-[12px] leading-none">{client.code}</code>
-                    <CopyButton value={client.code} label="Copier le code" />
-                    <CopyButton value={clientLoginUrl()} label="Copier le lien" />
-                    <a href={clientLoginUrl()} target="_blank" rel="noopener" style={neu.raisedXs}
-                       className="px-3 py-2 min-h-[36px] rounded-full text-[11.5px] font-semibold flex items-center gap-1.5 text-stone-600">
-                      <ExternalLink size={11} /> Ouvrir
-                    </a>
-                  </div>
                 </div>
               </div>
 
-              {/* Actions — scroll horizontal sur mobile */}
-              <div className="flex items-center gap-2 lg:gap-3 overflow-x-auto no-scrollbar -mx-5 px-5 lg:mx-0 lg:px-0 shrink-0 pb-1 lg:pb-0">
+              {/* Actions — passent à la ligne plutôt que de défiler : sur
+                  iPhone, la rangée débordait de 84 px et le premier bouton
+                  se retrouvait coupé hors de l'écran. */}
+              <div className="flex items-center gap-2 lg:gap-3 flex-wrap lg:flex-nowrap shrink-0">
                 {client.client_email && (
                   <Btn icon={sendingWelcome ? Loader2 : Send} onClick={sendWelcomeEmail} disabled={sendingWelcome}>
                     <span className="hidden sm:inline">{sendingWelcome ? 'Envoi…' : 'Email de bienvenue'}</span>
@@ -1646,6 +1634,26 @@
                 )}
                 <Btn icon={Edit3} onClick={() => setEditClient(true)}>Modifier</Btn>
                 <Btn icon={Trash2} onClick={() => setConfirmDelete(true)} className="text-rose-600">Supprimer</Btn>
+              </div>
+            </div>
+
+            {/* ── Accès client : le couple code + lien à transmettre ──
+                En PLEINE LARGEUR de la carte, et non dans la colonne de
+                texte : coincé après la flèche et l'avatar, il ne disposait
+                que de 187 px sur iPhone et empilait ses cinq éléments sur
+                cinq lignes. Ici il en occupe deux. */}
+            <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--divider, rgba(42,38,32,0.08))' }}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] uppercase tracking-[0.15em] text-stone-500 font-semibold">Accès client</span>
+                <code style={neu.pressedSm} className="px-2.5 py-1.5 rounded-md font-mono text-[12.5px] leading-none">{client.code}</code>
+                <CopyButton value={client.code} label="Copier le code" iconOnly />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <CopyButton value={clientLoginUrl()} label="Copier le lien" />
+                  <a href={clientLoginUrl()} target="_blank" rel="noopener" style={neu.raisedXs}
+                     className="px-4 min-h-[44px] rounded-full text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-stone-600 active:scale-95 transition-transform">
+                    <ExternalLink size={12} /> Ouvrir
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -2162,7 +2170,9 @@
     }
 
     // Bouton « copier » générique — repasse en icône après 1,6 s.
-    function CopyButton({ value, label = 'Copier' }) {
+    // `iconOnly` : version compacte pour les espaces contraints (mobile),
+    // avec le libellé porté par aria-label et title.
+    function CopyButton({ value, label = 'Copier', iconOnly = false }) {
       const [done, setDone] = useState(false);
       const copy = async () => {
         try {
@@ -2178,6 +2188,16 @@
         setDone(true);
         setTimeout(() => setDone(false), 1600);
       };
+      if (iconOnly) {
+        const Icone = done ? Check : Copy;
+        return (
+          <button type="button" onClick={copy} aria-label={label} title={label}
+            style={neu.raisedXs}
+            className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-stone-600 active:scale-95 transition-transform">
+            <Icone size={14} />
+          </button>
+        );
+      }
       return (
         <Btn icon={done ? Check : Copy} onClick={copy}>{done ? 'Copié' : label}</Btn>
       );

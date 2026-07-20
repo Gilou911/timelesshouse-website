@@ -78,6 +78,15 @@
     const AG = portal.agency || {};
     window.__AGENCY_NAME  = AG.name || 'TimelessHouse';
     window.__AGENCY_EMAIL = AG.contact_email || 'service@timelesshouse.org';
+
+    // La Loge : sur le sous-domaine d'une agence, un code étranger à
+    // cette agence est refusé (cohérence espace ↔ marque)
+    const subLoge = location.hostname.match(/^([a-z0-9-]+)\.laloge\.house$/);
+    if (subLoge && !['www', 'app'].includes(subLoge[1]) && AG.slug && AG.slug !== subLoge[1]) {
+      sessionStorage.removeItem('access_granted');
+      window.location.href = '/app';
+      throw new Error('Code étranger à cet espace');
+    }
     if (window.__AGENCY_NAME !== 'TimelessHouse') {
       document.title = document.title.replace('TimelessHouse', window.__AGENCY_NAME);
       document.querySelectorAll('.loader-mark, .boot-mark, .logo, .cover-photog, .fmark').forEach(el => {

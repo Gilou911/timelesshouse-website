@@ -271,6 +271,15 @@
     // ── Marque blanche (SaaS B.3) : la marque de l'AGENCE du client ──
     const agency = portal.agency || {};
     window.__AGENCY = agency;
+
+    // La Loge : sur le sous-domaine d'une agence, un code étranger à
+    // cette agence est refusé (cohérence espace ↔ marque)
+    const subLoge = location.hostname.match(/^([a-z0-9-]+)\.laloge\.house$/);
+    if (subLoge && !['www', 'app'].includes(subLoge[1]) && agency.slug && agency.slug !== subLoge[1]) {
+      sessionStorage.removeItem('access_granted');
+      window.location.href = '/app';
+      throw new Error('Code étranger à cet espace');
+    }
     const agencyName = agency.name || client.agency_name || 'TimelessHouse';
     document.title = 'Tableau de bord — ' + agencyName;
     // Couleurs personnalisées : uniquement si l'agence a changé les

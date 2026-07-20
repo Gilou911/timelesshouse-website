@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <script>
-    // app.timelesshouse.org : la racine du sous-domaine « app » sert la
-    // porte d'entrée dédiée de l'application (app.html), jamais la
-    // vitrine (SaaS B.3, étage 1).
-    if (location.hostname.split('.')[0] === 'app' && !location.pathname.startsWith('/app')) {
+    // Hôtes applicatifs (SaaS B.3) : app.timelesshouse.org et tous les
+    // hôtes La Loge (laloge.app, laloge.house et les sous-domaines
+    // d'agence) servent la porte d'entrée dédiée (app.html) — jamais
+    // la vitrine mariage.
+    if ((location.hostname.split('.')[0] === 'app' || /(^|\.)laloge\.(app|house)$/.test(location.hostname))
+        && !location.pathname.startsWith('/app')) {
       location.replace('/app');
     }
   </script>

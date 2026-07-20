@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Porte d'entrée DÉDIÉE de l'application (SaaS B.3, étage 1) :
-       servie sur app.timelesshouse.org — aucun contenu vitrine autour.
-       Deux entrées : espace client (code) et espace agence (admin).
-       L'étage 2 (nom de produit + sous-domaines par agence) habillera
-       cette page aux couleurs de chaque agence. -->
+  <!-- Porte d'entrée DÉDIÉE de l'application (SaaS B.3).
+       Sert plusieurs visages selon l'hôte (étage 2 — La Loge) :
+         · <slug>.laloge.house  → connexion AUX COULEURS DE L'AGENCE
+                                  (marque chargée AVANT la saisie du code)
+         · laloge.house / laloge.app → entrée neutre « La Loge. »
+         · app.timelesshouse.org / timelesshouse.org/app → TimelessHouse
+       En local : ?agence=<slug> simule un sous-domaine d'agence. -->
   <meta name="robots" content="noindex, nofollow" />
-  <meta name="theme-color" content="#e9e4d9" />
+  <meta name="theme-color" content="#e9e4d9" id="metaTheme" />
   <title>Espaces privés — Connexion</title>
   <link rel="icon" href="/favicon-th.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -25,7 +27,8 @@
       --faint: #a49b8d;
       --shadow-d: rgba(168, 156, 134, 0.32);
       --shadow-l: rgba(255, 253, 247, 0.92);
-      --accent-text: #f5f1e6;
+      --btn-bg: #2a2620;
+      --btn-text: #f5f1e6;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -37,7 +40,8 @@
         --faint: #6b7280;
         --shadow-d: rgba(0, 0, 0, 0.55);
         --shadow-l: rgba(54, 60, 72, 0.28);
-        --accent-text: #f5f1e6;
+        --btn-bg: #e8e4dc;
+        --btn-text: #181b20;
       }
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -48,16 +52,19 @@
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       padding: 24px; gap: 28px;
+      opacity: 0; transition: opacity 0.35s ease;
     }
+    body.ready { opacity: 1; }
     .mark { text-align: center; }
     .mark .name {
       font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
       font-size: clamp(1.9rem, 6vw, 2.4rem); letter-spacing: -0.01em;
     }
     .mark .name span { color: var(--faint); }
+    .mark img { max-height: 64px; max-width: 240px; object-fit: contain; }
     .mark .tag {
       font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
-      color: var(--muted); margin-top: 8px; font-weight: 600;
+      color: var(--muted); margin-top: 10px; font-weight: 600;
     }
     .cards { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 18px; }
     .card {
@@ -81,7 +88,7 @@
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       min-height: 48px; padding: 0 22px; border: none; border-radius: 999px;
-      background: var(--ink); color: var(--accent-text);
+      background: var(--btn-bg); color: var(--btn-text);
       font-family: inherit; font-size: 14px; font-weight: 600; letter-spacing: 0.02em;
       cursor: pointer; text-decoration: none;
       transition: transform 0.12s ease, opacity 0.12s ease;
@@ -92,22 +99,22 @@
     .error {
       display: none; font-size: 13px; color: #c2413f; margin-top: 12px; line-height: 1.5;
     }
-    footer { font-size: 11px; color: var(--faint); letter-spacing: 0.06em; text-align: center; }
+    footer { font-size: 11px; color: var(--faint); letter-spacing: 0.06em; text-align: center; line-height: 2; }
     footer a { color: inherit; }
   </style>
 </head>
 <body>
 
-  <div class="mark">
-    <div class="name">TimelessHouse<span>.</span></div>
-    <div class="tag">Espaces privés</div>
+  <div class="mark" id="mark">
+    <div class="name" id="markName">TimelessHouse<span>.</span></div>
+    <div class="tag" id="markTag">Espaces privés</div>
   </div>
 
   <main class="cards">
     <!-- ── Espace client : code d'accès ── -->
     <section class="card" aria-labelledby="clientTitle">
       <h2 id="clientTitle">Espace client</h2>
-      <p>Entrez le code d'accès personnel qui vous a été communiqué.</p>
+      <p id="clientHint">Entrez le code d'accès personnel qui vous a été communiqué.</p>
       <form class="row" id="clientForm">
         <input type="password" id="clientCode" placeholder="Votre code" autocomplete="off"
                aria-label="Code d'accès" enterkeyhint="go" />
@@ -117,34 +124,105 @@
     </section>
 
     <!-- ── Espace agence : console d'administration ── -->
-    <section class="card" aria-labelledby="agencyTitle">
+    <section class="card" id="agencyCard" aria-labelledby="agencyTitle">
       <h2 id="agencyTitle">Espace agence</h2>
       <p>Gérez vos clients, vos livraisons, vos factures et vos tournages.</p>
       <a class="btn full" href="/communication-admin.html">Ouvrir la console</a>
     </section>
   </main>
 
-  <footer>Un accès vous manque&nbsp;? <a href="mailto:service@timelesshouse.org">Contactez votre studio</a>.</footer>
+  <footer id="foot">Un accès vous manque&nbsp;? <a id="footMail" href="mailto:service@timelesshouse.org">Contactez votre studio</a>.</footer>
 
   <script type="module">
     import { createClient } from '@supabase/supabase-js';
     const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
-    // Même normalisation et même routage que les logins du site vitrine
-    const form = document.getElementById('clientForm');
-    const btn  = document.getElementById('clientBtn');
-    const err  = document.getElementById('clientError');
+    /* ── Quel visage ? (hostname, ou ?agence= en local) ─────── */
+    const host = location.hostname;
+    const qs = new URLSearchParams(location.search);
+    const subMatch = host.match(/^([a-z0-9-]+)\.laloge\.house$/);
+    const AGENCY_SLUG = qs.get('agence') ||
+      (subMatch && !['www', 'app'].includes(subMatch[1]) ? subMatch[1] : null);
+    const IS_LALOGE = AGENCY_SLUG !== null || /(^|\.)laloge\.(app|house)$/.test(host);
+
+    let BRAND = null; // marque d'agence chargée (sous-domaine uniquement)
+
+    const el = (id) => document.getElementById(id);
+    const mix = (h, target, f) => {
+      const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16))
+        .map(v => Math.round(v + (target - v) * f));
+      return `rgb(${c.join(',')})`;
+    };
+
+    function applyBrand(b) {
+      BRAND = b;
+      document.title = `${b.name} — Connexion`;
+      if (b.logo_url) {
+        el('markName').outerHTML = `<img src="${b.logo_url}" alt="${b.name}" id="markName" />`;
+      } else {
+        el('markName').innerHTML = `${b.name}<span>.</span>`;
+      }
+      el('markTag').textContent = 'Espace privé';
+      el('clientHint').textContent = `Entrez le code d'accès que ${b.name} vous a communiqué.`;
+      // Console agence : accès discret en pied de page (pas de carte)
+      el('agencyCard').style.display = 'none';
+      el('foot').innerHTML = `Un accès vous manque&nbsp;? <a href="mailto:${b.contact_email || 'service@timelesshouse.org'}">Contactez ${b.name}</a>.` +
+        `<br/><a href="/communication-admin.html" style="opacity:.75">Espace agence</a>`;
+      // Couleurs (mode clair uniquement — le sombre garde sa palette)
+      const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+      if (!dark && (b.bg_color || b.accent_color)) {
+        const r = document.documentElement.style;
+        if (b.bg_color) {
+          r.setProperty('--bg', b.bg_color);
+          r.setProperty('--surface', mix(b.bg_color, 255, 0.38));
+          r.setProperty('--pressed', mix(b.bg_color, 0, 0.05));
+          r.setProperty('--shadow-d', 'rgba(0,0,0,0.13)');
+          r.setProperty('--shadow-l', 'rgba(255,255,255,0.85)');
+          el('metaTheme').setAttribute('content', b.bg_color);
+        }
+        if (b.accent_color) r.setProperty('--btn-bg', b.accent_color);
+      }
+    }
+
+    (async () => {
+      if (AGENCY_SLUG) {
+        const { data } = await sb.rpc('resolve_agency_brand', { p_slug: AGENCY_SLUG });
+        if (data) applyBrand(data);
+        else { // sous-domaine inconnu → entrée neutre La Loge
+          el('markName').innerHTML = 'La Loge<span>.</span>';
+          document.title = 'La Loge — Connexion';
+        }
+      } else if (IS_LALOGE) {
+        el('markName').innerHTML = 'La Loge<span>.</span>';
+        document.title = 'La Loge — Espaces privés';
+        el('foot').innerHTML = 'Un accès vous manque&nbsp;? Contactez votre studio.';
+      }
+      document.body.classList.add('ready');
+    })();
+
+    /* ── Connexion client (même normalisation que la vitrine) ── */
+    const form = el('clientForm');
+    const btn  = el('clientBtn');
+    const err  = el('clientError');
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const raw = document.getElementById('clientCode').value;
+      const raw = el('clientCode').value;
       const code = raw.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
         .replace(/&/g, ' ').trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
       if (!code) return;
       btn.disabled = true; err.style.display = 'none';
       try {
         const { data, error } = await sb.rpc('resolve_client_code', { p_code: code });
-        if (error || !data) { err.style.display = 'block'; btn.disabled = false; return; }
+        if (error || !data) {
+          err.textContent = 'Code incorrect. Vérifiez-le et réessayez.';
+          err.style.display = 'block'; btn.disabled = false; return;
+        }
+        // Sur le sous-domaine d'une agence, un code d'une AUTRE agence est refusé
+        if (AGENCY_SLUG && data.agency_slug && data.agency_slug !== AGENCY_SLUG) {
+          err.textContent = "Ce code n'appartient pas à cet espace.";
+          err.style.display = 'block'; btn.disabled = false; return;
+        }
         sessionStorage.setItem('access_granted', code);
         try { localStorage.setItem('th_access_code', code); } catch (_) {}
         let dest;

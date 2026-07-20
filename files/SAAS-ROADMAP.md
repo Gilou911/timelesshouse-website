@@ -68,13 +68,23 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   redirige vers /app. ⚠️ Une action manuelle : rattacher
   `app.timelesshouse.org` au projet Pages (Dashboard Cloudflare →
   Workers & Pages → projet → Custom domains — le token API local est
-  limité au DNS). **Étage 2 (en attente du NOM DE PRODUIT + domaine,
-  décision Gil)** : domaine neutre du produit + sous-domaine par agence
-  (`<slug>.produit.app` via Worker wildcard) → login aux couleurs de
-  l'agence, résolution des codes par agence (lève l'ambiguïté B.2),
-  manifest PWA dynamique par agence (« l'app » installée au nom du
-  vidéaste). Étage 3 (palier Prestige) : domaine perso par agence
-  (Cloudflare for SaaS).
+  limité au DNS). **Étage 2 — LA LOGE ✅ côté code (20/07/2026 ; nom
+  choisi, domaines laloge.app + laloge.house achetés chez Cloudflare
+  Registrar)** : `app.html` sert plusieurs visages selon l'hôte —
+  sous-domaine d'agence `<slug>.laloge.house` → marque de l'agence
+  AVANT la saisie du code (RPC `resolve_agency_brand`), refus des
+  codes étrangers à l'espace (`resolve_client_code` renvoie
+  `agency_slug` ; gardes aussi dans le dashboard et les 5 pages
+  événement) ; hôtes laloge nus → entrée neutre « La Loge. » ; hôtes
+  timelesshouse inchangés ; en local `?agence=<slug>` simule un
+  sous-domaine. Worker `laloge-proxy` (workers/laloge/) : proxy vers
+  Pages + MANIFEST PWA DYNAMIQUE par agence (l'app installée porte le
+  nom et les couleurs du vidéaste). ⏳ Branchement Cloudflare restant
+  (token API à créer par Gil : Account Workers Scripts:Edit + Zone
+  DNS:Edit + Workers Routes:Edit sur les zones laloge) : déployer le
+  Worker, routes laloge.app/* · laloge.house/* · *.laloge.house/*,
+  DNS proxiés apex + wildcard. Étage 3 (palier Prestige) : domaine
+  perso par agence (Cloudflare for SaaS).
 - **Marque blanche visible ✅ (fait le 20/07/2026)** : les RPC du
   portail renvoient la marque de l'agence (nom, logo, couleurs, email
   de contact) et TOUT l'espace client la porte — dashboard (logo/nom,

@@ -1,0 +1,15 @@
+# Worker laloge-proxy — sert laloge.app / laloge.house / *.laloge.house
+# Déploiement : wrangler deploy (ou API Cloudflare — voir SAAS-ROADMAP)
+name = "laloge-proxy"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+
+routes = [
+  { pattern = "laloge.app/*",    zone_name = "laloge.app" },
+  { pattern = "laloge.house/*",  zone_name = "laloge.house" },
+  { pattern = "*.laloge.house/*", zone_name = "laloge.house" },
+]
+
+[vars]
+SUPABASE_URL = "https://vpbxeqjvaeiytxcpilxf.supabase.co"
+# PAGES_HOST et SUPABASE_ANON_KEY : posés au déploiement (non committés)

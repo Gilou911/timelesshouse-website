@@ -200,6 +200,37 @@ end $$;
 --    ses appels étaient refusés en 401 (les runs pg_cron « succeeded »
 --    ne couvrent que l'envoi HTTP). Recréé avec le vrai secret.
 
--- ✅ Briques 1→4 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
+-- ── Brique 5 : LA LOGE — marque par sous-domaine ────────────
+-- Produit nommé « La Loge » (décidé 20/07/2026) : laloge.app (console)
+-- et laloge.house (espaces clients), avec UN SOUS-DOMAINE PAR AGENCE
+-- (<slug>.laloge.house). L'écran de connexion du sous-domaine porte la
+-- marque de l'agence AVANT toute saisie de code.
+
+-- Marque publique d'une agence active, résolue par son slug.
+-- Volontairement limitée aux champs d'affichage (rien de sensible).
+create or replace function resolve_agency_brand(p_slug text) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'name', a.name, 'slug', a.slug, 'logo_url', a.logo_url,
+    'accent_color', a.accent_color, 'bg_color', a.bg_color,
+    'contact_email', a.contact_email)
+  from agencies a where a.slug = lower(trim(p_slug)) and a.active $$;
+grant execute on function resolve_agency_brand(text) to anon, authenticated;
+
+-- resolve_client_code renvoie AUSSI le slug d'agence du client : les
+-- portes d'entrée refusent un code étranger au sous-domaine visité
+-- (« ce code n'appartient pas à cet espace »).
+create or replace function resolve_client_code(p_code text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare c clients;
+begin
+  c := portal_client(p_code);
+  if c.id is null then return null; end if;
+  return jsonb_build_object(
+    'code', c.code, 'universe', c.universe, 'redirect_url', c.redirect_url,
+    'agency_slug', (select slug from agencies where id = c.agency_id));
+end $$;
+
+-- ✅ Briques 1→5 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
 --    Stripe (en attente du compte), inscription self-serve,
 --    cloisonnement des dossiers Cloudinary (ou Cloudflare Images).

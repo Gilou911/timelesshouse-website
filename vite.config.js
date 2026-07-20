@@ -35,6 +35,7 @@ export default defineConfig({
 
         // — Espaces clients / agence —
         app:                    resolve(__dirname, 'app.html'),
+        offres:                 resolve(__dirname, 'offres.html'),
         communication:          resolve(__dirname, 'communication.html'),
         admin:                  resolve(__dirname, 'communication-admin.html'),
         dashboard:              resolve(__dirname, 'communication-dashboard.html'),

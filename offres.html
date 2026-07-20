@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Vitrine commerciale de LA LOGE (SaaS B.3) — servie sur les
+       racines laloge.app / laloge.house (redirection Worker).
+       Version pré-vente : les boutons « Demander un accès » écrivent
+       un email ; ils deviendront « S'abonner » quand Stripe sera branché. -->
+  <title>La Loge — Espaces clients en marque blanche pour vidéastes</title>
+  <meta name="description" content="La Loge donne aux vidéastes et agences un espace client à leur marque : livraison de films 4K, galeries photos, validation, factures — jusqu'à l'app installée au nom de votre studio. Dès 0 €/mois." />
+  <meta property="og:title" content="La Loge — Livrez vos films comme des premières privées" />
+  <meta property="og:description" content="Espaces clients en marque blanche pour vidéastes et agences : livraison 4K, validation, factures, analyses — à VOTRE marque." />
+  <meta name="theme-color" content="#e9e4d9" />
+  <link rel="icon" href="/favicon-th.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #e9e4d9; --surface: #efeae0; --pressed: #e3ddd0;
+      --ink: #2a2620; --muted: #7c756a; --faint: #a49b8d;
+      --shadow-d: rgba(168,156,134,0.32); --shadow-l: rgba(255,253,247,0.92);
+      --btn-bg: #2a2620; --btn-text: #f5f1e6; --ok: #3f7d54;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #181b20; --surface: #22262d; --pressed: #14171c;
+        --ink: #e8e4dc; --muted: #9aa0ab; --faint: #6b7280;
+        --shadow-d: rgba(0,0,0,0.55); --shadow-l: rgba(54,60,72,0.28);
+        --btn-bg: #e8e4dc; --btn-text: #181b20; --ok: #6fbf8a;
+      }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg); color: var(--ink);
+      font-family: 'Manrope', -apple-system, sans-serif;
+      line-height: 1.6;
+    }
+    .serif { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 22px; }
+
+    /* ── Barre haute ── */
+    header.top {
+      position: sticky; top: 0; z-index: 40;
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter: saturate(180%) blur(16px);
+      -webkit-backdrop-filter: saturate(180%) blur(16px);
+      border-bottom: 0.5px solid color-mix(in srgb, var(--ink) 8%, transparent);
+    }
+    header.top .wrap { display: flex; align-items: center; justify-content: space-between; min-height: 62px; gap: 14px; }
+    .logo { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 24px; text-decoration: none; color: var(--ink); }
+    .logo span { color: var(--faint); }
+    nav.top-nav { display: flex; align-items: center; gap: 8px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 46px; padding: 0 22px; border: none; border-radius: 999px;
+      background: var(--btn-bg); color: var(--btn-text);
+      font-family: inherit; font-size: 14px; font-weight: 700; letter-spacing: 0.01em;
+      text-decoration: none; cursor: pointer; transition: transform 0.12s ease;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn.ghost {
+      background: transparent; color: var(--ink);
+      box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 22%, transparent);
+    }
+    .btn.big { min-height: 52px; padding: 0 30px; font-size: 15px; }
+
+    /* ── Héros ── */
+    .hero { text-align: center; padding: 74px 0 56px; }
+    .kicker {
+      font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase;
+      color: var(--muted); font-weight: 700;
+    }
+    .hero h1 {
+      font-size: clamp(2.3rem, 6.5vw, 4rem); line-height: 1.08;
+      letter-spacing: -0.015em; margin: 18px auto 0; max-width: 17ch;
+    }
+    .hero h1 em { font-style: italic; }
+    .hero p.sub { max-width: 56ch; margin: 22px auto 0; font-size: 16.5px; color: var(--muted); }
+    .hero .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
+    .hero .note { margin-top: 14px; font-size: 12.5px; color: var(--faint); }
+
+    /* ── Aperçu stylisé ── */
+    .peek { margin: 46px auto 0; max-width: 720px; }
+    .peek .frame {
+      background: var(--surface); border-radius: 28px; padding: 26px;
+      box-shadow: 14px 14px 34px var(--shadow-d), -14px -14px 34px var(--shadow-l);
+      text-align: left;
+    }
+    .peek .brandline { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .peek .brandline .name { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 21px; }
+    .peek .chip { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+    .peek .film {
+      margin-top: 18px; border-radius: 18px; aspect-ratio: 16/6.5;
+      background: linear-gradient(135deg, #16130f 0%, #2c2317 55%, #6b543a 100%);
+      display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+    }
+    @media (prefers-color-scheme: dark) {
+      .peek .film { background: linear-gradient(135deg, #0b0d11 0%, #1b2029 55%, #39536b 100%); }
+    }
+    .peek .film .title { color: #f2ead9; font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: clamp(1.3rem, 4vw, 2rem); }
+    .peek .film .play {
+      position: absolute; width: 54px; height: 54px; border-radius: 999px;
+      background: rgba(255,255,255,0.92); bottom: 18px; left: 22px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .peek .film .play::after { content: ""; border-style: solid; border-width: 9px 0 9px 15px; border-color: transparent transparent transparent #16130f; margin-left: 4px; }
+    .peek .row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .peek .pill {
+      background: var(--pressed); border-radius: 999px; padding: 9px 16px;
+      font-size: 12.5px; color: var(--muted); font-weight: 600;
+      box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+    }
+    .peek .cap { text-align: center; font-size: 12.5px; color: var(--faint); margin-top: 14px; }
+
+    /* ── Sections ── */
+    section { padding: 64px 0; }
+    .sec-head { text-align: center; max-width: 640px; margin: 0 auto 42px; }
+    .sec-head h2 { font-size: clamp(1.7rem, 4.5vw, 2.4rem); letter-spacing: -0.01em; line-height: 1.15; }
+    .sec-head p { color: var(--muted); margin-top: 12px; font-size: 15px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+    .card {
+      background: var(--surface); border-radius: 24px; padding: 26px;
+      box-shadow: 9px 9px 22px var(--shadow-d), -9px -9px 22px var(--shadow-l);
+    }
+    .card .ico { font-size: 22px; }
+    .card h3 { font-size: 17px; margin-top: 12px; letter-spacing: -0.01em; }
+    .card p { font-size: 13.5px; color: var(--muted); margin-top: 8px; }
+
+    /* ── Offres ── */
+    .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; align-items: stretch; }
+    .plan {
+      background: var(--surface); border-radius: 24px; padding: 24px 22px;
+      box-shadow: 9px 9px 22px var(--shadow-d), -9px -9px 22px var(--shadow-l);
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .plan.star { outline: 2px solid var(--ink); outline-offset: -2px; }
+    .plan .p-name { font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+    .plan .p-price { font-family: 'Instrument Serif', Georgia, serif; font-size: 34px; line-height: 1; margin-top: 6px; }
+    .plan .p-price small { font-size: 14px; font-family: 'Manrope', sans-serif; color: var(--muted); }
+    .plan .p-store { font-size: 14px; font-weight: 700; margin-top: 2px; }
+    .plan ul { list-style: none; margin: 12px 0 16px; display: grid; gap: 7px; }
+    .plan li { font-size: 12.8px; color: var(--muted); padding-left: 18px; position: relative; }
+    .plan li::before { content: "✓"; position: absolute; left: 0; color: var(--ok); font-weight: 700; }
+    .plan .btn { margin-top: auto; width: 100%; min-height: 44px; font-size: 13.5px; }
+    .plans-notes { text-align: center; color: var(--faint); font-size: 12.5px; margin-top: 22px; line-height: 2; }
+
+    /* ── FAQ ── */
+    .faq { max-width: 720px; margin: 0 auto; display: grid; gap: 12px; }
+    details {
+      background: var(--surface); border-radius: 18px; padding: 18px 22px;
+      box-shadow: 6px 6px 16px var(--shadow-d), -6px -6px 16px var(--shadow-l);
+    }
+    summary { cursor: pointer; font-weight: 700; font-size: 14.5px; min-height: 28px; }
+    details p { color: var(--muted); font-size: 13.5px; margin-top: 10px; }
+
+    /* ── Pied ── */
+    footer.bottom { padding: 44px 0 60px; text-align: center; color: var(--faint); font-size: 12.5px; line-height: 2.2; }
+    footer.bottom a { color: inherit; }
+    footer.bottom .logo { font-size: 20px; display: inline-block; margin-bottom: 6px; }
+
+    @media (max-width: 560px) {
+      .hero { padding: 52px 0 40px; }
+      section { padding: 48px 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="top">
+    <div class="wrap">
+      <a class="logo" href="/offres">La Loge<span>.</span></a>
+      <nav class="top-nav">
+        <a class="btn ghost" href="#offres">Offres</a>
+        <a class="btn" href="/app">Se connecter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- ── Héros ── -->
+    <div class="wrap hero">
+      <div class="kicker">Espaces clients en marque blanche · vidéastes &amp; agences</div>
+      <h1 class="serif">Livrez vos films comme des <em>premières privées</em>.</h1>
+      <p class="sub">
+        La Loge donne à votre studio un espace client à <strong>votre marque</strong> :
+        livraison de films 4K et de galeries photos, validation, factures, analyses —
+        jusqu'à l'application installée au nom de votre studio sur le téléphone de vos clients.
+      </p>
+      <div class="cta">
+        <a class="btn big" href="mailto:service@timelesshouse.org?subject=Acc%C3%A8s%20La%20Loge">Demander un accès</a>
+        <a class="btn big ghost" href="#offres">Voir les offres</a>
+      </div>
+      <div class="note">Dès 0 €/mois · sans engagement · vos fichiers restent les vôtres</div>
+
+      <!-- Aperçu stylisé d'un espace client -->
+      <div class="peek" aria-hidden="true">
+        <div class="frame">
+          <div class="brandline">
+            <div class="name">Votre Studio<span style="color:var(--faint)">.</span></div>
+            <div class="chip">Espace privé</div>
+          </div>
+          <div class="film">
+            <div class="title">Emma &amp; Jules — Le Film</div>
+            <div class="play"></div>
+          </div>
+          <div class="row">
+            <div class="pill">▶ 4K adaptatif</div>
+            <div class="pill">✓ Approuvé par le client</div>
+            <div class="pill">💬 3 commentaires</div>
+            <div class="pill">⬇ Master original</div>
+          </div>
+        </div>
+        <div class="cap">votre-studio.laloge.house — chaque studio a son adresse, ses couleurs, son app.</div>
+      </div>
+    </div>
+
+    <!-- ── Arguments ── -->
+    <section id="produit">
+      <div class="wrap">
+        <div class="sec-head">
+          <h2 class="serif">Tout ce qui suit la livraison, <em>enfin au même endroit</em></h2>
+          <p>Fini le lien WeTransfer qui expire et le disque dur par la poste. Vos clients entrent dans une loge — pas dans un dossier partagé.</p>
+        </div>
+        <div class="grid">
+          <div class="card">
+            <div class="ico">🎬</div>
+            <h3>Livraison cinéma</h3>
+            <p>Films en 4K avec lecture adaptative, galeries photos scénographiées, téléchargement des originaux. Vos masters ne sont <strong>jamais compressés</strong>.</p>
+          </div>
+          <div class="card">
+            <div class="ico">🤍</div>
+            <h3>Votre marque, partout</h3>
+            <p>Votre logo, vos couleurs, votre sous-domaine, vos emails — et l'app que vos clients installent porte <strong>votre nom</strong>. La Loge reste en coulisses.</p>
+          </div>
+          <div class="card">
+            <div class="ico">✅</div>
+            <h3>Validation &amp; commentaires</h3>
+            <p>Vos clients approuvent ou demandent des retouches, commentent chaque média. Vous êtes notifié immédiatement, tout est tracé.</p>
+          </div>
+          <div class="card">
+            <div class="ico">🧾</div>
+            <h3>Factures &amp; relances</h3>
+            <p>Factures déposées dans l'espace client, relances automatiques avant et après échéance — écrites avec votre marque, jamais la nôtre.</p>
+          </div>
+          <div class="card">
+            <div class="ico">📅</div>
+            <h3>Tournages &amp; documents</h3>
+            <p>Calendrier des shootings avec rappels automatiques, contrats et documents partagés, stratégies de contenu avec lien de partage.</p>
+          </div>
+          <div class="card">
+            <div class="ico">📈</div>
+            <h3>Analyses sociales</h3>
+            <p>Pour vos clients entreprises : Instagram &amp; TikTok connectés, audience, engagement et synthèses — directement dans leur espace.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Offres ── -->
+    <section id="offres">
+      <div class="wrap">
+        <div class="sec-head">
+          <h2 class="serif">Des offres à la taille de vos <em>rushes</em></h2>
+          <p>Vous payez pour le stockage — pas pour des fonctionnalités bridées. Tout le produit, dans chaque offre. (~30 Go par film 4K livré, master + streaming.)</p>
+        </div>
+        <div class="plans">
+          <div class="plan">
+            <div class="p-name">Découverte</div>
+            <div class="p-price">0 €</div>
+            <div class="p-store">3 Go</div>
+            <ul>
+              <li>1 espace client</li>
+              <li>Toutes les fonctionnalités</li>
+              <li>Badge « propulsé par La Loge »</li>
+              <li>Rétention 90 jours</li>
+            </ul>
+            <a class="btn" href="mailto:service@timelesshouse.org?subject=Acc%C3%A8s%20La%20Loge%20%E2%80%94%20D%C3%A9couverte">Commencer</a>
+          </div>
+          <div class="plan">
+            <div class="p-name">Essentiel</div>
+            <div class="p-price">29 €<small>/mois</small></div>
+            <div class="p-store">100 Go</div>
+            <ul>
+              <li>Espaces clients illimités</li>
+              <li>Marque blanche complète</li>
+              <li>Sous-domaine dédié</li>
+            </ul>
+            <a class="btn" href="mailto:service@timelesshouse.org?subject=Acc%C3%A8s%20La%20Loge%20%E2%80%94%20Essentiel">Demander un accès</a>
+          </div>
+          <div class="plan star">
+            <div class="p-name">Studio ★</div>
+            <div class="p-price">49 €<small>/mois</small></div>
+            <div class="p-store">500 Go</div>
+            <ul>
+              <li>Tout Essentiel</li>
+              <li>≈ 15 films 4K en ligne</li>
+              <li>Le choix des studios mariage</li>
+            </ul>
+            <a class="btn" href="mailto:service@timelesshouse.org?subject=Acc%C3%A8s%20La%20Loge%20%E2%80%94%20Studio">Demander un accès</a>
+          </div>
+          <div class="plan">
+            <div class="p-name">Cinéma</div>
+            <div class="p-price">89 €<small>/mois</small></div>
+            <div class="p-store">2 To</div>
+            <ul>
+              <li>Tout Studio</li>
+              <li>≈ 65 films 4K en ligne</li>
+              <li>Pour les gros volumes</li>
+            </ul>
+            <a class="btn" href="mailto:service@timelesshouse.org?subject=Acc%C3%A8s%20La%20Loge%20%E2%80%94%20Cin%C3%A9ma">Demander un accès</a>
+          </div>
+          <div class="plan">
+            <div class="p-name">Prestige</div>
+            <div class="p-price">149 €<small>/mois</small></div>
+            <div class="p-store">5 To</div>
+            <ul>
+              <li>Tout Cinéma</li>
+              <li>Volume agence</li>
+              <li>Accompagnement prioritaire</li>
+            </ul>
+            <a class="btn" href="mailto:service@timelesshouse.org?subject=Acc%C3%A8s%20La%20Loge%20%E2%80%94%20Prestige">Demander un accès</a>
+          </div>
+        </div>
+        <div class="plans-notes">
+          −2 mois sur les formules annuelles &nbsp;·&nbsp; dépassement souple : +10 €/To, jamais de blocage en plein upload
+          &nbsp;·&nbsp; L'inscription en ligne arrive — en attendant, chaque accès est ouvert à la main, avec soin.
+        </div>
+      </div>
+    </section>
+
+    <!-- ── FAQ ── -->
+    <section id="faq">
+      <div class="wrap">
+        <div class="sec-head">
+          <h2 class="serif">Questions <em>fréquentes</em></h2>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>Mes clients verront-ils « La Loge » quelque part ?</summary>
+            <p>Non. Vos clients se connectent sur votre sous-domaine, voient votre logo, vos couleurs, reçoivent des emails à votre nom, et l'app qu'ils installent porte le nom de votre studio. Seule l'offre gratuite affiche un badge discret « propulsé par La Loge ».</p>
+          </details>
+          <details>
+            <summary>Où sont stockés mes fichiers, et que deviennent-ils si je pars ?</summary>
+            <p>Vos fichiers sont hébergés en datacenter européen, masters non compressés. Ils restent votre propriété : vous pouvez les télécharger à tout moment, et les récupérer intégralement si vous résiliez.</p>
+          </details>
+          <details>
+            <summary>Y a-t-il un engagement ?</summary>
+            <p>Non — les formules mensuelles sont sans engagement. L'annuel vous offre l'équivalent de deux mois.</p>
+          </details>
+          <details>
+            <summary>Comment je démarre ?</summary>
+            <p>Écrivez-nous : nous créons votre agence (logo, couleurs, sous-domaine) et le compte de votre console — en général sous 24 h. Vous créez votre premier espace client dans la foulée, et vos clients reçoivent leur code d'accès.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CTA final ── -->
+    <section style="padding-top: 0;">
+      <div class="wrap hero" style="padding: 0 0 30px;">
+        <h2 class="serif" style="font-size: clamp(1.7rem, 4.5vw, 2.4rem);">Vos plus beaux moments méritent mieux qu'un lien qui expire.</h2>
+        <div class="cta">
+          <a class="btn big" href="mailto:service@timelesshouse.org?subject=Acc%C3%A8s%20La%20Loge">Demander un accès</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bottom">
+    <div class="wrap">
+      <span class="logo serif" style="font-style: italic;">La Loge<span style="color:var(--faint)">.</span></span><br/>
+      Un produit TimelessHouse &nbsp;·&nbsp; <a href="mailto:service@timelesshouse.org">service@timelesshouse.org</a><br/>
+      <a href="/cgu.html">Conditions d'utilisation</a> &nbsp;·&nbsp; <a href="/confidentialite.html">Confidentialité</a>
+      &nbsp;·&nbsp; <a href="/app">Se connecter</a>
+    </div>
+  </footer>
+</body>
+</html>

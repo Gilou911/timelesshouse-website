@@ -3,14 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <script>
-    // Hôtes applicatifs (SaaS B.3) : app.timelesshouse.org et tous les
-    // hôtes La Loge (laloge.app, laloge.house et les sous-domaines
-    // d'agence) servent la porte d'entrée dédiée (app.html) — jamais
-    // la vitrine mariage.
-    if ((location.hostname.split('.')[0] === 'app' || /(^|\.)laloge\.(app|house)$/.test(location.hostname))
-        && !location.pathname.startsWith('/app')) {
-      location.replace('/app');
-    }
+    // Hôtes applicatifs (SaaS B.3) — jamais la vitrine mariage ici :
+    //  · racines laloge.app / laloge.house → vitrine du produit (/offres)
+    //  · sous-domaines d'agence *.laloge.house → connexion (/app)
+    //  · app.timelesshouse.org → connexion (/app)
+    // (secours JS — le Worker laloge-proxy fait déjà ces redirections
+    //  côté serveur pour les domaines La Loge)
+    (function () {
+      var h = location.hostname, p = location.pathname;
+      if (/^laloge\.(app|house)$/.test(h) && !p.startsWith('/offres')) location.replace('/offres');
+      else if ((h.split('.')[0] === 'app' || /\.laloge\.(app|house)$/.test(h)) && !p.startsWith('/app')) location.replace('/app');
+    })();
   </script>
   <title>TimelessHouse – Portfolio</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />

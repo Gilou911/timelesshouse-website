@@ -380,6 +380,10 @@
       agencyName: agencyName,
       agencyEmail: agency.contact_email || 'service@timelesshouse.org',
       agencyLogo:  agency.logo_url || '',
+      // Offre Découverte (brique 17) : mention « Propulsé par La Loge »
+      // en pied de page, comme annoncé sur /offres. Elle disparaît dès
+      // le premier palier payant.
+      agencyBadge: agency.badge === true,
       // Analyses sociales : option du client ET fonctionnalité ouverte à
       // son agence (SaaS B.3 — les apps Meta/TikTok sont au nom de
       // TimelessHouse, un locataire n'y a pas droit par défaut)

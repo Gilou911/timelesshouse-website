@@ -147,6 +147,10 @@
         scroll-behavior: auto !important;
       }
     }
+    /* Mention « propulsé par » de l'offre Découverte : présente mais
+       jamais concurrente de la marque du studio (HIG §2, hiérarchie). */
+    .pw { color: var(--faint); opacity: 0.75; font-size: 11.5px; letter-spacing: 0.05em; }
+    .pw:hover { opacity: 1; }
   </style>
 </head>
 <body>
@@ -255,7 +259,13 @@
       const mail = b.contact_email || 'service@timelesshouse.org';
       el('gateFoot').innerHTML = `Un accès vous manque&nbsp;? <a href="mailto:${mail}">Contactez ${b.name}</a>.`;
       el('vMark').innerHTML = nameHtml || `${b.name || ''}`;
-      el('vFoot').innerHTML = `${b.name || ''} — Collection privée<br/><a href="mailto:${mail}">${mail}</a>`;
+      // Offre Découverte : mention discrète en pied de page, comme
+      // annoncé sur /offres. C'est la contrepartie du plan gratuit —
+      // elle disparaît dès le premier palier payant.
+      const badge = b.badge
+        ? `<br/><a href="https://laloge.app" target="_blank" rel="noopener" class="pw">Propulsé par La&nbsp;Loge</a>`
+        : '';
+      el('vFoot').innerHTML = `${b.name || ''} — Collection privée<br/><a href="mailto:${mail}">${mail}</a>${badge}`;
     }
 
     /* Sous-domaine d'agence (<slug>.laloge.house) ou ?agence= en local :

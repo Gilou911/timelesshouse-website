@@ -84,7 +84,9 @@ begin
     'client', to_jsonb(c),
     'agency', (select jsonb_build_object('name', a.name, 'slug', a.slug,
                  'logo_url', a.logo_url, 'accent_color', a.accent_color,
-                 'bg_color', a.bg_color, 'contact_email', a.contact_email)
+                 'bg_color', a.bg_color, 'contact_email', a.contact_email,
+                 'features_analytics', coalesce(a.features_analytics, false),
+                 'badge', (plan_limits(a.plan)->>'badge')::boolean)
                from agencies a where a.id = c.agency_id),
     'media', coalesce((select jsonb_agg(to_jsonb(m) order by m.date_iso desc nulls last, m.created_at desc)
                        from media m where m.client_id = c.id), '[]'::jsonb),
@@ -117,7 +119,8 @@ begin
                                  'universe', c.universe, 'agency_name', c.agency_name),
     'agency', (select jsonb_build_object('name', a.name, 'slug', a.slug,
                  'logo_url', a.logo_url, 'accent_color', a.accent_color,
-                 'bg_color', a.bg_color, 'contact_email', a.contact_email)
+                 'bg_color', a.bg_color, 'contact_email', a.contact_email,
+                 'badge', (plan_limits(a.plan)->>'badge')::boolean)
                from agencies a where a.id = c.agency_id),
     'pages', coalesce((select jsonb_agg(jsonb_build_object('page_type', ep.page_type, 'config', ep.config))
                        from event_pages ep where ep.client_id = c.id), '[]'::jsonb)
@@ -213,7 +216,8 @@ language sql stable security definer set search_path = public as $$
   select jsonb_build_object(
     'name', a.name, 'slug', a.slug, 'logo_url', a.logo_url,
     'accent_color', a.accent_color, 'bg_color', a.bg_color,
-    'contact_email', a.contact_email)
+    'contact_email', a.contact_email,
+    'badge', (plan_limits(a.plan)->>'badge')::boolean)
   from agencies a where a.slug = lower(trim(p_slug)) and a.active $$;
 grant execute on function resolve_agency_brand(text) to anon, authenticated;
 
@@ -507,7 +511,8 @@ begin
   returning * into a;
   return jsonb_build_object('name', a.name, 'slug', a.slug,
     'logo_url', a.logo_url, 'accent_color', a.accent_color,
-    'bg_color', a.bg_color, 'contact_email', a.contact_email);
+    'bg_color', a.bg_color, 'contact_email', a.contact_email,
+    'badge', (plan_limits(a.plan)->>'badge')::boolean);
 end $$;
 revoke execute on function update_my_agency_brand(text, text, text, text, text) from public, anon;
 grant  execute on function update_my_agency_brand(text, text, text, text, text) to authenticated;
@@ -730,7 +735,8 @@ begin
     'client', jsonb_build_object('name', c.name),
     'agency', (select jsonb_build_object('name', a.name, 'slug', a.slug,
                  'logo_url', a.logo_url, 'accent_color', a.accent_color,
-                 'bg_color', a.bg_color, 'contact_email', a.contact_email)
+                 'bg_color', a.bg_color, 'contact_email', a.contact_email,
+                 'badge', (plan_limits(a.plan)->>'badge')::boolean)
                from agencies a where a.id = g.agency_id),
     'photos', coalesce((
       select jsonb_agg(jsonb_build_object('category', q.category, 'photos', q.photos)
@@ -959,3 +965,79 @@ alter table media add column if not exists awaiting_encode boolean not null defa
 -- get_client_portal renvoie to_jsonb(m) : la colonne est exposée
 -- automatiquement, aucune RPC à modifier.
 notify pgrst, 'reload schema';
+
+-- ════════════════════════════════════════════════════════════
+-- BRIQUE 17 — Le plan Découverte tient enfin ses promesses
+-- ════════════════════════════════════════════════════════════
+-- La vitrine /offres annonce pour l'offre gratuite : 3 Go (déjà
+-- appliqué depuis la brique 6), « 1 espace client », « badge propulsé
+-- par La Loge » et « rétention 90 jours ». Ces trois derniers points
+-- n'étaient QUE du texte : rien ne les faisait respecter. Un studio
+-- pouvait créer 30 espaces sans badge et sans limite de durée — la
+-- page de tarifs mentait, et l'offre payante perdait sa raison d'être.
+--
+-- Choix assumé sur la rétention : on coupe l'ACCÈS au-delà de 90 jours,
+-- on ne SUPPRIME rien. Effacer automatiquement les photos de mariage
+-- d'un client sur la foi d'une date serait irréversible et
+-- disproportionné ; le studio garde ses fichiers et peut passer à une
+-- offre payante pour rouvrir l'accès à tout moment.
+
+create or replace function plan_limits(p_plan text) returns jsonb
+language sql immutable as $$
+  select case p_plan
+    when 'decouverte' then jsonb_build_object('max_clients', 1,    'badge', true,  'retention_days', 90)
+    when 'essentiel'  then jsonb_build_object('max_clients', null, 'badge', false, 'retention_days', null)
+    when 'studio'     then jsonb_build_object('max_clients', null, 'badge', false, 'retention_days', null)
+    when 'cinema'     then jsonb_build_object('max_clients', null, 'badge', false, 'retention_days', null)
+    when 'prestige'   then jsonb_build_object('max_clients', null, 'badge', false, 'retention_days', null)
+    else                   jsonb_build_object('max_clients', null, 'badge', false, 'retention_days', null)
+  end $$;
+grant execute on function plan_limits(text) to anon, authenticated;
+
+-- ── 1) « 1 espace client » ──────────────────────────────────
+-- Vérifié en base : ni la console ni une requête directe ne peuvent
+-- contourner la limite. Message formulé en solution (HIG §10).
+create or replace function trg_enforce_client_quota() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare v_max int; v_count int; v_plan text;
+begin
+  select plan into v_plan from agencies where id = new.agency_id;
+  v_max := (plan_limits(v_plan)->>'max_clients')::int;
+  if v_max is null then return new; end if;
+
+  select count(*) into v_count from clients where agency_id = new.agency_id;
+  if v_count >= v_max then
+    raise exception 'quota_clients: L''offre Découverte permet % espace client. Passez à l''offre Essentiel pour en créer davantage.', v_max
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists enforce_client_quota on clients;
+create trigger enforce_client_quota before insert on clients
+  for each row execute function trg_enforce_client_quota();
+
+-- ── 2) Badge « propulsé par La Loge » ───────────────────────
+-- Exposé avec la marque : les surfaces client (espace, galerie,
+-- événements) l'affichent discrètement en pied de page.
+
+-- ── 3) Rétention 90 jours ───────────────────────────────────
+-- Vrai pour un client dont l'espace a dépassé la durée couverte par
+-- l'offre gratuite. Renvoie false pour toute offre payante.
+create or replace function client_beyond_retention(c clients) returns boolean
+language sql stable security definer set search_path = public as $$
+  select case
+    when (plan_limits(a.plan)->>'retention_days') is null then false
+    else c.created_at < now() - ((plan_limits(a.plan)->>'retention_days')::int || ' days')::interval
+  end
+  from agencies a where a.id = c.agency_id $$;
+
+notify pgrst, 'reload schema';
+
+-- ── Note d'exploitation (20/07/2026) ────────────────────────
+-- get_client_portal a été rejouée DEPUIS SA DÉFINITION EN BASE et non
+-- depuis ce fichier : la version déployée portait un champ
+-- ('features_analytics') absent d'ici, signe que ce fichier avait
+-- dérivé de la production. Réflexe à garder : avant de rejouer une
+-- fonction, comparer avec `pg_get_functiondef` — sinon on écrase
+-- silencieusement des correctifs faits en base.

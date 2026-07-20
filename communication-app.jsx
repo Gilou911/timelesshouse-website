@@ -57,6 +57,9 @@ const CLIENT = {
   agencyName: D.agencyName || 'TimelessHouse',
   agencyEmail: D.agencyEmail || 'service@timelesshouse.org',
   agencyLogo: D.agencyLogo || '',
+  // Offre Découverte : mention discrète « Propulsé par La Loge »
+  // (brique 17) — la contrepartie annoncée du plan gratuit.
+  agencyBadge: D.agencyBadge === true,
   analyticsEnabled: D.analyticsEnabled === true,
   // L'encart d'upsell « Activer cette option » n'apparaît que là où
   // l'option est réellement vendable (univers communication + agence
@@ -803,6 +806,12 @@ const MobileHeader = ({ onLogout, isDark, toggleDark }) => (
         <div className="text-[10px] uppercase tracking-[0.16em] text-stone-400 mt-1 font-medium truncate">
           {CLIENT.name}
         </div>
+        {CLIENT.agencyBadge && (
+          <a href="https://laloge.app" target="_blank" rel="noopener"
+             className="text-[10px] text-stone-400 mt-0.5 inline-block hover:text-stone-600 transition">
+            Propulsé par La&nbsp;Loge
+          </a>
+        )}
       </div>
     </div>
     <div className="flex gap-2 items-center shrink-0">

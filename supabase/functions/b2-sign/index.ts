@@ -17,7 +17,8 @@
 //     l'agence de l'appelant (aucune signature cross-agence).
 //   ▸ Les clés B2 ne quittent JAMAIS cette fonction.
 //   ▸ Les chemins (key) sont validés : pas de "..", pas de "/",
-//     préfixes autorisés uniquement (media/, weddings/).
+//     préfixes autorisés uniquement (media/, weddings/, invoices/,
+//     documents/, photobooth/, agencies/).
 //
 // ACTIONS (body JSON { action, ... }) :
 //   sign-put       { key, contentType }            → { url, publicUrl }
@@ -90,7 +91,8 @@ function json(status: number, body: unknown): Response {
 // Un chemin B2 valide : préfixe connu, segments sûrs, pas de traversée.
 // photobooth/ : photos d'événement poussées par l'app locale (compte machine
 // photobooth@timelesshouse.org, listé dans ADMIN_EMAILS).
-const KEY_RE = /^(media|weddings|invoices|documents|photobooth)\/[a-zA-Z0-9._\-/]{1,400}$/;
+// agencies/<slug>/ : identité de l'agence (logo de l'écran « Ma marque »).
+const KEY_RE = /^(media|weddings|invoices|documents|photobooth|agencies)\/[a-zA-Z0-9._\-/]{1,400}$/;
 function validKey(key: unknown): key is string {
   return typeof key === "string" && KEY_RE.test(key) && !key.includes("..") && !key.includes("//");
 }
@@ -167,6 +169,14 @@ async function keyAgencyScope(caller: Caller, key: string): Promise<string | nul
       .eq("slug", "timelesshouse").in("id", caller.agencyIds).maybeSingle();
     return data?.id ?? null;
   }
+  if (prefix === "agencies") {
+    // agencies/<slug>/… : logo « Ma marque » — le slug doit être une
+    // agence dont l'appelant est membre (aucun dépôt chez le voisin).
+    if (!second) return null;
+    const { data } = await sbAdmin.from("agencies").select("id")
+      .eq("slug", second).in("id", caller.agencyIds).maybeSingle();
+    return data?.id ?? null;
+  }
   return null;
 }
 
@@ -201,7 +211,7 @@ Deno.serve(async (req) => {
   const key    = body.key;
 
   if (!validKey(key)) {
-    return json(400, { error: "Chemin de fichier invalide (préfixes autorisés : media/, weddings/, invoices/, documents/, photobooth/)" });
+    return json(400, { error: "Chemin de fichier invalide (préfixes autorisés : media/, weddings/, invoices/, documents/, photobooth/, agencies/)" });
   }
   const keyAgency = await keyAgencyScope(caller, key);
   if (!keyAgency) {

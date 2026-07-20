@@ -120,6 +120,14 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   viendra plus tard ; Cloudflare Stream écarté (échelle de qualités
   imposée, sortirait la vidéo des quotas B2 = du modèle de vente).
 - Rôles admin supplémentaires par agence : reste à faire.
+- **Convergence `event_pages` → `galleries` : reste à faire.** Les
+  galeries sont désormais pilotables de bout en bout, mais `event_pages`
+  demeure la source de vérité des pages `event-*.html` (13 pages, ~17
+  clients de production dont une galerie Cloudinary de 320 photos).
+  Prochaine session : synchroniser puis basculer `event_pages` vers
+  `galleries`, et faire converger les `event-*.html` sur
+  `galerie-rendu.js` — après quoi la double saisie « Espace de
+  l'événement » / « Galeries » de l'onglet Page client disparaîtra.
 - **Identité d'application (étage 1 ✅ fait le 20/07/2026)** : porte
   d'entrée dédiée `app.html` (connexion client par code + accès console
   agence, sans vitrine autour, HIG, mode sombre, noindex) — en prod sur
@@ -278,6 +286,91 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   `gallery_photos.gallery_id` se remplit par migration), gabarits
   supplémentaires, puis synchro/bascule d'`event_pages` vers `galleries`
   et convergence des pages `event-*.html` sur `galerie-rendu.js`.
+
+- **Console des galeries ✅ (fait le 20/07/2026, brique 14)** :
+  le gestionnaire « Galerie B2 » (brique 11) ne savait gérer QU'UNE
+  galerie implicite par client — les photos partaient dans
+  `gallery_photos` avec (client_id, category) mais **sans `gallery_id`**,
+  et ni titre, ni gabarit, ni partage n'existaient. L'onglet « Page
+  client » porte désormais une vraie console multi-galeries :
+  **liste ordonnable** (titre, type, gabarit, nombre de photos, état du
+  partage), **création/édition** (titre, type photos|film|mixte, gabarit
+  parmi les 7, et pour le film une liste de vidéos titre + URL MP4 + URL
+  de téléchargement au format `config.videos` déjà lu par
+  `galerie-rendu.js`), **partage** (lien complet
+  `https://<slug>.laloge.house/galerie?c=<code>` — `timelesshouse.org`
+  pour la plateforme — bouton copier, régénération du code via
+  `gallery_code_suggest`, interrupteur `share_enabled`), **suppression**
+  avec confirmation (cascade SQL sur `gallery_photos` ; purge B2 toujours
+  différée), et **upload DANS une galerie précise** : `gallery_id` est
+  enfin rempli à l'écriture, `client_id` restant renseigné pour que
+  `get_client_gallery` et `event-photos.html` ne bougent pas. Le
+  stockage B2 est inchangé (variantes view ≤ 2000 px q0.82 / grid
+  ≤ 1000 px q0.80 / original intact, préfixe
+  `weddings/<code>/galerie/<slug-catégorie>/<uuid>/`).
+  Testé en réel (agence + client éphémères, puis nettoyés) : 2 galeries
+  créées depuis le navigateur, 6 images générées au canvas réellement
+  uploadées sur B2 (fichier `grid.jpg` vérifié en 1000×625, `gallery_id`
+  ET `client_id` remplis sur les 6 lignes), réordonnancement persisté,
+  code régénéré (`photos-du-mariage` → `photos-du-mariage-8bce`, ancien
+  code mort, nouveau servi, `clients.code` toujours pas exposé),
+  anti-collision vérifié dans les deux sens (code d'un espace client →
+  refus du trigger ; code d'une autre galerie → refus de la contrainte
+  d'unicité), partage coupé → `/galerie?c=…` ne rend plus rien puis
+  réactivé → galerie de nouveau servie à la marque de l'agence.
+
+- **Univers simplifiés ✅ (fait le 20/07/2026, brique 14)** :
+  les 9 univers mélangeaient le MÉTIER et le GABARIT de rendu. Depuis la
+  brique 13 le gabarit vit sur la galerie (`galleries.template`) : un
+  locataire n'a donc plus à choisir un univers par type de fête. Il en
+  voit **3**, qui ne décrivent que la FORME de l'espace client :
+  | Univers | Espace client | Analyses | Onglet « Page client » |
+  |---|---|---|---|
+  | `celebration` | livraison (galeries/films) | jamais | oui |
+  | `communication` | tableau de bord complet | **option** | non |
+  | `neutre` | tableau de bord complet | **jamais** | oui |
+  La **liste complète** reste à la plateforme via le drapeau
+  `agencies.features_all_universes` (vrai pour timelesshouse), qui garde
+  ses pages vitrines par métier. Le **gabarit** ne se choisit plus à la
+  création du client mais sur la galerie.
+  **Compatibilité des valeurs héritées, sans aucune migration de
+  données** (les 18 clients de prod ne bougent pas) : `mariage`,
+  `fiancailles`, `anniversaire-mariage` sont des **célébrations** et
+  gardent leur page dédiée ; `autre` est traité comme `neutre`. Toute la
+  sémantique est centralisée dans **`univers.js`** (`isCelebration`,
+  `isDashboardUniverse`, `allowsAnalytics`, `hasDeliveryTab`,
+  `routeForClient`, `videoPageFor`, `homeUrlFor`), importé par l'admin ET
+  par les 7 portes d'entrée — fin des comparaisons
+  `universe === 'communication'` éparpillées.
+  ⚠️ **Nuance assumée sur `autre`** : la règle « → tableau de bord » ne
+  s'y applique que si le client n'a AUCUNE livraison. `pandore260426`
+  (client réel) est une livraison pure — page photos, modules coupés — et
+  l'y envoyer aurait cassé sa page ; se fier aux modules ne suffisait pas
+  (`documents_enabled`/`strategies_enabled` étaient restés à `true` par
+  défaut). `resolve_client_code` renvoie donc `has_delivery`. `neutre`,
+  valeur neuve, n'a pas cette réserve.
+  🔧 Corrigé au passage : l'encart d'upsell « Activer cette option —
+  49 €/mois » du tableau de bord s'affichait dès que les analyses étaient
+  éteintes, **sans regarder l'univers ni l'agence** — un client `neutre`
+  le voyait, et un locataire vendait sous SA marque une option qu'il ne
+  peut pas livrer (les apps Meta/TikTok sont au nom de TimelessHouse).
+  Nouveau drapeau `analyticsOffered`. Corrigé aussi : `accueilUrl`
+  fabriquait des URL mortes (`autre.html`, et `celebration.html` serait
+  venu s'y ajouter) — `homeUrlFor` ne renvoie que des pages existantes.
+  Vérifié en réel : select à 3 univers chez un locataire / liste complète
+  avec le drapeau ; client `neutre` créé → aucune option Analyses **alors
+  que l'agence de test avait `features_analytics = true`**, arrivée sur
+  `communication-dashboard.html` sans onglet ni encart Analyses ; fiche
+  d'un client `autre` qui s'ouvre normalement, son univers hérité étant
+  proposé tel quel (« autre (univers actuel) ») pour ne jamais être
+  réécrit à son insu. **Non-régression** rejouée sur les vrais clients :
+  routage ancien/nouveau comparé sur les 5 clients concernés (aucun
+  changement sauf `mamacita91`, voulu), `ezla-davy` (330 références
+  Cloudinary → les 320 photos intactes, film 1080p/4K),
+  `andry-elio31ans` (event-anniversary), `joxciagence9991` (11 médias,
+  7 factures, 2 550 €, encart Analyses toujours présent).
+  Audit HIG mobile 375 px de la console : aucune cible sous 44 px, aucun
+  débordement horizontal, aucun input sous 16 px.
 
 ## C — Apps stores (après B)
 

@@ -61,6 +61,20 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
 - **Onboarding self-serve** (reste à faire) : inscription publique d'une
   agence (email → compte → 1ᵉʳ espace client guidé), page de changement
   de mot de passe, rôles admin supplémentaires.
+- **Identité d'application (étage 1 ✅ fait le 20/07/2026)** : porte
+  d'entrée dédiée `app.html` (connexion client par code + accès console
+  agence, sans vitrine autour, HIG, mode sombre, noindex) — en prod sur
+  `timelesshouse.org/app` ; sur le sous-domaine `app.*`, la racine
+  redirige vers /app. ⚠️ Une action manuelle : rattacher
+  `app.timelesshouse.org` au projet Pages (Dashboard Cloudflare →
+  Workers & Pages → projet → Custom domains — le token API local est
+  limité au DNS). **Étage 2 (en attente du NOM DE PRODUIT + domaine,
+  décision Gil)** : domaine neutre du produit + sous-domaine par agence
+  (`<slug>.produit.app` via Worker wildcard) → login aux couleurs de
+  l'agence, résolution des codes par agence (lève l'ambiguïté B.2),
+  manifest PWA dynamique par agence (« l'app » installée au nom du
+  vidéaste). Étage 3 (palier Prestige) : domaine perso par agence
+  (Cloudflare for SaaS).
 - **Marque blanche visible ✅ (fait le 20/07/2026)** : les RPC du
   portail renvoient la marque de l'agence (nom, logo, couleurs, email
   de contact) et TOUT l'espace client la porte — dashboard (logo/nom,

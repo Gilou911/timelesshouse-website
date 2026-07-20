@@ -111,10 +111,10 @@
   </div>
 
   <main class="cards">
-    <!-- ── Espace client : code d'accès ── -->
+    <!-- ── Espace client : code d'accès (espace OU galerie) ── -->
     <section class="card" aria-labelledby="clientTitle">
       <h2 id="clientTitle">Espace client</h2>
-      <p id="clientHint">Entrez le code d'accès personnel qui vous a été communiqué.</p>
+      <p id="clientHint">Entrez le code qui vous a été communiqué — accès à votre espace ou à votre galerie.</p>
       <form class="row" id="clientForm">
         <input type="password" id="clientCode" placeholder="Votre code" autocomplete="off"
                aria-label="Code d'accès" enterkeyhint="go" />
@@ -194,9 +194,14 @@
           document.title = 'La Loge — Connexion';
         }
       } else if (IS_LALOGE) {
+        // laloge.house est la porte des CLIENTS finaux : pas de carte
+        // « Espace agence » (les admins passent par leur sous-domaine,
+        // le lien discret du pied de page suffit).
         el('markName').innerHTML = 'La Loge<span>.</span>';
         document.title = 'La Loge — Espaces privés';
-        el('foot').innerHTML = 'Un accès vous manque&nbsp;? Contactez votre studio.';
+        el('agencyCard').style.display = 'none';
+        el('foot').innerHTML = 'Un accès vous manque&nbsp;? Contactez votre studio.' +
+          '<br/><a href="/communication-admin.html" style="opacity:.75">Espace agence</a>';
       }
       document.body.classList.add('ready');
     })();
@@ -216,6 +221,14 @@
       try {
         const { data, error } = await sb.rpc('resolve_client_code', { p_code: code });
         if (error || !data) {
+          // Pas un code d'espace client — peut-être un code de GALERIE
+          // (les deux espaces de noms sont étanches : un code ne peut pas
+          // être les deux à la fois, on peut donc essayer sans ambiguïté).
+          const { data: g } = await sb.rpc('get_gallery_by_code', { p_code: code });
+          if (g && (!AGENCY_SLUG || !g.agency?.slug || g.agency.slug === AGENCY_SLUG)) {
+            window.location.href = '/galerie?c=' + encodeURIComponent(code);
+            return;
+          }
           err.textContent = 'Code incorrect. Vérifiez-le et réessayez.';
           err.style.display = 'block'; btn.disabled = false; return;
         }

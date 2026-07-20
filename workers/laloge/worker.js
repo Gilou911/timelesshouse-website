@@ -29,10 +29,17 @@ export default {
     const sub = url.hostname.match(/^([a-z0-9-]+)\.laloge\.house$/);
     const slug = sub && !["www", "app"].includes(sub[1]) ? sub[1] : null;
 
-    // ── Racines : vitrine sur les apex, connexion sur les sous-domaines ──
+    // ── Racines : les deux domaines ont des publics distincts ──
+    //  · laloge.app   → la vitrine du produit (les AGENCES qui s'abonnent)
+    //  · laloge.house → la porte des CLIENTS finaux : connexion à leur
+    //    espace ou à une galerie, jamais la vitrine (ils ne doivent pas
+    //    sentir qu'un SaaS existe derrière leur studio)
     if (url.pathname === "/") {
       if (slug) return Response.redirect(`https://${url.hostname}/app`, 302);
-      if (/^laloge\.(app|house)$/.test(url.hostname)) {
+      if (url.hostname === "laloge.house") {
+        return Response.redirect(`https://${url.hostname}/app`, 302);
+      }
+      if (url.hostname === "laloge.app") {
         return Response.redirect(`https://${url.hostname}/offres`, 302);
       }
     }

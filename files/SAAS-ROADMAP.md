@@ -372,6 +372,41 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   Audit HIG mobile 375 px de la console : aucune cible sous 44 px, aucun
   débordement horizontal, aucun input sous 16 px.
 
+- **Corrections locataires après le test de Gil ✅ (fait le 20/07/2026)** :
+  retours de Gil après avoir testé la console avec VisonMike.
+  ① **Plus aucun lien à coller pour un locataire** — tout est upload :
+  vidéos de galerie (MP4 → B2 sous `weddings/<code>/galerie/videos/`,
+  lecture + téléchargement pointent sur le fichier uploadé), photos ET
+  vidéos de l'onglet Médias (la vidéo devient lisible immédiatement :
+  `preview_url = url`, MP4 progressif servi par B2), vignettes (le champ
+  « coller une URL d'image » a disparu). L'écran `npm run encode` et le
+  panneau HLS sont réservés à la plateforme (`FEATURES.allUniverses`),
+  comme le bloc « Espace de l'événement » entier et ses réglages
+  Cloudinary (cloud name, dossier racine) : l'onglet « Page client » d'un
+  locataire ne montre QUE la section Galeries. L'encodage HLS multi-
+  qualités des locataires reste À FAIRE (worker ffmpeg externe) — en
+  attendant, le MP4 progressif se lit tel quel.
+  ② **Carte « Accès client »** dans l'en-tête de la fiche : code d'accès
+  + lien de connexion de l'agence (`https://<slug>.laloge.house`) avec
+  boutons copier et Ouvrir — l'admin sait enfin QUOI communiquer à son
+  client (`clientLoginUrl()` à côté de `galleryShareUrl()`).
+  ③ **laloge.house devient la porte des clients finaux** : racine → /app
+  (laloge.app garde la vitrine /offres — Worker + secours JS d'index.html),
+  la carte « Espace agence » disparaît de ce visage (lien discret en pied
+  de page), et la connexion accepte AUSSI les codes de galerie : si
+  `resolve_client_code` ne trouve rien, `get_gallery_by_code` est tentée
+  et redirige vers `/galerie?c=…` (les deux espaces de noms étant
+  étanches, aucune ambiguïté possible). Sur le sous-domaine d'une agence,
+  un code de galerie étranger reste refusé.
+  Vérifié en réel (agence locataire éphémère, nettoyée) : onglet Page
+  client = Galeries seules, formulaire vidéo sans champ URL, upload vidéo
+  réel vers B2 via b2-sign, photo Médias uploadée (`media/<id>/original/`),
+  vidéo Médias sans écran d'encodage et `preview_url = url`, carte Accès
+  client avec le bon sous-domaine, code galerie `essai-photos` sur /app →
+  redirection `/galerie` à la marque, code étranger refusé sur le visage
+  visonmike, `joxciagence9991` route toujours vers son tableau de bord,
+  `laloge.house/` → `/app` et `laloge.app/` → `/offres` en prod.
+
 ## C — Apps stores (après B)
 
 Capacitor + **notifications push** (« Vos photos sont livrées ») —

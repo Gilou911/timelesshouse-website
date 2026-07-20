@@ -230,6 +230,55 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   agence externe fonctionnent désormais. Reste : cloisonner les
   dossiers Cloudinary (ou migrer vers Cloudflare Images).
 
+- **Galeries autonomes — fondation ✅ (fait le 20/07/2026)** :
+  les galeries de livraison deviennent des **objets de premier rang**
+  (modèle Pic-Time). Jusqu'ici une livraison était une `event_pages`
+  accrochée au client — UNE page vidéo + UNE page photos maximum,
+  atteignables seulement en passant par le code de l'espace client.
+  Désormais table **`galleries`** (client_id, `kind` photos|video|mixte,
+  `template` libre, config, `access_code`, `share_enabled`, position),
+  RLS « agency write » + trigger `set_agency`, et `gallery_photos` gagne
+  `gallery_id` (`client_id` conservé et rempli — `get_client_gallery` et
+  `event-photos.html` inchangés).
+  **Deux espaces de noms de codes, étanches** : `clients.code` ouvre
+  l'espace client, `galleries.access_code` ouvre UNE livraison. Unicité
+  par agence (`unique (agency_id, access_code)`) ; `gallery_code_suggest()`
+  dérive le code du titre et évite les collisions sur TOUTE la plateforme
+  (un code reste non ambigu pour un humain) ; un trigger REFUSE qu'une
+  galerie prenne le code d'un espace client de son agence.
+  **RPC scellées** : `get_gallery_by_code` (par code galerie — agence
+  active + `share_enabled`, refuse les codes ambigus, et n'expose JAMAIS
+  `clients.code` : détenir un lien de galerie n'ouvre pas le dashboard) et
+  `get_client_galleries` (par code client, pour le hall).
+  **Page publique `galerie.html`** : `?c=<code>` ou saisie manuelle,
+  marque de l'agence appliquée avant ET après saisie, refus d'une galerie
+  étrangère sur le sous-domaine d'une autre agence, `noindex`. Rendu par
+  `galerie-rendu.js` (grille justifiée, lightbox clavier + swipe, favoris,
+  téléchargement, HLS adaptatif ou MP4). Lien de partage :
+  `https://<slug>.laloge.house/galerie?c=<code>`.
+  **Espace client** : carte « Vos galeries » (masquée si aucune),
+  alimentée en parallèle du portail — aucun temps de chargement ajouté.
+  **Migration sans perte** : les 13 `event_pages` existantes ont leur
+  galerie miroir (titre, kind, template déduit de l'univers, config telle
+  quelle, code généré). ⚠️ `event_pages` **reste la source de vérité** des
+  pages `event-*.html`, qui n'ont pas été touchées — la bascule viendra
+  avec la console.
+  Testé pour de vrai : agence + client + 2 galeries éphémères, 3 images
+  réellement uploadées sur B2 via `b2-sign`, matrice de sécurité complète
+  (code client, code ambigu, partage coupé, agence inactive, galerie
+  d'une autre agence, RLS anon), navigateur (grille, lightbox, favoris,
+  téléchargement, HLS, mobile 375 px), puis nettoyage intégral.
+  Non-régression vérifiée sur les vrais clients : `ezla-davy`
+  (320 photos Cloudinary + film 1080p/4K), `andry-elio31ans`
+  (anniversaire), `joxciagence9991` (11 médias, 7 factures, et pas de
+  carte « Vos galeries » puisqu'il n'en a aucune).
+  **Reste pour la session « console des galeries »** : créer/éditer/
+  ordonner les galeries depuis l'admin, régénérer un code et couper le
+  partage, uploader les photos vers une galerie précise (aujourd'hui
+  `gallery_photos.gallery_id` se remplit par migration), gabarits
+  supplémentaires, puis synchro/bascule d'`event_pages` vers `galleries`
+  et convergence des pages `event-*.html` sur `galerie-rendu.js`.
+
 ## C — Apps stores (après B)
 
 Capacitor + **notifications push** (« Vos photos sont livrées ») —

@@ -52,7 +52,8 @@
     }
     header.top .wrap { display: flex; align-items: center; justify-content: space-between; min-height: 62px; gap: 14px; }
     .logo { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 24px; text-decoration: none; color: var(--ink);
-            display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; }
+            display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px;
+            white-space: nowrap; flex: 0 0 auto; }
     .logo span { color: var(--faint); }
     nav.top-nav { display: flex; align-items: center; gap: 8px; }
     .btn {
@@ -61,6 +62,9 @@
       background: var(--btn-bg); color: var(--btn-text);
       font-family: inherit; font-size: 14px; font-weight: 700; letter-spacing: 0.01em;
       text-decoration: none; cursor: pointer; transition: transform 0.12s ease;
+      /* Un libellé coupé en trois lignes dans sa pilule : c'était le cas
+         de « Créer ma loge » sur iPhone (HIG §14). */
+      white-space: nowrap;
     }
     .btn:active { transform: scale(0.96); }
     .btn.ghost {
@@ -193,6 +197,20 @@
       padding-left: env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
       padding-bottom: env(safe-area-inset-bottom);
+    }
+    /* ── En-tête sur mobile (audit HIG du 20/07/2026) ──
+       À 375 px, les trois pilules ne tenaient pas : le logo passait sur
+       deux lignes, « Créer ma loge » sur trois, et « Se connecter »
+       touchait le bord de l'écran. Or « Offres » et « Créer ma loge »
+       sont déjà offerts par les deux boutons du hero, juste dessous —
+       on ne garde donc que la connexion, seule action qui n'y figure
+       pas (HIG §2 : donner de l'espace à l'essentiel). */
+    @media (max-width: 560px) {
+      header.top .wrap { gap: 10px; padding-right: max(14px, env(safe-area-inset-right)); }
+      nav.top-nav a[href="#offres"],
+      nav.top-nav a[href="/inscription"] { display: none; }
+      .logo { font-size: 21px; }
+      nav.top-nav .btn { padding: 0 16px; font-size: 13.5px; }
     }
   </style>
 </head>

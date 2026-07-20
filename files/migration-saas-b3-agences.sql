@@ -241,6 +241,55 @@ alter table agencies add column if not exists stripe_subscription_id text;
 alter table agencies add column if not exists subscription_status    text;
 alter table agencies add column if not exists billing_interval       text;
 
--- ✅ Briques 1→6 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
---    inscription self-serve, cloisonnement des dossiers Cloudinary
---    (ou Cloudflare Images).
+-- ── Brique 7 : fonctionnalités réservées à la plateforme ────
+-- Certains modules ne font pas partie de l'offre vendue aux agences :
+--   · analyses sociales (apps Meta/TikTok au nom de TimelessHouse —
+--     un locataire ne peut pas connecter les comptes de ses clients
+--     sous nos apps ; sera revendu plus tard avec ses propres apps)
+--   · portfolio (outil de prospection propre à TimelessHouse, non
+--     cloisonné par agence)
+-- Drapeaux par agence : faux par défaut → activables à la main pour
+-- une agence pilote sans toucher au code.
+alter table agencies add column if not exists features_analytics boolean default false;
+alter table agencies add column if not exists features_portfolio boolean default false;
+update agencies set features_analytics = true, features_portfolio = true
+  where slug = 'timelesshouse';
+
+-- get_client_portal expose le drapeau analyses : un client dont
+-- l'agence n'a pas l'option ne voit jamais l'onglet, même si son
+-- analytics_enabled avait été activé avant.
+create or replace function get_client_portal(p_code text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare c clients; res jsonb;
+begin
+  c := portal_client(p_code);
+  if c.id is null then return null; end if;
+  select jsonb_build_object(
+    'client', to_jsonb(c),
+    'agency', (select jsonb_build_object('name', a.name, 'slug', a.slug,
+                 'logo_url', a.logo_url, 'accent_color', a.accent_color,
+                 'bg_color', a.bg_color, 'contact_email', a.contact_email,
+                 'features_analytics', coalesce(a.features_analytics, false))
+               from agencies a where a.id = c.agency_id),
+    'media', coalesce((select jsonb_agg(to_jsonb(m) order by m.date_iso desc nulls last, m.created_at desc)
+                       from media m where m.client_id = c.id), '[]'::jsonb),
+    'invoices', coalesce((select jsonb_agg(to_jsonb(i) order by i.created_at desc)
+                          from invoices i where i.client_id = c.id), '[]'::jsonb),
+    'shoots', coalesce((select jsonb_agg(to_jsonb(s) order by s.year, s.date_day)
+                        from shoots s where s.client_id = c.id), '[]'::jsonb),
+    'analytics', (select to_jsonb(a) from analytics a where a.client_id = c.id limit 1),
+    'documents', coalesce((select jsonb_agg(to_jsonb(d) order by d.position, d.created_at desc)
+                           from documents d where d.client_id = c.id), '[]'::jsonb),
+    'strategies', coalesce((select jsonb_agg(to_jsonb(st) order by st.position, st.created_at desc)
+                            from strategies st where st.client_id = c.id and st.status = 'published'), '[]'::jsonb),
+    'comments', coalesce((select jsonb_agg(to_jsonb(mc) order by mc.created_at)
+                          from media_comments mc join media m2 on m2.id = mc.media_id
+                          where m2.client_id = c.id), '[]'::jsonb),
+    'event_pages', coalesce((select jsonb_agg(jsonb_build_object('page_type', ep.page_type, 'config', ep.config))
+                             from event_pages ep where ep.client_id = c.id), '[]'::jsonb)
+  ) into res;
+  return res;
+end $$;
+
+-- ✅ Briques 1→7 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
+--    cloisonnement des dossiers Cloudinary (ou Cloudflare Images).

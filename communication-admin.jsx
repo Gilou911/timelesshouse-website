@@ -28,6 +28,14 @@
 
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    /* 🔐 Fonctionnalités de l'agence connectée (SaaS B.3, brique 7).
+       Renseigné par App dès le chargement de l'agence ; faux par
+       défaut → un locataire ne voit ni les analyses sociales (apps
+       Meta/TikTok au nom de TimelessHouse) ni le portfolio (outil de
+       prospection propre à TimelessHouse). Activables par agence en
+       base, sans toucher au code. */
+    const FEATURES = { analytics: false, portfolio: false };
+
     /* ════════════════════════════════════════════════════════════
        ☁️ UPLOAD DIRECT VERS BACKBLAZE B2 (via Edge Function b2-sign)
        Même modèle que ylvfeet : l'admin choisit un fichier, le
@@ -786,7 +794,7 @@
                     {c.universe || 'communication'}
                   </span>
                   <code style={neu.pressedSm} className="px-2.5 py-1 rounded-md font-mono text-[11px] leading-none">{c.code}</code>
-                  {c.analytics_enabled && (
+                  {c.analytics_enabled && FEATURES.analytics && (
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-violet-100 text-violet-700 font-semibold uppercase tracking-wider text-[9.5px] leading-none">
                       <BarChart3 size={10} /> Analytics
                     </span>
@@ -1053,8 +1061,9 @@
                   </div>
                 </button>
 
-                {/* Analyses — Communication uniquement */}
-                {form.universe === 'communication' && (
+                {/* Analyses — Communication uniquement, et option réservée
+                    aux agences qui en disposent (FEATURES.analytics) */}
+                {form.universe === 'communication' && FEATURES.analytics && (
                   <button type="button" onClick={() => setForm({...form, analytics_enabled: !form.analytics_enabled})}
                     style={form.analytics_enabled ? neu.dark : neu.pressedSm}
                     className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.analytics_enabled ? 'text-white' : 'text-stone-700'}`}>
@@ -1100,7 +1109,7 @@
         if (client.media_enabled !== false) return 'media';
         if (client.invoices_enabled !== false) return 'invoices';
         if (client.shoots_enabled !== false) return 'shoots';
-        if (client.analytics_enabled) return 'analytics';
+        if (client.analytics_enabled && FEATURES.analytics) return 'analytics';
         return 'media';
       });
       const [editClient, setEditClient] = useState(false);
@@ -1121,7 +1130,7 @@
         ...(documentsOn ? [{ id: 'documents', label: 'Documents', icon: FolderOpen }] : []),
         ...(strategiesOn ? [{ id: 'strategies', label: 'Stratégies', icon: Lightbulb }] : []),
         ...(shootsOn   ? [{ id: 'shoots',   label: 'Tournages', icon: CalendarIcon }] : []),
-        ...(client.analytics_enabled ? [{ id: 'analytics', label: 'Analyses', icon: BarChart3 }] : []),
+        ...(client.analytics_enabled && FEATURES.analytics ? [{ id: 'analytics', label: 'Analyses', icon: BarChart3 }] : []),
       ];
 
       // Onglet par défaut : Page client si univers événement, sinon Médias (ou premier onglet dispo)
@@ -4919,6 +4928,7 @@
       const [overviewData, setOverviewData] = useState({ totalMedia: 0, totalRevenue: 0, upcomingShoots: 0 });
       // null = pas propriétaire de la plateforme (section Agences masquée)
       const [agencies, setAgencies] = useState(null);
+      const [featuresReady, setFeaturesReady] = useState(false);
 
       // Vérification session au mount
       useEffect(() => {
@@ -4961,13 +4971,30 @@
         setAgencies(error ? null : (data || []));
       };
 
+      // Fonctionnalités de MON agence (RLS : je ne vois que la mienne).
+      // Renseigne FEATURES avant le premier rendu des sections.
+      const loadFeatures = async () => {
+        const { data } = await sb.from('agencies')
+          .select('features_analytics, features_portfolio').limit(1).maybeSingle();
+        FEATURES.analytics = data?.features_analytics === true;
+        FEATURES.portfolio = data?.features_portfolio === true;
+        setFeaturesReady(true);
+      };
+
       useEffect(() => {
         if (user) {
           loadClients();
           loadOverview();
           loadAgencies();
+          loadFeatures();
         }
       }, [user]);
+
+      // Le Portfolio est un outil de la plateforme : si l'agence n'y a pas
+      // droit, on ne laisse pas la section ouverte (lien direct, retour…)
+      useEffect(() => {
+        if (featuresReady && section === 'portfolio' && !FEATURES.portfolio) setSection('overview');
+      }, [featuresReady, section]);
 
       const logout = async () => { await sb.auth.signOut(); };
 
@@ -5028,7 +5055,7 @@
                 {[
                   { id: 'overview', icon: Home, label: 'Vue d\'ensemble' },
                   { id: 'clients', icon: Users, label: 'Clients' },
-                  { id: 'portfolio', icon: ImageIcon, label: 'Portfolio' },
+                  ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),
                   ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),
                 ].map(n => (
                   <button
@@ -5073,7 +5100,7 @@
                 <ClientDetail client={selectedClient} onBack={() => setSelectedClient(null)} refresh={() => { loadClients(); loadOverview(); }} />
               ) : section === 'overview' ? (
                 <Overview clients={clients} {...overviewData} />
-              ) : section === 'portfolio' ? (
+              ) : section === 'portfolio' && FEATURES.portfolio ? (
                 <AdminPortfolio sb={sb} neu={neu} SERIF={SERIF} isDark={isDark} />
               ) : section === 'agences' && agencies !== null ? (
                 <AdminAgencies agencies={agencies} refresh={loadAgencies} />
@@ -5096,7 +5123,7 @@
             {[
               { id: 'overview', icon: Home, label: 'Aperçu' },
               { id: 'clients', icon: Users, label: 'Clients' },
-              { id: 'portfolio', icon: ImageIcon, label: 'Portfolio' },
+              ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),
               ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),
             ].map(n => {
               const Icon = n.icon;

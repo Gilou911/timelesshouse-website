@@ -322,7 +322,10 @@
       agencyName: agencyName,
       agencyEmail: agency.contact_email || 'service@timelesshouse.org',
       agencyLogo:  agency.logo_url || '',
-      analyticsEnabled: client.analytics_enabled === true,
+      // Analyses sociales : option du client ET fonctionnalité ouverte à
+      // son agence (SaaS B.3 — les apps Meta/TikTok sont au nom de
+      // TimelessHouse, un locataire n'y a pas droit par défaut)
+      analyticsEnabled: client.analytics_enabled === true && agency.features_analytics === true,
       mediaEnabled:     client.media_enabled    !== false,
       invoicesEnabled:  client.invoices_enabled !== false,
       shootsEnabled:    client.shoots_enabled   !== false,

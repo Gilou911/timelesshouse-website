@@ -103,7 +103,7 @@
   <div class="head">
     <a class="logo" href="/offres">La Loge<span>.</span></a>
     <h1>Ouvrez votre loge</h1>
-    <p>Offre Découverte — 3 Go, gratuite, sans carte bancaire.</p>
+    <p id="offreLigne">Offre Découverte — 3 Go, gratuite, sans carte bancaire.</p>
   </div>
 
   <main class="card">
@@ -140,6 +140,28 @@
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const el = (id) => document.getElementById(id);
+
+    /* ── Palier choisi sur la vitrine (?plan=studio…) ──────────
+       Les cartes tarifaires transmettent désormais leur palier. Sans
+       ça, cliquer « Choisir ce palier » sur l'offre à 49 € menait à un
+       formulaire qui annonçait l'offre gratuite : la page promettait
+       une chose et en livrait une autre. Le compte est toujours créé
+       en Découverte (aucune carte demandée avant d'exister), puis on
+       enchaîne sur le paiement du palier choisi. */
+    const PLANS = {
+      essentiel: { nom: 'Essentiel', prix: '29 €/mois', go: '100 Go' },
+      studio:    { nom: 'Studio',    prix: '49 €/mois', go: '500 Go' },
+      cinema:    { nom: 'Cinéma',    prix: '89 €/mois', go: '2 To'   },
+      prestige:  { nom: 'Prestige',  prix: '149 €/mois', go: '5 To'  },
+    };
+    const PLAN_CHOISI = PLANS[new URLSearchParams(location.search).get('plan') || ''] ? new URLSearchParams(location.search).get('plan') : null;
+    if (PLAN_CHOISI) {
+      const p = PLANS[PLAN_CHOISI];
+      el('offreLigne').textContent =
+        `Offre ${p.nom} — ${p.go}, ${p.prix}. Créez votre loge, le paiement suit juste après.`;
+      const b = el('btn');
+      if (b) b.textContent = `Créer ma loge et passer au paiement`;
+    }
     const say = (text, kind) => { const m = el('msg'); m.textContent = text; m.className = 'msg ' + (kind || ''); m.style.display = 'block'; };
 
     const slugify = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -176,6 +198,28 @@
           setTimeout(() => { window.location.href = '/communication-admin.html'; }, 1600);
           return;
         }
+
+        // Un palier payant a été choisi sur la vitrine : on enchaîne
+        // directement sur le paiement. Le compte existe déjà en offre
+        // Découverte — si la personne abandonne le paiement, elle garde
+        // sa loge gratuite, elle ne perd rien.
+        if (PLAN_CHOISI) {
+          say('Loge créée — ouverture du paiement…', 'ok');
+          try {
+            const { data: { session } } = await sb.auth.getSession();
+            const r = await fetch(`${SUPABASE_URL}/functions/v1/stripe-billing`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+              body: JSON.stringify({ action: 'checkout', plan: PLAN_CHOISI, interval: 'mensuel' }),
+            });
+            const j = await r.json().catch(() => ({}));
+            if (j.url) { window.location.href = j.url; return; }
+          } catch (_) { /* on retombe sur la console : l'abonnement s'y souscrit aussi */ }
+          say('Loge créée ! Choisissez votre offre depuis votre console.', 'ok');
+          setTimeout(() => { window.location.href = '/communication-admin.html'; }, 1400);
+          return;
+        }
+
         setTimeout(() => { window.location.href = '/communication-admin.html'; }, 900);
       } catch (err) {
         say(err.message, 'err');

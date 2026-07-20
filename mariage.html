@@ -1525,9 +1525,8 @@
     window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
 
     import { createClient } from '@supabase/supabase-js';
+    import { isCelebration, routeForClient } from './univers.js';
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    const COUPLE_UNIVERSES = ['mariage', 'fiancailles', 'anniversaire-mariage'];
 
     window.checkClientCode = async function() {
       const raw = document.getElementById('clientCode').value;
@@ -1538,17 +1537,12 @@
 
       try {
         // RPC scellée (SaaS B.2) : validation du code côté serveur ;
-        // le filtre « univers couple » reste appliqué ici
+        // cette vitrine reste réservée aux CÉLÉBRATIONS (`celebration`
+        // et les 3 valeurs couple héritées — cf. univers.js).
         const { data, error } = await sb.rpc('resolve_client_code', { p_code: code });
-        if (error || !data || !COUPLE_UNIVERSES.includes(data.universe)) { err.style.display = 'block'; return; }
+        if (error || !data || !isCelebration(data.universe)) { err.style.display = 'block'; return; }
         sessionStorage.setItem('access_granted', code);
-        // legacy → redirect_url ; sinon template selon univers
-        let dest;
-        if (data.redirect_url) dest = data.redirect_url;
-        else if (data.universe === 'anniversaire-mariage') dest = 'event-anniversary.html';
-        else if (data.universe === 'fiancailles') dest = 'event-engagement.html';
-        else dest = 'event-photos.html'; // mariage classique
-        window.location.href = dest;
+        window.location.href = routeForClient(data);
       } catch (e) { console.error(e); err.style.display = 'block'; }
     };
   </script>

@@ -772,7 +772,63 @@ grant execute on function get_client_galleries(text) to anon, authenticated;
 
 notify pgrst, 'reload schema';
 
--- ✅ Briques 1→13 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
+-- ── Brique 14 : UNIVERS SIMPLIFIÉS ──────────────────────────
+-- Les 9 univers hérités (mariage, fiancailles, anniversaire-mariage,
+-- immobilier, commercial, court-metrage, voyage, communication, autre)
+-- portaient à la fois le MÉTIER et le GABARIT de rendu. Depuis la
+-- brique 13, le gabarit vit sur la GALERIE (galleries.template) : un
+-- locataire n'a plus besoin de choisir un univers par type de fête.
+-- On lui en propose donc 3, qui décrivent seulement la FORME de
+-- l'espace client :
+--   · celebration   → espace de livraison (galeries/films)
+--   · communication → tableau de bord complet + option Analyses
+--   · neutre        → tableau de bord complet SANS Analyses,
+--                     + galeries de livraison possibles
+-- La liste complète reste réservée à la plateforme (drapeau ci-dessous),
+-- qui conserve ses pages vitrines par métier (mariage.html, immobilier…).
+-- AUCUNE migration de données : les valeurs héritées continuent de
+-- fonctionner (mariage|fiancailles|anniversaire-mariage = célébrations,
+-- autre = neutre) — la compatibilité est portée par les helpers de
+-- `univers.js`, partagés par l'admin et toutes les portes d'entrée.
+alter table agencies add column if not exists features_all_universes boolean not null default false;
+update agencies set features_all_universes = true where slug = 'timelesshouse';
+
+comment on column agencies.features_all_universes is
+  'Propose la liste COMPLÈTE des univers (héritage plateforme) au lieu des 3 univers simplifiés. Faux pour les locataires.';
+
+-- resolve_client_code renvoie AUSSI `has_delivery` : le client a-t-il une
+-- page événement ou une galerie ?
+-- Pourquoi : la règle « neutre → tableau de bord » vaut aussi pour son
+-- équivalent hérité `autre`… sauf que 2 clients RÉELS portent déjà cette
+-- valeur, et que l'un d'eux (pandore260426) est une livraison PURE — une
+-- page photos, modules Médias/Factures/Tournages coupés. Le basculer vers
+-- le tableau de bord casserait sa livraison. On ne peut pas non plus se
+-- fier aux seuls modules : `documents_enabled`/`strategies_enabled` sont
+-- restés à `true` chez lui (valeur par défaut jamais touchée), donc
+-- « aucun module actif » ne le détecte pas.
+-- Règle retenue, portée par univers.js : `neutre` (valeur NEUVE, aucun
+-- client existant) va toujours au tableau de bord ; `autre` (valeur
+-- HÉRITÉE) n'y va que s'il n'a AUCUNE livraison — sinon il garde
+-- exactement sa destination d'aujourd'hui. Zéro régression, et les deux
+-- valeurs restent identiques partout ailleurs (pas d'option Analyses,
+-- modules et onglet « Page client » disponibles).
+create or replace function resolve_client_code(p_code text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare c clients;
+begin
+  c := portal_client(p_code);
+  if c.id is null then return null; end if;
+  return jsonb_build_object(
+    'code', c.code, 'universe', c.universe, 'redirect_url', c.redirect_url,
+    'agency_slug', (select slug from agencies where id = c.agency_id),
+    'has_delivery', (exists (select 1 from event_pages ep where ep.client_id = c.id)
+                  or exists (select 1 from galleries   g  where g.client_id  = c.id)));
+end $$;
+grant execute on function resolve_client_code(text) to anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ✅ Briques 1→14 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
 --    cloisonnement des dossiers Cloudinary (ou Cloudflare Images),
---    et la CONSOLE des galeries (création/édition/partage depuis
---    l'admin, puis bascule d'event_pages vers galleries).
+--    et la BASCULE d'event_pages vers galleries (convergence des pages
+--    event-*.html sur galerie-rendu.js).

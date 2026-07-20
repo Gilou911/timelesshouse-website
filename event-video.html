@@ -26,6 +26,7 @@
   <!-- 📥 Chargement de la config depuis Supabase -->
   <script type="module">
     // — Config Supabase injectée par Vite depuis .env (variables VITE_*)
+    import { homeUrlFor } from './univers.js';
     const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
     const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
     // Rétrocompatibilité pour les scripts classiques de la page qui lisent window.SUPABASE_*
@@ -135,10 +136,7 @@
     }, videoPage.config || {});
 
     cfg.photosUrl  = photosPage ? 'event-photos.html' : '';
-    const COUPLE_UNIVERSES = ['mariage', 'fiancailles', 'anniversaire-mariage'];
-    cfg.accueilUrl = COUPLE_UNIVERSES.includes(client.universe)
-      ? 'mariage.html'
-      : (client.universe ? client.universe + '.html' : 'index.html');
+    cfg.accueilUrl = homeUrlFor(client.universe);
 
     // ── Liste de vidéos (nombre et titres libres) ──────────────
     // Modèle actuel : config.videos = [{ key, title, hls, urls, downloadUrl, chapitres }]

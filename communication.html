@@ -720,6 +720,7 @@
     window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
 
     import { createClient } from '@supabase/supabase-js';
+    import { routeForClient } from './univers.js';
 
     /* ════════════════════════════════════════════════════════════
        🔐  VALIDATION DU CODE VIA SUPABASE
@@ -746,7 +747,10 @@
         sessionStorage.setItem('access_granted', code);
         // PWA : mémorise le code pour que l'app installée reste connectée
         try { localStorage.setItem('th_access_code', code); } catch (e) {}
-        window.location.href = 'communication-dashboard.html';
+        // Cette porte servait le tableau de bord à TOUT LE MONDE : un client
+        // de livraison qui saisissait son code ici tombait sur un tableau de
+        // bord vide. Le routage commun l'envoie désormais au bon endroit.
+        window.location.href = routeForClient(data);
       } catch (e) {
         console.error(e); err.style.display = 'block'; btn.disabled = false;
       }

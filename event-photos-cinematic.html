@@ -27,6 +27,7 @@
   <!-- 📥 Chargement de la config depuis Supabase (top-level await) — IDENTIQUE à event-photos.html -->
   <script type="module">
     // — Config Supabase injectée par Vite depuis .env (variables VITE_*)
+    import { videoPageFor, homeUrlFor } from './univers.js';
     const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
     const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
     // Rétrocompatibilité pour les scripts classiques de la page qui lisent window.SUPABASE_*
@@ -137,10 +138,7 @@
 
     if (!photosPage) {
       if (videoPage) {
-        const dest = client.universe === 'anniversaire-mariage' ? 'event-anniversary.html'
-          : client.universe === 'fiancailles' ? 'event-engagement.html'
-          : 'event-video.html';
-        window.location.href = dest;
+        window.location.href = videoPageFor(client.universe);
       } else {
         showError('not-ready', client.name);
       }
@@ -172,14 +170,9 @@
     }
 
     cfg.videoUrl = videoPage
-      ? (client.universe === 'anniversaire-mariage' ? 'event-anniversary.html'
-        : client.universe === 'fiancailles' ? 'event-engagement.html'
-        : 'event-video.html')
+      ? videoPageFor(client.universe)
       : '';
-    const COUPLE_UNIVERSES = ['mariage', 'fiancailles', 'anniversaire-mariage'];
-    cfg.accueilUrl = COUPLE_UNIVERSES.includes(client.universe)
-      ? 'mariage.html'
-      : (client.universe ? client.universe + '.html' : 'index.html');
+    cfg.accueilUrl = homeUrlFor(client.universe);
 
     window.WEDDING_CONFIG = cfg;
     window.__CLIENT = client;

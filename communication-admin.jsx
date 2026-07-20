@@ -21,6 +21,10 @@
       Lightbulb, Copy, Power, Building2
     } from 'lucide-react';
     import AdminPortfolio from './admin-portfolio.jsx';
+    import {
+      universeOptions, isCelebration, allowsAnalytics, hasDeliveryTab,
+      videoPageFor, GALLERY_TEMPLATES, GALLERY_KINDS, templateLabel, kindLabel,
+    } from './univers.js';
 
     // — Config Supabase injectée par Vite depuis .env (variables VITE_*)
     const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -33,8 +37,17 @@
        défaut → un locataire ne voit ni les analyses sociales (apps
        Meta/TikTok au nom de TimelessHouse) ni le portfolio (outil de
        prospection propre à TimelessHouse). Activables par agence en
-       base, sans toucher au code. */
-    const FEATURES = { analytics: false, portfolio: false };
+       base, sans toucher au code.
+       `allUniverses` (brique 14) : la liste COMPLÈTE des univers hérités
+       est réservée à la plateforme — un locataire n'en voit que 3. */
+    const FEATURES = { analytics: false, portfolio: false, allUniverses: false };
+
+    /* 🏷️ Identité de l'agence connectée — renseignée par loadFeatures en
+       même temps que FEATURES. Sert à fabriquer les liens de partage des
+       galeries (<slug>.laloge.house, ou timelesshouse.org pour la
+       plateforme) depuis n'importe quel composant, sans faire descendre
+       l'agence par les props sur toute la profondeur de l'arbre. */
+    const AGENCY = { slug: null, name: null };
 
     /* ════════════════════════════════════════════════════════════
        ☁️ UPLOAD DIRECT VERS BACKBLAZE B2 (via Edge Function b2-sign)
@@ -233,7 +246,10 @@
 
     // Uploade UNE photo (original + 2 variantes) et insère sa ligne.
     // onProgress(0..1) — l'original pèse le plus lourd : 70/20/10.
-    async function uploadGalleryPhoto({ client, category, position, file, onProgress }) {
+    // `gallery` (brique 14) : la photo est rattachée à UNE galerie
+    // précise. `client_id` reste rempli — get_client_gallery (brique 11)
+    // et event-photos.html continuent de fonctionner à l'identique.
+    async function uploadGalleryPhoto({ client, gallery, category, position, file, onProgress }) {
       const src = await decodeGalleryImage(file);
       const width  = src.width  || src.naturalWidth  || null;
       const height = src.height || src.naturalHeight || null;
@@ -249,7 +265,7 @@
       const url_grid     = await b2UploadFile(gridBlob, `${dir}/grid.jpg`,     (p) => onProgress?.(0.9 + p * 0.1));
 
       const { error } = await sb.from('gallery_photos').insert({
-        client_id: client.id, category, position,
+        client_id: client.id, gallery_id: gallery?.id || null, category, position,
         width, height, url_original, url_view, url_grid,
       });
       if (error) throw new Error(error.message);
@@ -1188,8 +1204,19 @@
       const [loading, setLoading] = useState(false);
       const [err, setErr] = useState('');
 
-      const COUPLE_UNIVERSES = ['mariage', 'fiancailles', 'anniversaire-mariage'];
-      const isCouple = COUPLE_UNIVERSES.includes(form.universe);
+      // Univers proposés (brique 14) : 3 pour un locataire, la liste
+      // complète pour la plateforme. Si le client édité porte un univers
+      // hérité absent de la liste (locataire reprenant un ancien espace),
+      // on l'ajoute pour ne jamais le réécrire à son insu.
+      const options = useMemo(() => {
+        const list = universeOptions(FEATURES.allUniverses);
+        return list.some(o => o.value === form.universe)
+          ? list
+          : [...list, { value: form.universe, label: `${form.universe} (univers actuel)` }];
+      }, [form.universe]);
+
+      const isCouple = isCelebration(form.universe);
+      const currentHint = options.find(o => o.value === form.universe)?.hint;
 
       const slugify = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 
@@ -1239,27 +1266,32 @@
             <Field label="Univers">
               <Select value={form.universe} onChange={e => {
                 const newUniverse = e.target.value;
-                const COUPLES = ['mariage', 'fiancailles', 'anniversaire-mariage'];
-                // Pour les nouveaux clients couples, on désactive par défaut les 3 modules extras
-                // (sauf si l'utilisateur les a déjà touchés ou si on édite un client existant)
-                if (!existing && COUPLES.includes(newUniverse) && !COUPLES.includes(form.universe)) {
-                  setForm({...form, universe: newUniverse, media_enabled: false, invoices_enabled: false, shoots_enabled: false, documents_enabled: false, strategies_enabled: false});
-                } else if (!existing && !COUPLES.includes(newUniverse) && COUPLES.includes(form.universe)) {
-                  setForm({...form, universe: newUniverse, media_enabled: true, invoices_enabled: true, shoots_enabled: true, documents_enabled: true, strategies_enabled: true});
-                } else {
-                  setForm({...form, universe: newUniverse});
+                const patch = { universe: newUniverse };
+                // Une célébration est d'abord un espace de LIVRAISON : à la
+                // création, ses modules extras partent éteints (et se
+                // rallument si on repart vers un univers tableau de bord).
+                if (!existing && isCelebration(newUniverse) !== isCelebration(form.universe)) {
+                  const on = !isCelebration(newUniverse);
+                  Object.assign(patch, {
+                    media_enabled: on, invoices_enabled: on, shoots_enabled: on,
+                    documents_enabled: on, strategies_enabled: on,
+                  });
                 }
+                // Les Analyses n'existent QUE dans l'univers communication :
+                // quitter cet univers éteint l'option (sinon un client
+                // `neutre` garderait un drapeau actif invisible dans l'UI).
+                if (!allowsAnalytics(newUniverse)) patch.analytics_enabled = false;
+                setForm({ ...form, ...patch });
               }}>
-                <option value="communication">📊 Communication & Marketing (tableau de bord dynamique)</option>
-                <option value="mariage">💍 Mariage</option>
-                <option value="fiancailles">💎 Fiançailles</option>
-                <option value="anniversaire-mariage">🎂 Anniversaire de mariage</option>
-                <option value="immobilier">🏠 Immobilier</option>
-                <option value="commercial">📸 Commercial</option>
-                <option value="court-metrage">🎬 Court-métrage</option>
-                <option value="voyage">✈️ Voyage</option>
-                <option value="autre">📁 Autre</option>
+                {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </Select>
+              {currentHint && <div className="text-[11px] text-stone-500 mt-1.5">{currentHint}</div>}
+              {isCelebration(form.universe) && (
+                <div className="text-[11px] text-stone-500 mt-1.5">
+                  💡 Le style de rendu (mariage, fiançailles, anniversaire…) se choisit
+                  désormais sur chaque <strong>galerie</strong>, dans l'onglet « Page client ».
+                </div>
+              )}
             </Field>
 
             {isCouple ? (
@@ -1299,7 +1331,7 @@
               </Field>
             </div>
 
-            {form.universe !== 'communication' && (
+            {hasDeliveryTab(form.universe) && (
               <Field label="Page de redirection (laisser vide pour utiliser les templates dynamiques)">
                 <Input value={form.redirect_url} onChange={e => setForm({...form, redirect_url: e.target.value})} placeholder="Laisser vide → event-photos.html (template dynamique)" />
                 <div className="text-[11px] text-stone-500 mt-1.5">
@@ -1405,7 +1437,7 @@
 
                 {/* Analyses — Communication uniquement, et option réservée
                     aux agences qui en disposent (FEATURES.analytics) */}
-                {form.universe === 'communication' && FEATURES.analytics && (
+                {allowsAnalytics(form.universe) && FEATURES.analytics && (
                   <button type="button" onClick={() => setForm({...form, analytics_enabled: !form.analytics_enabled})}
                     style={form.analytics_enabled ? neu.dark : neu.pressedSm}
                     className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.analytics_enabled ? 'text-white' : 'text-stone-700'}`}>
@@ -1422,7 +1454,7 @@
                   </button>
                 )}
               </div>
-              {form.universe !== 'communication' && (
+              {hasDeliveryTab(form.universe) && (
                 <div className="text-[11px] text-stone-500 mt-2.5">
                   💡 Pour les univers événement, ces modules complètent l'espace galerie/film. Tu peux par exemple n'activer que les Médias pour donner accès à des photos/vidéos additionnelles, ou laisser tout désactivé pour une page de livraison pure.
                 </div>
@@ -1447,11 +1479,11 @@
        ════════════════════════════════════════════════════════════ */
     function ClientDetail({ client, onBack, refresh }) {
       const [tab, setTab] = useState(() => {
-        if (client.universe && client.universe !== 'communication') return 'event_pages';
+        if (isCelebration(client.universe)) return 'event_pages';
         if (client.media_enabled !== false) return 'media';
         if (client.invoices_enabled !== false) return 'invoices';
         if (client.shoots_enabled !== false) return 'shoots';
-        if (client.analytics_enabled && FEATURES.analytics) return 'analytics';
+        if (client.analytics_enabled && FEATURES.analytics && allowsAnalytics(client.universe)) return 'analytics';
         return 'media';
       });
       const [editClient, setEditClient] = useState(false);
@@ -1466,17 +1498,17 @@
       const strategiesOn = client.strategies_enabled !== false;
 
       const tabs = [
-        ...(client.universe && client.universe !== 'communication' ? [{ id: 'event_pages', label: 'Page client', icon: Eye }] : []),
+        ...(hasDeliveryTab(client.universe) ? [{ id: 'event_pages', label: 'Page client', icon: Eye }] : []),
         ...(mediaOn    ? [{ id: 'media',    label: 'Médias',    icon: ImageIcon }]  : []),
         ...(invoicesOn ? [{ id: 'invoices', label: 'Factures',  icon: FileText }]   : []),
         ...(documentsOn ? [{ id: 'documents', label: 'Documents', icon: FolderOpen }] : []),
         ...(strategiesOn ? [{ id: 'strategies', label: 'Stratégies', icon: Lightbulb }] : []),
         ...(shootsOn   ? [{ id: 'shoots',   label: 'Tournages', icon: CalendarIcon }] : []),
-        ...(client.analytics_enabled && FEATURES.analytics ? [{ id: 'analytics', label: 'Analyses', icon: BarChart3 }] : []),
+        ...(client.analytics_enabled && FEATURES.analytics && allowsAnalytics(client.universe) ? [{ id: 'analytics', label: 'Analyses', icon: BarChart3 }] : []),
       ];
 
       // Onglet par défaut : Page client si univers événement, sinon Médias (ou premier onglet dispo)
-      const defaultTab = (client.universe && client.universe !== 'communication')
+      const defaultTab = isCelebration(client.universe)
         ? 'event_pages'
         : (tabs[0]?.id || 'media');
 
@@ -1596,9 +1628,7 @@
       if (pageType === 'photos') {
         target = 'event-photos.html';
       } else {
-        target = client.universe === 'anniversaire-mariage' ? 'event-anniversary.html'
-               : client.universe === 'fiancailles'          ? 'event-engagement.html'
-               : 'event-video.html';
+        target = videoPageFor(client.universe);
       }
       const params = new URLSearchParams({
         preview: '1',
@@ -1986,8 +2016,8 @@
             </div>
           </div>
 
-          {/* Galerie photos B2 — pipeline locataires (SaaS B.3, brique 11) */}
-          <GalleryB2Manager client={client} hasPhotosPage={!!photosPage} />
+          {/* Console des galeries (SaaS B.3, brique 14) */}
+          <GalleriesManager client={client} />
 
           {editing && (
             <EventPageForm
@@ -2004,13 +2034,458 @@
     }
 
     /* ════════════════════════════════════════════════════════════
-       📸 GALERIE B2 — gestionnaire de la galerie photos du client
-       Catégories + photos stockées sur B2 (weddings/<code>/galerie/…),
-       lignes en base (gallery_photos, RLS par agence). L'espace client
-       les lit via la RPC scellée get_client_gallery — prioritaire sur
-       l'héritage Cloudinary dans event-photos(.-cinematic).html.
+       🖼️ CONSOLE DES GALERIES (SaaS B.3, brique 14)
+       Remplace l'ancien gestionnaire « Galerie B2 » (brique 11), qui
+       ne savait gérer QU'UNE galerie implicite par client : les photos
+       partaient dans gallery_photos avec (client_id, category) mais
+       sans gallery_id, et le titre/gabarit/partage n'existaient pas.
+       Ici les galeries sont des objets de premier rang (table
+       `galleries`, RLS « agency write ») : on les crée, les ordonne,
+       les partage par un lien propre et on uploade DANS l'une d'elles.
+       Le stockage B2 ne change pas — mêmes variantes, même préfixe
+       weddings/<code-client>/galerie/<slug-catégorie>/<uuid>/.
        ════════════════════════════════════════════════════════════ */
-    function GalleryB2Manager({ client, hasPhotosPage }) {
+
+    // Lien public d'une galerie. TimelessHouse garde son domaine
+    // historique ; les locataires vivent sur leur sous-domaine La Loge.
+    function galleryShareUrl(code) {
+      if (!code) return '';
+      const slug = AGENCY.slug;
+      if (!slug || slug === 'timelesshouse') return `https://timelesshouse.org/galerie?c=${code}`;
+      return `https://${slug}.laloge.house/galerie?c=${code}`;
+    }
+
+    // Bouton « copier » générique — repasse en icône après 1,6 s.
+    function CopyButton({ value, label = 'Copier' }) {
+      const [done, setDone] = useState(false);
+      const copy = async () => {
+        try {
+          await navigator.clipboard.writeText(value);
+        } catch (_) {
+          // Safari hors HTTPS / permission refusée : repli sur un champ temporaire
+          const ta = document.createElement('textarea');
+          ta.value = value; ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta); ta.select();
+          try { document.execCommand('copy'); } catch (__) {}
+          document.body.removeChild(ta);
+        }
+        setDone(true);
+        setTimeout(() => setDone(false), 1600);
+      };
+      return (
+        <Btn icon={done ? Check : Copy} onClick={copy}>{done ? 'Copié' : label}</Btn>
+      );
+    }
+
+    /* ── Console : liste des galeries du client ─────────────── */
+    function GalleriesManager({ client }) {
+      const [galleries, setGalleries] = useState([]);
+      const [counts, setCounts]       = useState({});
+      const [loading, setLoading]     = useState(true);
+      const [editing, setEditing]     = useState(null);   // {} = création, {…} = édition
+      const [openId, setOpenId]       = useState(null);   // galerie dépliée (photos)
+      const [busy, setBusy]           = useState(false);
+      const [err, setErr]             = useState('');
+
+      const load = async () => {
+        setLoading(true); setErr('');
+        const { data, error } = await sb.from('galleries').select('*')
+          .eq('client_id', client.id)
+          .order('position', { ascending: true })
+          .order('created_at', { ascending: true });
+        if (error) { setErr(error.message); setLoading(false); return; }
+        setGalleries(data || []);
+
+        // Compteurs de photos : un seul aller-retour pour tout le client.
+        const { data: photos } = await sb.from('gallery_photos')
+          .select('gallery_id').eq('client_id', client.id);
+        const by = {};
+        (photos || []).forEach(p => { if (p.gallery_id) by[p.gallery_id] = (by[p.gallery_id] || 0) + 1; });
+        setCounts(by);
+        setLoading(false);
+      };
+      useEffect(() => { load(); }, [client.id]);
+
+      // Réordonnancement : échange des positions avec le voisin.
+      // Si elles ne sont pas discriminantes, on ré-indexe toute la liste.
+      const move = async (idx, dir) => {
+        const j = idx + dir;
+        if (j < 0 || j >= galleries.length || busy) return;
+        setBusy(true);
+        try {
+          const a = galleries[idx], b = galleries[j];
+          if ((a.position ?? 0) !== (b.position ?? 0)) {
+            const r1 = await sb.from('galleries').update({ position: b.position ?? 0 }).eq('id', a.id);
+            const r2 = await sb.from('galleries').update({ position: a.position ?? 0 }).eq('id', b.id);
+            if (r1.error || r2.error) throw new Error((r1.error || r2.error).message);
+          } else {
+            const arr = [...galleries];
+            [arr[idx], arr[j]] = [arr[j], arr[idx]];
+            for (let k = 0; k < arr.length; k++) {
+              const { error } = await sb.from('galleries').update({ position: k }).eq('id', arr[k].id);
+              if (error) throw new Error(error.message);
+            }
+          }
+          await load();
+        } catch (e) { alert(e.message); }
+        setBusy(false);
+      };
+
+      const toggleShare = async (g) => {
+        setBusy(true);
+        const { error } = await sb.from('galleries')
+          .update({ share_enabled: !g.share_enabled }).eq('id', g.id);
+        if (error) alert(error.message);
+        await load();
+        setBusy(false);
+      };
+
+      // Nouveau code : gallery_code_suggest garantit l'unicité, et le
+      // trigger set_gallery_code_upd refuse une collision avec le code
+      // d'un espace client de l'agence (ceinture + bretelles).
+      const regenCode = async (g) => {
+        if (!confirm(`Régénérer le code de « ${g.title} » ?\n\nL'ancien lien cessera immédiatement de fonctionner.`)) return;
+        setBusy(true);
+        try {
+          const { data, error } = await sb.rpc('gallery_code_suggest', {
+            p_agency: g.agency_id, p_base: g.title,
+          });
+          if (error) throw new Error(error.message);
+          const { error: e2 } = await sb.from('galleries').update({ access_code: data }).eq('id', g.id);
+          if (e2) throw new Error(e2.message);
+          await load();
+        } catch (e) { alert(e.message); }
+        setBusy(false);
+      };
+
+      // Suppression : la cascade SQL emporte les lignes gallery_photos.
+      // Les FICHIERS B2 restent (purge différée, comme la brique 11) —
+      // un script de ménage plateforme balaiera les orphelins.
+      const remove = async (g) => {
+        const n = counts[g.id] || 0;
+        if (!confirm(
+          `Supprimer la galerie « ${g.title} » ?\n\n` +
+          (n ? `Ses ${n} photo${n > 1 ? 's' : ''} seront retirée${n > 1 ? 's' : ''} de la livraison.\n` : '') +
+          `Le lien de partage cessera de fonctionner. Cette action est irréversible.`
+        )) return;
+        setBusy(true);
+        const { error } = await sb.from('galleries').delete().eq('id', g.id);
+        if (error) alert(error.message);
+        if (openId === g.id) setOpenId(null);
+        await load();
+        setBusy(false);
+      };
+
+      return (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Livraisons</div>
+              <h3 className="text-[20px] lg:text-[22px] tracking-tight mt-1" style={SERIF}>Galeries</h3>
+            </div>
+            <Btn kind="dark" icon={Plus} onClick={() => setEditing({})}>Nouvelle galerie</Btn>
+          </div>
+          <p className="text-[12px] lg:text-[13px] text-stone-500 mt-2 leading-relaxed">
+            Chaque galerie a son propre lien de partage : le client (ou ses invités) y accède
+            directement, sans passer par le code de l'espace client. Les photos partent sur votre
+            stockage — originaux intacts, variantes d'affichage générées dans le navigateur.
+          </p>
+
+          {err && <div className="mt-3 flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]"><AlertCircle size={14} /> {err}</div>}
+
+          {loading ? (
+            <div className="py-8 flex justify-center"><Loader2 size={18} className="animate-spin text-stone-400" /></div>
+          ) : galleries.length === 0 ? (
+            <div className="text-center text-[12.5px] text-stone-400 py-6 leading-relaxed">
+              Aucune galerie pour l'instant.<br />
+              Créez-en une pour livrer des photos ou un film.
+            </div>
+          ) : (
+            <div className="space-y-3 mt-4">
+              {galleries.map((g, idx) => (
+                <GalleryCard
+                  key={g.id}
+                  gallery={g}
+                  client={client}
+                  count={counts[g.id] || 0}
+                  first={idx === 0}
+                  last={idx === galleries.length - 1}
+                  busy={busy}
+                  open={openId === g.id}
+                  onToggleOpen={() => setOpenId(openId === g.id ? null : g.id)}
+                  onMove={(dir) => move(idx, dir)}
+                  onEdit={() => setEditing(g)}
+                  onRemove={() => remove(g)}
+                  onToggleShare={() => toggleShare(g)}
+                  onRegenCode={() => regenCode(g)}
+                  onPhotosChanged={load}
+                />
+              ))}
+            </div>
+          )}
+
+          {editing && (
+            <GalleryForm
+              client={client}
+              existing={editing.id ? editing : null}
+              onClose={() => setEditing(null)}
+              onSaved={() => { setEditing(null); load(); }}
+            />
+          )}
+        </div>
+      );
+    }
+
+    /* ── Une galerie : en-tête, partage, puis photos dépliables ── */
+    function GalleryCard({
+      gallery: g, client, count, first, last, busy, open,
+      onToggleOpen, onMove, onEdit, onRemove, onToggleShare, onRegenCode, onPhotosChanged,
+    }) {
+      const shareUrl = galleryShareUrl(g.access_code);
+      const showsPhotos = g.kind === 'photos' || g.kind === 'mixte';
+
+      return (
+        <div style={neu.pressedSm} className="rounded-2xl p-4">
+          <div className="flex items-start gap-3 flex-wrap">
+            {/* Réordonnancement */}
+            <div className="flex flex-col shrink-0">
+              <button type="button" disabled={busy || first} onClick={() => onMove(-1)}
+                aria-label="Monter la galerie"
+                className="w-9 h-9 flex items-center justify-center rounded-lg text-stone-600 disabled:opacity-25">
+                <ChevronUp size={15} />
+              </button>
+              <button type="button" disabled={busy || last} onClick={() => onMove(1)}
+                aria-label="Descendre la galerie"
+                className="w-9 h-9 flex items-center justify-center rounded-lg text-stone-600 disabled:opacity-25">
+                <ChevronDown size={15} />
+              </button>
+            </div>
+
+            <div className="flex-1 min-w-[200px]">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[15px] font-semibold" style={SERIF}>{g.title}</span>
+                {!g.share_enabled && (
+                  <span className="text-[9.5px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-stone-200 text-stone-600 font-semibold">
+                    Partage coupé
+                  </span>
+                )}
+              </div>
+              <div className="text-[11.5px] text-stone-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>{kindLabel(g.kind)}</span>
+                <span>·</span>
+                <span>{templateLabel(g.template)}</span>
+                {showsPhotos && <><span>·</span><span>{count} photo{count > 1 ? 's' : ''}</span></>}
+                {(g.kind === 'video' || g.kind === 'mixte') && (
+                  <><span>·</span><span>{(g.config?.videos || []).length} vidéo{(g.config?.videos || []).length > 1 ? 's' : ''}</span></>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {showsPhotos && (
+                <Btn icon={open ? ChevronUp : ImageIcon} onClick={onToggleOpen}>
+                  {open ? 'Replier' : 'Photos'}
+                </Btn>
+              )}
+              <Btn icon={Edit3} onClick={onEdit}>Modifier</Btn>
+              <Btn icon={Trash2} onClick={onRemove} className="text-rose-600">Supprimer</Btn>
+            </div>
+          </div>
+
+          {/* Partage */}
+          <div style={neu.raisedXs} className="rounded-xl p-3 mt-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold">Lien de partage</div>
+              <button type="button" onClick={onToggleShare} disabled={busy}
+                aria-label={g.share_enabled ? 'Couper le partage' : 'Réactiver le partage'}
+                className="flex items-center gap-2 min-h-[36px] px-1 disabled:opacity-50">
+                <span className="text-[11.5px] text-stone-600 font-medium">
+                  {g.share_enabled ? 'Actif' : 'Coupé'}
+                </span>
+                <span className={`w-10 h-5.5 rounded-full p-0.5 transition ${g.share_enabled ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                  <span className={`block w-4 h-4 rounded-full bg-white shadow transition-transform ${g.share_enabled ? 'translate-x-4' : ''}`} />
+                </span>
+              </button>
+            </div>
+            <div className={`mt-2 font-mono text-[11px] break-all ${g.share_enabled ? 'text-stone-600' : 'text-stone-400 line-through'}`}>
+              {shareUrl}
+            </div>
+            <div className="flex gap-2 mt-2.5 flex-wrap">
+              <CopyButton value={shareUrl} label="Copier le lien" />
+              <a href={shareUrl} target="_blank" rel="noopener"
+                 style={neu.raisedXs}
+                 className="px-5 py-3 min-h-[44px] rounded-full text-[13px] font-semibold flex items-center justify-center gap-2 text-stone-800">
+                <ExternalLink size={14} /> Ouvrir
+              </a>
+              <Btn icon={RefreshCw} onClick={onRegenCode} disabled={busy}>Régénérer le code</Btn>
+            </div>
+            {!g.share_enabled && (
+              <div className="text-[11px] text-stone-500 mt-2">
+                Le partage est coupé : le lien ne donne plus rien tant qu'il n'est pas réactivé.
+              </div>
+            )}
+          </div>
+
+          {open && showsPhotos && (
+            <GalleryPhotos gallery={g} client={client} onChanged={onPhotosChanged} />
+          )}
+        </div>
+      );
+    }
+
+    /* ── Création / édition d'une galerie ───────────────────── */
+    function GalleryForm({ client, existing, onClose, onSaved }) {
+      const [form, setForm] = useState({
+        title:    existing?.title    || `Galerie — ${client.name || client.code}`,
+        kind:     existing?.kind     || 'photos',
+        template: existing?.template || 'mariage',
+      });
+      // Vidéos : modèle config.videos partagé avec event-video.html
+      // (galerie-rendu.js lit urls['1080p'] / urls['4K'] et downloadUrl).
+      const [videos, setVideos] = useState(() =>
+        (existing?.config?.videos || []).map((v, i) => ({
+          key:         v.key || `v${i + 1}`,
+          title:       v.title || '',
+          url:         (v.urls && (v.urls['1080p'] || v.urls['4K'])) || '',
+          downloadUrl: v.downloadUrl || '',
+        }))
+      );
+      const [loading, setLoading] = useState(false);
+      const [err, setErr] = useState('');
+
+      const showsVideos = form.kind === 'video' || form.kind === 'mixte';
+
+      const addVideo = () => setVideos(v => [...v, {
+        key: `v${v.length + 1}`, title: '', url: '', downloadUrl: '',
+      }]);
+      const setVideo = (i, patch) => setVideos(v => v.map((x, k) => k === i ? { ...x, ...patch } : x));
+      const removeVideo = (i) => setVideos(v => v.filter((_, k) => k !== i));
+
+      const submit = async (e) => {
+        e.preventDefault();
+        if (!form.title.trim()) { setErr('Donnez un titre à la galerie.'); return; }
+        setLoading(true); setErr('');
+
+        // On ne réécrit que la clé `videos` : une config héritée (migrée
+        // depuis event_pages) garde tous ses autres champs.
+        const config = { ...(existing?.config || {}) };
+        if (showsVideos) {
+          config.videos = videos
+            .filter(v => (v.title || '').trim() || (v.url || '').trim())
+            .map((v, i) => ({
+              key:         (v.key || `v${i + 1}`).replace(/[^a-zA-Z0-9_-]/g, '') || `v${i + 1}`,
+              title:       (v.title || '').trim() || `Vidéo ${i + 1}`,
+              hls:         '',
+              urls:        (v.url || '').trim() ? { '1080p': v.url.trim() } : {},
+              downloadUrl: (v.downloadUrl || '').trim(),
+              chapitres:   [],
+            }));
+          if (!config.defaultVideo || !config.videos.some(v => v.key === config.defaultVideo)) {
+            config.defaultVideo = config.videos[0]?.key || '';
+          }
+        }
+
+        const payload = {
+          title: form.title.trim(), kind: form.kind, template: form.template, config,
+        };
+
+        let result;
+        if (existing) {
+          result = await sb.from('galleries').update(payload).eq('id', existing.id).select().single();
+        } else {
+          // position : à la suite des galeries déjà en place.
+          const { data: siblings } = await sb.from('galleries')
+            .select('position').eq('client_id', client.id);
+          const next = (siblings || []).reduce((m, s) => Math.max(m, (s.position ?? 0) + 1), 0);
+          result = await sb.from('galleries')
+            .insert({ ...payload, client_id: client.id, position: next })
+            .select().single();
+        }
+
+        if (result.error) { setErr(result.error.message); setLoading(false); return; }
+        onSaved(result.data);
+      };
+
+      return (
+        <Modal
+          title={existing ? 'Modifier la galerie' : 'Nouvelle galerie'}
+          kicker={existing ? 'Édition' : 'Création'}
+          onClose={onClose}
+          size="lg"
+        >
+          <form onSubmit={submit} className="space-y-4">
+            <Field label="Titre">
+              <Input required value={form.title} autoFocus
+                onChange={e => setForm({ ...form, title: e.target.value })}
+                placeholder="Mariage de Précieuse & Ronny" />
+              <div className="text-[11px] text-stone-500 mt-1.5">
+                Le titre s'affiche en haut de la galerie et sert de base au code d'accès.
+              </div>
+            </Field>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Type">
+                <Select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })}>
+                  {GALLERY_KINDS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Gabarit de rendu">
+                <Select value={form.template} onChange={e => setForm({ ...form, template: e.target.value })}>
+                  {GALLERY_TEMPLATES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </Select>
+              </Field>
+            </div>
+
+            {showsVideos && (
+              <Field label="Vidéos">
+                <div className="space-y-3">
+                  {videos.map((v, i) => (
+                    <div key={i} style={neu.pressedSm} className="rounded-xl p-3.5 space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <Input value={v.title} onChange={e => setVideo(i, { title: e.target.value })}
+                            placeholder="Titre — Teaser, Film complet…" aria-label="Titre de la vidéo" />
+                        </div>
+                        <button type="button" onClick={() => removeVideo(i)}
+                          aria-label="Retirer cette vidéo"
+                          className="w-9 h-9 flex items-center justify-center rounded-lg text-rose-500 shrink-0">
+                          <X size={15} />
+                        </button>
+                      </div>
+                      <Input value={v.url} onChange={e => setVideo(i, { url: e.target.value })}
+                        placeholder="URL du MP4 (lecture)" aria-label="URL de lecture" />
+                      <Input value={v.downloadUrl} onChange={e => setVideo(i, { downloadUrl: e.target.value })}
+                        placeholder="URL de téléchargement (optionnel)" aria-label="URL de téléchargement" />
+                    </div>
+                  ))}
+                  <Btn icon={Plus} onClick={addVideo} full>Ajouter une vidéo</Btn>
+                </div>
+                <div className="text-[11px] text-stone-500 mt-2 leading-relaxed">
+                  Livrez un MP4 progressif : le lecteur le lit sans encodage préalable.
+                  Laissez le téléchargement vide pour ne pas proposer le fichier source.
+                </div>
+              </Field>
+            )}
+
+            {err && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]"><AlertCircle size={14} /> {err}</div>}
+
+            <div className="flex gap-3 pt-2">
+              <Btn onClick={onClose} full>Annuler</Btn>
+              <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
+                {loading ? 'Enregistrement…' : (existing ? 'Mettre à jour' : 'Créer la galerie')}
+              </Btn>
+            </div>
+          </form>
+        </Modal>
+      );
+    }
+
+    /* ── Photos D'UNE galerie : catégories + upload B2 ───────
+       Reprise de l'ancien GalleryB2Manager (brique 11) — mêmes
+       variantes, même préfixe B2 — mais tout est filtré et écrit
+       avec `gallery_id`, au lieu du seul `client_id`.
+       ──────────────────────────────────────────────────────── */
+    function GalleryPhotos({ gallery, client, onChanged }) {
       const [rows, setRows] = useState([]);
       const [loading, setLoading] = useState(true);
       const [pendingCats, setPendingCats] = useState([]);  // catégories créées, encore vides
@@ -2022,23 +2497,22 @@
       const load = async () => {
         setLoading(true);
         const { data, error } = await sb.from('gallery_photos').select('*')
-          .eq('client_id', client.id)
+          .eq('gallery_id', gallery.id)
           .order('position', { ascending: true })
           .order('created_at', { ascending: true });
         if (!error) setRows(data || []);
         setLoading(false);
       };
-      useEffect(() => { load(); }, [client.id]);
+      useEffect(() => { load(); }, [gallery.id]);
 
-      // Catégories ordonnées comme la RPC : min(position), min(created_at)
+      // Même ordre que la RPC get_gallery_by_code : min(position),
+      // min(created_at) — les ISO se comparent en texte — puis nom.
       const cats = useMemo(() => {
         const by = new Map();
         rows.forEach(r => {
           if (!by.has(r.category)) by.set(r.category, { name: r.category, photos: [] });
           by.get(r.category).photos.push(r);
         });
-        // Même ordre que la RPC get_client_gallery : min(position),
-        // min(created_at) — les ISO se comparent en texte — puis nom.
         const minCreated = (c) => c.photos.reduce(
           (m, p) => (p.created_at && p.created_at < m) ? p.created_at : m,
           c.photos[0]?.created_at || '');
@@ -2053,8 +2527,6 @@
         return list;
       }, [rows, pendingCats]);
 
-      const totalPhotos = rows.length;
-
       const addCategory = () => {
         const name = newCat.trim();
         if (!name) return;
@@ -2068,10 +2540,9 @@
         if (!name || name === oldName) { setRenames(r => ({ ...r, [oldName]: undefined })); return; }
         if (cats.some(c => c.name === name)) { alert('Cette catégorie existe déjà.'); return; }
         setPendingCats(p => p.map(n => n === oldName ? name : n));
-        const hasRows = rows.some(r => r.category === oldName);
-        if (hasRows) {
+        if (rows.some(r => r.category === oldName)) {
           const { error } = await sb.from('gallery_photos')
-            .update({ category: name }).eq('client_id', client.id).eq('category', oldName);
+            .update({ category: name }).eq('gallery_id', gallery.id).eq('category', oldName);
           if (error) { alert(error.message); return; }
           await load();
         }
@@ -2080,18 +2551,16 @@
 
       const removeEmptyCategory = (name) => setPendingCats(p => p.filter(n => n !== name));
 
-      // Suppression d'une photo : ligne SQL seulement — la purge des
-      // fichiers B2 est différée (acceptable : ils deviennent orphelins,
-      // nettoyables plus tard par un script de ménage côté plateforme).
+      // Suppression : ligne SQL seulement — la purge des fichiers B2 est
+      // différée (orphelins nettoyables par un script de ménage plateforme).
       const deletePhoto = async (p) => {
         if (!confirm('Supprimer cette photo de la galerie ?')) return;
         const { error } = await sb.from('gallery_photos').delete().eq('id', p.id);
         if (error) { alert(error.message); return; }
         setRows(rs => rs.filter(r => r.id !== p.id));
+        onChanged?.();
       };
 
-      // Réordonnancement simple : échange de positions avec le voisin.
-      // Si les positions ne sont pas discriminantes, on ré-indexe la catégorie.
       const movePhoto = async (cat, idx, dir) => {
         const j = idx + dir;
         if (j < 0 || j >= cat.photos.length || busy) return;
@@ -2126,127 +2595,106 @@
           setUp(s => ({ ...s, [cat.name]: { done: i, total: files.length, pct: 0, msg: `Photo ${i + 1}/${files.length}…` } }));
           try {
             await uploadGalleryPhoto({
-              client, category: cat.name, position: position + i, file: files[i],
+              client, gallery, category: cat.name, position: position + i, file: files[i],
               onProgress: (p) => setUp(s => ({ ...s, [cat.name]: { ...(s[cat.name] || {}), done: i, total: files.length, pct: Math.round(((i + p) / files.length) * 100), msg: `Photo ${i + 1}/${files.length}…` } })),
             });
           } catch (err) {
             setUp(s => ({ ...s, [cat.name]: { err: true, msg: `✗ ${err.message} (photo ${i + 1}/${files.length})` } }));
             setBusy(false);
-            await load();
+            await load(); onChanged?.();
             return;
           }
         }
         setUp(s => ({ ...s, [cat.name]: { msg: `✅ ${files.length} photo${files.length > 1 ? 's' : ''} en ligne` } }));
         setPendingCats(p => p.filter(n => n !== cat.name));
         setBusy(false);
-        await load();
+        await load(); onChanged?.();
       };
 
+      if (loading) {
+        return <div className="py-6 flex justify-center"><Loader2 size={16} className="animate-spin text-stone-400" /></div>;
+      }
+
       return (
-        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div>
-              <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Livraison photos</div>
-              <h3 className="text-[20px] lg:text-[22px] tracking-tight mt-1" style={SERIF}>Galerie B2</h3>
-            </div>
-            {totalPhotos > 0 && (
-              <span className="text-[11px] text-stone-500 font-medium mt-1">
-                {totalPhotos} photo{totalPhotos > 1 ? 's' : ''} · {cats.filter(c => c.photos.length).length} catégorie{cats.filter(c => c.photos.length).length > 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-          <p className="text-[12px] lg:text-[13px] text-stone-500 mt-2 leading-relaxed">
-            Les photos partent directement sur votre stockage (originaux intacts + variantes d'affichage
-            générées dans le navigateur). La galerie du client les affiche automatiquement, catégorie par catégorie.
-          </p>
-          {!hasPhotosPage && totalPhotos > 0 && (
-            <div className="mt-3 rounded-xl px-3.5 py-2.5 text-[11.5px] leading-relaxed" style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.30)', color: '#92400e' }}>
-              <strong>Page manquante :</strong> créez la page « Galerie photos » ci-dessus pour que le client voie ces photos.
-            </div>
-          )}
-
-          {loading ? (
-            <div className="py-8 flex justify-center"><Loader2 size={18} className="animate-spin text-stone-400" /></div>
-          ) : (
-            <div className="space-y-3 mt-4">
-              {cats.map((cat) => (
-                <div key={cat.name} style={neu.pressedSm} className="rounded-2xl p-4">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="flex-1 min-w-[180px]">
-                      <Input
-                        value={renames[cat.name] ?? cat.name}
-                        onChange={e => setRenames(r => ({ ...r, [cat.name]: e.target.value }))}
-                        onBlur={() => renameCategory(cat.name)}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
-                        aria-label="Nom de la catégorie"
-                      />
-                    </div>
-                    <span className="text-[11px] text-stone-500 whitespace-nowrap">{cat.photos.length} photo{cat.photos.length > 1 ? 's' : ''}</span>
-                    <label className={`cursor-pointer px-3 py-2 min-h-[36px] rounded-full text-[11.5px] font-semibold flex items-center gap-1.5 bg-stone-900 text-white hover:bg-stone-800 transition ${busy ? 'opacity-50 pointer-events-none' : ''}`}>
-                      {/* ⚠️ FileList est VIVANTE : la copier en Array AVANT
-                          de vider l'input, sinon elle devient vide. */}
-                      <input type="file" accept="image/*" multiple hidden
-                        onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; uploadFiles(cat, files); }} />
-                      <Plus size={11} /> Ajouter des photos
-                    </label>
-                    {cat.photos.length === 0 && (
-                      <button type="button" onClick={() => removeEmptyCategory(cat.name)} aria-label="Retirer la catégorie vide" className="text-rose-500 p-2">
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
-
-                  {up[cat.name] && (
-                    <div className="mt-2.5">
-                      {up[cat.name].pct != null && !up[cat.name].err && (
-                        <div className="h-1.5 rounded-full bg-stone-300/60 overflow-hidden mb-1.5">
-                          <div className="h-full bg-stone-900 transition-all" style={{ width: `${up[cat.name].pct}%` }} />
-                        </div>
-                      )}
-                      <div className={`text-[11.5px] font-medium ${up[cat.name].err ? 'text-rose-600' : 'text-stone-600'}`}>{up[cat.name].msg}</div>
-                    </div>
-                  )}
-
-                  {cat.photos.length > 0 && (
-                    <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))' }}>
-                      {cat.photos.map((p, idx) => (
-                        <div key={p.id} className="relative group rounded-lg overflow-hidden" style={{ aspectRatio: '1', background: 'rgba(0,0,0,0.08)' }}>
-                          <img src={p.url_grid || p.url_view} alt="" loading="lazy" className="w-full h-full object-cover" />
-                          <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 py-1 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
-                            <button type="button" disabled={busy || idx === 0} onClick={() => movePhoto(cat, idx, -1)} aria-label="Monter" className="text-white p-1 disabled:opacity-30">
-                              <ChevronUp size={13} />
-                            </button>
-                            <button type="button" disabled={busy || idx === cat.photos.length - 1} onClick={() => movePhoto(cat, idx, 1)} aria-label="Descendre" className="text-white p-1 disabled:opacity-30">
-                              <ChevronDown size={13} />
-                            </button>
-                            <button type="button" disabled={busy} onClick={() => deletePhoto(p)} aria-label="Supprimer la photo" className="text-rose-300 p-1 disabled:opacity-30">
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              <div className="flex items-center gap-2">
-                <div className="flex-1">
+        <div className="space-y-3 mt-4 pt-4" style={{ borderTop: '1px solid rgba(120,113,108,0.18)' }}>
+          {cats.map((cat) => (
+            <div key={cat.name} style={neu.raisedXs} className="rounded-2xl p-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex-1 min-w-[180px]">
                   <Input
-                    value={newCat}
-                    onChange={e => setNewCat(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } }}
-                    placeholder="Nouvelle catégorie — Préparatifs, Cérémonie…"
-                    aria-label="Nom de la nouvelle catégorie"
+                    value={renames[cat.name] ?? cat.name}
+                    onChange={e => setRenames(r => ({ ...r, [cat.name]: e.target.value }))}
+                    onBlur={() => renameCategory(cat.name)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+                    aria-label="Nom de la catégorie"
                   />
                 </div>
-                <Btn icon={Plus} onClick={addCategory} disabled={!newCat.trim()}>Créer</Btn>
+                <span className="text-[11px] text-stone-500 whitespace-nowrap">{cat.photos.length} photo{cat.photos.length > 1 ? 's' : ''}</span>
+                <label className={`cursor-pointer px-4 py-2.5 min-h-[44px] rounded-full text-[12px] font-semibold flex items-center gap-1.5 bg-stone-900 text-white hover:bg-stone-800 transition ${busy ? 'opacity-50 pointer-events-none' : ''}`}>
+                  {/* ⚠️ FileList est VIVANTE : la copier en Array AVANT
+                      de vider l'input, sinon elle devient vide. */}
+                  <input type="file" accept="image/*" multiple hidden
+                    onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; uploadFiles(cat, files); }} />
+                  <Plus size={12} /> Ajouter des photos
+                </label>
+                {cat.photos.length === 0 && (
+                  <button type="button" onClick={() => removeEmptyCategory(cat.name)}
+                    aria-label="Retirer la catégorie vide"
+                    className="w-11 h-11 flex items-center justify-center rounded-lg text-rose-500">
+                    <X size={15} />
+                  </button>
+                )}
               </div>
-              {cats.length === 0 && (
-                <div className="text-center text-[12px] text-stone-400 py-2 leading-relaxed">
-                  Créez une catégorie (Préparatifs, Cérémonie…) puis déposez vos photos dedans.
+
+              {up[cat.name] && (
+                <div className="mt-2.5">
+                  {up[cat.name].pct != null && !up[cat.name].err && (
+                    <div className="h-1.5 rounded-full bg-stone-300/60 overflow-hidden mb-1.5">
+                      <div className="h-full bg-stone-900 transition-all" style={{ width: `${up[cat.name].pct}%` }} />
+                    </div>
+                  )}
+                  <div className={`text-[11.5px] font-medium ${up[cat.name].err ? 'text-rose-600' : 'text-stone-600'}`}>{up[cat.name].msg}</div>
                 </div>
               )}
+
+              {cat.photos.length > 0 && (
+                <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))' }}>
+                  {cat.photos.map((p, idx) => (
+                    <div key={p.id} className="relative group rounded-lg overflow-hidden" style={{ aspectRatio: '1', background: 'rgba(0,0,0,0.08)' }}>
+                      <img src={p.url_grid || p.url_view} alt="" loading="lazy" className="w-full h-full object-cover" />
+                      <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 py-1 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
+                        <button type="button" disabled={busy || idx === 0} onClick={() => movePhoto(cat, idx, -1)} aria-label="Monter" className="text-white p-1 disabled:opacity-30">
+                          <ChevronUp size={13} />
+                        </button>
+                        <button type="button" disabled={busy || idx === cat.photos.length - 1} onClick={() => movePhoto(cat, idx, 1)} aria-label="Descendre" className="text-white p-1 disabled:opacity-30">
+                          <ChevronDown size={13} />
+                        </button>
+                        <button type="button" disabled={busy} onClick={() => deletePhoto(p)} aria-label="Supprimer la photo" className="text-rose-300 p-1 disabled:opacity-30">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <Input
+                value={newCat}
+                onChange={e => setNewCat(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } }}
+                placeholder="Nouvelle catégorie — Préparatifs, Cérémonie…"
+                aria-label="Nom de la nouvelle catégorie"
+              />
+            </div>
+            <Btn icon={Plus} onClick={addCategory} disabled={!newCat.trim()}>Créer</Btn>
+          </div>
+          {cats.length === 0 && (
+            <div className="text-center text-[12px] text-stone-400 py-2 leading-relaxed">
+              Créez une catégorie (Préparatifs, Cérémonie…) puis déposez vos photos dedans.
             </div>
           )}
         </div>
@@ -5607,10 +6055,13 @@
       // Renseigne FEATURES avant le premier rendu des sections.
       const loadFeatures = async () => {
         const { data } = await sb.from('agencies')
-          .select('name, slug, active, status, plan, contact_email, logo_url, accent_color, bg_color, features_analytics, features_portfolio')
+          .select('name, slug, active, status, plan, contact_email, logo_url, accent_color, bg_color, features_analytics, features_portfolio, features_all_universes')
           .limit(1).maybeSingle();
-        FEATURES.analytics = data?.features_analytics === true;
-        FEATURES.portfolio = data?.features_portfolio === true;
+        FEATURES.analytics    = data?.features_analytics === true;
+        FEATURES.portfolio    = data?.features_portfolio === true;
+        FEATURES.allUniverses = data?.features_all_universes === true;
+        AGENCY.slug = data?.slug || null;
+        AGENCY.name = data?.name || null;
         setMyAgency(data || null);
         setFeaturesReady(true);
       };

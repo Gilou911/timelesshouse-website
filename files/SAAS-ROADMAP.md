@@ -79,12 +79,14 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   timelesshouse inchangés ; en local `?agence=<slug>` simule un
   sous-domaine. Worker `laloge-proxy` (workers/laloge/) : proxy vers
   Pages + MANIFEST PWA DYNAMIQUE par agence (l'app installée porte le
-  nom et les couleurs du vidéaste). ⏳ Branchement Cloudflare restant
-  (token API à créer par Gil : Account Workers Scripts:Edit + Zone
-  DNS:Edit + Workers Routes:Edit sur les zones laloge) : déployer le
-  Worker, routes laloge.app/* · laloge.house/* · *.laloge.house/*,
-  DNS proxiés apex + wildcard. Étage 3 (palier Prestige) : domaine
-  perso par agence (Cloudflare for SaaS).
+  nom et les couleurs du vidéaste). **Branché et EN LIGNE le
+  20/07/2026** (token CLOUDFLARE_LALOGE_TOKEN dans .env.local) :
+  Worker `laloge-proxy` déployé, routes laloge.app/* · laloge.house/*
+  · *.laloge.house/*, DNS proxiés apex + wildcard, SSL actif —
+  vérifié en réel : https://laloge.app (entrée « La Loge. »),
+  sous-domaine d'agence servi avec manifest PWA à la marque de
+  l'agence. Étage 3 (palier Prestige) : domaine perso par agence
+  (Cloudflare for SaaS).
 - **Marque blanche visible ✅ (fait le 20/07/2026)** : les RPC du
   portail renvoient la marque de l'agence (nom, logo, couleurs, email
   de contact) et TOUT l'espace client la porte — dashboard (logo/nom,

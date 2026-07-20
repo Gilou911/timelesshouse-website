@@ -45,7 +45,9 @@ export default {
         if (b && b.name) {
           return new Response(JSON.stringify({
             name: b.name,
-            short_name: b.name.length > 12 ? b.name.slice(0, 12) : b.name,
+            // ≤ 12 caractères, coupé au MOT entier (« Studio », pas « Studio Lumiè »)
+            short_name: b.name.length <= 12 ? b.name
+              : (b.name.slice(0, 13).split(" ").slice(0, -1).join(" ") || b.name.slice(0, 12)),
             description: `Espace privé ${b.name}`,
             id: "/",
             start_url: "/app",

@@ -98,10 +98,23 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   aligné sur les paliers de stockage vendus, et les photos comptent
   enfin dans les quotas. ✅ Fait : `cloudinary-sign` verrouillée aux
   membres TimelessHouse (upload ET destroy — testé TH 200 / locataire
-  401 / anon 401). ⏳ À construire : pipeline galeries B2 pour les
-  locataires (variantes vignette/vue générées dans le NAVIGATEUR à
-  l'upload, stockage `weddings/<code>/…`, remplacement de list-gallery,
-  rendu event-photos depuis B2). Vidéo : les locataires livrent en MP4
+  401 / anon 401). ✅ **Pipeline galeries B2 CONSTRUIT (20/07/2026,
+  brique 11 de `files/migration-saas-b3-agences.sql`)** : table
+  `gallery_photos` (RLS « agency write » + trigger `set_agency`) + RPC
+  scellée `get_client_gallery(code)` ; admin → section « Galerie B2 »
+  de l'onglet Page client (catégories, variantes générées DANS LE
+  NAVIGATEUR — view ≤ 2000 px q0.82, grid ≤ 1000 px q0.80, original
+  intact — upload direct `weddings/<code>/galerie/<slug>/<uuid>/`,
+  réordonnancement, suppression [purge B2 différée : lignes SQL
+  supprimées, fichiers orphelins à balayer par un script de ménage
+  plateforme]) ; rendu : event-photos(-cinematic).html essaient la RPC
+  B2 D'ABORD puis retombent sur list-gallery/legacy — testé en réel
+  de bout en bout (agence de test éphémère : b2-sign scoping 403
+  cross-agence, RLS 42501 cross-tenant, uploads + lightbox + download
+  B2 sur les 2 pages) et non-régression vérifiée (ezla-davy Cloudinary
+  320 photos intact, dashboard joxci intact). Les photos comptent dans
+  les quotas via measure-storage (préfixe `weddings/<code>` déjà
+  classé). Vidéo : les locataires livrent en MP4
   progressif (aucun outil requis, le lecteur gère) ; l'encodage HLS
   automatique (worker ffmpeg externe — impossible en serverless)
   viendra plus tard ; Cloudflare Stream écarté (échelle de qualités

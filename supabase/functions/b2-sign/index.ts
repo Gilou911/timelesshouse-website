@@ -11,10 +11,10 @@
 // serveur Next.js).
 //
 // SÉCURITÉ :
-//   ▸ Réservée aux admins : le JWT Supabase de la session admin
-//     est vérifié via auth.getUser() — la clé anon seule est
-//     refusée (les clients n'ont pas de compte, seul l'admin
-//     se connecte via signInWithPassword).
+//   ▸ Réservée aux MEMBRES D'AGENCE (agency_members — SaaS B.3) :
+//     le JWT Supabase de la session est vérifié via auth.getUser(),
+//     puis chaque chemin est contrôlé contre le périmètre de
+//     l'agence de l'appelant (aucune signature cross-agence).
 //   ▸ Les clés B2 ne quittent JAMAIS cette fonction.
 //   ▸ Les chemins (key) sont validés : pas de "..", pas de "/",
 //     préfixes autorisés uniquement (media/, weddings/).
@@ -111,23 +111,62 @@ function dispositionFor(key: string): string | undefined {
   return `attachment; filename="${name}"`;
 }
 
-// L'appelant doit être authentifié ET faire partie des emails admin.
-// Double barrière : même si les inscriptions publiques étaient ouvertes,
-// seul un email de la liste ADMIN_EMAILS peut signer un upload.
-const ADMIN_EMAILS = (Deno.env.get("ADMIN_EMAILS") || "")
-  .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+// ─── Garde par rôles (SaaS B.3 — remplace ADMIN_EMAILS) ─────
+// L'appelant doit être MEMBRE D'UNE AGENCE (`agency_members`), et
+// chaque chemin signé est vérifié : un admin ne signe QUE dans le
+// périmètre de SON agence (media/<id> à elle, weddings/<code> d'un de
+// SES clients, invoices|documents/<clientId> idem ; photobooth/ est
+// réservé aux membres TimelessHouse — le compte machine photobooth
+// est membre admin de l'agence).
+type Caller = { userId: string; email: string; agencyIds: string[] };
 
-async function requireAdmin(req: Request): Promise<string | null> {
-  const auth = req.headers.get("Authorization") || "";
-  const token = auth.replace(/^Bearer\s+/i, "");
+async function requireAgencyMember(req: Request): Promise<Caller | null> {
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   if (!token) return null;
   const { data, error } = await sbAdmin.auth.getUser(token);
   if (error || !data?.user) return null;
-  const email = (data.user.email || "").toLowerCase();
-  // Si ADMIN_EMAILS est défini, on l'exige ; sinon (secret oublié) on
-  // retombe sur « tout utilisateur authentifié » pour ne pas tout bloquer.
-  if (ADMIN_EMAILS.length > 0 && !ADMIN_EMAILS.includes(email)) return null;
-  return data.user.email ?? data.user.id;
+  const { data: rows } = await sbAdmin
+    .from("agency_members").select("agency_id").eq("user_id", data.user.id);
+  if (!rows || rows.length === 0) return null;
+  return {
+    userId: data.user.id,
+    email: (data.user.email || "").toLowerCase(),
+    agencyIds: rows.map((r) => r.agency_id as string),
+  };
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Le chemin demandé appartient-il au périmètre de l'agence de l'appelant ?
+async function keyInCallerScope(caller: Caller, key: string): Promise<boolean> {
+  const [prefix, second] = key.split("/");
+  if (prefix === "media") {
+    // media/<id>/… : la fiche média est créée AVANT l'upload → vérifiable
+    if (!UUID_RE.test(second || "")) return false;
+    const { data } = await sbAdmin.from("media").select("id")
+      .eq("id", second).in("agency_id", caller.agencyIds).maybeSingle();
+    return !!data;
+  }
+  if (prefix === "weddings") {
+    // weddings/<code client>/…
+    if (!second) return false;
+    const { data } = await sbAdmin.from("clients").select("id")
+      .eq("code", second).in("agency_id", caller.agencyIds).maybeSingle();
+    return !!data;
+  }
+  if (prefix === "invoices" || prefix === "documents") {
+    // invoices|documents/<id client>/…
+    if (!UUID_RE.test(second || "")) return false;
+    const { data } = await sbAdmin.from("clients").select("id")
+      .eq("id", second).in("agency_id", caller.agencyIds).maybeSingle();
+    return !!data;
+  }
+  if (prefix === "photobooth") {
+    const { data } = await sbAdmin.from("agencies").select("id")
+      .eq("slug", "timelesshouse").in("id", caller.agencyIds).maybeSingle();
+    return !!data;
+  }
+  return false;
 }
 
 // ─── Handler ────────────────────────────────────────────────
@@ -135,8 +174,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST")    return json(405, { error: "Méthode non autorisée" });
 
-  const who = await requireAdmin(req);
-  if (!who) return json(401, { error: "Session admin requise — reconnecte-toi." });
+  const caller = await requireAgencyMember(req);
+  if (!caller) return json(401, { error: "Session admin requise — reconnecte-toi." });
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json(400, { error: "JSON invalide" }); }
@@ -146,6 +185,9 @@ Deno.serve(async (req) => {
 
   if (!validKey(key)) {
     return json(400, { error: "Chemin de fichier invalide (préfixes autorisés : media/, weddings/, invoices/, documents/, photobooth/)" });
+  }
+  if (!(await keyInCallerScope(caller, key))) {
+    return json(403, { error: "Chemin hors du périmètre de votre agence." });
   }
 
   try {
@@ -247,7 +289,7 @@ Deno.serve(async (req) => {
         return json(400, { error: `Action inconnue : ${action}` });
     }
   } catch (err) {
-    console.error(`[b2-sign] ${action} par ${who} a échoué :`, err);
+    console.error(`[b2-sign] ${action} par ${caller.email} a échoué :`, err);
     return json(500, { error: err instanceof Error ? err.message : "Erreur B2" });
   }
 });

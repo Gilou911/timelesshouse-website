@@ -8,7 +8,8 @@
 //
 // DÉCLENCHEURS :
 //   ▸ cron pg_cron toutes les 6 h (header x-cron-key = CRON_SECRET)
-//   ▸ admin (JWT Supabase, emails ADMIN_EMAILS) — body { client_id? }
+//   ▸ membre d'agence (JWT Supabase + agency_members, limité à SON
+//     agence — SaaS B.3) — body { client_id? }
 //   ▸ social-oauth juste après une connexion (première sync)
 //
 // DÉPLOIEMENT : supabase functions deploy sync-social --no-verify-jwt
@@ -23,7 +24,6 @@ const META_SECRET = Deno.env.get("META_APP_SECRET") || "";
 const TT_KEY     = Deno.env.get("TIKTOK_CLIENT_KEY") || "";
 const TT_SECRET  = Deno.env.get("TIKTOK_CLIENT_SECRET") || "";
 const CRON_SECRET = Deno.env.get("CRON_SECRET") || "";
-const ADMIN_EMAILS = (Deno.env.get("ADMIN_EMAILS") || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
 
 const sb = createClient(SB_URL, SB_SERVICE);
 const cors = {
@@ -33,13 +33,19 @@ const cors = {
 };
 const json = (s: number, b: unknown) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
-async function allowed(req: Request): Promise<boolean> {
-  if (CRON_SECRET && req.headers.get("x-cron-key") === CRON_SECRET) return true;
+// Garde par rôles (SaaS B.3 — remplace ADMIN_EMAILS) :
+//   ▸ cron → accès total (toutes agences)
+//   ▸ membre d'agence → sync limitée aux comptes de SON agence
+// Renvoie { cron: true } ou { agencyIds } ; null = refusé.
+async function allowed(req: Request): Promise<{ cron: boolean; agencyIds: string[] } | null> {
+  if (CRON_SECRET && req.headers.get("x-cron-key") === CRON_SECRET) return { cron: true, agencyIds: [] };
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!token) return false;
+  if (!token) return null;
   const { data } = await sb.auth.getUser(token);
-  const email = (data?.user?.email || "").toLowerCase();
-  return !!data?.user && (ADMIN_EMAILS.length === 0 || ADMIN_EMAILS.includes(email));
+  if (!data?.user) return null;
+  const { data: rows } = await sb.from("agency_members").select("agency_id").eq("user_id", data.user.id);
+  if (!rows || rows.length === 0) return null;
+  return { cron: false, agencyIds: rows.map((r) => r.agency_id as string) };
 }
 
 const rate = (num: number, base: number) => (base > 0 ? Math.round((num / base) * 10000) / 100 : null);
@@ -173,11 +179,14 @@ async function syncTiktok(acct: Record<string, any>): Promise<number> {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json(405, { error: "POST attendu" });
-  if (!(await allowed(req))) return json(401, { error: "Non autorisé" });
+  const who = await allowed(req);
+  if (!who) return json(401, { error: "Non autorisé" });
 
   const body = await req.json().catch(() => ({}));
   let q = sb.from("social_accounts").select("*").eq("active", true).not("access_token_encrypted", "is", null);
   if (body.client_id) q = q.eq("client_id", body.client_id);
+  // Un membre d'agence ne déclenche la sync QUE pour ses propres comptes
+  if (!who.cron) q = q.in("agency_id", who.agencyIds);
   const { data: accounts, error } = await q;
   if (error) return json(500, { error: error.message });
 

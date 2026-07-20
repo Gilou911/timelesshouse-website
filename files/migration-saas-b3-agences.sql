@@ -56,6 +56,18 @@ $$ select id from auth.users where lower(email) = lower(trim(p_email)) limit 1 $
 revoke execute on function admin_user_id_by_email(text) from public, anon, authenticated;
 grant  execute on function admin_user_id_by_email(text) to service_role;
 
--- ✅ Brique 1 de B.3 posée. Restent (voir files/SAAS-ROADMAP.md) :
---    gardes Edge Functions par rôles (remplacer ADMIN_EMAILS),
---    marque blanche visible, quotas stockage, Stripe, inscription.
+-- ── Brique 2 : gardes Edge Functions par rôles ──────────────
+-- b2-sign / cloudinary-sign / sync-social n'utilisent plus
+-- ADMIN_EMAILS mais l'appartenance agency_members (b2-sign vérifie en
+-- plus que chaque chemin signé appartient à l'agence de l'appelant).
+-- Le compte machine du photobooth devient membre admin de
+-- TimelessHouse pour continuer à signer ses uploads photobooth/.
+insert into agency_members (agency_id, user_id, role)
+select a.id, u.id, 'admin' from agencies a, auth.users u
+where a.slug = 'timelesshouse' and lower(u.email) = 'photobooth@timelesshouse.org'
+on conflict do nothing;
+
+-- ✅ Briques 1 & 2 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
+--    marque blanche visible, quotas stockage, Stripe, inscription
+--    self-serve, cloisonnement des dossiers Cloudinary (ou migration
+--    Cloudflare Images).

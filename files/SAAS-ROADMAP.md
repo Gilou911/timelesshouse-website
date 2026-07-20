@@ -81,8 +81,18 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   jamais de blocage en plein upload) ; rétention/archivage = soupape.
 - **Stripe abonnements** (modèle éprouvé sur ylvfeet), un produit par
   palier, mensuel + annuel. Préfixes B2 par agence : `agencies/<slug>/…`.
-- Gardes Edge Functions : remplacer `ADMIN_EMAILS` par les rôles
-  `agency_members`.
+- **Gardes Edge Functions par rôles ✅ (fait le 20/07/2026)** :
+  `b2-sign`, `cloudinary-sign` et `sync-social` n'utilisent plus
+  `ADMIN_EMAILS` mais l'appartenance `agency_members`. En plus du rôle,
+  `b2-sign` vérifie que CHAQUE chemin signé appartient au périmètre de
+  l'agence de l'appelant (`media/<id>` à elle, `weddings/<code>` /
+  `invoices|documents/<clientId>` d'un de SES clients, `photobooth/`
+  réservé aux membres TimelessHouse — le compte machine photobooth est
+  membre admin). `sync-social` limité aux comptes de l'agence de
+  l'appelant (le cron garde l'accès total). Testé cross-agence
+  (12 cas) avec une agence éphémère, puis nettoyé. Les uploads d'une
+  agence externe fonctionnent désormais. Reste : cloisonner les
+  dossiers Cloudinary (ou migrer vers Cloudflare Images).
 
 ## C — Apps stores (après B)
 

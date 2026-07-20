@@ -5,8 +5,9 @@
 // photos, afin que l'admin uploade depuis son espace (au lieu du
 // dashboard Cloudinary) tout en gardant les dossiers = catégories.
 //
-// Même modèle de sécurité que b2-sign : réservé aux emails ADMIN_EMAILS
-// (JWT Supabase vérifié). Le secret Cloudinary ne quitte jamais la fonction.
+// Même modèle de sécurité que b2-sign : réservé aux MEMBRES D'AGENCE
+// (JWT Supabase vérifié + agency_members — SaaS B.3). Le secret
+// Cloudinary ne quitte jamais la fonction.
 //
 // Le front demande une signature pour un `folder` (ex : "Photos_x/ceremonie"),
 // puis POST chaque fichier sur https://api.cloudinary.com/v1_1/<cloud>/image/upload
@@ -16,7 +17,7 @@
 //
 // SECRETS REQUIS (déjà présents sur le projet) :
 //   CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
-//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (auto), ADMIN_EMAILS
+//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (auto)
 //
 // DÉPLOIEMENT : supabase functions deploy cloudinary-sign --no-verify-jwt
 // ════════════════════════════════════════════════════════════
@@ -34,9 +35,6 @@ const SB_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CLOUD_NAME     = Deno.env.get("CLOUDINARY_CLOUD_NAME")!;
 const API_KEY        = Deno.env.get("CLOUDINARY_API_KEY")!;
 const API_SECRET     = Deno.env.get("CLOUDINARY_API_SECRET")!;
-const ADMIN_EMAILS   = (Deno.env.get("ADMIN_EMAILS") || "")
-  .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
-
 const sbAdmin = createClient(SB_URL, SB_SERVICE_KEY);
 
 function json(status: number, body: unknown): Response {
@@ -54,14 +52,18 @@ async function sha1Hex(str: string): Promise<string> {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Garde par rôles (SaaS B.3 — remplace ADMIN_EMAILS) : l'appelant doit
+// être MEMBRE D'UNE AGENCE. Les dossiers Cloudinary ne sont pas encore
+// cloisonnés par agence (à traiter avec la migration Cloudflare Images
+// prévue en B.3 — upload-only, pas de lecture ni de listing ici).
 async function requireAdmin(req: Request): Promise<boolean> {
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   if (!token) return false;
   const { data, error } = await sbAdmin.auth.getUser(token);
   if (error || !data?.user) return false;
-  const email = (data.user.email || "").toLowerCase();
-  if (ADMIN_EMAILS.length > 0 && !ADMIN_EMAILS.includes(email)) return false;
-  return true;
+  const { data: rows } = await sbAdmin
+    .from("agency_members").select("agency_id").eq("user_id", data.user.id).limit(1);
+  return !!rows && rows.length > 0;
 }
 
 Deno.serve(async (req) => {

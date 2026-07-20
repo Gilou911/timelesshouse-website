@@ -2078,6 +2078,22 @@
       return `https://${slug}.laloge.house/galerie?c=${code}`;
     }
 
+    /* ── File d'attente d'encodage (brique 15) ───────────────
+       Un MP4 uploadé par un locataire est lisible tout de suite, mais
+       en une seule qualité. On dépose un ticket : le worker
+       (workers/encoder/) le transcodera en 4K→480p adaptatif. La
+       plateforme n'enfile rien — Gil garde son `npm run encode`.
+       Jamais bloquant : si l'insert échoue, la vidéo reste lisible. */
+    async function enqueueEncode(job) {
+      if (FEATURES.allUniverses) return;              // plateforme : encodage manuel
+      if (!job?.source_url) return;
+      try {
+        const { error } = await sb.from('encode_jobs').insert(job);
+        // 23505 = doublon (un job est déjà en attente pour cette vidéo)
+        if (error && error.code !== '23505') console.warn('encode_jobs:', error.message);
+      } catch (e) { console.warn('encode_jobs:', e.message); }
+    }
+
     // Lien de CONNEXION de l'espace client — c'est ce couple (lien + code)
     // que l'admin communique à son client pour qu'il entre dans son espace.
     function clientLoginUrl() {
@@ -2112,6 +2128,7 @@
     function GalleriesManager({ client }) {
       const [galleries, setGalleries] = useState([]);
       const [counts, setCounts]       = useState({});
+      const [jobs, setJobs]           = useState({});      // gallery_id → [jobs d'encodage]
       const [loading, setLoading]     = useState(true);
       const [editing, setEditing]     = useState(null);   // {} = création, {…} = édition
       const [openId, setOpenId]       = useState(null);   // galerie dépliée (photos)
@@ -2133,6 +2150,20 @@
         const by = {};
         (photos || []).forEach(p => { if (p.gallery_id) by[p.gallery_id] = (by[p.gallery_id] || 0) + 1; });
         setCounts(by);
+
+        // État d'encodage (badge « Optimisation en cours »). Table
+        // absente ou vide → aucun badge, jamais d'erreur bloquante.
+        const ids = (data || []).map(g => g.id);
+        if (ids.length) {
+          const { data: js } = await sb.from('encode_jobs')
+            .select('gallery_id, status').in('gallery_id', ids);
+          const byJob = {};
+          (js || []).forEach(j => {
+            if (!j.gallery_id) return;
+            (byJob[j.gallery_id] = byJob[j.gallery_id] || []).push(j);
+          });
+          setJobs(byJob);
+        }
         setLoading(false);
       };
       useEffect(() => { load(); }, [client.id]);
@@ -2243,6 +2274,7 @@
                   last={idx === galleries.length - 1}
                   busy={busy}
                   open={openId === g.id}
+                  encodeJobs={jobs[g.id]}
                   onToggleOpen={() => setOpenId(openId === g.id ? null : g.id)}
                   onMove={(dir) => move(idx, dir)}
                   onEdit={() => setEditing(g)}
@@ -2267,13 +2299,44 @@
       );
     }
 
+    /* ── État d'encodage d'une vidéo ────────────────────────
+       Trois états visibles par l'admin : rien (pas de vidéo), en
+       cours (le worker n'a pas encore fini) et adaptatif (fini).
+       Discret : c'est une information de confort, pas une action. */
+    function EncodeBadge({ state }) {
+      if (!state || state === 'none') return null;
+      const map = {
+        pending:  { txt: 'Optimisation en cours', cls: 'bg-amber-100 text-amber-700' },
+        error:    { txt: 'Optimisation échouée',  cls: 'bg-rose-100 text-rose-700'  },
+        ready:    { txt: 'Qualité adaptative',    cls: 'bg-emerald-100 text-emerald-700' },
+      };
+      const m = map[state];
+      if (!m) return null;
+      return (
+        <span className={`text-[9.5px] uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold ${m.cls}`}>
+          {m.txt}
+        </span>
+      );
+    }
+
+    // Résume l'état d'encodage d'une liste de vidéos + les jobs en cours.
+    function encodeStateOf(videos, jobs) {
+      const list = Array.isArray(videos) ? videos.filter(v => v?.urls?.['1080p'] || v?.hls) : [];
+      if (!list.length) return 'none';
+      if (jobs?.some(j => j.status === 'pending' || j.status === 'processing')) return 'pending';
+      if (list.every(v => v.hls)) return 'ready';
+      if (jobs?.some(j => j.status === 'error')) return 'error';
+      return 'none';
+    }
+
     /* ── Une galerie : en-tête, partage, puis photos dépliables ── */
     function GalleryCard({
-      gallery: g, client, count, first, last, busy, open,
+      gallery: g, client, count, first, last, busy, open, encodeJobs,
       onToggleOpen, onMove, onEdit, onRemove, onToggleShare, onRegenCode, onPhotosChanged,
     }) {
       const shareUrl = galleryShareUrl(g.access_code);
       const showsPhotos = g.kind === 'photos' || g.kind === 'mixte';
+      const encodeState = encodeStateOf(g.config?.videos, encodeJobs);
 
       return (
         <div style={neu.pressedSm} className="rounded-2xl p-4">
@@ -2310,6 +2373,7 @@
                 {(g.kind === 'video' || g.kind === 'mixte') && (
                   <><span>·</span><span>{(g.config?.videos || []).length} vidéo{(g.config?.videos || []).length > 1 ? 's' : ''}</span></>
                 )}
+                <EncodeBadge state={encodeState} />
               </div>
             </div>
 
@@ -2454,6 +2518,22 @@
         }
 
         if (result.error) { setErr(result.error.message); setLoading(false); return; }
+
+        // Chaque vidéo uploadée mais pas encore transcodée part en file
+        // d'attente d'encodage (une seule fois : l'index anti-doublon
+        // rejette silencieusement un ticket déjà en attente).
+        if (showsVideos) {
+          const saved = result.data;
+          for (const v of (saved?.config?.videos || [])) {
+            const mp4 = v?.urls?.['1080p'];
+            if (mp4 && !v.hls) {
+              await enqueueEncode({
+                kind: 'gallery_video', gallery_id: saved.id,
+                video_key: v.key, source_url: mp4,
+              });
+            }
+          }
+        }
         onSaved(result.data);
       };
 
@@ -4162,6 +4242,11 @@
             setEncodeHint({ id: rowId, filename: videoFile.name });
             setLoading(false);
           } else {
+            // Locataire : le worker prendra le relais pour la qualité
+            // adaptative (la vidéo est déjà lisible en attendant).
+            if (videoFile && patch.url) {
+              await enqueueEncode({ kind: 'media', media_id: rowId, source_url: patch.url });
+            }
             onSaved();
           }
         } catch (err) {

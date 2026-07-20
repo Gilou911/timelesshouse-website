@@ -176,6 +176,9 @@ function injectStyles() {
     border-radius: 6px; background: var(--surface); color: var(--faint);
     font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase;
   }
+  /* display:flex bat le [hidden] du navigateur : sans cette règle, le
+     « Bientôt disponible » s'affiche SOUS un film parfaitement lisible. */
+  .g-soon[hidden] { display: none; }
   `;
   document.head.appendChild(s);
 }

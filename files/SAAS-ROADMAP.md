@@ -407,6 +407,42 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   visonmike, `joxciagence9991` route toujours vers son tableau de bord,
   `laloge.house/` → `/app` et `laloge.app/` → `/offres` en prod.
 
+- **Worker d'encodage HLS ✅ (fait le 20/07/2026, brique 15)** : les
+  vidéos des locataires passent automatiquement en lecture adaptative,
+  sans aucune action manuelle. Circuit : upload → ticket dans
+  `encode_jobs` (déposé par la console, silencieux et non bloquant) →
+  worker `workers/encoder/worker-encode.mjs` → segments HLS sur B2 à
+  côté de l'original → `media.preview_url` ou
+  `galleries.config.videos[].hls` renseigné → `galerie-rendu.js` charge
+  hls.js et affiche le sélecteur de qualité. Le cœur d'encodage
+  (ffprobe, paliers 2160/1080/720/480, ffmpeg, upload) a été extrait
+  dans `scripts/encode-core.mjs`, **partagé** avec le CLI manuel de la
+  plateforme : une seule vérité à maintenir, et `npm run encode` reste
+  identique pour Gil (vérifié par un encodage réel de bout en bout).
+  Garde-fous : réclamation atomique (`claim_encode_job()`,
+  `for update skip locked`) donc deux workers ne prennent jamais le même
+  job ; index partiels anti-doublon ; sources hors bucket refusées ;
+  plafond 30 Go ; une reprise en cas de panne passagère, abandon
+  immédiat sur erreur définitive ; nettoyage des encodages précédents.
+  La plateforme n'enfile RIEN (`features_all_universes`).
+  Vérifié en réel : galerie créée au navigateur avec upload d'un vrai
+  MP4 1080p → ticket enfilé seul avec la bonne agence → worker →
+  **12 fichiers HLS produits, lecture confirmée dans le navigateur via
+  MediaSource, décodée en 1280×720, sélecteur AUTO/480p/720p/1080p,
+  saut à 5,5 s réussi** (le maillon que la session « galeries » n'avait
+  jamais pu prouver) ; cas d'erreur (source absente → 1 reprise puis
+  abandon ; source hors plateforme → abandon immédiat) ; anti-doublon
+  rejeté par la contrainte ; isolation : un owner d'une autre agence ne
+  voit aucun job. Non-régression : film d'Ezla & Davy intact (4K/1080p).
+  **Bug trouvé en testant** : `.g-soon` (« Bientôt disponible ») était
+  déclaré `display:flex`, ce qui **bat l'attribut `hidden`** du
+  navigateur — le message s'affichait sous un film parfaitement lisible.
+  Corrigé par `.g-soon[hidden] { display: none }`.
+  Reste : installation du LaunchAgent par Gil (fourni, non installé),
+  migration éventuelle sur un VPS, et le ré-encodage des vidéos
+  locataires déjà uploadées (aucune à ce jour). Doc :
+  `files/WORKER-ENCODE.md`.
+
 ## C — Apps stores (après B)
 
 Capacitor + **notifications push** (« Vos photos sont livrées ») —

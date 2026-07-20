@@ -1442,7 +1442,23 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
               ⇒ Plus de bandes noires : la boîte épouse exactement le ratio du média
                 et le navigateur trouve la plus grande taille qui tient dans le parent. */}
 
-          {embed && embed.kind === 'image' && (
+          {/* Vidéo pas encore encodée : le client patiente plutôt que de
+              recevoir le master brut (lourd, saccadé sur une connexion
+              moyenne). Le worker lève le drapeau dès qu'une qualité est
+              prête — voir files/WORKER-ENCODE.md. */}
+          {m.awaiting_encode && m.type === 'video' && (
+            <div className="flex flex-col items-center justify-center gap-3 rounded-xl px-8 py-16 text-center"
+                 style={{ background: 'rgba(255,255,255,0.04)', minHeight: '40vh' }}>
+              <Loader2 size={24} className="animate-spin text-stone-400" />
+              <div className="text-[15px] text-stone-300" style={SERIF}>Votre vidéo est en cours de préparation</div>
+              <div className="text-[12.5px] text-stone-500 max-w-[320px] leading-relaxed">
+                Elle sera disponible dans quelques minutes, optimisée pour se lire
+                parfaitement quelle que soit votre connexion.
+              </div>
+            </div>
+          )}
+
+          {!m.awaiting_encode && embed && embed.kind === 'image' && (
             <img
               src={embed.src}
               alt={m.title}
@@ -1463,7 +1479,7 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
             />
           )}
 
-          {embed && embed.kind === 'video' && (
+          {!m.awaiting_encode && embed && embed.kind === 'video' && (
             <video
               src={embed.src}
               controls
@@ -1486,7 +1502,7 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
           )}
 
           {/* HLS adaptatif (B2) : qualité auto selon la connexion + badge */}
-          {embed && embed.kind === 'hls' && (
+          {!m.awaiting_encode && embed && embed.kind === 'hls' && (
             <HlsPlayer
               src={embed.src}
               onRatio={setMediaRatio}
@@ -1500,7 +1516,7 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
           )}
 
           {/* Iframe (Streamable, YouTube…) : dimensions cross-origin illisibles → 16/9 par défaut */}
-          {embed && embed.kind === 'iframe' && (
+          {!m.awaiting_encode && embed && embed.kind === 'iframe' && (
             <div
               className="rounded-xl overflow-hidden bg-black"
               style={{
@@ -1553,12 +1569,16 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
             <div className="text-[12px] text-stone-500 mt-1">
               {m.date}{m.duration ? ` · ${m.duration}` : ''}{m.size ? ` · ${m.size}` : ''}
             </div>
+            {/* Pas de téléchargement non plus tant que la vidéo se prépare :
+                la livraison est annoncée quand elle est vraiment prête. */}
+            {!m.awaiting_encode && (
             <button onClick={downloadOne} className="mt-4 w-full px-4 py-3 rounded-full bg-stone-900 text-white text-[12.5px] font-semibold flex items-center justify-center gap-2 hover:bg-stone-800 active:scale-95 transition-transform">
               <Download size={14} /> Télécharger
               {m.type === 'video' && m.preview_url
                 ? ` l'original${sourceQualityLabel(m) ? ' ' + sourceQualityLabel(m) : ''}`
                 : ''}
             </button>
+            )}
             {m.type === 'video' && m.preview_url && (
               <div className="mt-2 text-[10.5px] text-stone-500 text-center leading-relaxed">
                 {(() => {

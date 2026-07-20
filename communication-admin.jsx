@@ -2444,6 +2444,10 @@
           title:       v.title || '',
           url:         (v.urls && (v.urls['1080p'] || v.urls['4K'])) || '',
           downloadUrl: v.downloadUrl || '',
+          // Le HLS est produit par le worker : on le TRANSPORTE tel quel.
+          // Sans ça, renommer une galerie après l'encodage effacerait le
+          // travail du worker et la vidéo retomberait en progressif.
+          hls:         v.hls || '',
         }))
       );
       const [loading, setLoading] = useState(false);
@@ -2453,7 +2457,7 @@
       const showsVideos = form.kind === 'video' || form.kind === 'mixte';
 
       const addVideo = () => setVideos(v => [...v, {
-        key: `v${v.length + 1}`, title: '', url: '', downloadUrl: '',
+        key: `v${v.length + 1}`, title: '', url: '', downloadUrl: '', hls: '',
       }]);
       const setVideo = (i, patch) => setVideos(v => v.map((x, k) => k === i ? { ...x, ...patch } : x));
       const removeVideo = (i) => setVideos(v => v.filter((_, k) => k !== i));
@@ -2487,14 +2491,23 @@
         if (showsVideos) {
           config.videos = videos
             .filter(v => (v.title || '').trim() || (v.url || '').trim())
-            .map((v, i) => ({
-              key:         (v.key || `v${i + 1}`).replace(/[^a-zA-Z0-9_-]/g, '') || `v${i + 1}`,
-              title:       (v.title || '').trim() || `Vidéo ${i + 1}`,
-              hls:         '',
-              urls:        (v.url || '').trim() ? { '1080p': v.url.trim() } : {},
-              downloadUrl: (v.downloadUrl || '').trim(),
-              chapitres:   [],
-            }));
+            .map((v, i) => {
+              const mp4 = (v.url || '').trim();
+              const hls = (v.hls || '').trim();
+              return {
+                key:         (v.key || `v${i + 1}`).replace(/[^a-zA-Z0-9_-]/g, '') || `v${i + 1}`,
+                title:       (v.title || '').trim() || `Vidéo ${i + 1}`,
+                hls,
+                urls:        mp4 ? { '1080p': mp4 } : {},
+                downloadUrl: (v.downloadUrl || '').trim(),
+                chapitres:   [],
+                // Chez un locataire, le client ne voit la vidéo qu'une fois
+                // au moins une qualité encodée : tant que le worker n'a pas
+                // rendu son HLS, la page affiche « préparation en cours ».
+                // (La plateforme garde ses vidéos visibles immédiatement.)
+                ...(!FEATURES.allUniverses && mp4 && !hls ? { awaitingEncode: true } : {}),
+              };
+            });
           if (!config.defaultVideo || !config.videos.some(v => v.key === config.defaultVideo)) {
             config.defaultVideo = config.videos[0]?.key || '';
           }
@@ -4210,9 +4223,11 @@
               patch.duration_seconds = meta.duration;
               if (!form.duration && meta.duration) patch.duration = fmtDurationLabel(meta.duration);
             }
-            // Locataire : le MP4 progressif sert directement de lecture
-            // (streaming HTTP depuis B2) — pas d'étape d'encodage local.
-            if (!FEATURES.allUniverses) patch.preview_url = patch.url;
+            // Locataire : la vidéo reste masquée pour le client tant que
+            // le worker n'a pas produit au moins une qualité (le master
+            // brut ferait une mauvaise première impression). Le worker
+            // renseigne preview_url et lève le drapeau en fin d'encodage.
+            if (!FEATURES.allUniverses) patch.awaiting_encode = true;
           }
           if (photoFile) {
             const pname = b2SafeName(photoFile.name);

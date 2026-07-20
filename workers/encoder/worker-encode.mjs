@@ -124,6 +124,7 @@ async function applyToMedia(job, { masterUrl, posterUrl, hoverUrl, src }) {
   const patch = {
     preview_url:      masterUrl,
     hover_url:        hoverUrl,
+    awaiting_encode:  false,          // la vidéo devient visible par le client
     duration_seconds: src.durationSeconds || null,
     duration:         fmtDuration(src.durationSeconds),
     source_width:     src.srcW,
@@ -149,7 +150,12 @@ async function applyToGalleryVideo(job, { masterUrl }) {
   const idx = list.findIndex((v) => v && v.key === job.video_key);
   if (idx === -1) throw new Error(`vidéo « ${job.video_key} » absente de la galerie (supprimée ?)`);
 
-  const videos = list.map((v, i) => (i === idx ? { ...v, hls: masterUrl } : v));
+  // `awaitingEncode` disparaît : la vidéo devient visible par le client.
+  const videos = list.map((v, i) => {
+    if (i !== idx) return v;
+    const { awaitingEncode, ...rest } = v;
+    return { ...rest, hls: masterUrl };
+  });
   const { error } = await sb.from("galleries")
     .update({ config: { ...config, videos } })
     .eq("id", job.gallery_id);

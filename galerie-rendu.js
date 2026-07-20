@@ -559,6 +559,9 @@ export function normalizeVideos(c) {
         hls: v.hls || '',
         urls: v.urls || {},
         downloadUrl: v.downloadUrl || '',
+        // Drapeau d'attente d'encodage : sans ce report, la vidéo
+        // s'afficherait malgré tout (l'objet est reconstruit ici).
+        awaitingEncode: v.awaitingEncode === true,
       };
     });
   }
@@ -608,16 +611,29 @@ export async function mountVideos(mount, videos, opts = {}) {
     const soon  = sec.querySelector('.g-soon');
     const bar   = sec.querySelector('.g-video-bar');
 
+    const has1080 = v.urls && v.urls['1080p'] && v.urls['1080p'].trim();
+    const has4K   = v.urls && v.urls['4K']   && v.urls['4K'].trim();
+    const hasHls  = v.hls && v.hls.trim();
+
+    // Vidéo d'un locataire en attente d'encodage : on ne la montre pas
+    // encore. Le client verrait sinon le master brut, lourd et parfois
+    // saccadé — mieux vaut une attente courte qu'une mauvaise première
+    // impression. Le worker lève ce drapeau dès qu'une qualité est prête.
+    // (Sans le drapeau, rien ne change : les vidéos historiques
+    //  TimelessHouse, servies en MP4 ou Streamable, restent visibles.)
+    if (v.awaitingEncode && !hasHls) {
+      video.hidden = true;
+      soon.hidden = false;
+      soon.textContent = 'Votre film est en cours de préparation';
+      return;
+    }
+
     if (v.downloadUrl) {
       const a = document.createElement('a');
       a.className = 'g-dl'; a.href = v.downloadUrl; a.setAttribute('download', '');
       a.innerHTML = ICON.dl + '<span>Télécharger</span>';
       bar.appendChild(a);
     }
-
-    const has1080 = v.urls && v.urls['1080p'] && v.urls['1080p'].trim();
-    const has4K   = v.urls && v.urls['4K']   && v.urls['4K'].trim();
-    const hasHls  = v.hls && v.hls.trim();
 
     if (!has1080 && !has4K && !hasHls) {
       video.hidden = true; soon.hidden = false;

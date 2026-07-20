@@ -935,3 +935,27 @@ revoke all on function claim_encode_job() from public, anon, authenticated;
 grant execute on function claim_encode_job() to service_role;
 
 notify pgrst, 'reload schema';
+
+-- ════════════════════════════════════════════════════════════
+-- BRIQUE 16 — Vidéo visible seulement une fois encodée
+-- ════════════════════════════════════════════════════════════
+-- Demande de Gil (20/07/2026) : le client d'un locataire ne doit pas
+-- voir la vidéo tant qu'aucune qualité n'est prête. Sinon il tomberait
+-- sur le master brut — lourd, parfois saccadé sur une connexion
+-- moyenne : une mauvaise première impression sur une livraison qu'on
+-- ne fait qu'une fois. Mieux vaut « préparation en cours » pendant
+-- quelques minutes.
+--
+-- Un drapeau EXPLICITE plutôt que l'absence de preview_url : sinon une
+-- vidéo légitimement sans version allégée (lien collé par la
+-- plateforme) serait prise à tort pour un encodage en attente.
+-- Les galeries utilisent l'équivalent dans leur config jsonb
+-- (`videos[].awaitingEncode`), levé par le même worker.
+--
+-- Par défaut à false : aucune des 12 vidéos existantes n'est masquée.
+
+alter table media add column if not exists awaiting_encode boolean not null default false;
+
+-- get_client_portal renvoie to_jsonb(m) : la colonne est exposée
+-- automatiquement, aucune RPC à modifier.
+notify pgrst, 'reload schema';

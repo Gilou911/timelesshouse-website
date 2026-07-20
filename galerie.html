@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <!-- GALERIE AUTONOME (SaaS B.3, brique 13).
+       Une galerie de livraison est un objet de premier rang : elle a SON
+       code d'accès et SON lien, indépendants de l'espace client.
+         · /galerie?c=<code>  → ouverture directe (lien de partage)
+         · /galerie           → saisie manuelle du code
+       Lien de partage : https://<slug-agence>.laloge.house/galerie?c=<code>
+       (https://timelesshouse.org/galerie?c=<code> pour TimelessHouse).
+       La marque de l'agence est appliquée AVANT et APRÈS la saisie,
+       comme sur app.html. -->
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#0b0b0c" id="metaTheme" />
+  <title>Galerie</title>
+  <link rel="icon" href="/favicon-th.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* Mode sombre assumé : une galerie se regarde sur fond noir.
+       --accent est la seule couleur reprise de la marque de l'agence. */
+    :root {
+      --bg:      #0b0b0c;
+      --bg-deep: #060607;
+      --surface: #161617;
+      --ink:     #f2efe9;
+      --muted:   #9b958a;
+      --faint:   #6a655d;
+      --hair:    rgba(242, 239, 233, 0.12);
+      --accent:  #b08968;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      min-height: 100vh; min-height: 100dvh;
+      background: var(--bg); color: var(--ink);
+      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      opacity: 0; transition: opacity 0.4s ease;
+    }
+    body.ready { opacity: 1; }
+
+    /* ── Porte : saisie du code ── */
+    .gate {
+      min-height: 100vh; min-height: 100dvh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 30px; padding: 28px;
+    }
+    .gate[hidden] { display: none; }
+    .brand { text-align: center; }
+    .brand .nm {
+      font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+      font-size: clamp(1.9rem, 6vw, 2.5rem); letter-spacing: -0.01em; line-height: 1.1;
+    }
+    .brand .nm span { color: var(--faint); }
+    .brand img { max-height: 66px; max-width: 250px; object-fit: contain; }
+    .brand .tag {
+      font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase;
+      color: var(--muted); margin-top: 12px; font-weight: 600;
+    }
+    .panel {
+      width: 100%; max-width: 420px; background: var(--surface);
+      border: 1px solid var(--hair); border-radius: 26px; padding: 28px 26px;
+    }
+    .panel h1 {
+      font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+      font-size: 23px; letter-spacing: -0.01em;
+    }
+    .panel p { font-size: 13.5px; line-height: 1.6; color: var(--muted); margin-top: 7px; }
+    .row { display: flex; gap: 10px; margin-top: 20px; }
+    .row input {
+      flex: 1; min-width: 0; min-height: 48px; padding: 0 18px;
+      border: 1px solid var(--hair); border-radius: 999px;
+      background: var(--bg); color: var(--ink);
+      /* HIG : 16 px minimum, sinon iOS zoome la page au focus */
+      font-size: 16px; font-family: inherit; letter-spacing: 0.05em; outline: none;
+    }
+    .row input:focus { border-color: var(--accent); }
+    .row input::placeholder {
+      color: var(--faint); letter-spacing: 0.12em; font-size: 13px; text-transform: uppercase;
+    }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 48px; padding: 0 24px; border: none; border-radius: 999px;
+      background: var(--accent); color: #fff; cursor: pointer;
+      font-family: inherit; font-size: 14px; font-weight: 600;
+      transition: transform 0.12s ease, opacity 0.12s ease;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn[disabled] { opacity: 0.5; }
+    .err { display: none; font-size: 13px; color: #e0736f; margin-top: 14px; line-height: 1.5; }
+    .err.on { display: block; }
+    .gate footer { font-size: 11.5px; color: var(--faint); text-align: center; line-height: 1.9; }
+    .gate footer a { color: var(--muted); }
+
+    /* ── Galerie ── */
+    .view { display: none; }
+    .view.on { display: block; }
+    .wrap { max-width: 1640px; margin: 0 auto; padding: 0 clamp(14px, 3vw, 40px); }
+    .head {
+      padding: clamp(46px, 9vw, 96px) 0 clamp(30px, 5vw, 54px); text-align: center;
+    }
+    .head .mk {
+      font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+      font-size: 15px; color: var(--muted); margin-bottom: 22px;
+    }
+    .head .mk img { max-height: 40px; max-width: 170px; object-fit: contain; }
+    .head .kicker {
+      font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 14px; font-weight: 600;
+    }
+    .head h1 {
+      font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+      font-size: clamp(2rem, 6.5vw, 3.5rem); letter-spacing: -0.015em; line-height: 1.08;
+    }
+    .head .sub { font-size: 13.5px; color: var(--muted); margin-top: 14px; }
+    .sep { width: 38px; height: 1px; background: var(--accent); opacity: 0.5; margin: 26px auto 0; }
+    .view footer {
+      padding: clamp(50px, 8vw, 90px) 0 44px; text-align: center;
+      font-size: 11.5px; color: var(--faint); line-height: 2; letter-spacing: 0.04em;
+    }
+    .view footer a { color: var(--muted); }
+  </style>
+</head>
+<body>
+
+  <!-- ── Porte d'entrée (code de galerie) ── -->
+  <div class="gate" id="gate" hidden>
+    <div class="brand">
+      <div class="nm" id="gateName">La Loge<span>.</span></div>
+      <div class="tag" id="gateTag">Galerie privée</div>
+    </div>
+    <main class="panel">
+      <h1>Votre galerie</h1>
+      <p id="gateHint">Entrez le code de galerie qui vous a été communiqué.</p>
+      <form class="row" id="gateForm">
+        <input type="text" id="gateCode" placeholder="Code de galerie" autocomplete="off"
+               autocapitalize="none" autocorrect="off" spellcheck="false"
+               aria-label="Code de galerie" enterkeyhint="go" />
+        <button type="submit" class="btn" id="gateBtn">Ouvrir</button>
+      </form>
+      <div class="err" id="gateErr"></div>
+    </main>
+    <footer id="gateFoot">Un accès vous manque&nbsp;? <a href="mailto:service@timelesshouse.org">Contactez votre studio</a>.</footer>
+  </div>
+
+  <!-- ── Galerie ── -->
+  <div class="view" id="view">
+    <header class="head wrap">
+      <div class="mk" id="vMark"></div>
+      <div class="kicker" id="vKicker"></div>
+      <h1 id="vTitle"></h1>
+      <div class="sub" id="vSub"></div>
+      <div class="sep"></div>
+    </header>
+    <div class="wrap">
+      <div id="videos"></div>
+      <div id="photos"></div>
+    </div>
+    <footer id="vFoot"></footer>
+  </div>
+
+  <script type="module">
+    import { createClient } from '@supabase/supabase-js';
+    import { mountPhotos, mountVideos, normalizeVideos } from './galerie-rendu.js';
+
+    const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+    const el = (id) => document.getElementById(id);
+    const qs = new URLSearchParams(location.search);
+
+    /* ── Gabarits : le `template` module le wording, pas la mécanique ──
+       Liste volontairement extensible (la colonne SQL n'a pas de CHECK) :
+       un gabarit inconnu retombe sur 'evenement'. */
+    const TEMPLATES = {
+      mariage:      { kicker: 'Votre mariage',       video: 'Votre film de mariage',     photos: 'Votre galerie de mariage' },
+      fiancailles:  { kicker: 'Vos fiançailles',     video: 'Votre film de fiançailles', photos: 'Vos fiançailles' },
+      anniversaire: { kicker: 'Votre anniversaire',  video: 'Votre film anniversaire',   photos: 'Votre anniversaire' },
+      evenement:    { kicker: 'Votre événement',     video: 'Votre film',                photos: 'Votre galerie' },
+      mannequinat:  { kicker: 'Votre shooting',      video: 'Votre film',                photos: 'Votre shooting' },
+      immobilier:   { kicker: 'Votre bien',          video: 'Votre visite guidée',       photos: 'Votre bien' },
+      corporate:    { kicker: 'Votre collection',    video: 'Votre film',                photos: 'Vos images' },
+    };
+    const tpl = (t) => TEMPLATES[t] || TEMPLATES.evenement;
+
+    /* ── Marque de l'agence ────────────────────────────────────
+       Seul --accent est repris : le fond reste noir (une galerie se
+       regarde sur fond sombre), mais logo, nom et couleur d'accent
+       portent bien l'identité de l'agence, avant comme après saisie. */
+    let BRAND = null;
+    function applyBrand(b) {
+      if (!b) return;
+      BRAND = b;
+      if (b.accent_color && /^#[0-9a-f]{6}$/i.test(b.accent_color)) {
+        document.documentElement.style.setProperty('--accent', b.accent_color);
+      }
+      const nameHtml = b.logo_url
+        ? `<img src="${b.logo_url}" alt="${(b.name || '').replace(/"/g, '&quot;')}" />`
+        : null;
+      if (nameHtml) el('gateName').innerHTML = nameHtml;
+      else el('gateName').innerHTML = `${b.name || 'La Loge'}<span>.</span>`;
+      el('gateHint').textContent = `Entrez le code de galerie que ${b.name} vous a communiqué.`;
+      const mail = b.contact_email || 'service@timelesshouse.org';
+      el('gateFoot').innerHTML = `Un accès vous manque&nbsp;? <a href="mailto:${mail}">Contactez ${b.name}</a>.`;
+      el('vMark').innerHTML = nameHtml || `${b.name || ''}`;
+      el('vFoot').innerHTML = `${b.name || ''} — Collection privée<br/><a href="mailto:${mail}">${mail}</a>`;
+    }
+
+    /* Sous-domaine d'agence (<slug>.laloge.house) ou ?agence= en local :
+       la porte porte la marque AVANT toute saisie, comme app.html. */
+    const subMatch = location.hostname.match(/^([a-z0-9-]+)\.laloge\.house$/);
+    const AGENCY_SLUG = qs.get('agence') ||
+      (subMatch && !['www', 'app'].includes(subMatch[1]) ? subMatch[1] : null);
+
+    function showGate(msg) {
+      el('gate').hidden = false;
+      if (msg) { el('gateErr').textContent = msg; el('gateErr').classList.add('on'); }
+      document.body.classList.add('ready');
+      el('gateCode').focus();
+    }
+
+    /* ── Ouverture d'une galerie ─────────────────────────────── */
+    async function open(code) {
+      const { data, error } = await sb.rpc('get_gallery_by_code', { p_code: code });
+      if (error || !data || !data.gallery) return null;
+
+      const g = data.gallery, cfg = g.config || {}, T = tpl(g.template);
+      applyBrand(data.agency);
+
+      const kind = g.kind || 'photos';
+      const heading = kind === 'video' ? T.video : T.photos;
+      document.title = `${g.title} — ${(data.agency && data.agency.name) || 'La Loge'}`;
+      el('vKicker').textContent = T.kicker;
+      el('vTitle').textContent = g.title || heading;
+      const who = (data.client && data.client.name) || '';
+      const bits = [who, cfg.date || '', cfg.lieu || ''].filter(Boolean);
+      el('vSub').textContent = bits.join(' · ');
+
+      // Vidéos — 'video' et 'mixte'
+      if (kind === 'video' || kind === 'mixte') {
+        const vids = normalizeVideos(cfg);
+        if (vids.length) await mountVideos(el('videos'), vids, { forceTitles: kind === 'mixte' });
+      }
+      // Photos — 'photos' et 'mixte'
+      if (kind === 'photos' || kind === 'mixte') {
+        mountPhotos(el('photos'), data.photos || [], { favKey: code, title: g.title });
+      }
+
+      el('gate').hidden = true;
+      el('view').classList.add('on');
+      document.body.classList.add('ready');
+      return true;
+    }
+
+    /* ── Démarrage ───────────────────────────────────────────── */
+    (async () => {
+      // Marque du sous-domaine, chargée avant toute saisie
+      if (AGENCY_SLUG) {
+        try {
+          const { data } = await sb.rpc('resolve_agency_brand', { p_slug: AGENCY_SLUG });
+          if (data) applyBrand(data);
+        } catch (_) {}
+      }
+      const code = (qs.get('c') || '').trim().toLowerCase();
+      if (!code) return showGate();
+      const ok = await open(code);
+      if (!ok) showGate("Cette galerie est introuvable ou n'est plus partagée.");
+    })();
+
+    /* ── Saisie manuelle ─────────────────────────────────────── */
+    el('gateForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      // Même normalisation que les autres portes d'entrée (app.html)
+      const code = el('gateCode').value.toLowerCase().normalize('NFD')
+        .replace(/[̀-ͯ]/g, '').replace(/&/g, ' ').trim()
+        .replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+      if (!code) return;
+      const btn = el('gateBtn');
+      btn.disabled = true;
+      el('gateErr').classList.remove('on');
+      const ok = await open(code);
+      if (ok) {
+        // Le lien devient partageable / rechargeable tel quel
+        history.replaceState(null, '', '?c=' + encodeURIComponent(code));
+      } else {
+        el('gateErr').textContent = "Code incorrect. Vérifiez-le et réessayez.";
+        el('gateErr').classList.add('on');
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

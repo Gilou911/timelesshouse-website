@@ -42,6 +42,9 @@ export default defineConfig({
         admin:                  resolve(__dirname, 'communication-admin.html'),
         dashboard:              resolve(__dirname, 'communication-dashboard.html'),
 
+        // — Galerie autonome (code et lien propres, SaaS B.3 brique 13) —
+        galerie:                resolve(__dirname, 'galerie.html'),
+
         // — Pages événement (galerie publique) —
         eventEngagement:        resolve(__dirname, 'event-engagement.html'),
         eventAnniversary:       resolve(__dirname, 'event-anniversary.html'),

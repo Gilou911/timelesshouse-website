@@ -70,6 +70,9 @@ const CLIENT = {
   strategies: D.strategies || [],
   comments:   D.comments   || [],
   analytics:  D.analytics  || {},
+  // Galeries autonomes (SaaS B.3, brique 13) : chacune a son propre code
+  // et son propre lien — l'espace client n'en est qu'un point d'entrée.
+  galleries:  D.galleries  || [],
 };
 
 const A = CLIENT.analytics;
@@ -975,6 +978,49 @@ const Dashboard = ({ goTo }) => {
           );
         })}
       </div>
+
+      {/* ── Vos galeries ── (SaaS B.3, brique 13)
+           Une galerie de livraison est autonome : son propre code, son
+           propre lien. L'espace client se contente de les lister — rien
+           ne s'affiche si le client n'en a aucune. ── */}
+      {CLIENT.galleries.length > 0 && (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6 lg:col-span-12">
+          <div className="flex items-end justify-between mb-5 gap-3">
+            <h3 className="text-[20px] lg:text-[22px] tracking-tight leading-none" style={SERIF}>Vos galeries</h3>
+            <span className="text-[12px] text-stone-500 shrink-0">
+              {CLIENT.galleries.length} galerie{CLIENT.galleries.length > 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {CLIENT.galleries.map(g => {
+              const isVideo = g.kind === 'video';
+              const Icon = isVideo ? VideoIcon : ImageIcon;
+              const label = isVideo ? 'Film' : g.kind === 'mixte' ? 'Film & photos' : 'Photos';
+              const count = g.photos_count > 0
+                ? ` · ${g.photos_count} photo${g.photos_count > 1 ? 's' : ''}`
+                : '';
+              return (
+                <a
+                  key={g.id}
+                  href={`/galerie?c=${encodeURIComponent(g.access_code)}`}
+                  style={neu.pressedSm}
+                  className="rounded-2xl p-4 flex items-center gap-4 min-h-[72px] active:scale-[0.99] transition-transform group">
+                  <div style={neu.darkSm} className="w-11 h-11 rounded-xl flex items-center justify-center text-white shrink-0">
+                    <Icon size={17} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-[14px] truncate leading-tight">{g.title}</div>
+                    <div className="text-[11.5px] text-stone-500 mt-1 leading-none truncate">{label}{count}</div>
+                  </div>
+                  <span className="text-[12px] text-stone-500 flex items-center gap-1 shrink-0 group-hover:text-stone-900 transition">
+                    Ouvrir <ArrowUpRight size={13} />
+                  </span>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Prochains tournages ── titre direct, pas de kicker ── */}
       {CLIENT.shootsEnabled && (

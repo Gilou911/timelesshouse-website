@@ -256,6 +256,14 @@
 
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Hall des galeries (SaaS B.3, brique 13) — lancé EN PARALLÈLE du
+    // portail pour ne rien ajouter au temps de chargement. Les galeries
+    // autonomes ont leur propre code ; l'espace client se contente de
+    // lister celles de son client et d'y renvoyer.
+    const galleriesPromise = sb.rpc('get_client_galleries', { p_code: code })
+      .then(r => (r.error ? [] : (r.data || [])))
+      .catch(() => []);
+
     // RPC scellée (SaaS B.2) : tout le portail en un appel, vérifié
     // côté serveur par le code d'accès — remplace 8 selects anon.
     const { data: portal, error: cErr } = await sb.rpc('get_client_portal', { p_code: code });
@@ -319,6 +327,9 @@
       initials:   client.initials || '',
       sector:     client.sector || '',
       code:       client.code,
+      // Galeries autonomes du client (peut être vide → la carte « Vos
+      // galeries » ne s'affiche simplement pas)
+      galleries:  await galleriesPromise,
       agencyName: agencyName,
       agencyEmail: agency.contact_email || 'service@timelesshouse.org',
       agencyLogo:  agency.logo_url || '',

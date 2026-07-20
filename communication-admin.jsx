@@ -1555,12 +1555,25 @@
                   <h2 className="text-[22px] lg:text-[26px] tracking-tight leading-tight truncate" style={SERIF}>{client.name}</h2>
                   <div className="flex items-center gap-2 mt-1.5 text-[11.5px] lg:text-[12px] text-stone-500 flex-wrap">
                     {client.sector && <span className="truncate max-w-[140px]">{client.sector}</span>}
-                    <code style={neu.pressedSm} className="px-2 py-0.5 rounded-md font-mono text-[11px] leading-none">{client.code}</code>
-                    <span className={client.active ? 'text-emerald-600 font-semibold' : 'text-stone-400'}>{client.active ? '· Actif' : '· En pause'}</span>
+                    <span className={client.active ? 'text-emerald-600 font-semibold' : 'text-stone-400'}>{client.active ? 'Actif' : 'En pause'}</span>
                   </div>
                   {client.client_email && (
                     <div className="text-[12px] text-stone-500 mt-1 truncate hidden sm:block">{client.client_email}</div>
                   )}
+                  {/* Accès client : LE couple lien + code à communiquer.
+                      Rendu visible et copiable ici — avant, le code n'était
+                      qu'une puce décorative et l'admin ne savait pas quoi
+                      transmettre à son client. */}
+                  <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                    <span className="text-[10px] uppercase tracking-[0.15em] text-stone-400 font-semibold">Accès client</span>
+                    <code style={neu.pressedSm} className="px-2.5 py-1.5 rounded-md font-mono text-[12px] leading-none">{client.code}</code>
+                    <CopyButton value={client.code} label="Copier le code" />
+                    <CopyButton value={clientLoginUrl()} label="Copier le lien" />
+                    <a href={clientLoginUrl()} target="_blank" rel="noopener" style={neu.raisedXs}
+                       className="px-3 py-2 min-h-[36px] rounded-full text-[11.5px] font-semibold flex items-center gap-1.5 text-stone-600">
+                      <ExternalLink size={11} /> Ouvrir
+                    </a>
+                  </div>
                 </div>
               </div>
 
@@ -1836,6 +1849,10 @@
       const [notifying, setNotifying] = useState(false);
 
       const load = async () => {
+        // Les pages `event_pages` (Cloudinary, URLs manuelles, encodage local)
+        // sont l'héritage TimelessHouse : un locataire n'en a jamais — sa
+        // livraison passe entièrement par les galeries.
+        if (!FEATURES.allUniverses) { setPages([]); setLoading(false); return; }
         setLoading(true);
         const { data } = await sb.from('event_pages').select('*').eq('client_id', clientId);
         setPages(data || []);
@@ -1892,6 +1909,12 @@
         } catch (e) { alert("Erreur réseau : " + e.message); }
         setNotifying(false);
       };
+
+      // Locataire : uniquement la livraison par galeries — jamais le bloc
+      // « Espace de l'événement » ni ses réglages Cloudinary/URLs.
+      if (!FEATURES.allUniverses) {
+        return <GalleriesManager client={client} />;
+      }
 
       return (
         <div className="space-y-5">
@@ -2053,6 +2076,14 @@
       const slug = AGENCY.slug;
       if (!slug || slug === 'timelesshouse') return `https://timelesshouse.org/galerie?c=${code}`;
       return `https://${slug}.laloge.house/galerie?c=${code}`;
+    }
+
+    // Lien de CONNEXION de l'espace client — c'est ce couple (lien + code)
+    // que l'admin communique à son client pour qu'il entre dans son espace.
+    function clientLoginUrl() {
+      const slug = AGENCY.slug;
+      if (!slug || slug === 'timelesshouse') return 'https://timelesshouse.org/app';
+      return `https://${slug}.laloge.house`;
     }
 
     // Bouton « copier » générique — repasse en icône après 1,6 s.
@@ -2353,6 +2384,7 @@
       );
       const [loading, setLoading] = useState(false);
       const [err, setErr] = useState('');
+      const [upProgress, setUpProgress] = useState(null); // { i, pct } pendant un envoi
 
       const showsVideos = form.kind === 'video' || form.kind === 'mixte';
 
@@ -2361,6 +2393,24 @@
       }]);
       const setVideo = (i, patch) => setVideos(v => v.map((x, k) => k === i ? { ...x, ...patch } : x));
       const removeVideo = (i) => setVideos(v => v.filter((_, k) => k !== i));
+
+      // Locataire : la vidéo s'UPLOADE (jamais de lien à coller) — le fichier
+      // part du navigateur vers B2, sous le préfixe du client (périmètre
+      // vérifié par b2-sign), et sert à la fois de lecture et de source.
+      const uploadVideo = async (i, file) => {
+        if (!file) return;
+        const codeSlug = slugify(client?.code || '');
+        if (!codeSlug) { alert("Le client doit avoir un code d'accès avant d'uploader une vidéo."); return; }
+        try {
+          setUpProgress({ i, pct: 0 });
+          const key = `weddings/${codeSlug}/galerie/videos/${crypto.randomUUID()}/${b2SafeName(file.name)}`;
+          const url = await b2UploadFile(file, key, (p) => setUpProgress({ i, pct: Math.round(p * 100) }));
+          setVideo(i, { url, downloadUrl: url, fileName: file.name });
+        } catch (e2) {
+          alert('✗ ' + (e2.message || "L'upload a échoué — rien n'a été mis en ligne."));
+        }
+        setUpProgress(null);
+      };
 
       const submit = async (e) => {
         e.preventDefault();
@@ -2453,17 +2503,42 @@
                           <X size={15} />
                         </button>
                       </div>
-                      <Input value={v.url} onChange={e => setVideo(i, { url: e.target.value })}
-                        placeholder="URL du MP4 (lecture)" aria-label="URL de lecture" />
-                      <Input value={v.downloadUrl} onChange={e => setVideo(i, { downloadUrl: e.target.value })}
-                        placeholder="URL de téléchargement (optionnel)" aria-label="URL de téléchargement" />
+                      {FEATURES.allUniverses ? (
+                        <>
+                          <Input value={v.url} onChange={e => setVideo(i, { url: e.target.value })}
+                            placeholder="URL du MP4 (lecture)" aria-label="URL de lecture" />
+                          <Input value={v.downloadUrl} onChange={e => setVideo(i, { downloadUrl: e.target.value })}
+                            placeholder="URL de téléchargement (optionnel)" aria-label="URL de téléchargement" />
+                        </>
+                      ) : upProgress?.i === i ? (
+                        <div className="text-[12px] text-stone-600 min-h-[44px] flex items-center gap-2">
+                          <Loader2 size={14} className="animate-spin" /> Envoi… {upProgress.pct}%
+                        </div>
+                      ) : v.url ? (
+                        <div className="text-[12px] text-emerald-700 min-h-[44px] flex items-center gap-1.5 truncate">
+                          <CheckCircle2 size={14} className="shrink-0" /> {v.fileName || 'Fichier en ligne'} — prêt à la lecture
+                        </div>
+                      ) : (
+                        <input
+                          type="file"
+                          accept="video/mp4,video/quicktime,video/webm,video/x-m4v"
+                          aria-label="Fichier vidéo"
+                          onChange={e => uploadVideo(i, e.target.files?.[0] || null)}
+                          className="w-full text-[13px] text-stone-600 file:mr-3 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-stone-900 file:text-white file:text-[12px] file:font-semibold file:cursor-pointer"
+                        />
+                      )}
                     </div>
                   ))}
                   <Btn icon={Plus} onClick={addVideo} full>Ajouter une vidéo</Btn>
                 </div>
                 <div className="text-[11px] text-stone-500 mt-2 leading-relaxed">
-                  Livrez un MP4 progressif : le lecteur le lit sans encodage préalable.
-                  Laissez le téléchargement vide pour ne pas proposer le fichier source.
+                  {FEATURES.allUniverses ? (
+                    <>Livrez un MP4 progressif : le lecteur le lit sans encodage préalable.
+                    Laissez le téléchargement vide pour ne pas proposer le fichier source.</>
+                  ) : (
+                    <>Le fichier part directement de votre navigateur vers le stockage sécurisé
+                    — livrez un MP4 : il est lisible immédiatement par votre client.</>
+                  )}
                 </div>
               </Field>
             )}
@@ -2472,8 +2547,8 @@
 
             <div className="flex gap-3 pt-2">
               <Btn onClick={onClose} full>Annuler</Btn>
-              <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
-                {loading ? 'Enregistrement…' : (existing ? 'Mettre à jour' : 'Créer la galerie')}
+              <Btn kind="dark" type="submit" full disabled={loading || upProgress !== null} icon={loading ? Loader2 : Save}>
+                {upProgress !== null ? 'Envoi de la vidéo…' : loading ? 'Enregistrement…' : (existing ? 'Mettre à jour' : 'Créer la galerie')}
               </Btn>
             </div>
           </form>
@@ -3944,6 +4019,7 @@
       const [loading, setLoading] = useState(false);
       // ── Upload direct B2 (pipeline vidéo adaptatif) ──
       const [videoFile, setVideoFile]   = useState(null);
+      const [photoFile, setPhotoFile]   = useState(null);   // locataire : photo uploadée (jamais d'URL à coller)
       const [thumbFile, setThumbFile]   = useState(null);
       const [upProgress, setUpProgress] = useState(null);  // { label, pct }
       const [encodeHint, setEncodeHint] = useState(null);  // { id, filename } après upload de l'original
@@ -4011,6 +4087,9 @@
         if (form.type === 'video' && !form.preview_url.trim() && !form.url.trim() && !videoFile) {
           if (!window.confirm('⚠️ Aucun fichier ni URL renseigné.\n\nLa vidéo sera invisible pour le client.\n\nVoulez-vous quand même enregistrer ?')) return;
         }
+        if (form.type === 'photo' && !form.url.trim() && !photoFile) {
+          if (!window.confirm('⚠️ Aucune image sélectionnée.\n\nLe média sera invisible pour le client.\n\nVoulez-vous quand même enregistrer ?')) return;
+        }
         setLoading(true);
         const { date_iso_local, ...rest } = form;
         const payload = {
@@ -4051,6 +4130,15 @@
               patch.duration_seconds = meta.duration;
               if (!form.duration && meta.duration) patch.duration = fmtDurationLabel(meta.duration);
             }
+            // Locataire : le MP4 progressif sert directement de lecture
+            // (streaming HTTP depuis B2) — pas d'étape d'encodage local.
+            if (!FEATURES.allUniverses) patch.preview_url = patch.url;
+          }
+          if (photoFile) {
+            const pname = b2SafeName(photoFile.name);
+            patch.url = await b2UploadFile(photoFile, `media/${rowId}/original/${pname}`, (p) =>
+              setUpProgress({ label: `Image — ${photoFile.name}`, pct: Math.round(p * 100) }));
+            if (!form.size_label) patch.size_label = fmtSizeFR(photoFile.size);
           }
           // Vignette : priorité à l'image capturée dans la vidéo, sinon fichier uploadé
           const thumbBlob = capturedBlob || thumbFile;
@@ -4067,8 +4155,10 @@
             if (error) throw new Error(error.message);
           }
 
-          if (videoFile) {
+          if (videoFile && FEATURES.allUniverses) {
             // Lecture adaptative pas encore générée → afficher la commande
+            // (outillage local de la plateforme — jamais montré aux locataires,
+            //  dont le MP4 progressif est déjà lisible tel quel)
             setEncodeHint({ id: rowId, filename: videoFile.name });
             setLoading(false);
           } else {
@@ -4158,8 +4248,10 @@
                   )}
                 </Field>
 
-                {/* État de la lecture adaptative (HLS) */}
-                {isHls(form.preview_url) ? (
+                {/* État de la lecture adaptative (HLS) — outillage plateforme.
+                    Un locataire n'a ni npm run encode ni URLs à coller : son
+                    MP4 uploadé est lu en streaming progressif tel quel. */}
+                {!FEATURES.allUniverses ? null : isHls(form.preview_url) ? (
                   <div className="text-[11.5px] leading-relaxed rounded-lg px-3 py-2.5" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)', color: '#065f46' }}>
                     ✅ <strong>Lecture adaptative active.</strong> La qualité s'ajuste à la connexion du client, avec badge de qualité sur le lecteur et mention de l'original téléchargeable.
                   </div>
@@ -4173,10 +4265,12 @@
                   </div>
                 )}
 
+                {FEATURES.allUniverses && (
                 <button type="button" onClick={() => setShowUrlFields(v => !v)} className="text-[11.5px] text-stone-500 underline underline-offset-2 hover:text-stone-800 transition">
                   {showUrlFields ? '▴ Masquer les URLs manuelles' : '▾ Coller des URLs manuellement (avancé)'}
                 </button>
-                {showUrlFields && (
+                )}
+                {FEATURES.allUniverses && showUrlFields && (
                   <>
                     <Field label="URL vidéo originale (téléchargement)">
                       <Input value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://… (fichier original sur B2)" />
@@ -4190,9 +4284,25 @@
                   </>
                 )}
               </>
-            ) : (
+            ) : FEATURES.allUniverses ? (
               <Field label="URL du fichier (Cloudinary, Drive, S3…)">
                 <Input value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://res.cloudinary.com/…" />
+              </Field>
+            ) : (
+              <Field label="Image (upload direct sur le stockage sécurisé)">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic"
+                  onChange={e => setPhotoFile(e.target.files?.[0] || null)}
+                  className="w-full text-[13px] text-stone-600 file:mr-3 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-stone-900 file:text-white file:text-[12px] file:font-semibold file:cursor-pointer"
+                />
+                {photoFile ? (
+                  <div className="text-[11px] text-stone-500 mt-1.5">📦 {photoFile.name} · {fmtSizeFR(photoFile.size)}</div>
+                ) : form.url ? (
+                  <div className="text-[11px] text-emerald-700 mt-1.5 truncate">✅ Image déjà en ligne</div>
+                ) : (
+                  <div className="text-[11px] text-stone-500 mt-1.5">💾 Le fichier part directement du navigateur vers le stockage.</div>
+                )}
               </Field>
             )}
             <Field label="Tournage associé (optionnel — permet de grouper les médias chez le client)">
@@ -4218,7 +4328,7 @@
               </Field>
             </div>
 
-            <Field label={form.type === 'video' ? "Vignette (optionnel — sinon générée automatiquement à l'encodage)" : "Miniature (optionnel)"}>
+            <Field label={form.type === 'video' ? (FEATURES.allUniverses ? "Vignette (optionnel — sinon générée automatiquement à l'encodage)" : "Vignette (optionnel)") : "Miniature (optionnel)"}>
               {/* 1) Choisir une image DANS la vidéo (si un fichier vidéo est sélectionné) */}
               {form.type === 'video' && videoObjUrl && (
                 <div className="mb-3 rounded-xl p-3" style={neu.pressedSm}>
@@ -4249,13 +4359,16 @@
                 onChange={e => { const f = e.target.files?.[0] || null; setThumbFile(f); if (f) { setCapturedBlob(null); setCapturedPreview(p => { if (p) URL.revokeObjectURL(p); return null; }); } }}
                 className="w-full text-[13px] text-stone-600 file:mr-3 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-stone-200 file:text-stone-700 file:text-[12px] file:font-semibold file:cursor-pointer"
               />
-              {/* 3) …ou coller une URL d'image */}
+              {/* 3) …ou coller une URL d'image (plateforme uniquement — un
+                     locataire uploade, il ne colle jamais de lien) */}
+              {FEATURES.allUniverses && (
               <Input
                 value={form.thumb_url || ''}
                 onChange={e => setForm({...form, thumb_url: e.target.value})}
                 placeholder="… ou coller une URL d'image"
                 style={{ marginTop: '8px' }}
               />
+              )}
 
               {/* Aperçu de la vignette retenue (capture ou URL) */}
               {(capturedPreview || (form.thumb_url && !thumbFile)) && (

@@ -22,6 +22,9 @@
 //
 // ACTIONS (body JSON { action, ... }) :
 //   sign-put       { key, contentType }            → { url, publicUrl }
+//   sign-delete    { key }                         → { url }
+//                  (suppression définitive — mêmes gardes de périmètre que
+//                   sign-put ; utilisé par la photothèque du photobooth)
 //   mpu-create     { key, contentType }            → { uploadId }
 //   mpu-sign-parts { key, uploadId, partNumbers[] }→ { urls: { [n]: url } }
 //   mpu-complete   { key, uploadId, parts[] }      → { publicUrl }
@@ -50,6 +53,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   S3Client,
   PutObjectCommand,
+  DeleteObjectCommand,
   CreateMultipartUploadCommand,
   UploadPartCommand,
   CompleteMultipartUploadCommand,
@@ -236,6 +240,19 @@ Deno.serve(async (req) => {
         // `disposition` est renvoyé : le navigateur DOIT envoyer cet en-tête à
         // l'identique, sinon la signature ne correspond plus.
         return json(200, { url, key, publicUrl: publicUrl(key), disposition, storage: await storageInfo(keyAgency) });
+      }
+
+      // ── Suppression définitive ───────────────────────────
+      case "sign-delete": {
+        //  Mêmes gardes que sign-put (validKey + périmètre d'agence, déjà
+        //  vérifiés plus haut) : on ne supprime que dans son propre espace.
+        //  S3/B2 répond 204 même si la clé n'existe plus — idempotent.
+        const url = await getSignedUrl(
+          s3,
+          new DeleteObjectCommand({ Bucket: B2_BUCKET, Key: key }),
+          { expiresIn: 900 }
+        );
+        return json(200, { url, key });
       }
 
       // ── Multipart (gros fichiers, ex : films de mariage) ─

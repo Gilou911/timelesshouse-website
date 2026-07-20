@@ -384,6 +384,9 @@
           aria-checked={isDark}
           aria-label={isDark ? 'Passer en mode jour' : 'Passer en mode nuit'}
           title={isDark ? 'Mode jour' : 'Mode nuit'}
+          // HIG §4 : l'interrupteur garde son dessin fin (42×22) mais sa
+          // ZONE TACTILE fait 44×44 — la cible peut dépasser le visuel.
+          className="th-hit-44"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -1120,12 +1123,15 @@
           {/* Search + nouveau bouton — alignés sur tous écrans */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div style={neu.raisedXs} className="rounded-full flex items-center gap-2 px-4 min-h-[44px] w-full sm:w-72">
-              <Search size={15} className="text-stone-400 shrink-0" />
+              <Search size={15} className="text-stone-500 shrink-0" />
+              {/* HIG §13 : police 16 px (sinon iOS zoome au focus) et champ
+                  étiré sur toute la hauteur de la pilule → cible ≥ 44 px. */}
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Chercher un client…"
-                className="bg-transparent outline-none text-[14px] flex-1 placeholder:text-stone-400 min-w-0"
+                aria-label="Chercher un client"
+                className="bg-transparent outline-none text-[16px] flex-1 placeholder:text-stone-500 min-w-0 self-stretch"
               />
             </div>
             <Btn kind="dark" icon={Plus} onClick={() => setShowNew(true)} full={false} className="w-full sm:w-auto">

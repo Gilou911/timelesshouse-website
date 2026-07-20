@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <!-- Inscription self-serve d'une agence (SaaS B.3, brique 9) :
        crée le compte + l'agence via l'Edge Function signup-agency,
        puis connecte automatiquement et ouvre la console. -->
@@ -16,14 +16,15 @@
   <style>
     :root {
       --bg:#e9e4d9; --surface:#efeae0; --pressed:#e3ddd0; --ink:#2a2620;
-      --muted:#7c756a; --faint:#a49b8d;
+      /* HIG §6 : 4.5:1 mini sous 18 px — #7c756a valait 3.6:1 et #a49b8d 2.2:1 */
+      --muted:#635c50; --faint:#6b6357;
       --shadow-d:rgba(168,156,134,0.32); --shadow-l:rgba(255,253,247,0.92);
       --btn-bg:#2a2620; --btn-text:#f5f1e6; --ok:#3f7d54;
     }
     @media (prefers-color-scheme: dark) {
       :root {
         --bg:#181b20; --surface:#22262d; --pressed:#14171c; --ink:#e8e4dc;
-        --muted:#9aa0ab; --faint:#6b7280;
+        --muted:#9aa0ab; --faint:#8b93a1;
         --shadow-d:rgba(0,0,0,0.55); --shadow-l:rgba(54,60,72,0.28);
         --btn-bg:#e8e4dc; --btn-text:#181b20; --ok:#6fbf8a;
       }
@@ -35,7 +36,8 @@
       display:flex; flex-direction:column; align-items:center; justify-content:center;
       padding:24px; gap:24px;
     }
-    a.logo { font-family:'Instrument Serif',Georgia,serif; font-style:italic; font-size:26px; text-decoration:none; color:var(--ink); }
+    a.logo { font-family:'Instrument Serif',Georgia,serif; font-style:italic; font-size:26px; text-decoration:none; color:var(--ink);
+             display:inline-flex; align-items:center; min-height:44px; }
     a.logo span { color:var(--faint); }
     .head { text-align:center; }
     .head h1 { font-family:'Instrument Serif',Georgia,serif; font-weight:400; font-size:clamp(1.7rem,5vw,2.2rem); margin-top:10px; letter-spacing:-.01em; }
@@ -69,6 +71,32 @@
     .legal a { color:inherit; }
     footer { font-size:12px; color:var(--faint); text-align:center; }
     footer a { color:inherit; }
+    /* ── Correctifs HIG vague 1 (P0) — audit du 20/07/2026 ── */
+    /* §16 : focus clavier toujours visible (des champs posent outline:none) */
+    :focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 3px;
+      border-radius: 6px;
+    }
+    /* §16 : respecter « réduire les animations » */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+    /* §4 : les liens de pied de page restent des cibles de 44 px */
+    footer a, .legal a {
+      display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px;
+    }
+    /* §3 : contenu hors de l'encoche et de la barre home (iPhone) */
+    body {
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
   </style>
 </head>
 <body>

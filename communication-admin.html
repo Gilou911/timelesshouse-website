@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
+  <meta name="color-scheme" content="light dark" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <style>/* HIG : contenu hors de l'encoche en paysage iPhone */body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);}</style>
   <title>TimelessHouse — Admin</title>
@@ -71,6 +72,51 @@
        with React re-renders and memory spikes). */
     body, header, aside, nav, main {
       transition: background-color 0.45s ease, color 0.45s ease, border-color 0.45s ease;
+    }
+    /* ════════════════════════════════════════════════════════
+       ♿ Correctifs HIG — vague 1 (P0), audit du 20/07/2026
+       ════════════════════════════════════════════════════════ */
+
+    /* §6 — Contrastes. Sur le fond crème #e9e4d9, les gris Tailwind
+       utilisés pour le texte secondaire tombaient sous 4.5:1 :
+       stone-500 → 3.3:1, stone-400 → 2.2:1. Illisibles pour beaucoup
+       de gens, surtout sur les libellés de 10-12 px. On assombrit
+       sans toucher à la palette de marque. */
+    .text-stone-500 { color: #635c50 !important; }   /* 5.2:1 */
+    .text-stone-400 { color: #6b6357 !important; }   /* 4.7:1 */
+    .placeholder\:text-stone-400::placeholder,
+    .placeholder\:text-stone-500::placeholder { color: #6b6357 !important; }
+
+    /* §16 — Le focus clavier doit toujours se voir. Plusieurs champs
+       posent outline:none pour leur style « pressé » : sans ce
+       remplacement, la navigation au clavier devient aveugle. */
+    :focus-visible {
+      outline: 2px solid #2a2620;
+      outline-offset: 3px;
+      border-radius: 8px;
+    }
+    [data-theme="dark"] :focus-visible { outline-color: #e8d8be; }
+
+    /* §4 — Cibles tactiles : l'interrupteur jour/nuit mesure 42×22 px.
+       On garde son dessin fin et on étend la ZONE TACTILE à 44×44 px
+       (la zone cliquable peut dépasser le visuel). `.dark-toggle` sert
+       à l'espace client, `.th-hit-44` au composant React de la console
+       — qui ne porte aucune classe de style. */
+    .dark-toggle, .th-hit-44 { position: relative; }
+    .dark-toggle::after, .th-hit-44::after {
+      content: ""; position: absolute;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 44px; height: 44px;
+    }
+
+    /* §16 — Respecter « réduire les animations ». */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
     }
   </style>
 </head>

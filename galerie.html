@@ -20,15 +20,20 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    /* Mode sombre assumé : une galerie se regarde sur fond noir.
-       --accent est la seule couleur reprise de la marque de l'agence. */
+    /* Mode sombre assumé : une galerie se regarde sur fond noir
+       (exception média assumée, HIG §7). --accent est la seule couleur
+       reprise de la marque de l'agence. */
     :root {
+      /* §7 : les contrôles natifs (champ de code, scrollbars) suivent. */
+      color-scheme: dark;
       --bg:      #0b0b0c;
       --bg-deep: #060607;
       --surface: #161617;
       --ink:     #f2efe9;
       --muted:   #9b958a;
-      --faint:   #6a655d;
+      /* HIG §6 : #6a655d tombait à 3.4:1 sur le fond de galerie —
+         insuffisant pour le pied de page et les placeholders. */
+      --faint:   #8a8478;
       --hair:    rgba(242, 239, 233, 0.12);
       --accent:  #b08968;
     }
@@ -93,8 +98,9 @@
     .btn[disabled] { opacity: 0.5; }
     .err { display: none; font-size: 13px; color: #e0736f; margin-top: 14px; line-height: 1.5; }
     .err.on { display: block; }
-    .gate footer { font-size: 11.5px; color: var(--faint); text-align: center; line-height: 1.9; }
-    .gate footer a { color: var(--muted); }
+    .gate footer { font-size: 12.5px; color: var(--faint); text-align: center; line-height: 1.9; }
+    /* HIG §4 : un lien reste une cible tactile de 44 px. */
+    .gate footer a { color: var(--muted); display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; }
 
     /* ── Galerie ── */
     .view { display: none; }
@@ -120,9 +126,27 @@
     .sep { width: 38px; height: 1px; background: var(--accent); opacity: 0.5; margin: 26px auto 0; }
     .view footer {
       padding: clamp(50px, 8vw, 90px) 0 44px; text-align: center;
-      font-size: 11.5px; color: var(--faint); line-height: 2; letter-spacing: 0.04em;
+      font-size: 12.5px; color: var(--faint); line-height: 2; letter-spacing: 0.04em;
     }
-    .view footer a { color: var(--muted); }
+    .view footer a { color: var(--muted); display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; }
+    /* ── HIG §16 : focus clavier toujours visible ──
+       Le champ de code pose outline:none pour son style « pressé » ;
+       sans remplacement, la navigation au clavier devient aveugle. */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+      border-radius: 6px;
+    }
+
+    /* ── HIG §16 : respecter « réduire les animations » ── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -185,6 +209,26 @@
     };
     const tpl = (t) => TEMPLATES[t] || TEMPLATES.evenement;
 
+    /* ── Lisibilité de l'accent sur fond sombre (HIG §6) ───────
+       Éclaircit progressivement une couleur jusqu'à 4.5:1 contre le
+       fond de la galerie, sans toucher à sa teinte : la marque de
+       l'agence reste reconnaissable, le texte redevient lisible. */
+    function readableOnDark(hex, bg = [11, 11, 12], target = 4.5) {
+      const lum = (c) => {
+        const [r, g, b] = c.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      };
+      const ratio = (a, b) => {
+        const l1 = lum(a), l2 = lum(b);
+        return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+      };
+      let c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+      for (let i = 0; i < 24 && ratio(c, bg) < target; i++) {
+        c = c.map(v => Math.min(255, Math.round(v + (255 - v) * 0.12) + 4));
+      }
+      return '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+    }
+
     /* ── Marque de l'agence ────────────────────────────────────
        Seul --accent est repris : le fond reste noir (une galerie se
        regarde sur fond sombre), mais logo, nom et couleur d'accent
@@ -194,7 +238,13 @@
       if (!b) return;
       BRAND = b;
       if (b.accent_color && /^#[0-9a-f]{6}$/i.test(b.accent_color)) {
-        document.documentElement.style.setProperty('--accent', b.accent_color);
+        // La galerie est volontairement sombre (expérience média, HIG §7).
+        // Or l'accent d'une agence est choisi pour un fond CLAIR : posé tel
+        // quel ici, un accent foncé devient illisible (l'accent
+        // TimelessHouse #2a2620 tombait à 1.3:1 sur le fond noir — le
+        // sur-titre « Votre mariage » disparaissait). On éclaircit donc
+        // l'accent jusqu'à atteindre 4.5:1, en gardant sa teinte.
+        document.documentElement.style.setProperty('--accent', readableOnDark(b.accent_color));
       }
       const nameHtml = b.logo_url
         ? `<img src="${b.logo_url}" alt="${(b.name || '').replace(/"/g, '&quot;')}" />`

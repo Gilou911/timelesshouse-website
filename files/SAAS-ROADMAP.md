@@ -158,6 +158,25 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   ajouté pour tester sans envoyer). TimelessHouse (couleurs par défaut)
   garde exactement son design — zéro régression vérifiée. Reste :
   sous-domaine/domaine perso par agence (plus tard).
+- **Écran « Ma marque » ✅ (fait le 20/07/2026, brique 12)** : chaque
+  agence règle ELLE-MÊME son identité depuis la carte « Ma marque » de
+  la Vue d'ensemble — nom, email de contact, couleurs (sélecteur +
+  hexa), logo (URL https ou téléversement ≤ 2 Mo vers
+  `agencies/<slug>/logo/…`, nouveau préfixe b2-sign scopé par
+  appartenance), sous-domaine `<slug>.laloge.house` et plan affichés en
+  lecture seule. Écriture par la RPC `update_my_agency_brand` (owners
+  uniquement, validations strictes nom 2-80 / #rrggbb / URL https /
+  email) — SEULE voie d'écriture sur `agencies` : aucune policy UPDATE,
+  les champs sensibles (plan, active, status, slug, stripe_*,
+  features_*, storage_*) restent hors de portée. Propagation immédiate
+  (les RPC de lecture portent déjà la marque). Testé en réel avec une
+  agence éphémère (puis nettoyée) : parcours navigateur complet (owner
+  → carte → nom/couleurs #7c3aed/#f5f3ff/email + logo généré par canvas
+  → `app.html?agence=<slug>` à la NOUVELLE marque avant saisie du
+  code) ; 11 tests API (refus non-owner et anon, UPDATE direct sans
+  effet, b2-sign 200 chez soi / 403 chez le voisin, validations,
+  champs sensibles intacts) ; non-régression dashboard joxci + Vue
+  d'ensemble TimelessHouse.
 - **Offres par paliers de STOCKAGE** (décidé 19/07/2026 — clientèle à
   vidéos lourdes, masters jamais compressés = argument de vente) :
   | Offre | Stockage | Prix suggéré |

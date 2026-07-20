@@ -231,6 +231,16 @@ begin
     'agency_slug', (select slug from agencies where id = c.agency_id));
 end $$;
 
--- ✅ Briques 1→5 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
---    Stripe (en attente du compte), inscription self-serve,
---    cloisonnement des dossiers Cloudinary (ou Cloudflare Images).
+-- ── Brique 6 : STRIPE — abonnements par agence ──────────────
+-- L'Edge Function stripe-billing (checkout + portail + webhook signé)
+-- fait vivre ces colonnes ; le plan de l'agence pilote déjà le quota
+-- de stockage (plan_quota_bytes). Prix live avec lookup_keys
+-- laloge_<plan>_<mensuel|annuel> (annuel = 10 mois).
+alter table agencies add column if not exists stripe_customer_id     text;
+alter table agencies add column if not exists stripe_subscription_id text;
+alter table agencies add column if not exists subscription_status    text;
+alter table agencies add column if not exists billing_interval       text;
+
+-- ✅ Briques 1→6 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
+--    inscription self-serve, cloisonnement des dossiers Cloudinary
+--    (ou Cloudflare Images).

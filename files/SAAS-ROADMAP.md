@@ -123,8 +123,22 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   passage : le cron sync-social-6h envoyait un placeholder au lieu du
   secret depuis son installation (tous ses appels étaient refusés).
   Rétention/archivage = soupape (plus tard).
-- **Stripe abonnements** (modèle éprouvé sur ylvfeet), un produit par
-  palier, mensuel + annuel. Préfixes B2 par agence : `agencies/<slug>/…`.
+- **Stripe abonnements ✅ (fait le 20/07/2026, mode LIVE)** :
+  catalogue live 4 produits × 2 tarifs (lookup_keys
+  `laloge_<plan>_<mensuel|annuel>`, annuel = 10 mois) ; Edge Function
+  `stripe-billing` — checkout (owners d'agence), portail de
+  facturation, webhook signé (HMAC vérifié, tolérance 5 min) qui met à
+  jour `agencies.plan/subscription_status/stripe_*` (résiliation →
+  retombe sur Découverte, le quota suit automatiquement) ; secrets
+  STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET posés côté Supabase,
+  endpoint webhook enregistré chez Stripe (we_…NAaPLJlF) ; carte
+  « Abonnement » dans la Vue d'ensemble admin (palier + facturation +
+  S'abonner, ou « Gérer mon abonnement » via le portail Stripe une
+  fois abonné). Testé sans paiement réel : refus non-owner, signatures,
+  cycle webhook complet (→ studio/annuel → résiliation → decouverte),
+  session checkout live créée. Le 1ᵉʳ paiement réel validera le tout
+  de bout en bout. Préfixes B2 par agence : `agencies/<slug>/…`
+  (toujours à faire, avec la migration des fichiers).
 - **Gardes Edge Functions par rôles ✅ (fait le 20/07/2026)** :
   `b2-sign`, `cloudinary-sign` et `sync-social` n'utilisent plus
   `ADMIN_EMAILS` mais l'appartenance `agency_members`. En plus du rôle,

@@ -592,7 +592,102 @@
       );
     }
 
-    function Overview({ clients, totalMedia, totalRevenue, upcomingShoots, storage }) {
+    // ── Abonnement La Loge (SaaS B.3, Stripe) ──
+    const PLAN_PRICES = { essentiel: [29, 290], studio: [49, 490], cinema: [89, 890], prestige: [149, 1490] };
+
+    function BillingCard({ billing }) {
+      const [plan, setPlan] = useState('studio');
+      const [interval, setInterval_] = useState('mensuel');
+      const [busy, setBusy] = useState(false);
+      const [error, setError] = useState('');
+      // retour de Stripe Checkout (?abonnement=ok|annule)
+      const retour = new URLSearchParams(window.location.search).get('abonnement');
+
+      const go = async (action, payload = {}) => {
+        setBusy(true); setError('');
+        try {
+          const { data: { session } } = await sb.auth.getSession();
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/stripe-billing`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ action, ...payload }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || !json.url) throw new Error(json.error || `Échec (${res.status})`);
+          window.location.href = json.url;
+        } catch (e) { setError(e.message); setBusy(false); }
+      };
+
+      if (!billing) return null;
+      const abonne = !!billing.stripe_subscription_id && billing.subscription_status !== 'canceled';
+      const fondateur = billing.plan === 'fondateur';
+
+      return (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+            <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>Abonnement</h2>
+            <span className="text-[11px] uppercase tracking-[0.14em] text-stone-400 font-semibold">
+              {PLAN_LABELS[billing.plan] || billing.plan}
+              {abonne ? ` · ${billing.billing_interval || ''} · ${billing.subscription_status}` : ''}
+            </span>
+          </div>
+
+          {retour === 'ok' && (
+            <div className="flex items-center gap-2 mt-3 text-[13px] text-emerald-700">
+              <CheckCircle2 size={15} className="shrink-0" /> Abonnement activé — merci ! Votre plan se met à jour d'ici quelques secondes.
+            </div>
+          )}
+
+          {fondateur ? (
+            <p className="text-[13px] text-stone-500 mt-3">
+              Plan Fondateur — stockage illimité, offert. Rien à payer.
+            </p>
+          ) : abonne ? (
+            <div className="mt-4">
+              <p className="text-[13px] text-stone-500 mb-4">
+                Changez de palier, mettez à jour votre carte ou résiliez depuis le portail sécurisé Stripe.
+              </p>
+              <Btn kind="dark" onClick={() => go('portal')} disabled={busy}>
+                {busy ? 'Ouverture…' : 'Gérer mon abonnement'}
+              </Btn>
+            </div>
+          ) : (
+            <div className="mt-4">
+              <div className="grid sm:grid-cols-3 gap-3 items-end">
+                <Field label="Palier">
+                  <select value={plan} onChange={e => setPlan(e.target.value)} style={neu.pressedSm}
+                    className="w-full px-4 py-3 rounded-xl bg-transparent text-[16px] sm:text-[14px] appearance-none">
+                    {Object.entries(PLAN_PRICES).map(([slug, [pm]]) => (
+                      <option key={slug} value={slug}>{PLAN_LABELS[slug]} — {pm} €/mois</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Facturation">
+                  <select value={interval} onChange={e => setInterval_(e.target.value)} style={neu.pressedSm}
+                    className="w-full px-4 py-3 rounded-xl bg-transparent text-[16px] sm:text-[14px] appearance-none">
+                    <option value="mensuel">Mensuelle</option>
+                    <option value="annuel">Annuelle (−2 mois)</option>
+                  </select>
+                </Field>
+                <Btn kind="dark" onClick={() => go('checkout', { plan, interval })} disabled={busy} className="w-full">
+                  {busy ? 'Ouverture…' : `S'abonner — ${interval === 'annuel' ? PLAN_PRICES[plan][1] + ' €/an' : PLAN_PRICES[plan][0] + ' €/mois'}`}
+                </Btn>
+              </div>
+              <div className="text-[11.5px] text-stone-400 mt-3">
+                Paiement sécurisé Stripe · sans engagement · le quota de stockage suit votre palier.
+              </div>
+            </div>
+          )}
+          {error && (
+            <div className="flex items-center gap-2 mt-3 text-[13px] text-rose-600">
+              <AlertCircle size={15} className="shrink-0" /> {error}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function Overview({ clients, totalMedia, totalRevenue, upcomingShoots, storage, billing }) {
       const pct = storage?.quota_bytes ? Math.round((storage.used_bytes || 0) / storage.quota_bytes * 100) : null;
       return (
         <div className="space-y-5 lg:space-y-6">
@@ -624,6 +719,9 @@
               )}
             </div>
           )}
+
+          {/* Abonnement (SaaS B.3 — Stripe) */}
+          <BillingCard billing={billing} />
 
           {/* Hero card */}
           <div style={neu.dark} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7 text-white relative overflow-hidden">
@@ -4839,11 +4937,12 @@
       };
 
       const loadOverview = async () => {
-        const [m, i, s, st] = await Promise.all([
+        const [m, i, s, st, ag] = await Promise.all([
           sb.from('media').select('id', { count: 'exact', head: true }),
           sb.from('invoices').select('amount'),
           sb.from('shoots').select('id', { count: 'exact', head: true }),
           sb.rpc('my_agency_storage'),
+          sb.from('agencies').select('plan, subscription_status, stripe_subscription_id, billing_interval').limit(1).maybeSingle(),
         ]);
         const totalRevenue = (i.data || []).reduce((a, b) => a + parseFloat(b.amount || 0), 0);
         setOverviewData({
@@ -4851,6 +4950,7 @@
           totalRevenue,
           upcomingShoots: s.count || 0,
           storage: st.data || null,
+          billing: ag.data || null,
         });
       };
 

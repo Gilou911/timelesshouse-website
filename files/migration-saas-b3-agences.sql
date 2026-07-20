@@ -387,5 +387,73 @@ begin
   from agencies a), '[]'::jsonb);
 end $$;
 
--- ✅ Briques 1→10 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
+-- ── Brique 11 : GALERIES PHOTOS B2 (pipeline locataires) ────
+-- Décision du 20/07/2026 (files/SAAS-ROADMAP.md § 📸) : les galeries
+-- photos des locataires se livrent sur B2 UNIQUEMENT (Cloudinary =
+-- héritage TimelessHouse, upload verrouillé plateforme). Les variantes
+-- (view ≤ 2000 px, grid ≤ 1000 px) sont générées DANS LE NAVIGATEUR
+-- à l'upload (admin), stockées sous weddings/<code>/galerie/… — elles
+-- comptent donc automatiquement dans les quotas (measure-storage).
+create table if not exists gallery_photos (
+  id           uuid primary key default gen_random_uuid(),
+  client_id    uuid not null references clients(id) on delete cascade,
+  agency_id    uuid references agencies(id),
+  category     text not null,             -- libellé affiché (« Préparatifs »)
+  position     int default 0,             -- ordre dans la catégorie
+  width        int,                       -- dimensions de l'ORIGINAL
+  height       int,
+  url_original text,                      -- téléchargement (fichier intact)
+  url_view     text,                      -- lightbox (≤ 2000 px)
+  url_grid     text,                      -- grille (≤ 1000 px)
+  created_at   timestamptz default now()
+);
+create index if not exists gallery_photos_client_cat_pos
+  on gallery_photos (client_id, category, position);
+create index if not exists gallery_photos_agency_idx on gallery_photos (agency_id);
+alter table gallery_photos enable row level security;
+
+-- Écritures admin : cloisonnées par agence (modèle B.1)
+drop policy if exists "agency write" on gallery_photos;
+create policy "agency write" on gallery_photos for all to authenticated
+  using (agency_id in (select my_agency_ids()))
+  with check (agency_id in (select my_agency_ids()));
+
+-- agency_id auto-rempli depuis le client à l'insertion (modèle B.1)
+drop trigger if exists set_agency on gallery_photos;
+create trigger set_agency before insert on gallery_photos
+  for each row execute function trg_agency_from_client();
+
+-- Lecture côté espace client : RPC scellée par le code d'accès
+-- (modèle files/migration-saas-b2.sql). Photos groupées par catégorie ;
+-- catégories ordonnées par position minimale puis ancienneté ; photos
+-- par position puis created_at.
+create or replace function get_client_gallery(p_code text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare c clients;
+begin
+  c := portal_client(p_code);
+  if c.id is null then return null; end if;
+  return jsonb_build_object(
+    'categories', coalesce((
+      select jsonb_agg(jsonb_build_object('category', g.category, 'photos', g.photos)
+                       order by g.cat_pos, g.cat_born, g.category)
+      from (
+        select gp.category,
+               min(gp.position)   as cat_pos,
+               min(gp.created_at) as cat_born,
+               jsonb_agg(jsonb_build_object(
+                 'id', gp.id, 'width', gp.width, 'height', gp.height,
+                 'url_original', gp.url_original, 'url_view', gp.url_view,
+                 'url_grid', gp.url_grid
+               ) order by gp.position, gp.created_at) as photos
+        from gallery_photos gp
+        where gp.client_id = c.id
+        group by gp.category
+      ) g
+    ), '[]'::jsonb)
+  );
+end $$;
+grant execute on function get_client_gallery(text) to anon, authenticated;
+
+-- ✅ Briques 1→11 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
 --    cloisonnement des dossiers Cloudinary (ou Cloudflare Images).

@@ -61,9 +61,18 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
 - **Onboarding self-serve** (reste à faire) : inscription publique d'une
   agence (email → compte → 1ᵉʳ espace client guidé), page de changement
   de mot de passe, rôles admin supplémentaires.
-- **Marque blanche visible** : logo/couleurs de l'agence dans l'espace
-  client, les pages événement ET les emails (notify-client paramétré par
-  agence) ; sous-domaine ou domaine perso plus tard.
+- **Marque blanche visible ✅ (fait le 20/07/2026)** : les RPC du
+  portail renvoient la marque de l'agence (nom, logo, couleurs, email
+  de contact) et TOUT l'espace client la porte — dashboard (logo/nom,
+  palette claire régénérée depuis fond+accent de l'agence, mode sombre
+  inchangé), pages événement (logo, pieds de page, titres, écrans
+  d'attente, mailto), et EMAILS (notify-client v43, source rapatriée
+  dans le repo : expéditeur au nom de l'agence, en-tête/boutons à sa
+  couleur, reply-to vers son contact, et les notifications admin_*
+  partent vers l'email de contact de l'AGENCE du client — mode dry_run
+  ajouté pour tester sans envoyer). TimelessHouse (couleurs par défaut)
+  garde exactement son design — zéro régression vérifiée. Reste :
+  sous-domaine/domaine perso par agence (plus tard).
 - **Offres par paliers de STOCKAGE** (décidé 19/07/2026 — clientèle à
   vidéos lourdes, masters jamais compressés = argument de vente) :
   | Offre | Stockage | Prix suggéré |

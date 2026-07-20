@@ -47,7 +47,7 @@
             <div style="
               font-family:'Cormorant Garamond',serif; font-style:italic;
               font-size:clamp(2rem,6vw,3rem); color:#b08968; margin-bottom:8px; letter-spacing:0.02em;
-            ">TimelessHouse<span style="color:#555">.</span></div>
+            ">${window.__AGENCY_NAME || 'TimelessHouse'}<span style="color:#555">.</span></div>
             <div style="width:40px; height:1px; background:#b08968; opacity:0.4; margin:20px auto;"></div>
             ${type === 'not-ready' ? `
               <div style="font-size:11px; letter-spacing:0.25em; color:#666; text-transform:uppercase; margin-bottom:16px;">Votre espace</div>
@@ -57,11 +57,11 @@
               <p style="font-size:13px; color:#666; line-height:1.7; margin-bottom:28px;">
                 Nous finalisons votre espace privé. Vous recevrez un email dès qu'il sera disponible.
               </p>
-              <a href="mailto:service@timelesshouse.org" style="
+              <a href="mailto:${window.__AGENCY_EMAIL || 'service@timelesshouse.org'}" style="
                 display:inline-block; padding:12px 28px; border:1px solid #333;
                 color:#b08968; font-size:11px; letter-spacing:0.2em; text-transform:uppercase;
                 text-decoration:none; transition:all 0.2s;
-              ">Contacter TimelessHouse</a>
+              ">Contacter ${window.__AGENCY_NAME || 'TimelessHouse'}</a>
             ` : `
               <div style="font-size:11px; letter-spacing:0.25em; color:#666; text-transform:uppercase; margin-bottom:16px;">Accès</div>
               <div style="font-family:'Cormorant Garamond',serif; font-size:clamp(1.4rem,4vw,1.9rem); color:#f4f0eb; margin-bottom:16px;">
@@ -75,7 +75,7 @@
                 color:#b08968; font-size:11px; letter-spacing:0.2em; text-transform:uppercase;
                 text-decoration:none; margin-right:12px;
               ">Réessayer</a>
-              <a href="mailto:service@timelesshouse.org" style="
+              <a href="mailto:${window.__AGENCY_EMAIL || 'service@timelesshouse.org'}" style="
                 display:inline-block; padding:12px 28px; border:1px solid #222;
                 color:#555; font-size:11px; letter-spacing:0.2em; text-transform:uppercase;
                 text-decoration:none;
@@ -101,6 +101,24 @@
     }
 
     const pages = portal.pages;
+
+    // ── Marque blanche (SaaS B.3) : la page porte la marque de l'agence ──
+    const AG = portal.agency || {};
+    window.__AGENCY_NAME  = AG.name || 'TimelessHouse';
+    window.__AGENCY_EMAIL = AG.contact_email || 'service@timelesshouse.org';
+    if (window.__AGENCY_NAME !== 'TimelessHouse') {
+      document.title = document.title.replace('TimelessHouse', window.__AGENCY_NAME);
+      document.querySelectorAll('.loader-mark, .boot-mark, .logo, .cover-photog, .fmark').forEach(el => {
+        if ((el.textContent || '').trim() === 'TimelessHouse') el.textContent = window.__AGENCY_NAME;
+      });
+      const foot = document.querySelector('footer');
+      if (foot && foot.textContent.includes('TimelessHouse')) {
+        foot.textContent = foot.textContent.replace('TimelessHouse', window.__AGENCY_NAME);
+      }
+      document.querySelectorAll('a[href*="mailto:service@timelesshouse.org"]').forEach(a => {
+        a.setAttribute('href', a.getAttribute('href').split('service@timelesshouse.org').join(window.__AGENCY_EMAIL));
+      });
+    }
 
     const photosPage = (pages || []).find(p => p.page_type === 'photos');
     const videoPage  = (pages || []).find(p => p.page_type === 'video');

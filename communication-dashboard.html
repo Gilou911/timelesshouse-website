@@ -267,6 +267,30 @@
     }
 
     const client = portal.client;
+
+    // ── Marque blanche (SaaS B.3) : la marque de l'AGENCE du client ──
+    const agency = portal.agency || {};
+    window.__AGENCY = agency;
+    const agencyName = agency.name || client.agency_name || 'TimelessHouse';
+    document.title = 'Tableau de bord — ' + agencyName;
+    // Couleurs personnalisées : uniquement si l'agence a changé les
+    // valeurs par défaut (TimelessHouse garde exactement son design
+    // actuel ; le mode sombre garde sa palette graphite dans tous les cas)
+    if ((agency.accent_color && agency.accent_color.toLowerCase() !== '#2a2620') ||
+        (agency.bg_color && agency.bg_color.toLowerCase() !== '#e9e4d9')) {
+      const acc = agency.accent_color || '#2a2620';
+      const bg  = agency.bg_color || '#e9e4d9';
+      const st = document.createElement('style');
+      st.textContent =
+        ':root:not([data-theme="dark"]) body { background: ' + bg + '; }' +
+        ':root:not([data-theme="dark"]) .loading-screen { background: ' + bg + '; }' +
+        ':root:not([data-theme="dark"]) .bg-stone-900 { background-color: ' + acc + ' !important; }' +
+        ':root:not([data-theme="dark"]) .border-stone-900 { border-color: ' + acc + ' !important; }';
+      document.head.appendChild(st);
+      const tc = document.querySelector('meta[name="theme-color"]');
+      if (tc) tc.setAttribute('content', bg);
+    }
+
     const mediaRes      = { data: portal.media };
     const invoicesRes   = { data: portal.invoices };
     const shootsRes     = { data: portal.shoots };
@@ -286,7 +310,9 @@
       initials:   client.initials || '',
       sector:     client.sector || '',
       code:       client.code,
-      agencyName: client.agency_name || 'TimelessHouse',
+      agencyName: agencyName,
+      agencyEmail: agency.contact_email || 'service@timelesshouse.org',
+      agencyLogo:  agency.logo_url || '',
       analyticsEnabled: client.analytics_enabled === true,
       mediaEnabled:     client.media_enabled    !== false,
       invoicesEnabled:  client.invoices_enabled !== false,

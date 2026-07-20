@@ -67,7 +67,63 @@ select a.id, u.id, 'admin' from agencies a, auth.users u
 where a.slug = 'timelesshouse' and lower(u.email) = 'photobooth@timelesshouse.org'
 on conflict do nothing;
 
--- ✅ Briques 1 & 2 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
---    marque blanche visible, quotas stockage, Stripe, inscription
---    self-serve, cloisonnement des dossiers Cloudinary (ou migration
---    Cloudflare Images).
+-- ── Brique 3 : marque blanche VISIBLE ───────────────────────
+-- Les RPC du portail client renvoient la marque de l'agence du client
+-- (nom, logo, couleurs, email de contact) : le dashboard, les pages
+-- événement et les emails s'affichent aux couleurs de l'agence.
+-- (get_client_portal et get_event_portal sont recréées ci-dessous avec
+--  un bloc 'agency' — le reste est identique à migration-saas-b2.sql.)
+
+create or replace function get_client_portal(p_code text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare c clients; res jsonb;
+begin
+  c := portal_client(p_code);
+  if c.id is null then return null; end if;
+  select jsonb_build_object(
+    'client', to_jsonb(c),
+    'agency', (select jsonb_build_object('name', a.name, 'slug', a.slug,
+                 'logo_url', a.logo_url, 'accent_color', a.accent_color,
+                 'bg_color', a.bg_color, 'contact_email', a.contact_email)
+               from agencies a where a.id = c.agency_id),
+    'media', coalesce((select jsonb_agg(to_jsonb(m) order by m.date_iso desc nulls last, m.created_at desc)
+                       from media m where m.client_id = c.id), '[]'::jsonb),
+    'invoices', coalesce((select jsonb_agg(to_jsonb(i) order by i.created_at desc)
+                          from invoices i where i.client_id = c.id), '[]'::jsonb),
+    'shoots', coalesce((select jsonb_agg(to_jsonb(s) order by s.year, s.date_day)
+                        from shoots s where s.client_id = c.id), '[]'::jsonb),
+    'analytics', (select to_jsonb(a) from analytics a where a.client_id = c.id limit 1),
+    'documents', coalesce((select jsonb_agg(to_jsonb(d) order by d.position, d.created_at desc)
+                           from documents d where d.client_id = c.id), '[]'::jsonb),
+    'strategies', coalesce((select jsonb_agg(to_jsonb(st) order by st.position, st.created_at desc)
+                            from strategies st where st.client_id = c.id and st.status = 'published'), '[]'::jsonb),
+    'comments', coalesce((select jsonb_agg(to_jsonb(mc) order by mc.created_at)
+                          from media_comments mc join media m2 on m2.id = mc.media_id
+                          where m2.client_id = c.id), '[]'::jsonb),
+    'event_pages', coalesce((select jsonb_agg(jsonb_build_object('page_type', ep.page_type, 'config', ep.config))
+                             from event_pages ep where ep.client_id = c.id), '[]'::jsonb)
+  ) into res;
+  return res;
+end $$;
+
+create or replace function get_event_portal(p_code text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare c clients;
+begin
+  c := portal_client(p_code);
+  if c.id is null then return null; end if;
+  return jsonb_build_object(
+    'client', jsonb_build_object('id', c.id, 'code', c.code, 'name', c.name,
+                                 'universe', c.universe, 'agency_name', c.agency_name),
+    'agency', (select jsonb_build_object('name', a.name, 'slug', a.slug,
+                 'logo_url', a.logo_url, 'accent_color', a.accent_color,
+                 'bg_color', a.bg_color, 'contact_email', a.contact_email)
+               from agencies a where a.id = c.agency_id),
+    'pages', coalesce((select jsonb_agg(jsonb_build_object('page_type', ep.page_type, 'config', ep.config))
+                       from event_pages ep where ep.client_id = c.id), '[]'::jsonb)
+  );
+end $$;
+
+-- ✅ Briques 1, 2 & 3 de B.3 posées. Restent (voir files/SAAS-ROADMAP.md) :
+--    quotas stockage, Stripe, inscription self-serve, cloisonnement des
+--    dossiers Cloudinary (ou migration Cloudflare Images).

@@ -55,6 +55,8 @@ const CLIENT = {
   sector:     D.sector     || '',
   greeting:   D.greeting   || (D.name || 'Client').split(' ')[0],
   agencyName: D.agencyName || 'TimelessHouse',
+  agencyEmail: D.agencyEmail || 'service@timelesshouse.org',
+  agencyLogo: D.agencyLogo || '',
   analyticsEnabled: D.analyticsEnabled === true,
   mediaEnabled:     D.mediaEnabled    !== false,
   invoicesEnabled:  D.invoicesEnabled !== false,
@@ -115,6 +117,37 @@ const NEU_DARK = {
 };
 
 // Mutable pointer — reassigned by App on theme change
+// 🎨 Marque blanche (SaaS B.3) : si l'agence du client a personnalisé
+// ses couleurs, la palette CLAIRE est régénérée depuis son fond et son
+// accent — le mode sombre garde sa palette graphite, et TimelessHouse
+// (couleurs par défaut) garde exactement son design d'origine.
+(() => {
+  const ag = window.__AGENCY || {};
+  const bg  = (ag.bg_color || '#e9e4d9').toLowerCase();
+  const acc = (ag.accent_color || '#2a2620').toLowerCase();
+  if (bg === '#e9e4d9' && acc === '#2a2620') return;
+  const rgb = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const mix = (h, target, f) => {
+    const c = rgb(h).map(v => Math.round(v + (target - v) * f));
+    return `rgb(${c.join(',')})`;
+  };
+  const raisedBg  = mix(bg, 255, 0.38);
+  const pressedBg = mix(bg, 0, 0.05);
+  Object.assign(NEU_LIGHT, {
+    base:      { backgroundColor: bg },
+    raised:    { backgroundColor: raisedBg,  boxShadow: '10px 10px 24px rgba(0,0,0,0.13), -10px -10px 24px rgba(255,255,255,0.85)' },
+    raisedSm:  { backgroundColor: raisedBg,  boxShadow: '5px 5px 12px rgba(0,0,0,0.11), -5px -5px 12px rgba(255,255,255,0.8)' },
+    raisedXs:  { backgroundColor: raisedBg,  boxShadow: '3px 3px 7px rgba(0,0,0,0.09), -3px -3px 7px rgba(255,255,255,0.75)' },
+    pressed:   { backgroundColor: pressedBg, boxShadow: 'inset 5px 5px 10px rgba(0,0,0,0.13), inset -5px -5px 10px rgba(255,255,255,0.8)' },
+    pressedSm: { backgroundColor: pressedBg, boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.11), inset -3px -3px 6px rgba(255,255,255,0.75)' },
+    dark:      { backgroundColor: acc, boxShadow: '8px 8px 18px rgba(0,0,0,0.18), -3px -3px 8px rgba(255,255,255,0.5), inset 1px 1px 2px rgba(255,255,255,0.08)' },
+    darkSm:    { backgroundColor: acc, boxShadow: '4px 4px 10px rgba(0,0,0,0.18), -2px -2px 6px rgba(255,255,255,0.45)' },
+    accent:    acc,
+    headerGlass: mix(bg, 255, 0.2).replace('rgb(', 'rgba(').replace(')', ',0.85)'),
+    navGlass:    mix(bg, 255, 0.2).replace('rgb(', 'rgba(').replace(')', ',0.5)'),
+  });
+})();
+
 let neu = NEU_LIGHT;
 
 // ---------- useDarkMode hook ----------
@@ -708,9 +741,13 @@ const Sidebar = ({ section, setSection, onLogout, isDark, toggleDark }) => {
   return (
     <aside style={neu.raised} className="hidden lg:flex w-[230px] h-[calc(100vh-40px)] sticky top-5 flex-col rounded-[32px] p-5 shrink-0">
       <div className="px-2 pt-2 pb-6">
-        <div className="text-[26px] tracking-tight leading-none" style={{ ...SERIF, fontStyle: 'italic' }}>
-          {CLIENT.agencyName}<span className="text-stone-400">.</span>
-        </div>
+        {CLIENT.agencyLogo ? (
+          <img src={CLIENT.agencyLogo} alt={CLIENT.agencyName} className="max-h-10 max-w-[170px] object-contain object-left" />
+        ) : (
+          <div className="text-[26px] tracking-tight leading-none" style={{ ...SERIF, fontStyle: 'italic' }}>
+            {CLIENT.agencyName}<span className="text-stone-400">.</span>
+          </div>
+        )}
         <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 mt-1.5 font-medium">Espace client</div>
       </div>
 
@@ -739,7 +776,7 @@ const MobileHeader = ({ onLogout, isDark, toggleDark }) => (
   <header
     className="lg:hidden flex items-center justify-between px-5 py-3.5 sticky top-0 z-30"
     style={{
-      backgroundColor: isDark ? 'rgba(34,38,45,0.85)' : 'rgba(239,234,224,0.85)',
+      backgroundColor: isDark ? 'rgba(34,38,45,0.85)' : (NEU_LIGHT.headerGlass || 'rgba(239,234,224,0.85)'),
       backdropFilter: 'saturate(180%) blur(20px)',
       WebkitBackdropFilter: 'saturate(180%) blur(20px)',
       borderBottom: isDark ? '0.5px solid rgba(255,255,255,0.06)' : '0.5px solid rgba(0,0,0,0.06)',
@@ -749,9 +786,13 @@ const MobileHeader = ({ onLogout, isDark, toggleDark }) => (
         {CLIENT.initials}
       </div>
       <div className="min-w-0">
-        <div className="text-[17px] tracking-tight leading-none truncate" style={{ ...SERIF, fontStyle: 'italic' }}>
-          {CLIENT.agencyName}<span className="text-stone-400">.</span>
-        </div>
+        {CLIENT.agencyLogo ? (
+          <img src={CLIENT.agencyLogo} alt={CLIENT.agencyName} className="max-h-7 max-w-[140px] object-contain object-left" />
+        ) : (
+          <div className="text-[17px] tracking-tight leading-none truncate" style={{ ...SERIF, fontStyle: 'italic' }}>
+            {CLIENT.agencyName}<span className="text-stone-400">.</span>
+          </div>
+        )}
         <div className="text-[10px] uppercase tracking-[0.16em] text-stone-400 mt-1 font-medium truncate">
           {CLIENT.name}
         </div>
@@ -784,7 +825,7 @@ const BottomNav = ({ section, setSection, isDark }) => {
       className="lg:hidden fixed bottom-4 left-4 right-4 z-30 rounded-[28px] px-2 py-2 flex items-center justify-around"
       style={{
         boxShadow: neu.raised.boxShadow,
-        background: isDark ? 'rgba(34,38,45,0.5)' : 'rgba(239,234,224,0.5)',
+        background: isDark ? 'rgba(34,38,45,0.5)' : (NEU_LIGHT.navGlass || 'rgba(239,234,224,0.5)'),
         border: isDark ? '0.5px solid rgba(255,255,255,0.06)' : '0.5px solid rgba(255,255,255,0.55)',
         backdropFilter: 'saturate(180%) blur(22px)',
         WebkitBackdropFilter: 'saturate(180%) blur(22px)',
@@ -900,7 +941,7 @@ const Dashboard = ({ goTo }) => {
               Analyses Instagram, Facebook & TikTok intégrées : audience, engagement et synthèse hebdomadaire — directement dans votre tableau de bord.
             </p>
             <div className="mt-6 flex items-center gap-3 flex-wrap">
-              <a href="mailto:contact@timelesshouse.org?subject=Activer%20les%20analyses%20réseaux%20sociaux"
+              <a href={`mailto:${CLIENT.agencyEmail}?subject=Activer%20les%20analyses%20réseaux%20sociaux`}
                 style={neu.darkSm} className="px-5 py-3 rounded-full text-white text-[13px] font-semibold flex items-center gap-2 min-h-[44px] active:scale-95 transition-transform">
                 <ArrowUpRight size={14} /> Activer cette option
               </a>

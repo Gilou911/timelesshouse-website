@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Porte d'entrée DÉDIÉE de l'application (SaaS B.3, étage 1) :
+       servie sur app.timelesshouse.org — aucun contenu vitrine autour.
+       Deux entrées : espace client (code) et espace agence (admin).
+       L'étage 2 (nom de produit + sous-domaines par agence) habillera
+       cette page aux couleurs de chaque agence. -->
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#e9e4d9" />
+  <title>Espaces privés — Connexion</title>
+  <link rel="icon" href="/favicon-th.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #e9e4d9;
+      --surface: #efeae0;
+      --pressed: #e3ddd0;
+      --ink: #2a2620;
+      --muted: #7c756a;
+      --faint: #a49b8d;
+      --shadow-d: rgba(168, 156, 134, 0.32);
+      --shadow-l: rgba(255, 253, 247, 0.92);
+      --accent-text: #f5f1e6;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #181b20;
+        --surface: #22262d;
+        --pressed: #14171c;
+        --ink: #e8e4dc;
+        --muted: #9aa0ab;
+        --faint: #6b7280;
+        --shadow-d: rgba(0, 0, 0, 0.55);
+        --shadow-l: rgba(54, 60, 72, 0.28);
+        --accent-text: #f5f1e6;
+      }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh; min-height: 100dvh;
+      background: var(--bg); color: var(--ink);
+      font-family: 'Manrope', -apple-system, sans-serif;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 24px; gap: 28px;
+    }
+    .mark { text-align: center; }
+    .mark .name {
+      font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+      font-size: clamp(1.9rem, 6vw, 2.4rem); letter-spacing: -0.01em;
+    }
+    .mark .name span { color: var(--faint); }
+    .mark .tag {
+      font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--muted); margin-top: 8px; font-weight: 600;
+    }
+    .cards { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 18px; }
+    .card {
+      background: var(--surface); border-radius: 28px; padding: 28px 26px;
+      box-shadow: 10px 10px 24px var(--shadow-d), -10px -10px 24px var(--shadow-l);
+    }
+    .card h2 {
+      font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+      font-size: 22px; letter-spacing: -0.01em;
+    }
+    .card p { font-size: 13.5px; line-height: 1.6; color: var(--muted); margin-top: 6px; }
+    .row { display: flex; gap: 10px; margin-top: 18px; }
+    input[type="password"] {
+      flex: 1; min-width: 0; min-height: 48px; padding: 0 18px;
+      border: none; border-radius: 999px; background: var(--pressed); color: var(--ink);
+      /* HIG : 16px minimum — sinon iOS zoome la page au focus */
+      font-size: 16px; font-family: inherit; letter-spacing: 0.06em; outline: none;
+      box-shadow: inset 3px 3px 6px var(--shadow-d), inset -3px -3px 6px var(--shadow-l);
+    }
+    input::placeholder { color: var(--faint); letter-spacing: 0.12em; font-size: 13px; text-transform: uppercase; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 48px; padding: 0 22px; border: none; border-radius: 999px;
+      background: var(--ink); color: var(--accent-text);
+      font-family: inherit; font-size: 14px; font-weight: 600; letter-spacing: 0.02em;
+      cursor: pointer; text-decoration: none;
+      transition: transform 0.12s ease, opacity 0.12s ease;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn[disabled] { opacity: 0.5; }
+    .btn.full { width: 100%; margin-top: 18px; }
+    .error {
+      display: none; font-size: 13px; color: #c2413f; margin-top: 12px; line-height: 1.5;
+    }
+    footer { font-size: 11px; color: var(--faint); letter-spacing: 0.06em; text-align: center; }
+    footer a { color: inherit; }
+  </style>
+</head>
+<body>
+
+  <div class="mark">
+    <div class="name">TimelessHouse<span>.</span></div>
+    <div class="tag">Espaces privés</div>
+  </div>
+
+  <main class="cards">
+    <!-- ── Espace client : code d'accès ── -->
+    <section class="card" aria-labelledby="clientTitle">
+      <h2 id="clientTitle">Espace client</h2>
+      <p>Entrez le code d'accès personnel qui vous a été communiqué.</p>
+      <form class="row" id="clientForm">
+        <input type="password" id="clientCode" placeholder="Votre code" autocomplete="off"
+               aria-label="Code d'accès" enterkeyhint="go" />
+        <button type="submit" class="btn" id="clientBtn">Entrer</button>
+      </form>
+      <div class="error" id="clientError">Code incorrect. Vérifiez-le et réessayez.</div>
+    </section>
+
+    <!-- ── Espace agence : console d'administration ── -->
+    <section class="card" aria-labelledby="agencyTitle">
+      <h2 id="agencyTitle">Espace agence</h2>
+      <p>Gérez vos clients, vos livraisons, vos factures et vos tournages.</p>
+      <a class="btn full" href="/communication-admin.html">Ouvrir la console</a>
+    </section>
+  </main>
+
+  <footer>Un accès vous manque&nbsp;? <a href="mailto:service@timelesshouse.org">Contactez votre studio</a>.</footer>
+
+  <script type="module">
+    import { createClient } from '@supabase/supabase-js';
+    const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+
+    // Même normalisation et même routage que les logins du site vitrine
+    const form = document.getElementById('clientForm');
+    const btn  = document.getElementById('clientBtn');
+    const err  = document.getElementById('clientError');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const raw = document.getElementById('clientCode').value;
+      const code = raw.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/&/g, ' ').trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+      if (!code) return;
+      btn.disabled = true; err.style.display = 'none';
+      try {
+        const { data, error } = await sb.rpc('resolve_client_code', { p_code: code });
+        if (error || !data) { err.style.display = 'block'; btn.disabled = false; return; }
+        sessionStorage.setItem('access_granted', code);
+        try { localStorage.setItem('th_access_code', code); } catch (_) {}
+        let dest;
+        if (data.redirect_url) dest = data.redirect_url;
+        else if (data.universe === 'communication') dest = 'communication-dashboard.html';
+        else if (data.universe === 'anniversaire-mariage') dest = 'event-anniversary.html';
+        else if (data.universe === 'fiancailles') dest = 'event-engagement.html';
+        else dest = 'event-photos.html';
+        window.location.href = dest;
+      } catch (e2) {
+        console.error(e2); err.style.display = 'block'; btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

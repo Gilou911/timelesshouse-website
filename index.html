@@ -2,6 +2,14 @@
 <html lang="fr" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
+  <script>
+    // app.timelesshouse.org : la racine du sous-domaine « app » sert la
+    // porte d'entrée dédiée de l'application (app.html), jamais la
+    // vitrine (SaaS B.3, étage 1).
+    if (location.hostname.split('.')[0] === 'app' && !location.pathname.startsWith('/app')) {
+      location.replace('/app');
+    }
+  </script>
   <title>TimelessHouse – Portfolio</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="description" content="TimelessHouse — Vidéaste & photographe. Mariage, court-métrage, immobilier, commercial, voyage. Choisissez votre univers." />

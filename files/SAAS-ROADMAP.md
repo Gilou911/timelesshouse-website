@@ -438,10 +438,44 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   déclaré `display:flex`, ce qui **bat l'attribut `hidden`** du
   navigateur — le message s'affichait sous un film parfaitement lisible.
   Corrigé par `.g-soon[hidden] { display: none }`.
-  Reste : installation du LaunchAgent par Gil (fourni, non installé),
-  migration éventuelle sur un VPS, et le ré-encodage des vidéos
+  **LaunchAgent installé et vérifié le 20/07/2026** (à la demande de
+  Gil) : service `org.timelesshouse.worker-encode`, démarrage au login,
+  relance automatique, priorité basse. Prouvé en conditions réelles —
+  job déposé en base, ramassé seul en moins de 30 s, encodé, écrit ;
+  ce qui valide surtout que `ffmpeg` est joignable depuis launchd (qui
+  n'hérite pas du PATH du shell). ⚠️ Le service exécute le code chargé
+  à son démarrage : tout changement du worker exige
+  `launchctl kickstart -k` (piège rencontré, documenté).
+  Reste : migration éventuelle sur un VPS et le ré-encodage des vidéos
   locataires déjà uploadées (aucune à ce jour). Doc :
   `files/WORKER-ENCODE.md`.
+
+- **Vidéo visible seulement une fois encodée ✅ (fait le 20/07/2026,
+  brique 16)** : demande de Gil — le client d'un locataire ne doit pas
+  voir le film tant qu'aucune qualité n'est prête. Servir le master
+  brut ferait une mauvaise première impression (lourd, saccadé sur une
+  connexion moyenne) sur une livraison qui ne se fait qu'une fois.
+  Galeries : drapeau `videos[].awaitingEncode` posé à l'enregistrement
+  chez un locataire (jamais sur la plateforme), levé par le worker ;
+  la page affiche « Votre film est en cours de préparation » à la place
+  du lecteur, sans bouton de téléchargement. Médiathèque : colonne
+  `media.awaiting_encode` (défaut false, donc aucune des 12 vidéos
+  existantes n'est masquée), exposée automatiquement par
+  `to_jsonb(m)` dans get_client_portal ; l'espace client masque lecteur
+  ET téléchargement. Un drapeau EXPLICITE plutôt que l'absence de
+  `preview_url` : sinon une vidéo légitimement sans version allégée
+  serait prise à tort pour un encodage en attente.
+  Rendu défensif : la condition est `awaitingEncode && !hls` — un
+  drapeau resté à true par accident ne masque jamais une vidéo prête.
+  **Bug corrigé au passage** : l'enregistrement d'une galerie remettait
+  `hls` à `''` (la valeur n'était même pas chargée dans l'état du
+  formulaire) — renommer une galerie après l'encodage effaçait le
+  travail du worker et la vidéo retombait silencieusement en
+  progressif. Vérifié en réel : upload → message d'attente sans lecteur
+  ni téléchargement → worker → lecteur adaptatif AUTO/480p/720p et
+  téléchargement rétabli, sans rien recharger d'autre que la page ;
+  non-régression sur le film d'Ezla & Davy (Streamable, sans drapeau,
+  toujours visible).
 
 ## C — Apps stores (après B)
 

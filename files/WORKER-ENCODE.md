@@ -60,19 +60,37 @@ Il lit `.env.local` (Supabase service role + clés B2). `Ctrl-C` demande
 un arrêt propre : le job en cours se termine d'abord (un second `Ctrl-C`
 coupe net).
 
-### Démarrage automatique au login (macOS)
+### Démarrage automatique au login (macOS) — INSTALLÉ le 20/07/2026
 
-`files/launchd-worker-encode.plist` est fourni **mais pas installé** —
-c'est un réglage de ta machine, à toi de décider :
+Le service `org.timelesshouse.worker-encode` tourne en permanence sur le
+Mac de Gil : démarrage au login, relance automatique, priorité basse.
+Il travaille depuis `~/Desktop/timelesshouse-website`.
 
 ```bash
+# état
+launchctl print gui/$(id -u)/org.timelesshouse.worker-encode | grep -E "state|pid"
+
+# redémarrer (OBLIGATOIRE après toute modification du worker — voir plus bas)
+launchctl kickstart -k gui/$(id -u)/org.timelesshouse.worker-encode
+
+# désactiver définitivement
+launchctl bootout gui/$(id -u)/org.timelesshouse.worker-encode
+
+# réinstaller depuis zéro
 cp files/launchd-worker-encode.plist ~/Library/LaunchAgents/org.timelesshouse.worker-encode.plist
-launchctl load  ~/Library/LaunchAgents/org.timelesshouse.worker-encode.plist   # activer
-launchctl unload ~/Library/LaunchAgents/org.timelesshouse.worker-encode.plist  # désactiver
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/org.timelesshouse.worker-encode.plist
 ```
 
-Vérifie d'abord que le chemin du projet dans le fichier correspond bien
-au tien, et que `node` est là où le plist l'attend (`which node`).
+⚠️ **Le service exécute le code chargé à son démarrage.** Après une
+modification de `worker-encode.mjs` ou `encode-core.mjs` — et après
+tout `git pull` qui les touche — il faut le relancer (`kickstart -k`),
+sinon il continue silencieusement avec l'ancienne version. Le symptôme
+est déroutant : les jobs se traitent correctement, mais le comportement
+ne correspond pas au code qu'on vient d'écrire.
+
+Le plist pointe sur `/opt/homebrew/bin/node` et déclare un `PATH`
+explicite : launchd n'hérite pas de l'environnement du shell, sans quoi
+`ffmpeg` serait introuvable au premier encodage.
 
 ---
 
@@ -80,9 +98,23 @@ au tien, et que `node` est là où le plist l'attend (`which node`).
 
 **Le worker ne tourne que quand ton Mac est allumé.** C'est le
 compromis assumé du départ : zéro coût, zéro serveur à gérer. Les
-vidéos uploadées pendant que la machine dort attendent sagement dans la
-file et sont traitées au réveil — et pendant ce temps, elles restent
-lisibles en progressif. Rien n'est jamais cassé pour le client.
+vidéos uploadées pendant que la machine dort attendent dans la file et
+sont traitées au réveil.
+
+**Pendant l'attente, le client ne voit PAS la vidéo** (décision de Gil,
+20/07/2026) : la page affiche « Votre film est en cours de
+préparation », sans lecteur ni téléchargement. Servir le master brut
+ferait une mauvaise première impression — lourd, saccadé sur une
+connexion moyenne — sur une livraison qu'on ne fait qu'une fois. Le
+basculement est automatique dès qu'une qualité est prête.
+
+Concrètement, c'est ce qui rend le redémarrage du service critique : si
+le worker est arrêté, les films restent invisibles pour les clients.
+Un coup d'œil à la file de temps en temps ne fait pas de mal :
+
+```sql
+select status, count(*) from encode_jobs group by status;
+```
 
 **Migration vers un serveur, le jour venu.** Le script est écrit pour
 tourner tel quel sur un Linux avec `ffmpeg` : `git clone`, `npm ci`, le

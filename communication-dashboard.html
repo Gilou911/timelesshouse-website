@@ -245,6 +245,7 @@
     window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
 
     import { createClient } from '@supabase/supabase-js';
+    import { allowsAnalytics } from './univers.js';
 
     let code = sessionStorage.getItem('access_granted');
     if (!code) {
@@ -337,6 +338,13 @@
       // son agence (SaaS B.3 — les apps Meta/TikTok sont au nom de
       // TimelessHouse, un locataire n'y a pas droit par défaut)
       analyticsEnabled: client.analytics_enabled === true && agency.features_analytics === true,
+      // L'option est-elle seulement PROPOSABLE ? Le tableau de bord
+      // affiche sinon un encart « Activer cette option — 49 €/mois ».
+      // Il n'a de sens que dans l'univers communication (jamais dans
+      // `neutre`, brique 14) et chez une agence qui dispose vraiment de
+      // la fonctionnalité — sans quoi un locataire vendait, sous SA
+      // marque, une option qu'il ne peut pas livrer.
+      analyticsOffered: allowsAnalytics(client.universe) && agency.features_analytics === true,
       mediaEnabled:     client.media_enabled    !== false,
       invoicesEnabled:  client.invoices_enabled !== false,
       shootsEnabled:    client.shoots_enabled   !== false,

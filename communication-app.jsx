@@ -58,6 +58,10 @@ const CLIENT = {
   agencyEmail: D.agencyEmail || 'service@timelesshouse.org',
   agencyLogo: D.agencyLogo || '',
   analyticsEnabled: D.analyticsEnabled === true,
+  // L'encart d'upsell « Activer cette option » n'apparaît que là où
+  // l'option est réellement vendable (univers communication + agence
+  // qui dispose de la fonctionnalité) — cf. communication-dashboard.html.
+  analyticsOffered: D.analyticsOffered === true,
   mediaEnabled:     D.mediaEnabled    !== false,
   invoicesEnabled:  D.invoicesEnabled !== false,
   shootsEnabled:    D.shootsEnabled   !== false,
@@ -933,7 +937,7 @@ const Dashboard = ({ goTo }) => {
             </ResponsiveContainer>
           </div>
         </div>
-      ) : (
+      ) : CLIENT.analyticsOffered ? (
         <div style={neu.raised} className="lg:col-span-8 rounded-[24px] lg:rounded-[28px] p-6 lg:p-7 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-[0.08] pointer-events-none" style={{ background: 'radial-gradient(circle, #b08968 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
           <div className="relative">
@@ -952,7 +956,7 @@ const Dashboard = ({ goTo }) => {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* ── Quick actions ── grille adaptative, cartes pleines hauteur ── */}
       <div className="grid grid-cols-1 gap-3 lg:col-span-4 lg:gap-4">

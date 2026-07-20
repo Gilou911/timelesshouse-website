@@ -110,7 +110,10 @@ export function videoPageFor(universe) {
  *      part au tableau de bord que si le client n'a AUCUNE livraison —
  *      sinon elle garde sa destination d'aujourd'hui. `neutre`, valeur
  *      neuve, n'a pas cette réserve ;
- *   3. sinon → event-photos.html, qui redirige lui-même vers la page
+ *   3. valeurs héritées `fiancailles` / `anniversaire-mariage` → leur
+ *      page dédiée, exactement comme avant (andry-elio31ans, client
+ *      réel, doit continuer d'arriver sur event-anniversary.html) ;
+ *   4. sinon → event-photos.html, qui redirige lui-même vers la page
  *      vidéo quand il n'y a pas de galerie photos. C'est exactement la
  *      règle voulue pour `celebration` : photos si elles existent,
  *      film sinon — sans que la porte d'entrée ait à le savoir.
@@ -121,6 +124,9 @@ export function routeForClient(data) {
   if (isDashboardUniverse(data.universe)) {
     if (data.universe === 'autre' && data.has_delivery) return 'event-photos.html';
     return 'communication-dashboard.html';
+  }
+  if (data.universe === 'fiancailles' || data.universe === 'anniversaire-mariage') {
+    return videoPageFor(data.universe);
   }
   return 'event-photos.html';
 }

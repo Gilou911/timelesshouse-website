@@ -2249,15 +2249,16 @@
           <div className="flex items-start gap-3 flex-wrap">
             {/* Réordonnancement */}
             <div className="flex flex-col shrink-0">
+              {/* HIG : cibles tactiles 44 px — ce sont des actions primaires */}
               <button type="button" disabled={busy || first} onClick={() => onMove(-1)}
                 aria-label="Monter la galerie"
-                className="w-9 h-9 flex items-center justify-center rounded-lg text-stone-600 disabled:opacity-25">
-                <ChevronUp size={15} />
+                className="w-11 h-11 flex items-center justify-center rounded-lg text-stone-600 disabled:opacity-25">
+                <ChevronUp size={16} />
               </button>
               <button type="button" disabled={busy || last} onClick={() => onMove(1)}
                 aria-label="Descendre la galerie"
-                className="w-9 h-9 flex items-center justify-center rounded-lg text-stone-600 disabled:opacity-25">
-                <ChevronDown size={15} />
+                className="w-11 h-11 flex items-center justify-center rounded-lg text-stone-600 disabled:opacity-25">
+                <ChevronDown size={16} />
               </button>
             </div>
 
@@ -2298,7 +2299,7 @@
               <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold">Lien de partage</div>
               <button type="button" onClick={onToggleShare} disabled={busy}
                 aria-label={g.share_enabled ? 'Couper le partage' : 'Réactiver le partage'}
-                className="flex items-center gap-2 min-h-[36px] px-1 disabled:opacity-50">
+                className="flex items-center gap-2 min-h-[44px] px-1 disabled:opacity-50">
                 <span className="text-[11.5px] text-stone-600 font-medium">
                   {g.share_enabled ? 'Actif' : 'Coupé'}
                 </span>

@@ -89,6 +89,23 @@ agence. La voie est libre pour accueillir la 1ʳᵉ agence externe.
   l'ouverture. Vérifié en réel : 10 agences créées pour atteindre le
   seuil, 11ᵉ inscription mise en attente, écriture refusée par la RLS,
   validation depuis la console, écriture débloquée — puis tout nettoyé.
+- **📸 DÉCISION PIPELINE PHOTOS (20/07/2026) : tout sur B2, Cloudinary
+  devient un héritage TimelessHouse.** Analyse à l'échelle cible
+  (100 agences × 4 galeries/mois × 600-1000 photos ≈ 2,5 To/mois) :
+  Cloudinary gratuit intenable (25 crédits/mois, 10 Mo max/image) et
+  payant inviable (besoin ≈ milliers de crédits/mois → tarif
+  entreprise) ; B2 = 6 $/To/mois, egress gratuit vers Cloudflare, coût
+  aligné sur les paliers de stockage vendus, et les photos comptent
+  enfin dans les quotas. ✅ Fait : `cloudinary-sign` verrouillée aux
+  membres TimelessHouse (upload ET destroy — testé TH 200 / locataire
+  401 / anon 401). ⏳ À construire : pipeline galeries B2 pour les
+  locataires (variantes vignette/vue générées dans le NAVIGATEUR à
+  l'upload, stockage `weddings/<code>/…`, remplacement de list-gallery,
+  rendu event-photos depuis B2). Vidéo : les locataires livrent en MP4
+  progressif (aucun outil requis, le lecteur gère) ; l'encodage HLS
+  automatique (worker ffmpeg externe — impossible en serverless)
+  viendra plus tard ; Cloudflare Stream écarté (échelle de qualités
+  imposée, sortirait la vidéo des quotas B2 = du modèle de vente).
 - Rôles admin supplémentaires par agence : reste à faire.
 - **Identité d'application (étage 1 ✅ fait le 20/07/2026)** : porte
   d'entrée dédiée `app.html` (connexion client par code + accès console

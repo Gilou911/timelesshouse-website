@@ -52,17 +52,20 @@ async function sha1Hex(str: string): Promise<string> {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-// Garde par rôles (SaaS B.3 — remplace ADMIN_EMAILS) : l'appelant doit
-// être MEMBRE D'UNE AGENCE. Les dossiers Cloudinary ne sont pas encore
-// cloisonnés par agence (à traiter avec la migration Cloudflare Images
-// prévue en B.3 — upload-only, pas de lecture ni de listing ici).
+// Cloudinary est un HÉRITAGE TimelessHouse (galeries photos existantes,
+// décision du 20/07/2026) : les locataires livrent leurs photos via B2
+// (variantes générées à l'upload). Comme les dossiers Cloudinary ne
+// sont pas cloisonnés par agence — et que « destroy » supprime
+// n'importe quel visuel — cette fonction est réservée aux MEMBRES DE
+// L'AGENCE PLATEFORME uniquement.
 async function requireAdmin(req: Request): Promise<boolean> {
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   if (!token) return false;
   const { data, error } = await sbAdmin.auth.getUser(token);
   if (error || !data?.user) return false;
   const { data: rows } = await sbAdmin
-    .from("agency_members").select("agency_id").eq("user_id", data.user.id).limit(1);
+    .from("agency_members").select("agency_id, agencies!inner(slug)")
+    .eq("user_id", data.user.id).eq("agencies.slug", "timelesshouse").limit(1);
   return !!rows && rows.length > 0;
 }
 

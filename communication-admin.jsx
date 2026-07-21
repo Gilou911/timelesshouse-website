@@ -6718,18 +6718,21 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       return (
         <Modal title="Bienvenue dans votre loge" kicker={`Guide · ${idx + 1}/${chapitres.length}`} onClose={onClose} size="lg">
-          {/* Chapitres : liste latérale sur grand écran, rangée défilante au doigt */}
+          {/* Chapitres : rail en creux (règle « halo ») — rangée défilante
+              au doigt sur mobile, colonne latérale sur grand écran */}
           <div className="flex flex-col sm:flex-row gap-5 sm:gap-4">
-            <nav aria-label="Chapitres du guide"
-                 className="flex sm:flex-col gap-3 overflow-x-auto no-scrollbar -mx-3 px-3 sm:w-48 shrink-0">
-              {chapitres.map((c, i) => (
-                <button key={c.titre} onClick={() => setIdx(i)}
-                  aria-current={i === idx ? 'step' : undefined}
-                  style={i === idx ? neu.dark : neu.raisedXs}
-                  className={`px-3.5 min-h-[44px] rounded-full sm:rounded-xl text-[12.5px] font-semibold flex items-center gap-2 whitespace-nowrap sm:whitespace-normal text-left shrink-0 transition active:scale-95 ${i === idx ? 'text-white' : 'text-stone-600'}`}>
-                  <span aria-hidden="true">{c.icone}</span> {c.titre}
-                </button>
-              ))}
+            <nav aria-label="Chapitres du guide" className="sm:w-48 shrink-0 max-w-full">
+              <div style={neu.pressed}
+                   className="rounded-full sm:rounded-2xl p-1 flex sm:flex-col gap-1 overflow-x-auto no-scrollbar max-w-full">
+                {chapitres.map((c, i) => (
+                  <button key={c.titre} onClick={() => setIdx(i)}
+                    aria-current={i === idx ? 'step' : undefined}
+                    style={i === idx ? neu.dark : {}}
+                    className={`px-3.5 py-2.5 min-h-[44px] rounded-full sm:rounded-xl text-[12.5px] font-semibold flex items-center gap-2 whitespace-nowrap sm:whitespace-normal text-left shrink-0 transition active:scale-95 ${i === idx ? 'text-white' : 'text-stone-600'}`}>
+                    <span aria-hidden="true">{c.icone}</span> {c.titre}
+                  </button>
+                ))}
+              </div>
             </nav>
 
             <div className="flex-1 min-w-0">
@@ -6776,16 +6779,20 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [myAgency, setMyAgency] = useState(null);
       const [showGuide, setShowGuide] = useState(false);
 
-      // Guide : s'ouvre SEUL à la première connexion d'un locataire
-      // (jamais pour la plateforme), puis plus jamais — sauf via le
-      // bouton « ? ». Mémorisé par compte : un second appareil le
-      // remontrera une fois, ce qui est plutôt une qualité.
+      // Guide : s'ouvre SEUL à la PREMIÈRE connexion d'un locataire
+      // (jamais pour la plateforme), puis plus jamais, sur aucun
+      // appareil — le « vu » est écrit dans les métadonnées du COMPTE
+      // Supabase dès l'ouverture automatique ; localStorage ne sert
+      // que de cache local. Réouverture à la demande via « Guide ».
       useEffect(() => {
         if (!featuresReady || FEATURES.allUniverses || !user) return;
+        if (user.user_metadata?.laloge_guide_vu) return;
         const cle = `laloge-guide-vu:${user.id}`;
-        try {
-          if (!localStorage.getItem(cle)) setShowGuide(true);
-        } catch (_) {}
+        try { if (localStorage.getItem(cle)) return; } catch (_) {}
+        setShowGuide(true);
+        // Marqué « vu » dès maintenant : l'ouverture automatique est unique.
+        try { localStorage.setItem(cle, '1'); } catch (_) {}
+        sb.auth.updateUser({ data: { laloge_guide_vu: true } }).catch(() => {});
       }, [featuresReady, user]);
 
       const fermerGuide = () => {

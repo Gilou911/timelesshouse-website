@@ -861,11 +861,18 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           ) : abonne ? (
             <div className="mt-4">
               <p className="text-[13px] text-stone-500 mb-4">
-                Changez de palier, mettez à jour votre carte ou résiliez depuis le portail sécurisé Stripe.
+                Changez de palier ou mettez à jour votre carte depuis le portail sécurisé Stripe.
               </p>
-              <Btn kind="dark" onClick={() => go('portal')} disabled={busy}>
-                {busy ? 'Ouverture…' : 'Gérer mon abonnement'}
-              </Btn>
+              <div className="flex items-center gap-3 flex-wrap">
+                <Btn kind="dark" onClick={() => go('portal')} disabled={busy}>
+                  {busy ? 'Ouverture…' : 'Gérer mon abonnement'}
+                </Btn>
+                <Btn onClick={() => go('portal')} disabled={busy}>Se désabonner</Btn>
+              </div>
+              <div className="text-[11.5px] text-stone-400 mt-3">
+                La résiliation se confirme dans le portail Stripe. À la fin de la période déjà payée,
+                votre loge repasse sur l'offre Découverte — vos données restent en place, ses limites s'appliquent à nouveau.
+              </div>
             </div>
           ) : (
             <div className="mt-4">
@@ -1135,14 +1142,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </div>
           )}
 
-          {/* Ma marque (SaaS B.3) — l'agence règle sa propre identité */}
-          <BrandCard agency={agency} onSaved={refreshBrand} />
-
-          {/* Abonnement (SaaS B.3 — Stripe) */}
-          <BillingCard billing={billing} />
-
-          {/* Sécurité — changement de mot de passe */}
-          <PasswordCard />
+          {/* Ma marque, Abonnement et Sécurité vivent dans « Paramètres »
+              (pastille en bas du menu) depuis le 22/07/2026. */}
 
           {/* Hero card */}
           <div style={neu.dark} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7 text-white relative overflow-hidden">
@@ -1154,6 +1155,24 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               Ajoutez de nouveaux clients, livrez des médias, créez des factures et planifiez vos tournages. Vos clients verront les changements instantanément.
             </p>
           </div>
+        </div>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       ⚙️ PARAMÈTRES — marque, abonnement (avec résiliation), sécurité
+       ════════════════════════════════════════════════════════════ */
+    function SettingsView({ billing, agency, refreshBrand }) {
+      return (
+        <div className="space-y-5 lg:space-y-6">
+          {/* Ma marque (SaaS B.3) — l'agence règle sa propre identité */}
+          <BrandCard agency={agency} onSaved={refreshBrand} />
+
+          {/* Abonnement (SaaS B.3 — Stripe) + Se désabonner */}
+          <BillingCard billing={billing} />
+
+          {/* Sécurité — changement de mot de passe */}
+          <PasswordCard />
         </div>
       );
     }
@@ -6650,7 +6669,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           titre: 'Votre marque',
           icone: '🎨',
           contenu: [
-            ['Réglez-la une fois', 'Dans la Vue d\'ensemble, la carte « Ma marque » : nom affiché, logo, deux couleurs, email de contact.'],
+            ['Réglez-la une fois', 'Dans « Paramètres » (en bas du menu), la carte « Ma marque » : nom affiché, logo, deux couleurs, email de contact.'],
             ['Elle s\'applique partout', 'Page de connexion, espaces clients, galeries, emails envoyés à vos clients — tout suit instantanément.'],
           ],
         },
@@ -6683,8 +6702,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           titre: 'Votre offre',
           icone: '⭐',
           contenu: [
-            ['Où vous en êtes', 'La Vue d\'ensemble affiche votre stockage et votre abonnement. L\'offre Découverte : 1 espace client, 3 Go, accès 90 jours.'],
-            ['Évoluer quand vous voulez', 'Le passage à une offre supérieure se fait depuis la carte Abonnement — espaces illimités, marque blanche complète, sans engagement.'],
+            ['Où vous en êtes', 'La Vue d\'ensemble affiche votre stockage ; votre abonnement vit dans « Paramètres ». L\'offre Découverte : 1 espace client, 3 Go, accès 90 jours.'],
+            ['Évoluer quand vous voulez', 'Le passage à une offre supérieure — ou la résiliation — se fait dans « Paramètres », carte Abonnement. Sans engagement.'],
             ['Une question ?', `Écrivez-nous : service@timelesshouse.org.`],
           ],
         },
@@ -6744,7 +6763,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       neu = isDark ? NEU_DARK : NEU_LIGHT;
 
       const [user, setUser] = useState(undefined); // undefined = checking, null = logged out, object = logged in
-      const [section, setSection] = useState('clients');
+      // Retour de Stripe Checkout (?abonnement=ok|annule) : on ouvre
+      // directement Paramètres, où vit désormais la carte Abonnement.
+      const [section, setSection] = useState(() =>
+        new URLSearchParams(window.location.search).get('abonnement') ? 'settings' : 'clients');
       const [selectedClient, setSelectedClient] = useState(null);
       const [clients, setClients] = useState([]);
       const [overviewData, setOverviewData] = useState({ totalMedia: 0, totalRevenue: 0, upcomingShoots: 0 });
@@ -6870,6 +6892,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         clients:  { t: 'Mes clients', s: 'Tous les espaces que vous avez créés.' },
         portfolio:{ t: 'Portfolio', s: 'Vitrine et espaces de prospection.' },
         agences:  { t: 'Agences', s: 'Les locataires de votre plateforme marque blanche.' },
+        settings: { t: 'Paramètres', s: 'Votre marque, votre abonnement et la sécurité de votre compte.' },
       };
 
       return (
@@ -6893,6 +6916,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <div style={neu.raisedXs} className="h-11 px-3 rounded-full flex items-center justify-center">
                 <DarkToggle isDark={isDark} onToggle={toggleDark} />
               </div>
+              <button onClick={() => { setSection('settings'); setSelectedClient(null); }} aria-label="Paramètres" title="Paramètres" style={neu.raisedXs} className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
+                <Settings size={16} />
+              </button>
               {featuresReady && !FEATURES.allUniverses && (
                 <button onClick={() => setShowGuide(true)} aria-label="Guide" title="Guide" style={neu.raisedXs} className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
                   <HelpCircle size={16} />
@@ -6944,6 +6970,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   <span className="text-[11px] uppercase tracking-[0.14em] text-stone-500 font-semibold">Thème</span>
                   <DarkToggle isDark={isDark} onToggle={toggleDark} />
                 </div>
+                <button
+                  onClick={() => { setSection('settings'); setSelectedClient(null); }}
+                  style={section === 'settings' && !selectedClient ? neu.pressedSm : {}}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3.5 min-h-[48px] rounded-2xl transition ${section === 'settings' && !selectedClient ? 'text-stone-900' : 'text-stone-500 hover:text-stone-800'}`}>
+                  <Settings size={18} /> <span className="text-[14px] font-medium tracking-tight">Paramètres</span>
+                </button>
                 {featuresReady && !FEATURES.allUniverses && (
                   <button onClick={() => setShowGuide(true)} className="w-full flex items-center gap-3.5 px-4 py-3.5 min-h-[48px] rounded-2xl text-stone-500 hover:text-stone-800 transition">
                     <HelpCircle size={18} /> <span className="text-[14px] font-medium tracking-tight">Guide</span>
@@ -6971,6 +7003,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <ClientDetail client={selectedClient} onBack={() => setSelectedClient(null)} refresh={() => { loadClients(); loadOverview(); }} />
               ) : section === 'overview' ? (
                 <Overview clients={clients} {...overviewData} agency={myAgency} refreshBrand={loadFeatures} />
+              ) : section === 'settings' ? (
+                <SettingsView billing={overviewData.billing} agency={myAgency} refreshBrand={loadFeatures} />
               ) : section === 'portfolio' && FEATURES.portfolio ? (
                 <AdminPortfolio sb={sb} neu={neu} SERIF={SERIF} isDark={isDark} />
               ) : section === 'agences' && agencies !== null ? (

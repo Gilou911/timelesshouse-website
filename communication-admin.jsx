@@ -1,3 +1,4 @@
+window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voir commit)
 /* ════════════════════════════════════════════════════════════
    ⚙️  COMMUNICATION-ADMIN.JSX — Console d'administration
    ════════════════════════════════════════════════════════════

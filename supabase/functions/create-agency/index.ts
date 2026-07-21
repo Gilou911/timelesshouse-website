@@ -50,6 +50,10 @@ function json(status: number, body: unknown): Response {
 
 // Slug sûr : minuscules, chiffres, tirets — utilisé dans les URLs et
 // les préfixes B2 (`agencies/<slug>/…` en B.3).
+const esc = (v: unknown) => String(v ?? "")
+  .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+
 function slugify(s: string): string {
   return s.toLowerCase()
     .normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -120,12 +124,12 @@ Deno.serve(async (req) => {
       <h1 style="margin:0;color:#e8d8be;font-size:13px;letter-spacing:.25em;text-transform:uppercase;font-weight:400;font-family:sans-serif">La Loge</h1>
     </div>
     <div style="padding:40px">
-      <h2 style="margin:0 0 20px;font-size:22px;font-weight:400">Votre loge est ouverte, ${ag.name}&nbsp;!</h2>
+      <h2 style="margin:0 0 20px;font-size:22px;font-weight:400">Votre loge est ouverte, ${esc(ag.name)}&nbsp;!</h2>
       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a4540">
         Votre demande est validée. Vos clients vous retrouveront ici&nbsp;:
       </p>
       <div style="text-align:center;margin:18px 0">
-        <div style="display:inline-block;padding:12px 24px;background:#f5f0e8;border:1px solid #e0dbd0;border-radius:10px;font-family:monospace;font-size:15px">${ag.slug}.laloge.house</div>
+        <div style="display:inline-block;padding:12px 24px;background:#f5f0e8;border:1px solid #e0dbd0;border-radius:10px;font-family:monospace;font-size:15px">${esc(ag.slug)}.laloge.house</div>
       </div>
       <div style="text-align:center">
         <a href="https://laloge.app/communication-admin.html" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Ouvrir ma console</a>

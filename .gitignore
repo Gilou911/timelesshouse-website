@@ -43,3 +43,18 @@ tmp-hls/
 workers/encoder/worker.log
 workers/encoder/launchd.out.log
 workers/encoder/launchd.err.log
+
+# Toute variante de fichier d'environnement (sauvegardes, brouillons)
+.env*
+!.env.example
+
+# Médias de travail lourds — hors dépôt (audit 21/07/2026).
+# Livrables clients / exports : n'ont rien à faire dans git (~4 Go de bloat).
+# NB : index.html référence Photos_ezla-davy/couple/05.jpg, mais ce fichier
+# n'a jamais été suivi et n'existe pas sur disque (lien cassé préexistant,
+# les vraies photos sont en .jpeg) — rien d'utilisé n'est donc retiré ici.
+/Photos_ezla-davy/
+/E&D1.jpeg
+/OrnelaLuka.png
+/StessyJunior.png
+/ThelanaManoah.png

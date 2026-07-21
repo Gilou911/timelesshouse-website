@@ -1,11 +1,26 @@
 -- ════════════════════════════════════════════════════════════
--- 📊 TIMELESSHOUSE — SCHÉMA SUPABASE COMPLET (v2 — mai 2026)
+-- ⚠️  OBSOLÈTE — NE PAS RÉEXÉCUTER EN PRODUCTION  ⚠️
 -- ════════════════════════════════════════════════════════════
--- Généré à partir de l'introspection réelle de la base de données.
--- Fidèle à 100% à ce qui tourne en production.
+-- Ce fichier est un INSTANTANÉ de mai 2026, AVANT le passage en
+-- multi-tenant (SaaS B.3, juillet 2026). Il NE reflète PLUS la prod :
+--   ▸ il manque agencies, agency_members, galleries, gallery_photos,
+--     encode_jobs, strategies, portfolio_*, signup_log, auth_recovery_log,
+--     et toutes les RPC « lectures scellées » (resolve_client_code,
+--     get_event_portal, get_gallery_by_code, …) ;
+--   ▸ ses politiques RLS `public read using (true)` et son
+--     `update_media_approval` sans contrôle sont DANGEREUSES aujourd'hui :
+--     les rejouer ROUVRIRAIT la lecture cross-tenant de toutes les tables.
 --
--- À exécuter UNE SEULE FOIS dans Supabase :
---   Dashboard Supabase → SQL Editor → coller ce fichier → Run
+-- 👉 L'état réel des politiques vit dans Supabase, pas ici. Pour le figer
+--    dans le repo, faire un dump (voir supabase/migrations/README.md) et
+--    appliquer supabase/migrations/20260721000000_security_hardening.sql.
+--
+-- Conservé UNIQUEMENT comme référence historique du modèle de données.
+-- ════════════════════════════════════════════════════════════
+--
+-- 📊 TIMELESSHOUSE — SCHÉMA SUPABASE (v2 — mai 2026, PRÉ-MULTI-TENANT)
+-- ════════════════════════════════════════════════════════════
+-- Généré à partir de l'introspection de la base en mai 2026.
 --
 -- Tables présentes :
 --   1. clients         — espaces clients (tous univers)

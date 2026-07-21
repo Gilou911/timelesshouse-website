@@ -250,6 +250,14 @@ const GRID = p => p.url_grid || p.url_view || p.url_original || '';
 const VIEW = p => p.url_view || p.url_original || p.url_grid || '';
 const FULL = p => p.url_original || p.url_view || p.url_grid || '';
 
+// Échappement d'ATTRIBUT : les URLs et noms de fichiers viennent de la config
+// de galerie (posée par l'admin) et sont injectés dans du innerHTML. On neutralise
+// toute rupture d'attribut (guillemet, chevron) pour qu'aucune valeur ne puisse
+// injecter de balisage/handler.
+const escAttr = v => String(v ?? '')
+  .replaceAll('&', '&amp;').replaceAll('"', '&quot;')
+  .replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+
 /**
  * Monte une galerie photos.
  * @param {HTMLElement} mount      conteneur (vidé)
@@ -358,11 +366,11 @@ export function mountPhotos(mount, categories, opts = {}) {
           cell.setAttribute('role', 'button');
           cell.setAttribute('aria-label', 'Ouvrir la photo en grand');
           cell.innerHTML =
-            `<img src="${GRID(p)}" alt="${(p.category || title).replace(/"/g, '&quot;')}" loading="lazy" decoding="async" />` +
+            `<img src="${escAttr(GRID(p))}" alt="${escAttr(p.category || title)}" loading="lazy" decoding="async" />` +
             `<div class="g-fav-badge">${ICON.heartFull}</div>` +
             `<div class="g-tools">` +
               `<button class="g-tool${favs.has(p.id) ? ' fav' : ''}" data-act="fav" aria-label="Ajouter aux favoris"><span>${ICON.heart}</span></button>` +
-              `<a class="g-tool" data-act="dl" href="${FULL(p)}" download="${fileNameOf(p, gi)}" aria-label="Télécharger"><span>${ICON.dl}</span></a>` +
+              `<a class="g-tool" data-act="dl" href="${escAttr(FULL(p))}" download="${escAttr(fileNameOf(p, gi))}" aria-label="Télécharger"><span>${ICON.dl}</span></a>` +
             `</div>`;
 
           cell.addEventListener('click', (e) => {

@@ -37,6 +37,10 @@ const cors = {
 const json = (s: number, b: unknown) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
+const esc = (v: unknown) => String(v ?? "")
+  .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const ALLOWED_HOSTS = [
   "laloge.app", "laloge.house", "timelesshouse.org",
@@ -70,8 +74,8 @@ function emailHtml(brand: { name: string; accent: string }, link: string) {
 <meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="margin:0;padding:0;background:#f5f0e8;font-family:Georgia,serif;color:#2a2620">
   <div style="max-width:580px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 32px rgba(42,38,32,.10)">
-    <div style="background:${brand.accent};padding:32px 40px;text-align:center">
-      <h1 style="margin:0;color:#e8d8be;font-size:13px;letter-spacing:.25em;text-transform:uppercase;font-weight:400;font-family:sans-serif">${brand.name}</h1>
+    <div style="background:${esc(brand.accent)};padding:32px 40px;text-align:center">
+      <h1 style="margin:0;color:#e8d8be;font-size:13px;letter-spacing:.25em;text-transform:uppercase;font-weight:400;font-family:sans-serif">${esc(brand.name)}</h1>
     </div>
     <div style="padding:40px">
       <h2 style="margin:0 0 20px;font-size:22px;font-weight:400;line-height:1.4">Réinitialisation de votre mot de passe</h2>
@@ -80,7 +84,7 @@ function emailHtml(brand: { name: string; accent: string }, link: string) {
         <strong>1 heure</strong> et ne fonctionne qu'une fois.
       </p>
       <div style="text-align:center">
-        <a href="${link}" style="display:inline-block;margin:24px 0 8px;padding:14px 32px;background:${brand.accent};color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Choisir un nouveau mot de passe</a>
+        <a href="${esc(link)}" style="display:inline-block;margin:24px 0 8px;padding:14px 32px;background:${esc(brand.accent)};color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Choisir un nouveau mot de passe</a>
       </div>
       <p style="font-size:13px;color:#8a8480;line-height:1.6;margin-top:24px">
         Vous n'êtes pas à l'origine de cette demande&nbsp;? Ignorez simplement cet email :

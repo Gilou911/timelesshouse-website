@@ -72,21 +72,35 @@ async function requireOwner(req: Request): Promise<Caller | null> {
 }
 
 // ─── Webhook : vérification de signature Stripe ─────────────
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 async function verifyStripeSignature(payload: string, header: string | null): Promise<boolean> {
   if (!header || !WEBHOOK_SECRET) return false;
-  const parts = Object.fromEntries(header.split(",").map((p) => p.split("=") as [string, string]));
-  const t = parts["t"]; const v1 = parts["v1"];
-  if (!t || !v1) return false;
+  // L'en-tête Stripe-Signature peut porter PLUSIEURS v1 (rotation de secret) :
+  // t=…,v1=…,v1=… → on collecte tous les v1 et on accepte si l'un correspond.
+  let t = "";
+  const v1s: string[] = [];
+  for (const part of header.split(",")) {
+    const i = part.indexOf("=");
+    if (i < 0) continue;
+    const k = part.slice(0, i), v = part.slice(i + 1);
+    if (k === "t") t = v;
+    else if (k === "v1") v1s.push(v);
+  }
+  if (!t || v1s.length === 0) return false;
   if (Math.abs(Date.now() / 1000 - Number(t)) > 300) return false; // tolérance 5 min
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(WEBHOOK_SECRET),
     { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${t}.${payload}`));
   const hex = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  // comparaison à temps constant
-  if (hex.length !== v1.length) return false;
-  let diff = 0;
-  for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ v1.charCodeAt(i);
-  return diff === 0;
+  // comparaison à temps constant contre chaque v1 (pas de court-circuit)
+  let ok = false;
+  for (const v1 of v1s) if (timingSafeEqual(hex, v1)) ok = true;
+  return ok;
 }
 
 // lookup_key « laloge_<plan>_<intervalle> » → { plan, interval }

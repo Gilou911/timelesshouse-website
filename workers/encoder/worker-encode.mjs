@@ -99,7 +99,9 @@ class PermanentError extends Error {}
 // ailleurs est refusé (on ne transcode pas ce qu'on ne maîtrise pas).
 function keyFromPublicUrl(url) {
   if (typeof url !== "string" || !url.startsWith(`${PUBLIC_BASE}/`)) return null;
-  const key = decodeURIComponent(url.slice(PUBLIC_BASE.length + 1));
+  let key;
+  try { key = decodeURIComponent(url.slice(PUBLIC_BASE.length + 1)); }
+  catch { return null; }               // encodage % invalide → source refusée
   return key.includes("..") ? null : key;
 }
 
@@ -239,7 +241,22 @@ async function claim() {
   return data && data.id ? data : null;
 }
 
+// Filet de sécurité mono-instance : si le Mac s'est endormi / a redémarré en
+// plein encodage, le job est resté « processing » sans que personne ne le
+// reprenne (la fiche reste `awaiting_encode`, le client ne voit rien). Comme un
+// seul worker tourne, AUCUN job n'est légitimement en cours au démarrage : on
+// remet donc les orphelins en file. Best effort — jamais bloquant.
+async function requeueOrphans() {
+  try {
+    const { data, error } = await sb.from("encode_jobs")
+      .update({ status: "pending" }).eq("status", "processing").select("id");
+    if (error) { log(`⚠ requeue des orphelins impossible : ${error.message}`); return; }
+    if (data?.length) log(`↺ ${data.length} job(s) orphelin(s) « processing » remis en file`);
+  } catch (e) { log(`⚠ requeue des orphelins : ${e.message}`); }
+}
+
 log(`🎬 worker d'encodage démarré (${ONCE ? "mode --once" : `boucle ${POLL_MS / 1000} s`})`);
+await requeueOrphans();
 
 while (!stopping) {
   const job = await claim();

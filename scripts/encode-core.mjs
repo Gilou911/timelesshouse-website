@@ -45,6 +45,13 @@ export const CONTENT_TYPES = {
   mp4: "video/mp4",
 };
 
+// execFileSync bufferise TOUT stdout+stderr en mémoire quand stdio="pipe".
+// Le défaut Node (1 Mo) déborde sur un long film (des milliers de lignes de
+// progression ffmpeg) → ENOBUFS → l'encodage échoue alors que la vidéo est
+// saine. On plafonne large ET on coupe la progression en mode silencieux.
+const FFMPEG_MAX_BUFFER = 256 * 1024 * 1024; // 256 Mo
+const QUIET_LOG = ["-nostats", "-loglevel", "error"];
+
 /* ─── Analyse de la source (ffprobe) ──────────────────────── */
 export function probeVideo(inputPath) {
   const abs = resolve(inputPath);
@@ -119,6 +126,7 @@ export function transcodeHls({ src, rungs, workDir, quiet = false }) {
   const stdio = quiet ? "pipe" : "inherit";
   execFileSync("ffmpeg", [
     "-y",
+    ...(quiet ? QUIET_LOG : []),
     "-i", inputPath,
     "-filter_complex", filterComplex,
     ...maps,
@@ -134,22 +142,22 @@ export function transcodeHls({ src, rungs, workDir, quiet = false }) {
     "-var_stream_map", streamMap,
     "-hls_segment_filename", join(workDir, "seg_%v_%04d.ts"),
     join(workDir, "index_%v.m3u8"),
-  ], { stdio });
+  ], { stdio, maxBuffer: FFMPEG_MAX_BUFFER });
 
   // Poster (frame nette à 2 s) + vidéo de survol (480p muette, légère)
   const posterAt = Math.min(2, Math.max(0, durationSeconds - 1));
   execFileSync("ffmpeg", [
-    "-y", "-ss", String(posterAt), "-i", inputPath,
+    "-y", ...QUIET_LOG, "-ss", String(posterAt), "-i", inputPath,
     "-frames:v", "1", "-vf", portrait ? "scale='min(720,iw)':-2" : "scale=-2:'min(720,ih)'",
     "-q:v", "3", join(workDir, "poster.jpg"),
-  ], { stdio: "pipe" });
+  ], { stdio: "pipe", maxBuffer: FFMPEG_MAX_BUFFER });
   execFileSync("ffmpeg", [
-    "-y", "-i", inputPath,
+    "-y", ...QUIET_LOG, "-i", inputPath,
     "-vf", portrait ? "scale='min(480,iw)':-2" : "scale=-2:'min(480,ih)'",
     "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28",
     "-pix_fmt", "yuv420p", "-movflags", "+faststart",
     join(workDir, "hover.mp4"),
-  ], { stdio: "pipe" });
+  ], { stdio: "pipe", maxBuffer: FFMPEG_MAX_BUFFER });
 }
 
 /* ─── Préfixe horodaté ────────────────────────────────────── */
@@ -211,12 +219,20 @@ export async function uploadOriginalFile({ s3, bucket, inputPath, basePrefix, on
 // La nouvelle version est en base : les anciens segments hls-* du
 // même média sont orphelins et occupent le quota pour rien.
 export async function purgeStaleHls({ s3, bucket, basePrefix, keepPrefix }) {
-  const { Contents } = await s3.send(
-    new ListObjectsV2Command({ Bucket: bucket, Prefix: `${basePrefix}/hls-` })
-  );
-  const stale = (Contents ?? [])
-    .map((o) => o.Key)
-    .filter((k) => k && !k.startsWith(`${keepPrefix}/`));
+  // Pagination : au fil des ré-encodages, un même média peut cumuler
+  // plus de 1000 objets hls-* ; sans le jeton de continuation, on en
+  // laisserait derrière soi (quota grignoté par des orphelins).
+  const stale = [];
+  let token;
+  do {
+    const page = await s3.send(new ListObjectsV2Command({
+      Bucket: bucket, Prefix: `${basePrefix}/hls-`, ContinuationToken: token,
+    }));
+    for (const o of page.Contents ?? []) {
+      if (o.Key && !o.Key.startsWith(`${keepPrefix}/`)) stale.push(o.Key);
+    }
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
   for (let i = 0; i < stale.length; i += 1000) {
     await s3.send(new DeleteObjectsCommand({
       Bucket: bucket,

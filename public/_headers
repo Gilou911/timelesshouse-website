@@ -35,3 +35,13 @@
   # Force HTTPS pendant un an (les domaines .app l'imposent déjà,
   # cette ligne couvre laloge.house et timelesshouse.org).
   Strict-Transport-Security: max-age=31536000; includeSubDomains
+  # CSP volontairement MINIMALE : le site charge des scripts CDN (unpkg,
+  # cdn.tailwindcss) et du JS inline, donc verrouiller script-src casserait
+  # la prod. On pose seulement les directives sans risque, qui n'affectent
+  # ni les scripts ni les styles ni les connexions :
+  #   · object-src 'none'     → aucun plugin/embed Flash/PDF exploitable
+  #   · base-uri 'self'       → empêche le détournement des URLs relatives
+  #   · frame-ancestors 'none'→ interdit l'embarquement (double X-Frame-Options)
+  # (un verrouillage complet de script-src demanderait de retirer les CDN
+  #  et les scripts inline — chantier séparé.)
+  Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'none'

@@ -53,6 +53,23 @@ const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
 };
+// Fenêtre anti-bombardement : au-delà de N emails vers le MÊME client en
+// FENÊTRE minutes, on refuse (protège la boîte du client, le coût Resend et
+// la réputation du domaine d'envoi). Journalisé dans la table notifications.
+const RL_WINDOW_MIN = 10;
+const RL_MAX = 12; // par client, tous types confondus (généreux : ne gêne pas une livraison groupée)
+// Échappement HTML — AUCUNE donnée fournie par l'appelant (commentaire,
+// nom du client, titre d'un média, lieu d'un tournage…) ne doit pouvoir
+// injecter du balisage dans l'email. Les URLs passent aussi par ici : en
+// contexte d'attribut, &→&amp; est le comportement HTML correct.
+function esc(v) {
+  return String(v ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 // ─────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────
@@ -187,11 +204,11 @@ function layout(body) {
 </head>
 <body>
 <div class="wrap">
-  <div class="header"><h1>${B.name}</h1></div>
+  <div class="header"><h1>${esc(B.name)}</h1></div>
   <div class="body">${body}</div>
   <div class="footer">
-    ${B.name} &nbsp;·&nbsp;
-    ${B.site ? `<a href="${B.site}">${B.site.replace("https://", "")}</a>` : `<a href="mailto:${B.email}">${B.email}</a>`}
+    ${esc(B.name)} &nbsp;·&nbsp;
+    ${B.site ? `<a href="${esc(B.site)}">${esc(B.site.replace("https://", ""))}</a>` : `<a href="mailto:${esc(B.email)}">${esc(B.email)}</a>`}
   </div>
 </div>
 </body>
@@ -202,11 +219,11 @@ function layout(body) {
   return `
     <div class="shoot-card">
       <div class="shoot-kicker">${isVideo ? "🎥 Tournage vidéo" : "📸 Shooting photo"}</div>
-      <div class="shoot-title">${s?.title ?? ""}</div>
+      <div class="shoot-title">${esc(s?.title ?? "")}</div>
       <div class="shoot-meta">
-        <strong>📅 Date&nbsp;:</strong> ${shootDateFR(s)}<br/>
-        ${s?.time_label ? `<strong>🕐 Horaires&nbsp;:</strong> ${s.time_label}<br/>` : ""}
-        ${s?.location ? `<strong>📍 Lieu&nbsp;:</strong> ${s.location}` : ""}
+        <strong>📅 Date&nbsp;:</strong> ${esc(shootDateFR(s))}<br/>
+        ${s?.time_label ? `<strong>🕐 Horaires&nbsp;:</strong> ${esc(s.time_label)}<br/>` : ""}
+        ${s?.location ? `<strong>📍 Lieu&nbsp;:</strong> ${esc(s.location)}` : ""}
       </div>
     </div>`;
 }
@@ -215,15 +232,15 @@ function layout(body) {
 // ─────────────────────────────────────────────────────────────────
 function buildWelcome(client) {
   const B = brandOf(client);
-  const prenom = client.greeting ?? client.name ?? "cher client";
+  const prenom = esc(client.greeting ?? client.name ?? "cher client");
   return {
     subject: `Votre espace privé ${B.name}`,
     html: layout(`
       <h2>Bienvenue dans votre espace privé</h2>
       <p>Bonjour ${prenom},</p>
-      <p>Votre espace personnel ${B.name} est prêt. Vous pouvez y accéder à tout moment avec votre code&nbsp;:</p>
+      <p>Votre espace personnel ${esc(B.name)} est prêt. Vous pouvez y accéder à tout moment avec votre code&nbsp;:</p>
       <div style="text-align:center">
-        <div class="code-box">${client.code}</div>
+        <div class="code-box">${esc(client.code)}</div>
       </div>
       <div style="text-align:center">
         <a class="btn" href="https://timelesshouse.org">Accéder à mon espace</a>
@@ -234,10 +251,10 @@ function buildWelcome(client) {
 }
 function buildNewMedia(client, media, extra) {
   const B = brandOf(client);
-  const prenom = client.greeting ?? client.name ?? "cher client";
+  const prenom = esc(client.greeting ?? client.name ?? "cher client");
   const typeLabel = media?.type === "video" ? "film" : "contenu";
-  const title = media?.title ?? "un nouveau contenu";
-  const url = extra?.loginUrl ?? "https://timelesshouse.org";
+  const title = esc(media?.title ?? "un nouveau contenu");
+  const url = esc(extra?.loginUrl ?? "https://timelesshouse.org");
   return {
     subject: `Nouveau ${typeLabel} disponible — ${B.name}`,
     html: layout(`
@@ -247,15 +264,15 @@ function buildNewMedia(client, media, extra) {
       <div style="text-align:center">
         <a class="btn" href="${url}">Voir mon espace</a>
       </div>
-      <p class="note">Votre code d'accès : <strong>${client.code}</strong></p>
+      <p class="note">Votre code d'accès : <strong>${esc(client.code)}</strong></p>
     `)
   };
 }
 // ── event_ready ──────────────────────────────────────────────────
 function buildStrategyReady(client, strategy) {
   const B = brandOf(client);
-  const prenom = client.greeting ?? client.name ?? "cher client";
-  const titre = strategy?.subtitle || strategy?.title || "Votre stratégie de contenu";
+  const prenom = esc(client.greeting ?? client.name ?? "cher client");
+  const titre = esc(strategy?.subtitle || strategy?.title || "Votre stratégie de contenu");
   const concepts = Array.isArray(strategy?.concepts) ? strategy.concepts.length : 0;
   const conceptStr = concepts > 0 ? `${concepts} concept${concepts > 1 ? "s" : ""} de contenu` : "vos concepts de contenu";
   return {
@@ -281,7 +298,7 @@ function buildStrategyReady(client, strategy) {
 function buildEventReady(client, extra) {
   const B = brandOf(client);
   const { hasPhotos, hasVideo, deliveryUrl } = extra ?? {};
-  const prenom = client.greeting ?? client.partner1 ?? client.name ?? "chers clients";
+  const prenom = esc(client.greeting ?? client.partner1 ?? client.name ?? "chers clients");
   let contenu = "votre contenu";
   let sujet = `Votre contenu est disponible — ${B.name}`;
   let titre = "Votre contenu est disponible";
@@ -298,9 +315,9 @@ function buildEventReady(client, extra) {
     titre = "Vos photos sont disponibles";
     sujet = `Vos photos vous attendent — ${B.name}`;
   }
-  const coupleLabel = client.partner1 && client.partner2 ? `${client.partner1} & ${client.partner2}` : client.partner1 ?? client.name ?? "";
+  const coupleLabel = esc(client.partner1 && client.partner2 ? `${client.partner1} & ${client.partner2}` : client.partner1 ?? client.name ?? "");
   const phrase = coupleLabel ? `C'est avec une immense joie que nous vous remettons ${contenu} — les souvenirs de <strong>${coupleLabel}</strong>.` : `${contenu.charAt(0).toUpperCase() + contenu.slice(1)} est désormais disponible dans votre espace personnel.`;
-  const url = deliveryUrl || "https://timelesshouse.org";
+  const url = esc(deliveryUrl || "https://timelesshouse.org");
   return {
     subject: sujet,
     html: layout(`
@@ -312,7 +329,7 @@ function buildEventReady(client, extra) {
         <a class="btn" href="${url}">Découvrir ${contenu}</a>
       </div>
       <p class="note" style="margin-top:28px">
-        Votre code d'accès : <strong>${client.code}</strong><br/>
+        Votre code d'accès : <strong>${esc(client.code)}</strong><br/>
         Vous pouvez partager ce lien avec vos proches en leur communiquant votre code.
       </p>
     `)
@@ -321,9 +338,9 @@ function buildEventReady(client, extra) {
 // ── invoice_ready ────────────────────────────────────────────────
 function buildInvoiceReady(client, extra) {
   const B = brandOf(client);
-  const prenom = client.greeting ?? client.name ?? "cher client";
-  const ref = extra?.reference ?? "";
-  const loginUrl = extra?.loginUrl ?? "https://timelesshouse.org";
+  const prenom = esc(client.greeting ?? client.name ?? "cher client");
+  const ref = esc(extra?.reference ?? "");
+  const loginUrl = esc(extra?.loginUrl ?? "https://timelesshouse.org");
   const montantHtml = extra?.amount != null ? `<div style="text-align:center">
          <div class="amount-box">${new Intl.NumberFormat("fr-FR").format(extra.amount)} €</div>
        </div>` : "";
@@ -340,7 +357,7 @@ function buildInvoiceReady(client, extra) {
         <a class="btn" href="${loginUrl}">Consulter ma facture</a>
       </div>
       <p class="note" style="margin-top:28px">
-        Votre code d'accès : <strong>${client.code}</strong><br/>
+        Votre code d'accès : <strong>${esc(client.code)}</strong><br/>
         En cas de question, répondez simplement à cet email.
       </p>
     `)
@@ -353,9 +370,9 @@ function buildInvoiceReady(client, extra) {
 //   • overdue     → en retard (escalade selon le nombre de jours)
 function buildInvoiceReminder(client, invoice, reminderType) {
   const B = brandOf(client);
-  const prenom = client.greeting ?? client.name ?? "cher client";
+  const prenom = esc(client.greeting ?? client.name ?? "cher client");
   const loginUrl = "https://timelesshouse.org";
-  const ref = invoice?.reference ?? "";
+  const ref = esc(invoice?.reference ?? "");
   const dueDate = invoice?.due_date ?? null;
   const amount = invoice?.amount;
   // Pour les retards : nombre de jours écoulés depuis l'échéance
@@ -402,7 +419,7 @@ function buildInvoiceReminder(client, invoice, reminderType) {
         <a class="btn" href="${loginUrl}">Consulter ma facture</a>
       </div>
       <p class="note" style="margin-top:28px">
-        Votre code d'accès : <strong>${client.code}</strong><br/>
+        Votre code d'accès : <strong>${esc(client.code)}</strong><br/>
         Une question ou un imprévu ? Répondez simplement à cet email.
       </p>
     `)
@@ -411,9 +428,9 @@ function buildInvoiceReminder(client, invoice, reminderType) {
 // ── shoot_scheduled ──────────────────────────────────────────────
 function buildShootScheduled(client, extra) {
   const B = brandOf(client);
-  const prenom = client.greeting ?? client.name ?? "cher client";
+  const prenom = esc(client.greeting ?? client.name ?? "cher client");
   const isVideo = extra?.type === "video";
-  const url = extra?.loginUrl ?? "https://timelesshouse.org";
+  const url = esc(extra?.loginUrl ?? "https://timelesshouse.org");
   const titre = isVideo ? "Votre tournage vidéo est programmé" : "Votre shooting photo est programmé";
   return {
     subject: `${titre} — ${B.name}`,
@@ -426,15 +443,15 @@ function buildShootScheduled(client, extra) {
       <div style="text-align:center">
         <a class="btn" href="${url}">Voir mon calendrier</a>
       </div>
-      <p class="note">Votre code d'accès : <strong>${client.code}</strong></p>
+      <p class="note">Votre code d'accès : <strong>${esc(client.code)}</strong></p>
     `)
   };
 }
 // ── shoot_updated ────────────────────────────────────────────────
 function buildShootUpdated(client, extra) {
   const B = brandOf(client);
-  const prenom = client.greeting ?? client.name ?? "cher client";
-  const url = extra?.loginUrl ?? "https://timelesshouse.org";
+  const prenom = esc(client.greeting ?? client.name ?? "cher client");
+  const url = esc(extra?.loginUrl ?? "https://timelesshouse.org");
   return {
     subject: `Mise à jour — votre tournage « ${extra?.title ?? ""} » — ${B.name}`,
     html: layout(`
@@ -448,7 +465,7 @@ function buildShootUpdated(client, extra) {
       <div style="text-align:center">
         <a class="btn" href="${url}">Vérifier dans mon espace</a>
       </div>
-      <p class="note">Votre code d'accès : <strong>${client.code}</strong></p>
+      <p class="note">Votre code d'accès : <strong>${esc(client.code)}</strong></p>
     `)
   };
 }
@@ -456,10 +473,10 @@ function buildShootUpdated(client, extra) {
 // `extra.daysBefore` est envoyé par le cron (7 ou 1) pour adapter le libellé.
 function buildShootReminder(client, extra) {
   const B = brandOf(client);
-  const prenom = client.greeting ?? client.name ?? "cher client";
+  const prenom = esc(client.greeting ?? client.name ?? "cher client");
   const days = extra?.daysBefore ?? null;
   const isVideo = extra?.type === "video";
-  const url = extra?.loginUrl ?? "https://timelesshouse.org";
+  const url = esc(extra?.loginUrl ?? "https://timelesshouse.org");
   const quand = days === 1 ? "demain" : days === 7 ? "dans une semaine" : days != null ? `dans ${days} jours` : "bientôt";
   const titre = days === 1 ? "C'est pour demain !" : `À ${quand} !`;
   return {
@@ -474,7 +491,7 @@ function buildShootReminder(client, extra) {
       <div style="text-align:center">
         <a class="btn" href="${url}">Voir le détail</a>
       </div>
-      <p class="note">Votre code d'accès : <strong>${client.code}</strong></p>
+      <p class="note">Votre code d'accès : <strong>${esc(client.code)}</strong></p>
     `)
   };
 }
@@ -484,9 +501,9 @@ function buildAdminNewComment(client, media, comment) {
     subject: `💬 Commentaire de ${client?.name ?? "votre client"}`,
     html: layout(`
       <h2>Nouveau commentaire client</h2>
-      <p><strong>${client?.name ?? "Un client"}</strong> a laissé un commentaire
-         sur <em>${media?.title ?? "un média"}</em>&nbsp;:</p>
-      <blockquote>${comment}</blockquote>
+      <p><strong>${esc(client?.name ?? "Un client")}</strong> a laissé un commentaire
+         sur <em>${esc(media?.title ?? "un média")}</em>&nbsp;:</p>
+      <blockquote>${esc(comment)}</blockquote>
       <div style="text-align:center">
         <a class="btn" href="https://timelesshouse.org/communication-admin.html">
           Ouvrir l'espace admin
@@ -504,8 +521,8 @@ function buildAdminApproval(client, media, kind) {
     subject: `${emoji} ${client?.name ?? "Client"} — ${approved ? "Média approuvé" : "Modifications demandées"}`,
     html: layout(`
       <h2>${emoji} ${approved ? "Approbation reçue" : "Demande de modification"}</h2>
-      <p><strong>${client?.name ?? "Votre client"}</strong> a ${action}
-         <em>${media?.title ?? "un média"}</em>.</p>
+      <p><strong>${esc(client?.name ?? "Votre client")}</strong> a ${action}
+         <em>${esc(media?.title ?? "un média")}</em>.</p>
       <div style="text-align:center">
         <a class="btn" href="https://timelesshouse.org/communication-admin.html">
           Ouvrir l'espace admin
@@ -514,6 +531,33 @@ function buildAdminApproval(client, media, kind) {
     `)
   };
 }
+// ─────────────────────────────────────────────────────────────────
+// Anti-bombardement + journal d'audit (table notifications)
+// ─────────────────────────────────────────────────────────────────
+/** Nombre d'emails déjà envoyés à ce client dans la fenêtre glissante. */
+async function recentCount(clientId) {
+  const since = new Date(Date.now() - RL_WINDOW_MIN * 60000).toISOString();
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/notifications?client_id=eq.${clientId}&created_at=gte.${since}&select=id`,
+    { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, Prefer: "count=exact", Range: "0-0" } }
+  );
+  const total = parseInt((res.headers.get("content-range") || "").split("/")[1] || "0", 10);
+  return Number.isNaN(total) ? 0 : total;
+}
+/** Trace chaque envoi (sent_at null = échec). Best effort — jamais bloquant. */
+async function logNotification(clientId, kind, payload, ok) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+      method: "POST",
+      headers: {
+        apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`,
+        "Content-Type": "application/json", Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ client_id: clientId, kind, payload, sent_at: ok ? new Date().toISOString() : null }),
+    });
+  } catch (_) { /* le journal ne doit jamais faire échouer un envoi */ }
+}
+
 // ─────────────────────────────────────────────────────────────────
 // Handler principal
 // ─────────────────────────────────────────────────────────────────
@@ -547,6 +591,25 @@ serve(async (req)=>{
       accent: agency.accent_color || DEFAULT_BRAND.accent,
       site: agency.slug === "timelesshouse" ? DEFAULT_BRAND.site : null
     } : DEFAULT_BRAND;
+
+    // La fonction est PUBLIQUE (verify_jwt=false : appelée par l'admin avec la
+    // clé anon ET par le client anonyme via son code). On ne peut donc pas
+    // exiger de JWT — mais tout envoi DOIT cibler un client réel. Cela ferme le
+    // relais d'emails « à zéro prérequis » (spam admin sans aucun identifiant)
+    // et borne l'abus à des UUID valides. Le HTML est intégralement échappé.
+    if (!client_id || !client) {
+      return new Response(JSON.stringify({ error: "client_id manquant ou introuvable." }), {
+        status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+      });
+    }
+    // Anti-bombardement : au-delà de RL_MAX emails vers ce client sur la
+    // fenêtre, on refuse (protège la boîte du client, le coût Resend et la
+    // réputation d'envoi). Le mode dry_run (test) n'est pas compté.
+    if (!body.dry_run && (await recentCount(client.id)) >= RL_MAX) {
+      return new Response(JSON.stringify({ ok: true, skipped: "rate_limited" }), {
+        status: 429, headers: { ...CORS, "Content-Type": "application/json" }
+      });
+    }
     /** Réponse dry_run : tout est construit, rien n'est envoyé */
     const dryRun = (o)=>new Response(JSON.stringify({
         ok: true,
@@ -665,7 +728,8 @@ serve(async (req)=>{
         ...built
       };
       if (body.dry_run) return dryRun(outgoing);
-      await sendEmail(outgoing);
+      try { await sendEmail(outgoing); await logNotification(client.id, kind, body, true); }
+      catch (e) { await logNotification(client.id, kind, body, false); throw e; }
     // ── Emails vers l'admin ────────────────────────────────────────
     } else if ([
       "admin_new_comment",
@@ -686,7 +750,8 @@ serve(async (req)=>{
         ...built
       };
       if (body.dry_run) return dryRun(outgoing);
-      await sendEmail(outgoing);
+      try { await sendEmail(outgoing); await logNotification(client.id, kind, body, true); }
+      catch (e) { await logNotification(client.id, kind, body, false); throw e; }
     } else {
       return new Response(JSON.stringify({
         error: `Type inconnu : ${kind}`

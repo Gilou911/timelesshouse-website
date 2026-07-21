@@ -728,6 +728,13 @@
 
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Frein anti-devinette : les codes sont des slugs, faciles \u00e0 \u00e9num\u00e9rer.
+    // Apr\u00e8s quelques \u00e9checs, on impose une attente croissante c\u00f4t\u00e9 client
+    // (dissuade le for\u00e7age via l'interface ; la limite serveur reste \u00e0 ajouter
+    // sur la RPC resolve_client_code \u2014 voir migration de durcissement).
+    let __codeFails = 0;
+    const __throttleMs = () => __codeFails < 4 ? 0 : Math.min(1000 * 2 ** (__codeFails - 4), 30000);
+
     window.checkClientCode = async function() {
       const raw = document.getElementById('clientCode').value;
       const code = raw.toLowerCase()
@@ -739,11 +746,15 @@
       const err = document.getElementById('clientError');
       btn.disabled = true; err.style.display = 'none';
 
+      const wait = __throttleMs();
+      if (wait) await new Promise(r => setTimeout(r, wait));
+
       try {
         // RPC scellée (SaaS B.2) : le code est vérifié côté serveur,
         // plus aucun select direct sur la table clients avec la clé anon.
         const { data, error } = await sb.rpc('resolve_client_code', { p_code: code });
-        if (error || !data) { err.style.display = 'block'; btn.disabled = false; return; }
+        if (error || !data) { __codeFails++; err.style.display = 'block'; btn.disabled = false; return; }
+        __codeFails = 0;
         sessionStorage.setItem('access_granted', code);
         // PWA : mémorise le code pour que l'app installée reste connectée
         try { localStorage.setItem('th_access_code', code); } catch (e) {}
@@ -752,7 +763,7 @@
         // bord vide. Le routage commun l'envoie désormais au bon endroit.
         window.location.href = routeForClient(data);
       } catch (e) {
-        console.error(e); err.style.display = 'block'; btn.disabled = false;
+        __codeFails++; console.error(e); err.style.display = 'block'; btn.disabled = false;
       }
     };
 

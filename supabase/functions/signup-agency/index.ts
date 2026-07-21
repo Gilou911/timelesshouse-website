@@ -45,6 +45,13 @@ const cors = {
 const json = (s: number, b: unknown) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
+// Échappement HTML : le nom du studio est libre et se retrouve dans l'email
+// de bienvenue ET dans la notification à la plateforme — jamais de balisage
+// injecté (slug/email sont déjà validés par regex, mais on échappe par sûreté).
+const esc = (v: unknown) => String(v ?? "")
+  .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,39}$/;
 // Réservés : hôtes techniques, marques maison, mots trompeurs
@@ -96,12 +103,12 @@ function shell(title: string, body: string) {
 function notifyPlatform(name: string, slug: string, email: string, total: number, pending: boolean) {
   const body = `
     <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a4540">
-      <strong>${name}</strong> vient de ${pending ? "demander" : "créer"} une loge.
+      <strong>${esc(name)}</strong> vient de ${pending ? "demander" : "créer"} une loge.
     </p>
     <div style="margin:18px 0;padding:18px 22px;background:#f9f7f3;border-left:3px solid #e8d8be;border-radius:0 10px 10px 0;font-family:sans-serif;font-size:13.5px;line-height:1.9;color:#4a4540">
-      <strong>Studio&nbsp;:</strong> ${name}<br/>
-      <strong>Adresse&nbsp;:</strong> ${slug}.laloge.house<br/>
-      <strong>Contact&nbsp;:</strong> ${email}<br/>
+      <strong>Studio&nbsp;:</strong> ${esc(name)}<br/>
+      <strong>Adresse&nbsp;:</strong> ${esc(slug)}.laloge.house<br/>
+      <strong>Contact&nbsp;:</strong> ${esc(email)}<br/>
       <strong>Agences locataires&nbsp;:</strong> ${total}
     </div>
     ${pending
@@ -122,7 +129,7 @@ function notifyPlatform(name: string, slug: string, email: string, total: number
 function pendingHtml(name: string) {
   return shell("Votre demande est enregistrée", `
     <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a4540">
-      Merci ${name} ! Votre compte est créé. Chaque nouvelle loge étant désormais
+      Merci ${esc(name)} ! Votre compte est créé. Chaque nouvelle loge étant désormais
       validée à la main, nous vérifions votre demande et vous ouvrons l'accès
       très vite — en général sous 24&nbsp;heures.
     </p>
@@ -145,7 +152,7 @@ function welcomeHtml(name: string, slug: string) {
       <h1 style="margin:0;color:#e8d8be;font-size:13px;letter-spacing:.25em;text-transform:uppercase;font-weight:400;font-family:sans-serif">La Loge</h1>
     </div>
     <div style="padding:40px">
-      <h2 style="margin:0 0 20px;font-size:22px;font-weight:400;line-height:1.4">Bienvenue, ${name}&nbsp;!</h2>
+      <h2 style="margin:0 0 20px;font-size:22px;font-weight:400;line-height:1.4">Bienvenue, ${esc(name)}&nbsp;!</h2>
       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a4540">
         Votre loge est ouverte. Voici l'adresse que verront vos clients&nbsp;:
       </p>

@@ -924,7 +924,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setBusy(true); setMsg(null);
         const { error } = await sb.auth.updateUser({ password: pwd });
         setBusy(false);
-        if (error) return setMsg({ kind: 'err', text: error.message || "Impossible d'enregistrer ce mot de passe." });
+        if (error) return setMsg({ kind: 'err', text: /password|mot de passe|weak|short/i.test(error.message || '') ? 'Ce mot de passe est trop court ou trop simple — 8 caractères minimum.' : humaniseErreur(error.message) });
         setPwd(''); setPwd2(''); setOpen(false);
         setMsg({ kind: 'ok', text: 'Mot de passe mis à jour.' });
       };
@@ -1008,7 +1008,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           const url = await b2UploadFile(file, `agencies/${agency.slug}/logo/${Date.now()}-${b2SafeName(file.name)}`, setUp);
           setForm(f => ({ ...f, logo_url: url }));
         } catch (err) {
-          setMsg({ kind: 'err', text: err.message || 'Upload du logo échoué.' });
+          setMsg({ kind: 'err', text: humaniseErreur(err.message || 'Upload du logo échoué.') });
         }
         setUp(null);
       };
@@ -1178,9 +1178,55 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     }
 
     /* ════════════════════════════════════════════════════════════
+       ✅ BIEN DÉMARRER (UX vague 1) — trois étapes cochées d'après
+       l'ÉTAT RÉEL du compte, jamais d'après un stockage local :
+       ① marque réglée (ligne agence), ② premier espace (liste),
+       ③ invitation copiée (métadonnées du compte). La carte
+       disparaît d'elle-même quand tout est fait. Locataires only.
+       ════════════════════════════════════════════════════════════ */
+    function StartChecklist({ agency, clients, user, gotoSettings, onNew, onOpenFirst }) {
+      const marqueOk = !!(agency && (agency.logo_url || agency.contact_email
+        || (agency.accent_color && agency.accent_color.toLowerCase() !== '#2a2620')
+        || (agency.bg_color && agency.bg_color.toLowerCase() !== '#e9e4d9')));
+      const espaceOk = clients.length > 0;
+      const invitOk = !!(user && user.user_metadata && user.user_metadata.laloge_invitation_copiee);
+      if (marqueOk && espaceOk && invitOk) return null;
+      const etapes = [
+        { ok: marqueOk, titre: 'Réglez votre marque', detail: 'Nom, logo, couleurs — vos clients ne verront que vous.', action: gotoSettings },
+        { ok: espaceOk, titre: 'Créez votre premier espace client', detail: 'Deux prénoms et un email suffisent.', action: onNew },
+        { ok: invitOk, titre: 'Envoyez son invitation à votre client', detail: 'Sur sa fiche : « Copier l\'invitation », puis collez-la dans un message.', action: espaceOk ? onOpenFirst : onNew },
+      ];
+      const faits = etapes.filter(e => e.ok).length;
+      return (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+            <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>Bien démarrer</h2>
+            <span className="text-[11px] uppercase tracking-[0.14em] text-stone-400 font-semibold">{faits}/3</span>
+          </div>
+          <div className="mt-4 space-y-3">
+            {etapes.map(e => (
+              <button key={e.titre} type="button" onClick={e.ok ? undefined : e.action} disabled={e.ok}
+                style={e.ok ? {} : neu.raisedXs}
+                className={`w-full flex items-center gap-3.5 px-4 py-3 min-h-[52px] rounded-2xl text-left transition ${e.ok ? 'opacity-60' : 'active:scale-[0.99]'}`}>
+                {e.ok
+                  ? <CheckCircle2 size={20} className="text-emerald-600 shrink-0" />
+                  : <span style={neu.pressedSm} className="w-5 h-5 rounded-full shrink-0" aria-hidden="true" />}
+                <span className="min-w-0 flex-1">
+                  <span className={`block text-[13.5px] font-semibold ${e.ok ? 'line-through text-stone-400' : 'text-stone-800'}`}>{e.titre}</span>
+                  {!e.ok && <span className="block text-[12px] text-stone-500 mt-0.5">{e.detail}</span>}
+                </span>
+                {!e.ok && <ChevronRight size={16} className="shrink-0 text-stone-400" />}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
        👥 CLIENTS LIST
        ════════════════════════════════════════════════════════════ */
-    function ClientsList({ clients, onSelect, onCreate, refresh }) {
+    function ClientsList({ clients, onSelect, onCreate, refresh, checklist }) {
       const [showNew, setShowNew] = useState(false);
       const [search, setSearch] = useState('');
 
@@ -1194,6 +1240,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       return (
         <div className="space-y-5 lg:space-y-6">
+          {/* Bien démarrer (UX vague 1) — locataires, tant que les 3
+              étapes ne sont pas toutes cochées */}
+          {checklist && (
+            <StartChecklist agency={checklist.agency} clients={clients} user={checklist.user}
+              gotoSettings={checklist.gotoSettings} onNew={() => setShowNew(true)}
+              onOpenFirst={() => clients[0] && onSelect(clients[0])} />
+          )}
+
           {/* Search + nouveau bouton — alignés sur tous écrans */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div style={neu.raisedXs} className="rounded-full flex items-center gap-2 px-4 min-h-[44px] w-full sm:w-72">
@@ -1304,6 +1358,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       });
       const [loading, setLoading] = useState(false);
       const [err, setErr] = useState('');
+      // UX vague 1 : l'essentiel d'abord (univers, prénoms, email) — le
+      // reste vit sous « Options avancées », ouvert d'office en édition.
+      const [avance, setAvance] = useState(!!existing);
 
       // Univers proposés (brique 14) : 3 pour un locataire, la liste
       // complète pour la plateforme. Si le client édité porte un univers
@@ -1354,7 +1411,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         }
 
         if (result.error) {
-          setErr(result.error.message.includes('duplicate') ? 'Ce code est déjà utilisé.' : result.error.message);
+          setErr(humaniseErreur(result.error.message, 'client'));
           setLoading(false);
         } else {
           onSaved(result.data);
@@ -1396,30 +1453,48 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </Field>
 
             {isCouple ? (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Prénom 1">
-                    <Input required value={form.partner1} onChange={e => updatePartners(e.target.value, form.partner2)} placeholder="Précieuse" />
-                  </Field>
-                  <Field label="Prénom 2">
-                    <Input required value={form.partner2} onChange={e => updatePartners(form.partner1, e.target.value)} placeholder="Ronny" />
-                  </Field>
-                </div>
-                <Field label="Code d'accès (sans espaces)">
-                  <Input required value={form.code} onChange={e => setForm({...form, code: e.target.value})} placeholder="precieuse-ronny" />
-                  <div className="text-[11px] text-stone-500 mt-1.5">Le code est suggéré à partir des prénoms. Vous pouvez le personnaliser.</div>
-                </Field>
-              </>
-            ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Nom du client">
-                  <Input required value={form.name} onChange={e => setForm({...form, name: e.target.value, initials: form.initials || e.target.value.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2)})} placeholder="Maison Lumière" />
+                <Field label="Prénom 1">
+                  <Input required value={form.partner1} onChange={e => updatePartners(e.target.value, form.partner2)} placeholder="Précieuse" />
                 </Field>
-                <Field label="Code d'accès (sans espaces)">
-                  <Input required value={form.code} onChange={e => setForm({...form, code: e.target.value})} placeholder="maison-lumiere" />
+                <Field label="Prénom 2">
+                  <Input required value={form.partner2} onChange={e => updatePartners(form.partner1, e.target.value)} placeholder="Ronny" />
                 </Field>
               </div>
+            ) : (
+              <Field label="Nom du client">
+                <Input required value={form.name} onChange={e => {
+                  const v = e.target.value;
+                  const codeSuggere = slugify(v);
+                  setForm({
+                    ...form, name: v,
+                    initials: form.initials || v.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2),
+                    // le code suit le nom tant qu'il n'a pas été personnalisé
+                    code: existing ? form.code : (form.code && !codeSuggere.startsWith(form.code) ? form.code : codeSuggere),
+                  });
+                }} placeholder="Maison Lumière" />
+              </Field>
             )}
+
+            <Field label="Email du client (pour lui envoyer son accès)">
+              <Input type="email" value={form.client_email} onChange={e => setForm({...form, client_email: e.target.value})} placeholder="elea.et.david@email.fr" />
+            </Field>
+
+            {/* UX vague 1 : tout le reste est replié — un espace se crée
+                avec un univers, des prénoms et un email, point. */}
+            <button type="button" onClick={() => setAvance(!avance)} aria-expanded={avance}
+              className="flex items-center gap-2 min-h-[44px] text-[12.5px] font-semibold text-stone-500 hover:text-stone-800 transition">
+              {avance ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+              Options avancées
+              {!avance && <span className="font-normal text-stone-400 hidden sm:inline">— code d'accès, statut, modules</span>}
+            </button>
+
+            {avance && (<>
+            <Field label="Code d'accès (sans espaces)">
+              <Input required value={form.code} onChange={e => setForm({...form, code: e.target.value})} placeholder={isCouple ? 'precieuse-ronny' : 'maison-lumiere'} />
+              <div className="text-[11px] text-stone-500 mt-1.5">C'est la clé de votre client. Elle est suggérée automatiquement — vous pouvez la personnaliser.</div>
+            </Field>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Field label="Prénom contact">
                 <Input value={form.greeting} onChange={e => setForm({...form, greeting: e.target.value})} placeholder="Camille" />
@@ -1432,7 +1507,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </Field>
             </div>
 
-            {hasDeliveryTab(form.universe) && (
+            {/* Page de redirection : héritage TimelessHouse (fichiers HTML
+                dédiés) — jargon masqué aux locataires (UX vague 1). */}
+            {FEATURES.allUniverses && hasDeliveryTab(form.universe) && (
               <Field label="Page de redirection (laisser vide pour utiliser les templates dynamiques)">
                 <Input value={form.redirect_url} onChange={e => setForm({...form, redirect_url: e.target.value})} placeholder="Laisser vide → event-photos.html (template dynamique)" />
                 <div className="text-[11px] text-stone-500 mt-1.5">
@@ -1442,17 +1519,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </Field>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Email du client (pour les notifications)">
-                <Input type="email" value={form.client_email} onChange={e => setForm({...form, client_email: e.target.value})} placeholder="contact@maison-lumiere.fr" />
-              </Field>
-              <Field label="Statut">
-                <Select value={form.active ? 'actif' : 'pause'} onChange={e => setForm({...form, active: e.target.value === 'actif'})}>
-                  <option value="actif">Actif (le client peut se connecter)</option>
-                  <option value="pause">En pause (l'accès est bloqué)</option>
-                </Select>
-              </Field>
-            </div>
+            <Field label="Statut">
+              <Select value={form.active ? 'actif' : 'pause'} onChange={e => setForm({...form, active: e.target.value === 'actif'})}>
+                <option value="actif">Actif (le client peut se connecter)</option>
+                <option value="pause">En pause (l'accès est bloqué)</option>
+              </Select>
+            </Field>
 
             <Field label="Modules visibles dans l'espace client">
               <div className="space-y-2">
@@ -1564,6 +1636,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 </div>
               )}
             </Field>
+            </>)}
 
             {err && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]"><AlertCircle size={14} /> {err}</div>}
 
@@ -1695,6 +1768,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <code style={neu.pressedSm} className="px-2.5 py-1.5 rounded-md font-mono text-[12.5px] leading-none">{client.code}</code>
                 <CopyButton value={client.code} label="Copier le code" iconOnly />
                 <div className="flex items-center gap-3 flex-wrap">
+                  {/* UX vague 1 : LE geste clé — un message tout prêt
+                      (bonjour + lien + code) à coller dans un SMS/email.
+                      La copie coche l'étape 3 de « Bien démarrer ». */}
+                  <CopyButton value={messageInvitation(client)} label="Copier l'invitation"
+                    onCopied={() => sb.auth.updateUser({ data: { laloge_invitation_copiee: true } }).catch(() => {})} />
                   <CopyButton value={clientLoginUrl()} label="Copier le lien" />
                   <a href={clientLoginUrl()} target="_blank" rel="noopener" style={neu.raisedXs}
                      className="px-4 min-h-[44px] rounded-full text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-stone-600 active:scale-95 transition-transform">
@@ -2216,10 +2294,45 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return `https://${slug}.laloge.house`;
     }
 
+    // ── Traducteur d'erreurs (UX vague 1) : jamais de message technique
+    // brut à l'écran. Les gardes SQL parlent déjà français (quota…) et
+    // passent telles quelles ; la plateforme voit le détail technique
+    // entre parenthèses, pas les locataires.
+    function humaniseErreur(brut, contexte = '') {
+      const m = String(brut || '');
+      const detail = FEATURES.allUniverses && m ? ` (détail : ${m})` : '';
+      if (/quota|palier|offre|découverte/i.test(m) && /[éèàç ]/.test(m)) return m;
+      if (/row-level security|violates row-level|permission denied|not.?allowed/i.test(m))
+        return (contexte === 'client'
+          ? 'Votre offre actuelle ne permet pas de créer un espace client supplémentaire. Passez au palier supérieur (Paramètres → Abonnement), ou supprimez un espace existant.'
+          : 'Cette action n\'est pas disponible avec votre offre actuelle.') + detail;
+      if (/duplicate|already exists|23505/i.test(m))
+        return 'Ce code est déjà utilisé — choisissez-en un autre.';
+      if (/failed to fetch|networkerror|load failed|timed? ?out/i.test(m))
+        return 'La connexion a été perdue — vérifiez votre réseau puis réessayez.';
+      if (/jwt|refresh token|expired/i.test(m))
+        return 'Votre session a expiré — rechargez la page pour vous reconnecter.';
+      return 'Quelque chose n\'a pas fonctionné. Réessayez dans un instant — si le problème persiste, écrivez-nous : service@timelesshouse.org.' + detail;
+    }
+
+    // Message d'invitation prêt à coller (SMS, WhatsApp, email) — LE geste
+    // clé du produit : transmettre l'accès au client en un seul clic.
+    function messageInvitation(client) {
+      const prenoms = [client.partner1, client.partner2].filter(Boolean).join(' et ')
+        || client.greeting || client.name || '';
+      const ou = AGENCY.name ? ` chez ${AGENCY.name}` : '';
+      return `Bonjour${prenoms ? ' ' + prenoms : ''} !\n\n`
+        + `Votre espace privé${ou} est prêt : vous y retrouverez tout ce que nous vous livrons.\n\n`
+        + `👉 ${clientLoginUrl()}\n`
+        + `Votre code d'accès : ${client.code}\n\n`
+        + `À très vite !`;
+    }
+
     // Bouton « copier » générique — repasse en icône après 1,6 s.
     // `iconOnly` : version compacte pour les espaces contraints (mobile),
     // avec le libellé porté par aria-label et title.
-    function CopyButton({ value, label = 'Copier', iconOnly = false }) {
+    // `onCopied` : rappel optionnel après une copie réussie.
+    function CopyButton({ value, label = 'Copier', iconOnly = false, onCopied }) {
       const [done, setDone] = useState(false);
       const copy = async () => {
         try {
@@ -2234,6 +2347,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         }
         setDone(true);
         setTimeout(() => setDone(false), 1600);
+        try { onCopied && onCopied(); } catch (_) {}
       };
       if (iconOnly) {
         const Icone = done ? Check : Copy;
@@ -2267,7 +2381,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           .eq('client_id', client.id)
           .order('position', { ascending: true })
           .order('created_at', { ascending: true });
-        if (error) { setErr(error.message); setLoading(false); return; }
+        if (error) { setErr(humaniseErreur(error.message)); setLoading(false); return; }
         setGalleries(data || []);
 
         // Compteurs de photos : un seul aller-retour pour tout le client.
@@ -2706,7 +2820,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             .select().single();
         }
 
-        if (result.error) { setErr(result.error.message); setLoading(false); return; }
+        if (result.error) { setErr(humaniseErreur(result.error.message)); setLoading(false); return; }
 
         // Chaque vidéo uploadée mais pas encore transcodée part en file
         // d'attente d'encodage (une seule fois : l'index anti-doublon
@@ -5836,7 +5950,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           ? await sb.from('strategies').update(payload).eq('id', existing.id)
           : await sb.from('strategies').insert(payload);
         if (!result.error) onSaved();
-        else { setErr(result.error.message); setLoading(false); }
+        else { setErr(humaniseErreur(result.error.message)); setLoading(false); }
       };
 
       return (
@@ -7025,7 +7139,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               ) : section === 'agences' && agencies !== null ? (
                 <AdminAgencies agencies={agencies} refresh={loadAgencies} />
               ) : (
-                <ClientsList clients={clients} onSelect={setSelectedClient} refresh={loadClients} />
+                <ClientsList clients={clients} onSelect={setSelectedClient} refresh={loadClients}
+                  checklist={featuresReady && !FEATURES.allUniverses
+                    ? { agency: myAgency, user, gotoSettings: () => setSection('settings') }
+                    : null} />
               )}
             </main>
           </div>

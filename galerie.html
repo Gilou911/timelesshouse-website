@@ -18,7 +18,7 @@
   <link rel="icon" href="/favicon-th.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <style>
     /* Mode sombre assumé : une galerie se regarde sur fond noir
        (exception média assumée, HIG §7). --accent est la seule couleur
@@ -26,10 +26,13 @@
     :root {
       /* §7 : les contrôles natifs (champ de code, scrollbars) suivent. */
       color-scheme: dark;
-      --bg:      #0b0b0c;
-      --bg-deep: #060607;
-      --surface: #161617;
-      --ink:     #f2efe9;
+      /* Charte cinéma alignée sur les pages event (event-photos-cinematic /
+         event-video) : fond #0a0a0a, encre #f4f0eb, accent #b08968. Les gris
+         --muted/--faint gardent leurs valeurs accessibles (≥4.5:1, HIG §6). */
+      --bg:      #0a0a0a;
+      --bg-deep: #060606;
+      --surface: #161616;
+      --ink:     #f4f0eb;
       --muted:   #9b958a;
       /* HIG §6 : #6a655d tombait à 3.4:1 sur le fond de galerie —
          insuffisant pour le pied de page et les placeholders. */
@@ -42,7 +45,7 @@
     body {
       min-height: 100vh; min-height: 100dvh;
       background: var(--bg); color: var(--ink);
-      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Jost', -apple-system, BlinkMacSystemFont, sans-serif;
       -webkit-font-smoothing: antialiased;
       opacity: 0; transition: opacity 0.4s ease;
     }
@@ -57,7 +60,7 @@
     .gate[hidden] { display: none; }
     .brand { text-align: center; }
     .brand .nm {
-      font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+      font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
       font-size: clamp(1.9rem, 6vw, 2.5rem); letter-spacing: -0.01em; line-height: 1.1;
     }
     .brand .nm span { color: var(--faint); }
@@ -71,7 +74,7 @@
       border: 1px solid var(--hair); border-radius: 26px; padding: 28px 26px;
     }
     .panel h1 {
-      font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+      font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 400;
       font-size: 23px; letter-spacing: -0.01em;
     }
     .panel p { font-size: 13.5px; line-height: 1.6; color: var(--muted); margin-top: 7px; }
@@ -110,7 +113,7 @@
       padding: clamp(46px, 9vw, 96px) 0 clamp(30px, 5vw, 54px); text-align: center;
     }
     .head .mk {
-      font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+      font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
       font-size: 15px; color: var(--muted); margin-bottom: 22px;
     }
     .head .mk img { max-height: 40px; max-width: 170px; object-fit: contain; }
@@ -119,7 +122,7 @@
       color: var(--accent); margin-bottom: 14px; font-weight: 600;
     }
     .head h1 {
-      font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+      font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 400;
       font-size: clamp(2rem, 6.5vw, 3.5rem); letter-spacing: -0.015em; line-height: 1.08;
     }
     .head .sub { font-size: 13.5px; color: var(--muted); margin-top: 14px; }

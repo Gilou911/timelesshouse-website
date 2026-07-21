@@ -16,8 +16,10 @@
  * Ce module ne reprend donc PAS le code de event-photos.html tel quel : il n'en
  * garde que l'algorithme de rangées justifiées (`justify`/`closeRow`, la seule
  * partie réellement subtile) et repart à neuf sur le reste, parce que les deux
- * pages n'ont ni la même source (B2 uniquement ici, Cloudinary + B2 là-bas) ni
- * la même charte (Instrument Serif / Manrope ici, Cormorant / Jost là-bas).
+ * pages n'ont pas la même source (B2 uniquement ici, Cloudinary + B2 là-bas).
+ * La CHARTE, elle, est désormais alignée sur les pages event
+ * (Cormorant Garamond / Jost, fond #0a0a0a, accent #b08968) pour une
+ * expérience visuelle cohérente d'un bout à l'autre.
  * La convergence des event-*.html vers ce module est explicitement au programme
  * de la session « console des galeries », une fois la bascule d'event_pages
  * faite — voir files/SAAS-ROADMAP.md.
@@ -40,7 +42,7 @@ function injectStyles() {
     margin: 0 0 clamp(14px, 2vw, 20px);
   }
   .g-cat-name {
-    font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+    font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 500;
     font-size: clamp(1.35rem, 3.4vw, 1.9rem); letter-spacing: -0.01em; color: var(--ink);
   }
   .g-cat-count { font-size: 12px; color: var(--faint); letter-spacing: 0.04em; }
@@ -147,7 +149,7 @@ function injectStyles() {
   /* ── Lecteur vidéo ── */
   .g-video { margin: 0 0 clamp(34px, 5vw, 56px); }
   .g-video-title {
-    font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+    font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 500;
     font-size: clamp(1.35rem, 3.4vw, 1.9rem); letter-spacing: -0.01em;
     color: var(--ink); margin: 0 0 14px;
   }

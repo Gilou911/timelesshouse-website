@@ -6414,6 +6414,28 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setBusyId(null);
       };
 
+      // Upgrade/downgrade manuel de l'offre d'une loge (console fondateur).
+      // Les quotas (plan_quota_bytes / plan_limits) suivent immédiatement.
+      // ⚠️ Une loge avec abonnement Stripe actif sera réalignée par le
+      // prochain webhook — ce levier vise les loges sans abonnement payant.
+      const setPlan = async (agency, plan) => {
+        if (plan === agency.plan) return;
+        if (!confirm(`Passer « ${agency.name} » à l'offre ${PLAN_LABELS[plan] || plan} ?`)) { refresh(); return; }
+        setBusyId(agency.id); setError('');
+        try {
+          const { data: { session } } = await sb.auth.getSession();
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/create-agency`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ action: 'set-plan', agency_id: agency.id, plan }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json.error || `Échec (${res.status})`);
+        } catch (e) { setError(e.message); }
+        refresh();
+        setBusyId(null);
+      };
+
       const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
       const autoSlug = form.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
         .replace(/&/g, ' ').trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
@@ -6553,7 +6575,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <StorageGauge compact storage={{ used_bytes: a.storage_used_bytes, quota_bytes: a.storage_quota_bytes }} />
                 <div className="text-[11px] text-stone-400 mt-2">Créée le {new Date(a.created_at).toLocaleDateString('fr-FR')}</div>
                 {a.slug !== 'timelesshouse' && (
-                  <div className="flex gap-2 mt-4 flex-wrap">
+                  <div className="flex gap-2 mt-4 flex-wrap items-center">
                     {a.active ? (
                       <Btn icon={Power} onClick={() => setActive(a, false)} disabled={busyId === a.id}>
                         {busyId === a.id ? '…' : 'Suspendre'}
@@ -6563,6 +6585,17 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         {busyId === a.id ? '…' : 'Ouvrir la loge'}
                       </Btn>
                     )}
+                    {/* Upgrade/downgrade manuel de l'offre (sans Stripe) */}
+                    <select
+                      value={a.plan || 'decouverte'}
+                      onChange={e => setPlan(a, e.target.value)}
+                      disabled={busyId === a.id}
+                      aria-label={`Offre de ${a.name}`}
+                      style={neu.pressedSm}
+                      className="min-h-[44px] px-3 rounded-xl bg-transparent text-[12.5px] text-stone-700"
+                    >
+                      {Object.entries(PLAN_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
                   </div>
                 )}
               </div>

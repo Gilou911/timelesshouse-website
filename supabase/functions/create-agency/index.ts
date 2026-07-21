@@ -99,6 +99,22 @@ Deno.serve(async (req) => {
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json(400, { error: "JSON invalide" }); }
 
+  // ── Changement d'offre d'une loge (upgrade/downgrade manuel) ──
+  // Depuis la console fondateur : deals spéciaux, offres offertes, tests.
+  // ⚠️ Si la loge a un abonnement Stripe ACTIF, le prochain webhook
+  // customer.subscription.updated réalignera le plan sur Stripe — le
+  // changement manuel est fait pour les loges SANS abonnement payant.
+  if (body.action === "set-plan") {
+    const agencyId = String(body.agency_id || "");
+    const plan = String(body.plan || "");
+    if (!agencyId) return json(400, { error: "agency_id manquant" });
+    if (!PLANS.includes(plan)) return json(400, { error: "Plan inconnu." });
+    const { data: ag, error } = await sbAdmin.from("agencies")
+      .update({ plan }).eq("id", agencyId).select().single();
+    if (error || !ag) return json(500, { error: error?.message || "Agence introuvable" });
+    return json(200, { ok: true, agency: ag });
+  }
+
   // ── Validation / suspension d'une loge en attente (SaaS B.3) ──
   if (body.action === "approve" || body.action === "suspend") {
     const agencyId = String(body.agency_id || "");

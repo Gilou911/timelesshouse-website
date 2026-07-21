@@ -96,7 +96,8 @@ const ENGAGEMENT_DATA = A.engagementByDay && A.engagementByDay.length ? A.engage
 // ────────────────────────────────────────────────────────────
 // 🎨 STYLES NÉOMORPHIQUES
 // RÈGLE « HALO » (anti-collision d'ombres, voir communication-admin.jsx) :
-// portée d'un halo = offset + flou (raised 34 px, raisedXs 10 px) ;
+// BUDGET DE PORTÉE (offset + flou) : raised 21 px max, raisedSm 17,
+// raisedXs 10, dark (bouton actif) 13 — ne jamais dépasser ;
 // les pastilles raisedXs portent zIndex 2 → peintes au-dessus des halos
 // des grandes cartes ; interstice minimal entre pastilles 12 px (gap-3) ;
 // les bandes défilantes reçoivent 12 px verticaux via le CSS global.
@@ -104,12 +105,12 @@ const ENGAGEMENT_DATA = A.engagementByDay && A.engagementByDay.length ? A.engage
 // 🎨 Palette LIGHT — cream warm (harmonisée avec communication.html)
 const NEU_LIGHT = {
   base:      { backgroundColor: '#e9e4d9' },
-  raised:    { backgroundColor: '#efeae0', boxShadow: '10px 10px 24px rgba(168,156,134,0.32), -10px -10px 24px rgba(255,253,247,0.92)' },
+  raised:    { backgroundColor: '#efeae0', boxShadow: '7px 7px 14px rgba(168,156,134,0.38), -7px -7px 14px rgba(255,253,247,0.92)' },
   raisedSm:  { backgroundColor: '#efeae0', boxShadow: '5px 5px 12px rgba(168,156,134,0.26), -5px -5px 12px rgba(255,253,247,0.88)' },
   raisedXs:  { backgroundColor: '#efeae0', boxShadow: '3px 3px 7px rgba(168,156,134,0.22), -3px -3px 7px rgba(255,253,247,0.82)', zIndex: 2 },
   pressed:   { backgroundColor: '#e3ddd0', boxShadow: 'inset 5px 5px 10px rgba(168,156,134,0.32), inset -5px -5px 10px rgba(255,253,247,0.9)' },
   pressedSm: { backgroundColor: '#e3ddd0', boxShadow: 'inset 3px 3px 6px rgba(168,156,134,0.26), inset -3px -3px 6px rgba(255,253,247,0.85)' },
-  dark:      { backgroundColor: '#2a2620', boxShadow: '8px 8px 18px rgba(168,156,134,0.36), -3px -3px 8px rgba(255,253,247,0.6), inset 1px 1px 2px rgba(255,255,255,0.08)' },
+  dark:      { backgroundColor: '#2a2620', boxShadow: '4px 4px 9px rgba(168,156,134,0.44), -2px -2px 6px rgba(255,253,247,0.6), inset 1px 1px 2px rgba(255,255,255,0.08)' },
   darkSm:    { backgroundColor: '#2a2620', boxShadow: '4px 4px 10px rgba(168,156,134,0.36), -2px -2px 6px rgba(255,253,247,0.5)' },
   accent:    '#2a2620',
   accentText:'#f5f1e6',
@@ -119,12 +120,12 @@ const NEU_LIGHT = {
 // 🎨 Palette DARK — graphite bleuté + accent ivoire chaud
 const NEU_DARK = {
   base:      { backgroundColor: '#181b20' },
-  raised:    { backgroundColor: '#22262d', boxShadow: '10px 10px 24px rgba(0,0,0,0.55), -5px -5px 15px rgba(54,60,72,0.28)' },
+  raised:    { backgroundColor: '#22262d', boxShadow: '7px 7px 14px rgba(0,0,0,0.6), -5px -5px 12px rgba(54,60,72,0.3)' },
   raisedSm:  { backgroundColor: '#22262d', boxShadow: '5px 5px 12px rgba(0,0,0,0.48), -3px -3px 8px rgba(54,60,72,0.22)' },
   raisedXs:  { backgroundColor: '#22262d', boxShadow: '3px 3px 7px rgba(0,0,0,0.42), -2px -2px 5px rgba(54,60,72,0.18)', zIndex: 2 },
   pressed:   { backgroundColor: '#14171c', boxShadow: 'inset 5px 5px 10px rgba(0,0,0,0.55), inset -3px -3px 8px rgba(54,60,72,0.2)' },
   pressedSm: { backgroundColor: '#14171c', boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.48), inset -2px -2px 5px rgba(54,60,72,0.15)' },
-  dark:      { backgroundColor: '#e8d8be', boxShadow: '8px 8px 18px rgba(0,0,0,0.62), -3px -3px 8px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.35), 0 0 24px rgba(232,216,190,0.25)' },
+  dark:      { backgroundColor: '#e8d8be', boxShadow: '4px 4px 9px rgba(0,0,0,0.68), -2px -2px 6px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.35), 0 0 12px rgba(232,216,190,0.22)' },
   darkSm:    { backgroundColor: '#e8d8be', boxShadow: '4px 4px 10px rgba(0,0,0,0.55), -2px -2px 6px rgba(54,60,72,0.18), 0 0 0 1px rgba(232,216,190,0.3), 0 0 16px rgba(232,216,190,0.2)' },
   accent:    '#e8d8be',
   accentText:'#1a1410',
@@ -150,12 +151,12 @@ const NEU_DARK = {
   const pressedBg = mix(bg, 0, 0.05);
   Object.assign(NEU_LIGHT, {
     base:      { backgroundColor: bg },
-    raised:    { backgroundColor: raisedBg,  boxShadow: '10px 10px 24px rgba(0,0,0,0.13), -10px -10px 24px rgba(255,255,255,0.85)' },
+    raised:    { backgroundColor: raisedBg,  boxShadow: '7px 7px 14px rgba(0,0,0,0.16), -7px -7px 14px rgba(255,255,255,0.85)' },
     raisedSm:  { backgroundColor: raisedBg,  boxShadow: '5px 5px 12px rgba(0,0,0,0.11), -5px -5px 12px rgba(255,255,255,0.8)' },
     raisedXs:  { backgroundColor: raisedBg,  boxShadow: '3px 3px 7px rgba(0,0,0,0.09), -3px -3px 7px rgba(255,255,255,0.75)', zIndex: 2 },
     pressed:   { backgroundColor: pressedBg, boxShadow: 'inset 5px 5px 10px rgba(0,0,0,0.13), inset -5px -5px 10px rgba(255,255,255,0.8)' },
     pressedSm: { backgroundColor: pressedBg, boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.11), inset -3px -3px 6px rgba(255,255,255,0.75)' },
-    dark:      { backgroundColor: acc, boxShadow: '8px 8px 18px rgba(0,0,0,0.18), -3px -3px 8px rgba(255,255,255,0.5), inset 1px 1px 2px rgba(255,255,255,0.08)' },
+    dark:      { backgroundColor: acc, boxShadow: '4px 4px 9px rgba(0,0,0,0.22), -2px -2px 6px rgba(255,255,255,0.5), inset 1px 1px 2px rgba(255,255,255,0.08)' },
     darkSm:    { backgroundColor: acc, boxShadow: '4px 4px 10px rgba(0,0,0,0.18), -2px -2px 6px rgba(255,255,255,0.45)' },
     accent:    acc,
     headerGlass: mix(bg, 255, 0.2).replace('rgb(', 'rgba(').replace(')', ',0.85)'),

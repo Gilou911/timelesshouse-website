@@ -19,7 +19,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       Loader2, MessageSquare, Bell, Send, CheckCircle2, RefreshCw, Link2,
       FolderOpen, Download, Upload,
       Maximize2, Monitor, Smartphone, ChevronDown, ChevronUp,
-      Lightbulb, Copy, Power, Building2
+      Lightbulb, Copy, Power, Building2, HelpCircle
     } from 'lucide-react';
     import AdminPortfolio from './admin-portfolio.jsx';
     import {
@@ -6608,6 +6608,117 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     /* ════════════════════════════════════════════════════════════
        🌳 ROOT APP
        ════════════════════════════════════════════════════════════ */
+    /* ════════════════════════════════════════════════════════════
+       📖 GUIDE DE LA LOGE — pour les locataires
+       S'ouvre seul à la PREMIÈRE connexion (jamais pour la plateforme),
+       se referme d'un geste (HIG : un onboarding ne retient jamais
+       personne), et reste rappelable par le bouton « ? » de la barre.
+       Six chapitres courts, adossés au produit réel : les exemples
+       utilisent la vraie adresse de l'agence connectée.
+       ════════════════════════════════════════════════════════════ */
+    function guideChapitres() {
+      const domaine = AGENCY.slug ? `${AGENCY.slug}.laloge.house` : 'votre-studio.laloge.house';
+      return [
+        {
+          titre: 'Votre loge',
+          icone: '🏠',
+          contenu: [
+            ['Votre espace, votre adresse', `Vos clients entrent par ${domaine} — pas par La Loge. Ils ne voient que votre studio : votre nom, votre logo, vos couleurs.`],
+            ['Deux mondes séparés', 'Cette console est la vôtre. Vos clients, eux, n\'y accèdent jamais : chacun entre dans son espace privé avec le code que vous lui remettez.'],
+          ],
+        },
+        {
+          titre: 'Votre marque',
+          icone: '🎨',
+          contenu: [
+            ['Réglez-la une fois', 'Dans la Vue d\'ensemble, la carte « Ma marque » : nom affiché, logo, deux couleurs, email de contact.'],
+            ['Elle s\'applique partout', 'Page de connexion, espaces clients, galeries, emails envoyés à vos clients — tout suit instantanément.'],
+          ],
+        },
+        {
+          titre: 'Un espace client',
+          icone: '👤',
+          contenu: [
+            ['Créez l\'espace', '« Nouveau client », choisissez le type : Mariage & célébrations (livraison), Communication & Marketing (suivi complet), ou Espace neutre.'],
+            ['Remettez le code', 'En haut de la fiche, la carte « Accès client » : copiez le code et le lien de connexion, envoyez-les à votre client. C\'est sa clé.'],
+          ],
+        },
+        {
+          titre: 'Livrer une galerie',
+          icone: '🖼️',
+          contenu: [
+            ['Autant de galeries que de projets', 'Dans la fiche client, « Nouvelle galerie » : photos, film ou les deux, avec un habillage selon la prestation (mariage, immobilier, mannequinat…).'],
+            ['Un lien direct par galerie', 'Chaque galerie a son propre code et son propre lien de partage — vos clients (ou leurs invités) y entrent sans passer par l\'espace client. Coupez le partage quand vous voulez.'],
+            ['Les vidéos s\'optimisent seules', 'Déposez votre MP4 : il est lisible aussitôt, puis la qualité s\'adapte automatiquement à la connexion de chaque spectateur.'],
+          ],
+        },
+        {
+          titre: 'Le quotidien',
+          icone: '🗂️',
+          contenu: [
+            ['Tout au même endroit', 'Médias livrés, factures, documents, tournages : chaque onglet de la fiche client alimente son espace en direct.'],
+            ['Validation et échanges', 'Vos clients approuvent ou commentent les médias depuis leur espace — vous le voyez ici immédiatement.'],
+          ],
+        },
+        {
+          titre: 'Votre offre',
+          icone: '⭐',
+          contenu: [
+            ['Où vous en êtes', 'La Vue d\'ensemble affiche votre stockage et votre abonnement. L\'offre Découverte : 1 espace client, 3 Go, accès 90 jours.'],
+            ['Évoluer quand vous voulez', 'Le passage à une offre supérieure se fait depuis la carte Abonnement — espaces illimités, marque blanche complète, sans engagement.'],
+            ['Une question ?', `Écrivez-nous : service@timelesshouse.org.`],
+          ],
+        },
+      ];
+    }
+
+    function GuideLoge({ onClose }) {
+      const chapitres = guideChapitres();
+      const [idx, setIdx] = useState(0);
+      const ch = chapitres[idx];
+      const dernier = idx === chapitres.length - 1;
+
+      return (
+        <Modal title="Bienvenue dans votre loge" kicker={`Guide · ${idx + 1}/${chapitres.length}`} onClose={onClose} size="lg">
+          {/* Chapitres : liste latérale sur grand écran, rangée défilante au doigt */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <nav aria-label="Chapitres du guide"
+                 className="flex sm:flex-col gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 sm:w-48 shrink-0">
+              {chapitres.map((c, i) => (
+                <button key={c.titre} onClick={() => setIdx(i)}
+                  aria-current={i === idx ? 'step' : undefined}
+                  style={i === idx ? neu.dark : neu.raisedXs}
+                  className={`px-3.5 min-h-[44px] rounded-full sm:rounded-xl text-[12.5px] font-semibold flex items-center gap-2 whitespace-nowrap sm:whitespace-normal text-left shrink-0 transition active:scale-95 ${i === idx ? 'text-white' : 'text-stone-600'}`}>
+                  <span aria-hidden="true">{c.icone}</span> {c.titre}
+                </button>
+              ))}
+            </nav>
+
+            <div className="flex-1 min-w-0">
+              <div className="space-y-4">
+                {ch.contenu.map(([t, p]) => (
+                  <div key={t}>
+                    <div className="text-[14px] font-bold">{t}</div>
+                    <p className="text-[13.5px] text-stone-600 leading-relaxed mt-1">{p}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between gap-3 mt-6 pt-4" style={{ borderTop: '1px solid rgba(127,127,127,0.15)' }}>
+                {/* Sortie toujours offerte, même au premier chapitre */}
+                {idx > 0
+                  ? <Btn onClick={() => setIdx(idx - 1)}>Précédent</Btn>
+                  : <Btn onClick={onClose}>Passer le guide</Btn>}
+                {dernier
+                  ? <Btn kind="dark" icon={CheckCircle2} onClick={onClose}>C'est parti</Btn>
+                  : <Btn kind="dark" onClick={() => setIdx(idx + 1)}>Continuer</Btn>}
+              </div>
+            </div>
+          </div>
+        </Modal>
+      );
+    }
+
     function App() {
       const [isDark, toggleDark] = useDarkMode();
       // Reassign the module-level mutable neu pointer
@@ -6622,6 +6733,24 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [agencies, setAgencies] = useState(null);
       const [featuresReady, setFeaturesReady] = useState(false);
       const [myAgency, setMyAgency] = useState(null);
+      const [showGuide, setShowGuide] = useState(false);
+
+      // Guide : s'ouvre SEUL à la première connexion d'un locataire
+      // (jamais pour la plateforme), puis plus jamais — sauf via le
+      // bouton « ? ». Mémorisé par compte : un second appareil le
+      // remontrera une fois, ce qui est plutôt une qualité.
+      useEffect(() => {
+        if (!featuresReady || FEATURES.allUniverses || !user) return;
+        const cle = `laloge-guide-vu:${user.id}`;
+        try {
+          if (!localStorage.getItem(cle)) setShowGuide(true);
+        } catch (_) {}
+      }, [featuresReady, user]);
+
+      const fermerGuide = () => {
+        setShowGuide(false);
+        try { if (user) localStorage.setItem(`laloge-guide-vu:${user.id}`, '1'); } catch (_) {}
+      };
 
       // Vérification session au mount
       useEffect(() => {
@@ -6745,6 +6874,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <div style={neu.raisedXs} className="h-11 px-3 rounded-full flex items-center justify-center">
                 <DarkToggle isDark={isDark} onToggle={toggleDark} />
               </div>
+              {featuresReady && !FEATURES.allUniverses && (
+                <button onClick={() => setShowGuide(true)} aria-label="Guide" title="Guide" style={neu.raisedXs} className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
+                  <HelpCircle size={16} />
+                </button>
+              )}
               <a href="communication.html" aria-label="Espace client" style={neu.raisedXs} className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
                 <Eye size={16} />
               </a>
@@ -6791,6 +6925,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   <span className="text-[11px] uppercase tracking-[0.14em] text-stone-500 font-semibold">Thème</span>
                   <DarkToggle isDark={isDark} onToggle={toggleDark} />
                 </div>
+                {featuresReady && !FEATURES.allUniverses && (
+                  <button onClick={() => setShowGuide(true)} className="w-full flex items-center gap-3.5 px-4 py-3.5 min-h-[48px] rounded-2xl text-stone-500 hover:text-stone-800 transition">
+                    <HelpCircle size={18} /> <span className="text-[14px] font-medium tracking-tight">Guide</span>
+                  </button>
+                )}
                 <a href="communication.html" className="w-full flex items-center gap-3.5 px-4 py-3.5 min-h-[48px] rounded-2xl text-stone-500 hover:text-stone-800 transition">
                   <Eye size={18} /> <span className="text-[14px] font-medium tracking-tight">Espace client</span>
                 </a>
@@ -6822,6 +6961,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               )}
             </main>
           </div>
+
+          {/* Guide de la loge — première connexion d'un locataire, ou bouton « ? » */}
+          {showGuide && <GuideLoge onClose={fermerGuide} />}
 
           {/* Bottom nav — mobile uniquement, 52px tactile, verre dépoli translucide */}
           <nav

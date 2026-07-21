@@ -2514,7 +2514,19 @@
         title:    existing?.title    || `Galerie — ${client.name || client.code}`,
         kind:     existing?.kind     || 'photos',
         template: existing?.template || 'mariage',
+        // Style de rendu des photos : 'standard' (en-tête + grille) ou
+        // 'cinematic' (cover plein écran + grille). Voir galerie.html.
+        style:    existing?.config?.style || 'standard',
+        cover:    existing?.config?.cover || '',
       });
+      // Photos de la galerie — pour choisir la couverture du mode cinématique.
+      const [coverPhotos, setCoverPhotos] = useState([]);
+      useEffect(() => {
+        if (!existing?.id) return;
+        sb.from('gallery_photos').select('id, url_grid, category, position')
+          .eq('gallery_id', existing.id).order('position')
+          .then(({ data }) => setCoverPhotos(data || []));
+      }, [existing?.id]);
       // Vidéos : modèle config.videos partagé avec event-video.html
       // (galerie-rendu.js lit urls['1080p'] / urls['4K'] et downloadUrl).
       const [videos, setVideos] = useState(() =>
@@ -2592,6 +2604,17 @@
           }
         }
 
+        // Style de rendu (galeries avec photos) : 'cinematic' pose aussi la
+        // photo de couverture (id). 'standard' = en-tête + grille.
+        const hasPhotos = form.kind === 'photos' || form.kind === 'mixte';
+        if (hasPhotos) {
+          config.style = form.style === 'cinematic' ? 'cinematic' : 'standard';
+          if (config.style === 'cinematic' && form.cover) config.cover = form.cover;
+          else delete config.cover;
+        } else {
+          delete config.style; delete config.cover;
+        }
+
         const payload = {
           title: form.title.trim(), kind: form.kind, template: form.template, config,
         };
@@ -2658,6 +2681,40 @@
                 </Select>
               </Field>
             </div>
+
+            {(form.kind === 'photos' || form.kind === 'mixte') && (
+              <Field label="Style d'affichage des photos">
+                <Select value={form.style} onChange={e => setForm({ ...form, style: e.target.value })}>
+                  <option value="standard">Standard — en-tête + grille</option>
+                  <option value="cinematic">Cinématique — cover plein écran + grille</option>
+                </Select>
+                {form.style === 'cinematic' && (
+                  <div className="mt-3">
+                    <div className="text-[11px] text-stone-500 mb-2">
+                      {coverPhotos.length
+                        ? 'Photo de couverture — cliquez pour choisir (sinon la 1re photo).'
+                        : 'Ajoutez d’abord des photos : la 1re servira de couverture, modifiable ensuite ici.'}
+                    </div>
+                    {coverPhotos.length > 0 && (
+                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                        {coverPhotos.map(p => (
+                          <button type="button" key={p.id} aria-label="Choisir comme couverture"
+                            onClick={() => setForm({ ...form, cover: p.id })}
+                            className={`relative aspect-square rounded-lg overflow-hidden ${form.cover === p.id ? 'ring-2 ring-stone-800' : ''}`}>
+                            <img src={p.url_grid} alt="" loading="lazy" className="w-full h-full object-cover" />
+                            {form.cover === p.id && (
+                              <span className="absolute inset-0 bg-stone-900/30 flex items-center justify-center">
+                                <CheckCircle2 size={18} className="text-white" />
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Field>
+            )}
 
             {showsVideos && (
               <Field label="Vidéos">

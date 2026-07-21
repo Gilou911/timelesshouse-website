@@ -132,6 +132,55 @@
       font-size: 12.5px; color: var(--faint); line-height: 2; letter-spacing: 0.04em;
     }
     .view footer a { color: var(--muted); display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; }
+
+    /* ── Cover cinématique (style « Cinématique ») ──
+       Ouverture plein écran : photo de couverture (choisie dans l'admin)
+       + titre en overlay, comme les pages event. Masqué en style Standard. */
+    .cover {
+      position: relative; height: 100vh; height: 100dvh;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center; overflow: hidden;
+    }
+    .cover[hidden] { display: none; }
+    .cover-bg {
+      position: absolute; inset: 0; z-index: 0;
+      background-size: cover; background-position: center;
+      transform: scale(1.04); animation: coverZoom 18s ease-out forwards;
+    }
+    @keyframes coverZoom { to { transform: scale(1); } }
+    .cover-veil {
+      position: absolute; inset: 0; z-index: 1;
+      /* Voile double : un assombrissement radial central garantit la
+         lisibilité du titre/kicker quelle que soit la photo (claire ou
+         sombre), + un dégradé vertical pour l'ancrage haut/bas. */
+      background:
+        radial-gradient(ellipse 85% 62% at 50% 50%, rgba(10,10,10,0.6) 0%, rgba(10,10,10,0.2) 60%, transparent 82%),
+        linear-gradient(to bottom, rgba(10,10,10,0.55) 0%, rgba(10,10,10,0.25) 30%, rgba(10,10,10,0.3) 60%, rgba(10,10,10,0.92) 100%);
+    }
+    .cover-inner { position: relative; z-index: 2; padding: 0 24px; max-width: 900px; }
+    .cover-mk {
+      font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+      font-size: 16px; color: var(--ink); opacity: 0.9; margin-bottom: 22px;
+    }
+    .cover-mk img { max-height: 44px; max-width: 190px; object-fit: contain; }
+    .cover-kicker {
+      font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 18px; font-weight: 500;
+    }
+    .cover-title {
+      font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 500;
+      font-size: clamp(2.6rem, 9vw, 5.5rem); line-height: 1.02; letter-spacing: -0.01em;
+      color: #fff;
+    }
+    .cover-sub { font-size: 13.5px; letter-spacing: 0.04em; color: var(--ink); opacity: 0.85; margin-top: 18px; }
+    .cover-scroll {
+      position: absolute; left: 50%; bottom: clamp(22px, 5vh, 44px); z-index: 2;
+      transform: translateX(-50%); color: var(--ink); opacity: 0.6;
+      font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+    }
+    .cover-scroll .ln { width: 1px; height: 34px; background: currentColor; animation: coverLine 2.2s ease-in-out infinite; transform-origin: top; }
+    @keyframes coverLine { 0%,100% { transform: scaleY(0.4); opacity: 0.4; } 50% { transform: scaleY(1); opacity: 0.9; } }
     /* ── HIG §16 : focus clavier toujours visible ──
        Le champ de code pose outline:none pour son style « pressé » ;
        sans remplacement, la navigation au clavier devient aveugle. */
@@ -180,6 +229,18 @@
 
   <!-- ── Galerie ── -->
   <div class="view" id="view">
+    <!-- Cover cinématique (rempli et révélé seulement en style « Cinématique ») -->
+    <section class="cover" id="cover" hidden>
+      <div class="cover-bg" id="coverBg"></div>
+      <div class="cover-veil"></div>
+      <div class="cover-inner">
+        <div class="cover-mk" id="coverMark"></div>
+        <div class="cover-kicker" id="coverKicker"></div>
+        <h1 class="cover-title" id="coverTitle"></h1>
+        <div class="cover-sub" id="coverSub"></div>
+      </div>
+      <div class="cover-scroll" aria-hidden="true"><span>Découvrir</span><span class="ln"></span></div>
+    </section>
     <header class="head wrap">
       <div class="mk" id="vMark"></div>
       <div class="kicker" id="vKicker"></div>
@@ -307,6 +368,26 @@
       const who = (data.client && data.client.name) || '';
       const bits = [who, cfg.date || '', cfg.lieu || ''].filter(Boolean);
       el('vSub').textContent = bits.join(' · ');
+
+      // ── Style « Cinématique » : cover plein écran en ouverture ──
+      // Photo de couverture choisie dans l'admin (cfg.cover = id de photo),
+      // sinon la 1re photo. Absent → style « Standard » (en-tête + grille).
+      const style = cfg.style === 'cinematic' ? 'cinematic' : 'standard';
+      const hasPhotos = kind === 'photos' || kind === 'mixte';
+      if (style === 'cinematic' && hasPhotos) {
+        const ph = data.photos || [];
+        const cover = ph.find(p => String(p.id) === String(cfg.cover)) || ph[0];
+        if (cover) {
+          const cu = cover.url_original || cover.url_view || cover.url_grid || '';
+          el('coverBg').style.backgroundImage = `url("${cu.replace(/"/g, '%22')}")`;
+          el('coverMark').innerHTML = el('vMark').innerHTML;
+          el('coverKicker').textContent = T.kicker;
+          el('coverTitle').textContent = g.title || heading;
+          el('coverSub').textContent = bits.join(' · ');
+          el('cover').hidden = false;
+          el('view').querySelector('.head').style.display = 'none';
+        }
+      }
 
       // ⚠️ La galerie est révélée AVANT le montage : la grille justifiée
       // mesure la largeur réelle de son conteneur, qui vaut 0 tant que

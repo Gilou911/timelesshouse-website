@@ -43,6 +43,17 @@
     [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(232,216,190,0.32); }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    /* ─── RÈGLE « HALO » (anti-collision d'ombres neumorphiques) ───
+       Un conteneur qui défile rogne toute ombre peinte hors de sa boîte.
+       Toute bande défilante de pastilles réserve donc d'office 12 px
+       verticaux (portée du halo d'une pastille raisedXs = 10 px).
+       Ne jamais compenser à la main avec py-*/-my-* : la règle gagne.
+       display:flex rend chaque enfant « flex item », ce qui active le
+       zIndex:2 du jeton raisedXs : une pastille est ainsi toujours
+       peinte AU-DESSUS du halo des grandes cartes voisines.
+       Les contrôles segmentés (.rounded-full, relief porté par le
+       conteneur lui-même, ombres internes) sont exemptés. */
+    .overflow-x-auto.no-scrollbar:not(.rounded-full) { display: flex; padding-top: 12px; padding-bottom: 12px; }
     input, textarea, select { font-family: inherit; }
     input:focus, textarea:focus, select:focus { outline: none; }
 

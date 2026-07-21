@@ -310,12 +310,24 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     /* ════════════════════════════════════════════════════════════
        🎨 STYLES NÉOMORPHIQUES (harmonisés avec le dashboard client)
        LIGHT : cream warm (#e9e4d9) — DARK : graphite + ivoire (#e8d8be)
+
+       RÈGLE « HALO » (anti-collision d'ombres — à respecter pour
+       tout nouvel élément, voir aussi le CSS des pages HTML) :
+       · portée d'un halo = offset + flou : raised 34 px,
+         raisedSm 17 px, raisedXs 10 px ;
+       · les pastilles (raisedXs) portent zIndex 2 → elles sont
+         TOUJOURS peintes au-dessus des halos des grandes cartes,
+         quel que soit l'ordre dans le DOM ;
+       · interstice minimal entre deux pastilles : 12 px (gap-3) ;
+       · toute bande défilante (overflow-x-auto no-scrollbar)
+         réserve 12 px verticaux via le CSS global — ne jamais y
+         remettre de py/-my à la main.
        ════════════════════════════════════════════════════════════ */
     const NEU_LIGHT = {
       base:      { backgroundColor: '#e9e4d9' },
       raised:    { backgroundColor: '#efeae0', boxShadow: '10px 10px 24px rgba(168,156,134,0.32), -10px -10px 24px rgba(255,253,247,0.92)' },
       raisedSm:  { backgroundColor: '#efeae0', boxShadow: '5px 5px 12px rgba(168,156,134,0.26), -5px -5px 12px rgba(255,253,247,0.88)' },
-      raisedXs:  { backgroundColor: '#efeae0', boxShadow: '3px 3px 7px rgba(168,156,134,0.22), -3px -3px 7px rgba(255,253,247,0.82)' },
+      raisedXs:  { backgroundColor: '#efeae0', boxShadow: '3px 3px 7px rgba(168,156,134,0.22), -3px -3px 7px rgba(255,253,247,0.82)', zIndex: 2 },
       pressed:   { backgroundColor: '#e3ddd0', boxShadow: 'inset 5px 5px 10px rgba(168,156,134,0.32), inset -5px -5px 10px rgba(255,253,247,0.9)' },
       pressedSm: { backgroundColor: '#e3ddd0', boxShadow: 'inset 3px 3px 6px rgba(168,156,134,0.26), inset -3px -3px 6px rgba(255,253,247,0.85)' },
       dark:      { backgroundColor: '#2a2620', boxShadow: '8px 8px 18px rgba(168,156,134,0.36), -3px -3px 8px rgba(255,253,247,0.6), inset 1px 1px 2px rgba(255,255,255,0.08)' },
@@ -328,7 +340,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       base:      { backgroundColor: '#181b20' },
       raised:    { backgroundColor: '#22262d', boxShadow: '10px 10px 24px rgba(0,0,0,0.55), -5px -5px 15px rgba(54,60,72,0.28)' },
       raisedSm:  { backgroundColor: '#22262d', boxShadow: '5px 5px 12px rgba(0,0,0,0.48), -3px -3px 8px rgba(54,60,72,0.22)' },
-      raisedXs:  { backgroundColor: '#22262d', boxShadow: '3px 3px 7px rgba(0,0,0,0.42), -2px -2px 5px rgba(54,60,72,0.18)' },
+      raisedXs:  { backgroundColor: '#22262d', boxShadow: '3px 3px 7px rgba(0,0,0,0.42), -2px -2px 5px rgba(54,60,72,0.18)', zIndex: 2 },
       pressed:   { backgroundColor: '#14171c', boxShadow: 'inset 5px 5px 10px rgba(0,0,0,0.55), inset -3px -3px 8px rgba(54,60,72,0.2)' },
       pressedSm: { backgroundColor: '#14171c', boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.48), inset -2px -2px 5px rgba(54,60,72,0.15)' },
       dark:      { backgroundColor: '#e8d8be', boxShadow: '8px 8px 18px rgba(0,0,0,0.62), -3px -3px 8px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.35), 0 0 24px rgba(232,216,190,0.25)' },
@@ -1626,7 +1638,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               {/* Actions — passent à la ligne plutôt que de défiler : sur
                   iPhone, la rangée débordait de 84 px et le premier bouton
                   se retrouvait coupé hors de l'écran. */}
-              <div className="flex items-center gap-x-2 gap-y-3 lg:gap-3 flex-wrap lg:flex-nowrap shrink-0">
+              <div className="flex items-center gap-3 flex-wrap lg:flex-nowrap shrink-0">
                 {client.client_email && (
                   <Btn icon={sendingWelcome ? Loader2 : Send} onClick={sendWelcomeEmail} disabled={sendingWelcome}>
                     <span className="hidden sm:inline">{sendingWelcome ? 'Envoi…' : 'Email de bienvenue'}</span>
@@ -1648,7 +1660,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <span className="text-[10px] uppercase tracking-[0.15em] text-stone-500 font-semibold">Accès client</span>
                 <code style={neu.pressedSm} className="px-2.5 py-1.5 rounded-md font-mono text-[12.5px] leading-none">{client.code}</code>
                 <CopyButton value={client.code} label="Copier le code" iconOnly />
-                <div className="flex items-center gap-x-2 gap-y-3 flex-wrap">
+                <div className="flex items-center gap-3 flex-wrap">
                   <CopyButton value={clientLoginUrl()} label="Copier le lien" />
                   <a href={clientLoginUrl()} target="_blank" rel="noopener" style={neu.raisedXs}
                      className="px-4 min-h-[44px] rounded-full text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-stone-600 active:scale-95 transition-transform">
@@ -1660,7 +1672,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           </div>
 
           {/* Tabs — scrollable horizontalement sur mobile, 44px tactile */}
-          <div className="overflow-x-auto no-scrollbar -mx-4 px-4 py-3 -my-1.5 lg:mx-0 lg:px-0">
+          <div className="overflow-x-auto no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
             <div style={neu.raisedXs} className="rounded-full p-1 inline-flex items-center">
               {tabs.map(t => (
                 <button
@@ -2457,7 +2469,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </div>
             </div>
 
-            <div className="flex items-center gap-x-2 gap-y-3 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
               {showsPhotos && (
                 <Btn icon={open ? ChevronUp : ImageIcon} onClick={onToggleOpen}>
                   {open ? 'Replier' : 'Photos'}
@@ -2486,7 +2498,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             <div className={`mt-2 font-mono text-[11px] break-all ${g.share_enabled ? 'text-stone-600' : 'text-stone-400 line-through'}`}>
               {shareUrl}
             </div>
-            <div className="flex gap-x-2 gap-y-3 mt-2.5 flex-wrap">
+            <div className="flex gap-3 mt-2.5 flex-wrap">
               <CopyButton value={shareUrl} label="Copier le lien" />
               <a href={shareUrl} target="_blank" rel="noopener"
                  style={neu.raisedXs}
@@ -6683,7 +6695,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           {/* Chapitres : liste latérale sur grand écran, rangée défilante au doigt */}
           <div className="flex flex-col sm:flex-row gap-5 sm:gap-4">
             <nav aria-label="Chapitres du guide"
-                 className="flex sm:flex-col gap-2.5 overflow-x-auto no-scrollbar -mx-2 px-2 py-2 -my-1 sm:w-48 shrink-0">
+                 className="flex sm:flex-col gap-3 overflow-x-auto no-scrollbar -mx-3 px-3 sm:w-48 shrink-0">
               {chapitres.map((c, i) => (
                 <button key={c.titre} onClick={() => setIdx(i)}
                   aria-current={i === idx ? 'step' : undefined}

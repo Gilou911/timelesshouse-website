@@ -74,7 +74,7 @@
     .btn.big { min-height: 52px; padding: 0 30px; font-size: 15px; }
 
     /* ── Héros ── */
-    .hero { text-align: center; padding: 74px 0 56px; }
+    .hero { text-align: center; padding: 74px 22px 56px; }
     .kicker {
       font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase;
       color: var(--muted); font-weight: 700;
@@ -169,7 +169,10 @@
     footer.bottom .logo { font-size: 20px; display: inline-block; margin-bottom: 6px; }
 
     @media (max-width: 560px) {
-      .hero { padding: 52px 0 40px; }
+      /* 24 px de retrait horizontal : le sous-titre et la ligne de prix
+         collaient aux bords (le padding shorthand du .hero remettait
+         l'horizontal à 0). */
+      .hero { padding: 52px 24px 40px; }
       section { padding: 48px 0; }
     }
     /* ── Correctifs HIG vague 1 (P0) — audit du 20/07/2026 ── */
@@ -231,7 +234,7 @@
     <!-- ── Héros ── -->
     <div class="wrap hero">
       <div class="kicker">Espaces clients en marque blanche · vidéastes &amp; agences</div>
-      <h1 class="serif">Tout ce que vous livrez, <em>à votre marque</em>.</h1>
+      <h1 class="serif">Tout ce que vous livrez, <em>à Votre marque</em>.</h1>
       <p class="sub">
         La Loge donne à votre studio un espace client à <strong>votre marque</strong> :
         livraison de films 4K et de galeries photos, validation, factures, analyses —

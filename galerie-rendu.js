@@ -349,6 +349,10 @@ function closeRow(row, arSum, containerW, gap, maxH) {
   return row.map(it => ({ p: it.p, w: Math.floor(it.ar * h), h }));
 }
 
+// Marqueur de build : change le hash du bundle pour contourner une URL
+// d'asset empoisonnée au CDN (incident du 21/07/2026 — voir public/404.html).
+if (typeof window !== 'undefined') window.__GALERIE_BUILD = '2026-07-21b';
+
 /* ── URLs B2 : figées, aucune transformation à la volée ─────── */
 const GRID = p => p.url_grid || p.url_view || p.url_original || '';
 const VIEW = p => p.url_view || p.url_original || p.url_grid || '';

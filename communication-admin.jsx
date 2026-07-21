@@ -1626,7 +1626,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               {/* Actions — passent à la ligne plutôt que de défiler : sur
                   iPhone, la rangée débordait de 84 px et le premier bouton
                   se retrouvait coupé hors de l'écran. */}
-              <div className="flex items-center gap-2 lg:gap-3 flex-wrap lg:flex-nowrap shrink-0">
+              <div className="flex items-center gap-x-2 gap-y-3 lg:gap-3 flex-wrap lg:flex-nowrap shrink-0">
                 {client.client_email && (
                   <Btn icon={sendingWelcome ? Loader2 : Send} onClick={sendWelcomeEmail} disabled={sendingWelcome}>
                     <span className="hidden sm:inline">{sendingWelcome ? 'Envoi…' : 'Email de bienvenue'}</span>
@@ -1644,11 +1644,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 que de 187 px sur iPhone et empilait ses cinq éléments sur
                 cinq lignes. Ici il en occupe deux. */}
             <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--divider, rgba(42,38,32,0.08))' }}>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-x-2.5 gap-y-3 flex-wrap">
                 <span className="text-[10px] uppercase tracking-[0.15em] text-stone-500 font-semibold">Accès client</span>
                 <code style={neu.pressedSm} className="px-2.5 py-1.5 rounded-md font-mono text-[12.5px] leading-none">{client.code}</code>
                 <CopyButton value={client.code} label="Copier le code" iconOnly />
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-x-2 gap-y-3 flex-wrap">
                   <CopyButton value={clientLoginUrl()} label="Copier le lien" />
                   <a href={clientLoginUrl()} target="_blank" rel="noopener" style={neu.raisedXs}
                      className="px-4 min-h-[44px] rounded-full text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-stone-600 active:scale-95 transition-transform">
@@ -2457,7 +2457,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-x-2 gap-y-3 flex-wrap">
               {showsPhotos && (
                 <Btn icon={open ? ChevronUp : ImageIcon} onClick={onToggleOpen}>
                   {open ? 'Replier' : 'Photos'}
@@ -2486,7 +2486,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             <div className={`mt-2 font-mono text-[11px] break-all ${g.share_enabled ? 'text-stone-600' : 'text-stone-400 line-through'}`}>
               {shareUrl}
             </div>
-            <div className="flex gap-2 mt-2.5 flex-wrap">
+            <div className="flex gap-x-2 gap-y-3 mt-2.5 flex-wrap">
               <CopyButton value={shareUrl} label="Copier le lien" />
               <a href={shareUrl} target="_blank" rel="noopener"
                  style={neu.raisedXs}
@@ -6681,9 +6681,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return (
         <Modal title="Bienvenue dans votre loge" kicker={`Guide · ${idx + 1}/${chapitres.length}`} onClose={onClose} size="lg">
           {/* Chapitres : liste latérale sur grand écran, rangée défilante au doigt */}
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-5 sm:gap-4">
             <nav aria-label="Chapitres du guide"
-                 className="flex sm:flex-col gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 sm:w-48 shrink-0">
+                 className="flex sm:flex-col gap-2.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1 sm:pb-0 sm:w-48 shrink-0">
               {chapitres.map((c, i) => (
                 <button key={c.titre} onClick={() => setIdx(i)}
                   aria-current={i === idx ? 'step' : undefined}

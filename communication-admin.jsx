@@ -2539,8 +2539,21 @@
           // Sans ça, renommer une galerie après l'encodage effacerait le
           // travail du worker et la vidéo retomberait en progressif.
           hls:         v.hls || '',
+          // Chapitres : édités en texte, une ligne = « 1:23 Titre ».
+          chapText:    (Array.isArray(v.chapitres) ? v.chapitres : [])
+            .map(c => `${c.time ?? c.temps ?? ''} ${c.titre ?? c.title ?? ''}`.trim())
+            .filter(Boolean).join('\n'),
         }))
       );
+      // « 1:23 Ouverture » (une ligne par chapitre) → [{ time, titre }].
+      // Les lignes sans horodatage sont ignorées silencieusement.
+      const parseChapters = (txt) => String(txt || '').split('\n')
+        .map(l => l.trim()).filter(Boolean)
+        .map(l => {
+          const m = l.match(/^(\d{1,2}(?::\d{1,2}){1,2}|\d+)\s+(.+)$/);
+          return m ? { time: m[1], titre: m[2].trim() } : null;
+        })
+        .filter(Boolean);
       const [loading, setLoading] = useState(false);
       const [err, setErr] = useState('');
       const [upProgress, setUpProgress] = useState(null); // { i, pct } pendant un envoi
@@ -2548,7 +2561,7 @@
       const showsVideos = form.kind === 'video' || form.kind === 'mixte';
 
       const addVideo = () => setVideos(v => [...v, {
-        key: `v${v.length + 1}`, title: '', url: '', downloadUrl: '', hls: '',
+        key: `v${v.length + 1}`, title: '', url: '', downloadUrl: '', hls: '', chapText: '',
       }]);
       const setVideo = (i, patch) => setVideos(v => v.map((x, k) => k === i ? { ...x, ...patch } : x));
       const removeVideo = (i) => setVideos(v => v.filter((_, k) => k !== i));
@@ -2591,7 +2604,7 @@
                 hls,
                 urls:        mp4 ? { '1080p': mp4 } : {},
                 downloadUrl: (v.downloadUrl || '').trim(),
-                chapitres:   [],
+                chapitres:   parseChapters(v.chapText),
                 // Chez un locataire, le client ne voit la vidéo qu'une fois
                 // au moins une qualité encodée : tant que le worker n'a pas
                 // rendu son HLS, la page affiche « préparation en cours ».
@@ -2756,6 +2769,15 @@
                           className="w-full text-[13px] text-stone-600 file:mr-3 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-stone-900 file:text-white file:text-[12px] file:font-semibold file:cursor-pointer"
                         />
                       )}
+                      <textarea
+                        value={v.chapText}
+                        onChange={e => setVideo(i, { chapText: e.target.value })}
+                        rows={3}
+                        placeholder={'Chapitres (optionnel) — un par ligne :\n0:00 Ouverture\n2:45 Discours'}
+                        aria-label="Chapitres de la vidéo"
+                        style={neu.pressedSm}
+                        className="w-full px-4 py-3 rounded-xl bg-transparent text-[16px] sm:text-[13px] leading-relaxed resize-y"
+                      />
                     </div>
                   ))}
                   <Btn icon={Plus} onClick={addVideo} full>Ajouter une vidéo</Btn>

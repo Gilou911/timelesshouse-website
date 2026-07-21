@@ -226,6 +226,49 @@ function injectStyles() {
     gap: 8px; flex-wrap: wrap; margin-top: 20px;
   }
   .g-video-bar:empty { display: none; }
+
+  /* Chapitres — liste sous le lecteur, mécanique event-video :
+     clic = saut dans la vidéo, chapitre courant surligné pendant la
+     lecture (liseré accent + fond). */
+  .g-chapters { max-width: 880px; margin: clamp(30px, 5vw, 48px) auto 0; }
+  .g-chapters:empty { display: none; }
+  .g-chap-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 20px; margin-bottom: 18px; padding-bottom: 14px;
+    border-bottom: 1px solid var(--hair, rgba(242,239,233,0.12));
+  }
+  .g-chap-label {
+    display: block; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.4em; color: var(--accent, #b08968); margin-bottom: 6px;
+  }
+  .g-chap-title {
+    font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+    font-size: 1.5rem; font-weight: 400; color: var(--ink); line-height: 1; margin: 0;
+  }
+  .g-chap-count {
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.35em;
+    color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .g-chap-list { display: flex; flex-direction: column; }
+  .g-chap {
+    display: flex; align-items: baseline; gap: 20px; width: 100%;
+    min-height: 44px; padding: 14px 16px; text-align: left; cursor: pointer;
+    background: transparent; border: none; font-family: inherit; color: var(--ink);
+    border-top: 1px solid var(--hair, rgba(242,239,233,0.12));
+    border-left: 2px solid transparent;
+    transition: background 0.35s ease, border-left-color 0.35s ease;
+  }
+  .g-chap:hover { background: rgba(244, 240, 235, 0.03); }
+  .g-chap.active { background: rgba(244, 240, 235, 0.05); border-left-color: var(--accent, #b08968); }
+  .g-chap-time {
+    font-family: 'Jost', inherit; font-size: 11px; font-weight: 500;
+    color: var(--accent, #b08968); letter-spacing: 0.08em;
+    min-width: 56px; flex-shrink: 0; font-variant-numeric: tabular-nums;
+  }
+  .g-chap-titre {
+    font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+    font-size: 1.1rem; line-height: 1.4;
+  }
   .g-dl {
     min-height: 44px; padding: 0 18px; border-radius: 999px; display: inline-flex;
     align-items: center; gap: 8px; text-decoration: none;
@@ -628,6 +671,7 @@ export function normalizeVideos(c) {
         hls: v.hls || '',
         urls: v.urls || {},
         downloadUrl: v.downloadUrl || '',
+        chapitres: Array.isArray(v.chapitres) ? v.chapitres : [],
         // Drapeau d'attente d'encodage : sans ce report, la vidéo
         // s'afficherait malgré tout (l'objet est reconstruit ici).
         awaitingEncode: v.awaitingEncode === true,
@@ -638,10 +682,12 @@ export function normalizeVideos(c) {
   if (c.afficherTeaser) list.push({
     key: 'teaser', title: 'Teaser', hls: c.teaserHls || '',
     urls: c.teaserUrls || {}, downloadUrl: c.teaserDownloadUrl || '',
+    chapitres: c.teaserChapitres || [],
   });
   if (c.afficherFilm) list.push({
     key: 'film', title: 'Film complet', hls: c.filmHls || '',
     urls: c.filmUrls || {}, downloadUrl: c.filmDownloadUrl || '',
+    chapitres: c.filmChapitres || [],
   });
   return list;
 }
@@ -787,6 +833,78 @@ export async function mountVideos(mount, videos, opts = {}) {
     }
   }
 
+  // ── Chapitres de la vidéo active (mécanique event-video) ──
+  const chapWrap = document.createElement('div');
+  chapWrap.className = 'g-chapters';
+  sec.appendChild(chapWrap);
+
+  const parseT = (input) => {
+    if (typeof input === 'number' && isFinite(input)) return Math.max(0, input);
+    if (!input) return 0;
+    const parts = String(input).trim().split(':').map(p => parseInt(p, 10));
+    if (parts.some(isNaN)) return 0;
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    return parts[0] || 0;
+  };
+  const fmtT = (sec) => {
+    sec = Math.max(0, Math.floor(sec));
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    return h > 0
+      ? h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0')
+      : m + ':' + String(s).padStart(2, '0');
+  };
+  const chapsOf = (v) => (Array.isArray(v.chapitres) ? v.chapitres : [])
+    .map(c => ({ time: parseT(c.time ?? c.temps ?? c.start), titre: String(c.titre ?? c.title ?? '').trim() }))
+    .filter(c => c.titre)
+    .sort((a, b) => a.time - b.time);
+
+  let chapItems = [];
+  function renderChapters(i) {
+    chapWrap.innerHTML = '';
+    chapItems = [];
+    const chs = chapsOf(list[i]);
+    if (!chs.length) return;
+    const head = document.createElement('div');
+    head.className = 'g-chap-head';
+    head.innerHTML =
+      '<div><span class="g-chap-label">Chapitres</span><h3 class="g-chap-title"></h3></div>' +
+      '<span class="g-chap-count">' + chs.length + ' chapitre' + (chs.length > 1 ? 's' : '') + '</span>';
+    head.querySelector('.g-chap-title').textContent = list[i].title || 'Parcourir';
+    chapWrap.appendChild(head);
+    const ul = document.createElement('div');
+    ul.className = 'g-chap-list';
+    chs.forEach((ch) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'g-chap';
+      b.setAttribute('aria-label', 'Lire à ' + fmtT(ch.time) + ' — ' + ch.titre);
+      b.innerHTML = '<span class="g-chap-time">' + fmtT(ch.time) + '</span><span class="g-chap-titre"></span>';
+      b.querySelector('.g-chap-titre').textContent = ch.titre;
+      b.addEventListener('click', () => {
+        const vid = slides[current].video;
+        if (!vid) return;
+        try { vid.currentTime = ch.time; } catch (e) {}
+        vid.play().catch(() => {});
+        stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      ul.appendChild(b);
+      chapItems.push({ el: b, time: ch.time });
+    });
+    chapWrap.appendChild(ul);
+  }
+  function updateActiveChap() {
+    if (!chapItems.length) return;
+    const vid = slides[current].video;
+    if (!vid) return;
+    const t = vid.currentTime || 0;
+    let idx = -1;
+    for (let k = 0; k < chapItems.length; k++) {
+      if (t + 0.25 >= chapItems[k].time) idx = k; else break;
+    }
+    chapItems.forEach((c, k) => c.el.classList.toggle('active', k === idx));
+  }
+
   let current = 0;
   function placeIndicator() {
     if (!ind || !btns[current]) return;
@@ -805,9 +923,17 @@ export async function mountVideos(mount, videos, opts = {}) {
     if (btns[i]) btns[i].classList.add('active');
     placeIndicator();
     renderBar(i);
+    renderChapters(i);
   }
 
   renderBar(0);
+  renderChapters(0);
+  // Surlignage du chapitre courant pendant la lecture (vidéo active seule)
+  slides.forEach((s) => {
+    if (s.video) s.video.addEventListener('timeupdate', () => {
+      if (slides[current] === s) updateActiveChap();
+    });
+  });
   if (!single) {
     // L'indicateur se cale après la mise en page (et se recale quand la
     // police charge ou que la fenêtre change : les largeurs bougent).

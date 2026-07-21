@@ -362,6 +362,27 @@ const escAttr = v => String(v ?? '')
   .replaceAll('&', '&amp;').replaceAll('"', '&quot;')
   .replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
+/* ── Téléchargement DIRECT d'une photo ──
+   L'attribut `download` est IGNORÉ en cross-origin : les photos vivent sur
+   le stockage média (autre domaine), le clic ouvrait donc un onglet au lieu
+   d'enregistrer le fichier. On récupère la photo en blob (quelques Mo — sans
+   commune mesure avec les vidéos) puis on déclenche un vrai téléchargement
+   depuis une URL de même origine. Échec (CORS, réseau) → repli sur
+   l'ancien comportement (ouverture d'onglet). */
+async function downloadPhoto(url, filename) {
+  const r = await fetch(url, { mode: 'cors' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const blob = await r.blob();
+  const obj = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = obj;
+  a.download = filename || 'photo.jpg';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(obj), 4000);
+}
+
 /**
  * Monte une galerie photos.
  * @param {HTMLElement} mount      conteneur (vidé)
@@ -482,6 +503,12 @@ export function mountPhotos(mount, categories, opts = {}) {
             if (act) {
               e.stopPropagation();
               if (act.dataset.act === 'fav') { e.preventDefault(); toggleFav(p.id); }
+              else if (act.dataset.act === 'dl') {
+                // Téléchargement direct (blob) — jamais d'onglet qui s'ouvre.
+                e.preventDefault();
+                downloadPhoto(act.href, act.getAttribute('download'))
+                  .catch(() => { window.open(act.href, '_blank'); });
+              }
               return;
             }
             openLb(gi);
@@ -589,6 +616,14 @@ export function mountPhotos(mount, categories, opts = {}) {
   $('prev').addEventListener('click', (e) => { e.stopPropagation(); step(-1); });
   $('next').addEventListener('click', (e) => { e.stopPropagation(); step(1); });
   $('fav').addEventListener('click', () => { const p = FLAT[lbIdx]; if (p) toggleFav(p.id); });
+  $('dl').addEventListener('click', (e) => {
+    // Téléchargement direct (blob) — même mécanique que la grille.
+    e.preventDefault();
+    e.stopPropagation();
+    const a = $('dl');
+    downloadPhoto(a.href, a.getAttribute('download'))
+      .catch(() => { window.open(a.href, '_blank'); });
+  });
 
   document.addEventListener('keydown', (e) => {
     if (!lbOpen) return;

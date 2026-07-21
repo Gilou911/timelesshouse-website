@@ -19,11 +19,22 @@ dotenv.config({ path: ".env" });
 
 // ⚠️ b2_update_bucket REMPLACE les règles : la liste par défaut doit contenir
 // TOUTES les origines de prod, sinon un simple `npm run b2-cors` les efface.
+// ⚠️ Le bucket porte désormais des règles CORS NATIVES B2 (posées via
+// b2_update_bucket le 21/07/2026 pour ajouter les origines La Loge) :
+// l'API S3 utilisée ici répond « InvalidRequest — use B2 Native API ».
+// Pour modifier les origines, passer par l'API native (b2_authorize_account
+// puis b2_update_bucket avec corsRules) — voir l'historique du commit.
 const DEFAULT_ORIGINS = [
   "https://timelesshouse.org",
   "https://www.timelesshouse.org",
   "https://timelesshouse-website.pages.dev",              // URL Cloudflare Pages
   "https://*.timelesshouse-website.pages.dev",            // déploiements de preview
+  // La Loge : vitrine, porte clients et sous-domaines d'agences — le
+  // téléchargement direct des photos (fetch → blob) exige un GET CORS
+  // depuis chaque hôte où vit une galerie.
+  "https://laloge.app",
+  "https://laloge.house",
+  "https://*.laloge.house",
   "http://localhost:5173",                               // vite dev
   "http://localhost:4173",                               // vite preview
 ];

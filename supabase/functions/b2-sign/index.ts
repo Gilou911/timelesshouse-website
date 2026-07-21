@@ -112,7 +112,9 @@ function publicUrl(key: string): string {
 // charger plusieurs Go en mémoire pour contourner ça).
 // Nom assaini côté serveur : jamais d'injection d'en-tête depuis le client.
 function dispositionFor(key: string): string | undefined {
-  if (!key.includes("/original/")) return undefined;
+  // `/original/…` (vidéos) ET `…/original.jpg` (photos de galerie) : tout
+  // fichier « original » est destiné au téléchargement, pas à l'affichage.
+  if (!/\/original[./]/.test(key)) return undefined;
   const name = (key.split("/").pop() || "fichier").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
   return `attachment; filename="${name}"`;
 }

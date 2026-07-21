@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
-  <link rel="preload" as="image" href="Vignette_Eunice_Josue-1920.jpg" fetchpriority="high" />
+  <link rel="preload" as="image" href="Vignette_Eunice_Josue-1920.webp" type="image/webp" fetchpriority="high" />
 
   <style>
     :root {
@@ -680,9 +680,12 @@
   <main>
     <section class="hero reveal">
         <div class="hero-media">
-            <img src="Vignette_Eunice_Josue-1920.jpg" alt="Mariage cinématique" class="hero-bg-img" fetchpriority="high" loading="eager">
+            <picture>
+                <source type="image/webp" srcset="Vignette_Eunice_Josue-1920.webp">
+                <img src="Vignette_Eunice_Josue-1920.jpg" alt="Mariage cinématique" class="hero-bg-img" loading="eager">
+            </picture>
             <video muted loop playsinline preload="metadata" 
-            poster="Vignette_Eunice_Josue-1920.jpg" 
+            poster="Vignette_Eunice_Josue-1920.webp" 
             onloadeddata="this.classList.add('loaded'); this.play().catch(()=>{});">
                 <source src="https://streamable.com/l/clh7jh/mp4-high.mp4" type="video/mp4" />
             </video>
@@ -747,8 +750,11 @@
     <section id="about-team" class="philosophy reveal">
         <div class="grid-2">
             <div class="img-block">
-                <img src="Vignette_Eunice_Josue-1920.jpg" alt="L'équipe TimelessHouse au travail" class="bg-image">
-                <video class="bg-video" autoplay muted loop playsinline preload="metadata" poster="Vignette_Eunice_Josue-1920.jpg">
+                <picture>
+                    <source type="image/webp" srcset="Vignette_Eunice_Josue-1920.webp">
+                    <img src="Vignette_Eunice_Josue-1920.jpg" alt="L'équipe TimelessHouse au travail" class="bg-image">
+                </picture>
+                <video class="bg-video" autoplay muted loop playsinline preload="metadata" poster="Vignette_Eunice_Josue-1920.webp">
                     <source src="https://streamable.com/l/clh7jh/mp4-high.mp4" type="video/mp4" />
                 </video>
             </div>

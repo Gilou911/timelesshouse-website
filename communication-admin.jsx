@@ -1297,7 +1297,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         invoices_enabled:  existing?.invoices_enabled ?? true,
         shoots_enabled:    existing?.shoots_enabled   ?? true,
         documents_enabled: existing?.documents_enabled ?? true,
-        strategies_enabled: existing?.strategies_enabled ?? true,
+        // Stratégies : réservé à la plateforme (pas au point pour les
+        // locataires) — un enregistrement de fiche par un locataire
+        // remet le module à zéro, ce qui nettoie aussi son espace client.
+        strategies_enabled: FEATURES.allUniverses ? (existing?.strategies_enabled ?? true) : false,
       });
       const [loading, setLoading] = useState(false);
       const [err, setErr] = useState('');
@@ -1372,7 +1375,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   const on = !isCelebration(newUniverse);
                   Object.assign(patch, {
                     media_enabled: on, invoices_enabled: on, shoots_enabled: on,
-                    documents_enabled: on, strategies_enabled: on,
+                    documents_enabled: on, strategies_enabled: FEATURES.allUniverses ? on : false,
                   });
                 }
                 // Les Analyses n'existent QUE dans l'univers communication :
@@ -1501,7 +1504,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   </div>
                 </button>
 
-                {/* Stratégies */}
+                {/* Stratégies — module réservé à la plateforme tant qu'il
+                    n'est pas au point (demande de Gil, 22/07/2026) */}
+                {FEATURES.allUniverses && (
                 <button type="button" onClick={() => setForm({...form, strategies_enabled: !form.strategies_enabled})}
                   style={form.strategies_enabled ? neu.dark : neu.pressedSm}
                   className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.strategies_enabled ? 'text-white' : 'text-stone-700'}`}>
@@ -1516,6 +1521,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.strategies_enabled ? 'translate-x-4' : ''}`} />
                   </div>
                 </button>
+                )}
 
                 {/* Tournages / Calendrier */}
                 <button type="button" onClick={() => setForm({...form, shoots_enabled: !form.shoots_enabled})}
@@ -1593,7 +1599,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const invoicesOn = client.invoices_enabled !== false;
       const shootsOn   = client.shoots_enabled   !== false;
       const documentsOn = client.documents_enabled !== false;
-      const strategiesOn = client.strategies_enabled !== false;
+      // Stratégies : onglet réservé à la plateforme tant que le module
+      // n'est pas au point pour les locataires (Gil, 22/07/2026).
+      const strategiesOn = FEATURES.allUniverses && client.strategies_enabled !== false;
 
       const tabs = [
         ...(hasDeliveryTab(client.universe) ? [{ id: 'event_pages', label: 'Page client', icon: Eye }] : []),

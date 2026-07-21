@@ -1660,7 +1660,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           </div>
 
           {/* Tabs — scrollable horizontalement sur mobile, 44px tactile */}
-          <div className="overflow-x-auto no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
+          <div className="overflow-x-auto no-scrollbar -mx-4 px-4 py-3 -my-1.5 lg:mx-0 lg:px-0">
             <div style={neu.raisedXs} className="rounded-full p-1 inline-flex items-center">
               {tabs.map(t => (
                 <button
@@ -6683,7 +6683,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           {/* Chapitres : liste latérale sur grand écran, rangée défilante au doigt */}
           <div className="flex flex-col sm:flex-row gap-5 sm:gap-4">
             <nav aria-label="Chapitres du guide"
-                 className="flex sm:flex-col gap-2.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1 sm:pb-0 sm:w-48 shrink-0">
+                 className="flex sm:flex-col gap-2.5 overflow-x-auto no-scrollbar -mx-2 px-2 py-2 -my-1 sm:w-48 shrink-0">
               {chapitres.map((c, i) => (
                 <button key={c.titre} onClick={() => setIdx(i)}
                   aria-current={i === idx ? 'step' : undefined}

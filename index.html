@@ -80,11 +80,13 @@
       transition: opacity 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
     .bg-video.loaded { opacity: 1; }
-    .bg-video-preview {
+    .bg-video-preview,
+    .bg-image-preview {
       z-index: 3; opacity: 0;
       transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
-    .bg-video-preview.active { opacity: 1; }
+    .bg-video-preview.active,
+    .bg-image-preview.active { opacity: 1; }
 
     /* Dégradé cinéma */
     .bg-overlay {
@@ -707,6 +709,7 @@
         <source src="https://streamable.com/l/9eoymb/mp4-high.mp4" type="video/mp4" />
     </video>
   <video class="bg-video-preview" muted loop playsinline preload="none"></video>
+  <img class="bg-image-preview" alt="" decoding="async" />
   </div>
 
   <div class="bg-overlay"></div>
@@ -950,6 +953,7 @@
 
     /* --- PREVIEW VIDEO AU HOVER/TAP --- */
     const previewEl = document.querySelector('.bg-video-preview');
+    const imgPreviewEl = document.querySelector('.bg-image-preview');
     let previewTimeout = null;
     let activeMobilePreview = null;
 
@@ -957,6 +961,16 @@
       if (!url) return;
       clearTimeout(previewTimeout);
       previewTimeout = setTimeout(() => {
+        // Une preview IMAGE fixe (ex : Mariage) s'affiche dans un <img> :
+        // object-fit:cover y est fiable partout. Via le poster d'une <video>,
+        // iOS Safari IGNORE object-fit et étire le poster → image aplatie.
+        const isImage = /\.(webp|avif|jpe?g|png)(\?|#|$)/i.test(url);
+        if (isImage) {
+          if (imgPreviewEl.getAttribute('src') !== url) imgPreviewEl.src = url;
+          imgPreviewEl.classList.add('active');
+          previewEl.classList.remove('active');
+          return;
+        }
         if (previewEl.src !== url) {
           // On assigne le poster Cloudinary avant de charger la vidéo
           if (posterUrl) previewEl.poster = posterUrl;
@@ -967,11 +981,13 @@
         }
         previewEl.play().catch(() => {});
         previewEl.classList.add('active');
+        imgPreviewEl.classList.remove('active');
       }, 120);
     }
     function hidePreview() {
       clearTimeout(previewTimeout);
       previewEl.classList.remove('active');
+      imgPreviewEl.classList.remove('active');
       setTimeout(() => {
         if (!previewEl.classList.contains('active') && !previewEl.paused) {
           previewEl.pause();

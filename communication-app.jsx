@@ -1785,7 +1785,7 @@ const Media = ({ navTarget, clearTarget }) => {
           )}
         </div>
         {/* Toggle grille / liste */}
-        <div style={neu.raisedXs} className="rounded-full p-1 flex items-center shrink-0">
+        <div style={neu.pressed} className="rounded-full p-1 flex items-center shrink-0">
           <button onClick={() => setView('grid')}
             style={view === 'grid' ? neu.darkSm : {}}
             className={`w-9 h-9 tap-ext rounded-full flex items-center justify-center transition active:scale-95 ${view === 'grid' ? 'text-white' : 'text-stone-500'}`}
@@ -1802,7 +1802,7 @@ const Media = ({ navTarget, clearTarget }) => {
       </div>
 
       {/* ── Filtres type ── */}
-      <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto no-scrollbar">
+      <div style={neu.pressed} className="rounded-full p-1 flex items-center overflow-x-auto no-scrollbar">
         <Pill active={filter === 'tous'}      onClick={() => setFilter('tous')}>Tous ({media.length})</Pill>
         <Pill active={filter === 'photo'}     onClick={() => setFilter('photo')}>📸 Photos ({photos})</Pill>
         <Pill active={filter === 'video'}     onClick={() => setFilter('video')}>🎥 Vidéos ({videos})</Pill>
@@ -2221,7 +2221,7 @@ const Documents = ({ goTo }) => {
     <div className="space-y-5 lg:space-y-6">
       {/* Filtre par catégorie */}
       {categories.length > 2 && (
-        <div style={neu.raisedXs} className="rounded-full p-1 inline-flex items-center overflow-x-auto no-scrollbar max-w-full">
+        <div style={neu.pressed} className="rounded-full p-1 inline-flex items-center overflow-x-auto no-scrollbar max-w-full">
           {categories.map(c => (
             <button
               key={c}
@@ -2557,7 +2557,7 @@ const Analytics = () => {
       {alerts.length > 0 && <AlertsStrip alerts={alerts} />}
 
       {/* Onglets */}
-      <div style={neu.raisedXs} className="rounded-full p-1 flex items-center w-fit overflow-x-auto">
+      <div style={neu.pressed} className="rounded-full p-1 flex items-center w-fit overflow-x-auto">
         {[
           { id: 'overview',  label: "Vue d'ensemble", icon: BarChart3 },
           { id: 'posts',     label: 'Posts',          icon: Layers },
@@ -2600,7 +2600,7 @@ const AnalyticsHeader = ({ accounts, platform, setPlatform, timeRange, setTimeRa
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto">
+      <div style={neu.pressed} className="rounded-full p-1 flex items-center overflow-x-auto">
         <Pill active={platform === 'all'} onClick={() => setPlatform('all')}>Tous</Pill>
         {accounts.map(a => (
           <Pill key={a.id} active={platform === a.platform} onClick={() => setPlatform(a.platform)}>
@@ -2623,7 +2623,7 @@ const AnalyticsHeader = ({ accounts, platform, setPlatform, timeRange, setTimeRa
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-[11px] font-medium text-stone-700">Sync · {agoStr}</span>
         </div>
-        <div style={neu.raisedXs} className="rounded-full p-1 flex items-center">
+        <div style={neu.pressed} className="rounded-full p-1 flex items-center">
           {['24h', '7j', '30j', '12m'].map(t =>
             <Pill key={t} active={timeRange === t} onClick={() => setTimeRange(t)}>{t}</Pill>
           )}
@@ -2816,7 +2816,7 @@ const PostsTab = ({ posts }) => {
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div style={neu.raisedXs} className="rounded-full p-1 flex items-center overflow-x-auto">
+        <div style={neu.pressed} className="rounded-full p-1 flex items-center overflow-x-auto">
           {[['all','Tous'],['reel','Reels'],['carousel','Carrousels'],['image','Photos'],['tiktok_video','Vidéos TikTok'],['story','Stories']].map(([id, lbl]) => (
             <Pill key={id} active={format === id} onClick={() => setFormat(id)}>{lbl}</Pill>
           ))}
@@ -3799,7 +3799,7 @@ const Strategies = ({ goTo, navTarget, clearTarget }) => {
       {/* Sélecteur de stratégie (si plusieurs) */}
       {list.length > 1 && (
         <div className="overflow-x-auto no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0" style={{ touchAction: 'pan-x' }}>
-          <div style={neu.raisedXs} className="rounded-full p-1 inline-flex items-center gap-1">
+          <div style={neu.pressed} className="rounded-full p-1 inline-flex items-center gap-1">
             {list.map(s => (
               <button key={s.id} onClick={() => setActiveId(s.id)}
                 style={s.id === (active && active.id) ? neu.dark : {}}

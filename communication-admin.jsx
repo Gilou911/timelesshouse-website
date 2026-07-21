@@ -325,7 +325,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        · interstice minimal entre deux pastilles : 12 px (gap-3) ;
        · toute bande défilante (overflow-x-auto no-scrollbar)
          réserve 12 px verticaux via le CSS global — ne jamais y
-         remettre de py/-my à la main.
+         remettre de py/-my à la main ;
+       · une barre d'onglets / un sélecteur est un RAIL EN CREUX :
+         conteneur en neu.pressed (ombres internes, rien ne déborde),
+         JAMAIS raisedXs — choix de Gil du 22/07/2026.
        ════════════════════════════════════════════════════════════ */
     const NEU_LIGHT = {
       base:      { backgroundColor: '#e9e4d9' },
@@ -1677,7 +1680,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
           {/* Tabs — scrollable horizontalement sur mobile, 44px tactile */}
           <div className="overflow-x-auto no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
-            <div style={neu.raisedXs} className="rounded-full p-1 inline-flex items-center">
+            <div style={neu.pressed} className="rounded-full p-1 inline-flex items-center">
               {tabs.map(t => (
                 <button
                   key={t.id}

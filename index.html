@@ -806,9 +806,14 @@
     window.SUPABASE_URL = SUPABASE_URL;
     window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
 
-    import { createClient } from '@supabase/supabase-js';
     import { routeForClient } from './univers.js';
-    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Supabase (~130 Ko) n'est chargé QUE si un visiteur saisit son code
+    // client — rare sur la page d'accueil. Import dynamique → le SDK sort du
+    // bundle initial de la home (code-splitting Vite), au profit du LCP.
+    let _sbPromise = null;
+    const getSupabase = () => (_sbPromise ??= import('@supabase/supabase-js')
+      .then(({ createClient }) => createClient(SUPABASE_URL, SUPABASE_ANON_KEY)));
 
     window.checkClientCode = async function() {
       const raw = document.getElementById('clientCode').value;
@@ -820,7 +825,9 @@
       err.style.display = 'none';
 
       try {
-        // RPC scellée (SaaS B.2) : validation du code côté serveur
+        // RPC scellée (SaaS B.2) : validation du code côté serveur.
+        // Le SDK Supabase est chargé ici, à la demande (import dynamique).
+        const sb = await getSupabase();
         const { data, error } = await sb.rpc('resolve_client_code', { p_code: code });
         if (error || !data) { err.style.display = 'block'; if (btn) btn.disabled = false; return; }
         sessionStorage.setItem('access_granted', code);

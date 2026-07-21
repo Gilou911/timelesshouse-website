@@ -27,6 +27,16 @@ export default defineConfig({
     // Cible moderne : on garde l'optional chaining, top-level await, etc.
     target: 'es2022',
     rollupOptions: {
+      output: {
+        // Isole le SDK Supabase dans son propre chunk. Sans ça, comme il est
+        // importé statiquement par l'admin / l'espace client, Rollup le fusionne
+        // dans le bundle initial de la vitrine — alors que la home ne l'importe
+        // plus qu'en DYNAMIQUE (getSupabase). Chunk dédié = la home le charge à
+        // la demande (au login), les autres pages l'ont toujours au chargement.
+        manualChunks(id) {
+          if (id.includes('node_modules/@supabase')) return 'supabase';
+        },
+      },
       input: {
         // — Pages vitrines —
         main:                   resolve(__dirname, 'index.html'),

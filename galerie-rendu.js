@@ -146,38 +146,89 @@ function injectStyles() {
   }
   body.g-locked { position: fixed; width: 100%; overflow: hidden; }
 
-  /* ── Lecteur vidéo — cadre cinéma aligné sur event-video.html ── */
+  /* ── Lecteur vidéo — mécanique event-video.html ──
+     Une SCÈNE unique (cadre cinéma) où les vidéos se fondent l'une dans
+     l'autre, un track sélecteur à indicateur glissant pour en changer,
+     et le sélecteur de qualité en OVERLAY sur la vidéo. */
   .g-video { margin: 0 auto clamp(46px, 7vw, 84px); max-width: 1200px; }
   .g-video-title {
     font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 500;
     font-size: clamp(1.5rem, 3.6vw, 2.2rem); letter-spacing: -0.01em; line-height: 1.15;
     color: var(--ink); margin: 0 0 18px; text-align: center;
   }
-  /* Cadre cinéma : ombre portée profonde + halo chaud (accent) + fin liseré,
-     rayon 2px — la signature visuelle du lecteur event-video. */
-  .g-video video {
-    width: 100%; display: block; background: #000;
-    aspect-ratio: 16 / 9; border-radius: 2px;
+
+  /* Track sélecteur : pilule vitrée, indicateur accent qui GLISSE sous
+     l'onglet actif (position/largeur calées en JS — titres libres). */
+  .g-selector { display: flex; justify-content: center; margin: 0 0 26px; }
+  .g-sel-track {
+    display: inline-flex; position: relative; padding: 4px; max-width: 100%;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    background: rgba(244, 240, 235, 0.03);
+    border: 1px solid var(--hair, rgba(242,239,233,0.12)); border-radius: 2px;
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  }
+  .g-sel-ind {
+    position: absolute; top: 4px; bottom: 4px; left: 0; width: 0;
+    background: var(--accent, #b08968); border-radius: 1px;
+    transition: transform 0.6s cubic-bezier(0.65,0.05,0.35,1), width 0.6s cubic-bezier(0.65,0.05,0.35,1);
+  }
+  .g-sel-btn {
+    position: relative; z-index: 1; background: none; border: none; cursor: pointer;
+    color: var(--muted); padding: 12px 26px; min-height: 44px;
+    font-family: 'Jost', inherit; font-size: 10.5px; font-weight: 400;
+    letter-spacing: 0.28em; text-transform: uppercase; white-space: nowrap;
+    transition: color 0.6s cubic-bezier(0.65,0.05,0.35,1);
+  }
+  .g-sel-btn.active { color: #0a0a0a; font-weight: 500; }
+
+  /* Scène : cadre cinéma (ombre profonde + halo chaud + liseré) —
+     les slides se fondent dedans, façon event-video. */
+  .g-stage {
+    position: relative; aspect-ratio: 16 / 9; background: #000;
+    border-radius: 2px; overflow: hidden;
     box-shadow:
       0 40px 80px rgba(0,0,0,0.7),
       0 0 0 1px rgba(242,239,233,0.10),
       0 0 120px rgba(176,137,104,0.10);
   }
+  .g-slide {
+    position: absolute; inset: 0; opacity: 0; visibility: hidden;
+    transition: opacity 0.8s cubic-bezier(0.65,0.05,0.35,1), visibility 0.8s cubic-bezier(0.65,0.05,0.35,1);
+  }
+  .g-slide.active { opacity: 1; visibility: visible; }
+  .g-slide video { width: 100%; height: 100%; display: block; background: #000; }
+  .g-slide .g-soon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+
+  /* Qualité en overlay (haut-droit) : fond noir vitré, actif = accent. */
+  .g-qc {
+    position: absolute; top: 14px; right: 14px; z-index: 10;
+    display: flex; gap: 4px; padding: 4px; border-radius: 4px;
+    background: rgba(10, 10, 10, 0.75);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    border: 1px solid var(--hair, rgba(242,239,233,0.12));
+  }
+  .g-qc:empty { display: none; }
+  .g-qb {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--muted); padding: 6px 10px; border-radius: 2px;
+    font-family: 'Jost', inherit; font-size: 10px; font-weight: 500; letter-spacing: 0.1em;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+  .g-qb:hover { color: var(--ink); }
+  .g-qb.active { background: var(--accent, #b08968); color: #0a0a0a; }
+  /* HIG : cibles tactiles ≥ 44 px sur écrans tactiles */
+  @media (hover: none) and (pointer: coarse) {
+    .g-qb { min-height: 44px; min-width: 44px; }
+  }
+
   .g-video-bar {
     display: flex; align-items: center; justify-content: center;
     gap: 8px; flex-wrap: wrap; margin-top: 20px;
   }
-  .g-q {
-    min-height: 44px; padding: 0 18px; border-radius: 999px; cursor: pointer;
-    border: 1px solid var(--hair, rgba(127,127,127,0.25)); background: none;
-    color: var(--muted); font-family: 'Jost', inherit; font-size: 11px; font-weight: 500;
-    letter-spacing: 0.16em; text-transform: uppercase; transition: color 0.3s ease, border-color 0.3s ease;
-  }
-  .g-q:hover { color: var(--ink); }
-  .g-q.active { color: var(--ink); border-color: var(--accent); }
+  .g-video-bar:empty { display: none; }
   .g-dl {
     min-height: 44px; padding: 0 18px; border-radius: 999px; display: inline-flex;
-    align-items: center; gap: 8px; text-decoration: none; margin-left: auto;
+    align-items: center; gap: 8px; text-decoration: none;
     background: var(--accent); color: #fff; font-size: 12px; font-weight: 600;
     letter-spacing: 0.08em; text-transform: uppercase;
   }
@@ -614,77 +665,156 @@ export async function mountVideos(mount, videos, opts = {}) {
 
   mount.innerHTML = '';
   const single = list.length === 1;
-  list.forEach((v) => {
-    const sec = document.createElement('section');
-    sec.className = 'g-video';
-    const titleHtml = (single && !opts.forceTitles) ? '' : '<h2 class="g-video-title"></h2>';
-    sec.innerHTML = titleHtml +
-      '<video controls playsinline preload="metadata"></video>' +
-      '<div class="g-soon" hidden>Bientôt disponible</div>' +
-      '<div class="g-video-bar"></div>';
-    if (titleHtml) sec.querySelector('.g-video-title').textContent = v.title;
-    mount.appendChild(sec);
 
-    const video = sec.querySelector('video');
-    const soon  = sec.querySelector('.g-soon');
-    const bar   = sec.querySelector('.g-video-bar');
+  const sec = document.createElement('section');
+  sec.className = 'g-video';
+  mount.appendChild(sec);
 
+  // Titre : seulement en vidéo unique (en multi, le SÉLECTEUR porte les
+  // titres — exactement la logique d'event-video).
+  if (single && opts.forceTitles) {
+    const h = document.createElement('h2');
+    h.className = 'g-video-title';
+    h.textContent = list[0].title || '';
+    sec.appendChild(h);
+  }
+
+  // ── Track sélecteur (multi) : indicateur accent glissant ──
+  let ind = null;
+  const btns = [];
+  if (!single) {
+    const wrap = document.createElement('div');
+    wrap.className = 'g-selector';
+    const track = document.createElement('div');
+    track.className = 'g-sel-track';
+    ind = document.createElement('span');
+    ind.className = 'g-sel-ind';
+    ind.setAttribute('aria-hidden', 'true');
+    track.appendChild(ind);
+    list.forEach((v, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'g-sel-btn' + (i === 0 ? ' active' : '');
+      b.textContent = v.title || 'Vidéo ' + (i + 1);
+      b.addEventListener('click', () => select(i));
+      track.appendChild(b);
+      btns.push(b);
+    });
+    wrap.appendChild(track);
+    sec.appendChild(wrap);
+  }
+
+  // ── Scène unique : un slide par vidéo, fondu croisé ──
+  const stage = document.createElement('div');
+  stage.className = 'g-stage';
+  sec.appendChild(stage);
+
+  const bar = document.createElement('div');
+  bar.className = 'g-video-bar';
+  sec.appendChild(bar);
+
+  const slides = list.map((v, i) => {
+    const slide = document.createElement('div');
+    slide.className = 'g-slide' + (i === 0 ? ' active' : '');
+    stage.appendChild(slide);
+
+    const hasHls  = v.hls && v.hls.trim();
     const has1080 = v.urls && v.urls['1080p'] && v.urls['1080p'].trim();
     const has4K   = v.urls && v.urls['4K']   && v.urls['4K'].trim();
-    const hasHls  = v.hls && v.hls.trim();
 
     // Vidéo d'un locataire en attente d'encodage : on ne la montre pas
-    // encore. Le client verrait sinon le master brut, lourd et parfois
-    // saccadé — mieux vaut une attente courte qu'une mauvaise première
-    // impression. Le worker lève ce drapeau dès qu'une qualité est prête.
-    // (Sans le drapeau, rien ne change : les vidéos historiques
-    //  TimelessHouse, servies en MP4 ou Streamable, restent visibles.)
-    if (v.awaitingEncode && !hasHls) {
-      video.hidden = true;
-      soon.hidden = false;
-      soon.textContent = 'Votre film est en cours de préparation';
-      return;
+    // encore (le client verrait le master brut, lourd et parfois saccadé).
+    // Le worker lève ce drapeau dès qu'une qualité est prête.
+    if ((v.awaitingEncode && !hasHls) || (!has1080 && !has4K && !hasHls)) {
+      const soon = document.createElement('div');
+      soon.className = 'g-soon';
+      soon.textContent = v.awaitingEncode
+        ? 'Votre film est en cours de préparation'
+        : 'Bientôt disponible';
+      slide.appendChild(soon);
+      return { el: slide, video: null };
     }
 
+    const video = document.createElement('video');
+    video.setAttribute('controls', '');
+    video.setAttribute('playsinline', '');
+    video.preload = 'metadata';
+    slide.appendChild(video);
+
+    // Sélecteur de qualité en OVERLAY (haut-droit de la vidéo)
+    const qc = document.createElement('div');
+    qc.className = 'g-qc';
+    slide.appendChild(qc);
+
+    if (hasHls) {
+      setupHls(video, qc, v.hls.trim(), Hls);
+    } else {
+      const srcs = [];
+      if (has1080) srcs.push({ label: '1080p', url: v.urls['1080p'].trim() });
+      if (has4K)   srcs.push({ label: '4K',    url: v.urls['4K'].trim() });
+      video.src = srcs[0].url;
+      if (srcs.length > 1) {
+        srcs.forEach((s, k) => {
+          const b = document.createElement('button');
+          b.className = 'g-qb' + (k === 0 ? ' active' : '');
+          b.textContent = s.label;
+          b.onclick = () => {
+            if (b.classList.contains('active')) return;
+            // Reprise à l'identique : position et état de lecture conservés
+            const t = video.currentTime, paused = video.paused;
+            qc.querySelectorAll('.g-qb').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            video.src = s.url;
+            video.currentTime = t;
+            if (!paused) video.play().catch(() => {});
+          };
+          qc.appendChild(b);
+        });
+      }
+    }
+    return { el: slide, video };
+  });
+
+  // Téléchargement : celui de la vidéo ACTIVE, sous la scène.
+  function renderBar(i) {
+    bar.innerHTML = '';
+    const v = list[i];
     if (v.downloadUrl) {
       const a = document.createElement('a');
       a.className = 'g-dl'; a.href = v.downloadUrl; a.setAttribute('download', '');
       a.innerHTML = ICON.dl + '<span>Télécharger</span>';
       bar.appendChild(a);
     }
+  }
 
-    if (!has1080 && !has4K && !hasHls) {
-      video.hidden = true; soon.hidden = false;
-      return;
-    }
+  let current = 0;
+  function placeIndicator() {
+    if (!ind || !btns[current]) return;
+    const b = btns[current];
+    ind.style.width = b.offsetWidth + 'px';
+    ind.style.transform = 'translateX(' + b.offsetLeft + 'px)';
+  }
+  function select(i) {
+    if (i === current) return;
+    const prev = slides[current];
+    if (prev.video && !prev.video.paused) prev.video.pause();
+    prev.el.classList.remove('active');
+    if (btns[current]) btns[current].classList.remove('active');
+    current = i;
+    slides[i].el.classList.add('active');
+    if (btns[i]) btns[i].classList.add('active');
+    placeIndicator();
+    renderBar(i);
+  }
 
-    // ── HLS adaptatif (pipeline B2) — prioritaire ──
-    if (hasHls) { setupHls(video, bar, v.hls.trim(), Hls); return; }
-
-    // ── MP4 progressif : bascule manuelle entre les qualités livrées ──
-    const srcs = [];
-    if (has1080) srcs.push({ label: '1080p', url: v.urls['1080p'].trim() });
-    if (has4K)   srcs.push({ label: '4K',    url: v.urls['4K'].trim() });
-    video.src = srcs[0].url;
-    if (srcs.length > 1) {
-      srcs.forEach((s, i) => {
-        const b = document.createElement('button');
-        b.className = 'g-q' + (i === 0 ? ' active' : '');
-        b.textContent = s.label;
-        b.onclick = () => {
-          if (b.classList.contains('active')) return;
-          // Reprise à l'identique : position et état de lecture conservés
-          const t = video.currentTime, paused = video.paused;
-          bar.querySelectorAll('.g-q').forEach(x => x.classList.remove('active'));
-          b.classList.add('active');
-          video.src = s.url;
-          video.currentTime = t;
-          if (!paused) video.play().catch(() => {});
-        };
-        bar.insertBefore(b, bar.firstChild);
-      });
-    }
-  });
+  renderBar(0);
+  if (!single) {
+    // L'indicateur se cale après la mise en page (et se recale quand la
+    // police charge ou que la fenêtre change : les largeurs bougent).
+    requestAnimationFrame(placeIndicator);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeIndicator);
+    window.addEventListener('resize', placeIndicator);
+  }
   return { count: list.length };
 }
 
@@ -698,14 +828,14 @@ function setupHls(video, bar, src, Hls) {
     video.src = src;
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       const b = document.createElement('button');
-      b.className = 'g-q active'; b.textContent = 'Auto'; b.disabled = true;
+      b.className = 'g-qb active'; b.textContent = 'Auto'; b.disabled = true;
       bar.insertBefore(b, bar.firstChild);
     }
     return;
   }
 
   const autoBtn = document.createElement('button');
-  autoBtn.className = 'g-q active'; autoBtn.textContent = 'Auto';
+  autoBtn.className = 'g-qb active'; autoBtn.textContent = 'Auto';
   bar.insertBefore(autoBtn, bar.firstChild);
 
   const hls = new Hls();
@@ -719,7 +849,7 @@ function setupHls(video, bar, src, Hls) {
     const activate = (btn) => { btns.forEach(x => x.classList.remove('active')); btn.classList.add('active'); };
     levels.forEach(({ i, side }) => {
       const b = document.createElement('button');
-      b.className = 'g-q'; b.textContent = labelOf(side);
+      b.className = 'g-qb'; b.textContent = labelOf(side);
       b.onclick = () => { hls.currentLevel = i; activate(b); autoBtn.textContent = 'Auto'; };
       bar.insertBefore(b, autoBtn.nextSibling);
       btns.push(b);

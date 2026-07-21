@@ -33,13 +33,73 @@
       --bg-deep: #060606;
       --surface: #161616;
       --ink:     #f4f0eb;
-      --muted:   #9b958a;
-      /* HIG §6 : #6a655d tombait à 3.4:1 sur le fond de galerie —
-         insuffisant pour le pied de page et les placeholders. */
-      --faint:   #8a8478;
-      --hair:    rgba(242, 239, 233, 0.12);
+      /* Variables « event » (palettes portées d'event-photos.html) — la
+         palette choisie dans l'admin les redéfinit via [data-theme]. */
+      --bg-elev: #161616;
+      --ink-soft: #9b958a;
+      --ink-dim: #8a8478;
+      --line: rgba(244,240,235,0.10);
+      --line-soft: rgba(244,240,235,0.05);
+      --accent-gl: rgba(176,137,104,0.14);
+      --shadow: 0 30px 90px rgba(0,0,0,0.7);
+      /* Pont : les anciens noms de la galerie SUIVENT la palette (HIG §6 :
+         chaque palette embarque des gris déjà accessibles sur son fond). */
+      --muted:   var(--ink-soft);
+      --faint:   var(--ink-soft);
+      --hair:    var(--line);
       --accent:  #b08968;
     }
+    /* ── Palettes (parité event-photos.html) — posées sur <html> ── */
+    [data-theme="fumee"] { --bg:#1a1714; --bg-deep:#131110; --bg-elev:#221e1a;
+      --ink:#ece5da; --ink-soft:#9c9286; --ink-dim:#5d5549;
+      --accent:#b1916f; --accent-gl:rgba(177,145,111,0.13);
+      --line:rgba(236,229,218,0.09); --line-soft:rgba(236,229,218,0.05); }
+    [data-theme="encre"] { --bg:#0d0f14; --bg-deep:#090a0e; --bg-elev:#161922;
+      --ink:#e6e8ee; --ink-soft:#8b909e; --ink-dim:#4d525e;
+      --accent:#8a93a6; --accent-gl:rgba(138,147,166,0.14);
+      --line:rgba(230,232,238,0.09); --line-soft:rgba(230,232,238,0.05); }
+    [data-theme="sapin"] { --bg:#0c0f0d; --bg-deep:#080a09; --bg-elev:#141813;
+      --ink:#e7ebe4; --ink-soft:#8a9387; --ink-dim:#4e564b;
+      --accent:#8a9c84; --accent-gl:rgba(138,156,132,0.13);
+      --line:rgba(231,235,228,0.08); --line-soft:rgba(231,235,228,0.05); }
+    [data-theme="ardoise"] { --bg:#13161c; --bg-deep:#0d1014; --bg-elev:#1a1e26;
+      --ink:#e8eaef; --ink-soft:#828a98; --ink-dim:#4a505a;
+      --accent:#7fa0bd; --accent-gl:rgba(127,160,189,0.15);
+      --line:rgba(232,234,239,0.09); --line-soft:rgba(232,234,239,0.05); }
+    [data-theme="bordeaux"] { --bg:#45100f; --bg-deep:#2c0a0a; --bg-elev:#531818;
+      --ink:#f3e7e0; --ink-soft:#b89a90; --ink-dim:#7a5953;
+      --accent:#d2b48c; --accent-gl:rgba(210,180,140,0.16);
+      --line:rgba(243,231,224,0.10); --line-soft:rgba(243,231,224,0.05); }
+    [data-theme="acajou"] { --bg:#2a1812; --bg-deep:#1a0f0b; --bg-elev:#3a241b;
+      --ink:#efe4d9; --ink-soft:#b59a88; --ink-dim:#745b4b;
+      --accent:#c98a5e; --accent-gl:rgba(201,138,94,0.15);
+      --line:rgba(239,228,217,0.09); --line-soft:rgba(239,228,217,0.05); }
+    [data-theme="foret"] { --bg:#0e2118; --bg-deep:#07140e; --bg-elev:#173025;
+      --ink:#e7efe7; --ink-soft:#8fa596; --ink-dim:#4f6356;
+      --accent:#c2a878; --accent-gl:rgba(194,168,120,0.15);
+      --line:rgba(231,239,231,0.08); --line-soft:rgba(231,239,231,0.05); }
+    [data-theme="creme"] { --bg:#f3eee7; --bg-deep:#ece5db; --bg-elev:#e7e0d6;
+      --ink:#1a1714; --ink-soft:#6b6560; --ink-dim:#a39d95;
+      --accent:#8b6a48; --accent-gl:rgba(139,106,72,0.12);
+      --line:rgba(26,23,20,0.10); --line-soft:rgba(26,23,20,0.06);
+      --shadow:0 30px 90px rgba(0,0,0,0.18); }
+    [data-theme="lin"] { --bg:#f1ece3; --bg-deep:#e9e2d6; --bg-elev:#e5ddcf;
+      --ink:#2b2620; --ink-soft:#7a7164; --ink-dim:#a89e8d;
+      --accent:#8a7458; --accent-gl:rgba(138,116,88,0.12);
+      --line:rgba(43,38,32,0.10); --line-soft:rgba(43,38,32,0.05);
+      --shadow:0 30px 90px rgba(0,0,0,0.16); }
+    [data-theme="sauge"] { --bg:#e8ebe4; --bg-deep:#dfe3d9; --bg-elev:#dbe0d3;
+      --ink:#242821; --ink-soft:#6f766a; --ink-dim:#9aa090;
+      --accent:#6e7d63; --accent-gl:rgba(110,125,99,0.12);
+      --line:rgba(36,40,33,0.10); --line-soft:rgba(36,40,33,0.05);
+      --shadow:0 30px 90px rgba(0,0,0,0.14); }
+    [data-theme="brume"] { --bg:#e9ebee; --bg-deep:#e0e3e7; --bg-elev:#dde0e5;
+      --ink:#21252b; --ink-soft:#6c7480; --ink-dim:#97a0ac;
+      --accent:#6b7785; --accent-gl:rgba(107,119,133,0.12);
+      --line:rgba(33,37,43,0.10); --line-soft:rgba(33,37,43,0.05);
+      --shadow:0 30px 90px rgba(0,0,0,0.14); }
+    /* Palettes claires : les contrôles natifs suivent */
+    .is-light { color-scheme: light; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; }
     body {
@@ -133,54 +193,226 @@
     }
     .view footer a { color: var(--muted); display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; }
 
-    /* ── Cover cinématique (style « Cinématique ») ──
-       Ouverture plein écran : photo de couverture (choisie dans l'admin)
-       + titre en overlay, comme les pages event. Masqué en style Standard. */
+    /* ══ COUVERTURE — 5 dispositions (portées d'event-photos.html) ══
+       fill (plein écran + Ken Burns) · fit (cadrée sur fond palette) ·
+       split (photo à gauche, titre à droite) · editorial (typo géante à
+       gauche, photo à droite) · portrait (photo arquée centrée). */
     .cover {
-      position: relative; height: 100vh; height: 100dvh;
-      display: flex; align-items: center; justify-content: center;
-      text-align: center; overflow: hidden;
+      position: relative; height: 100svh; min-height: 560px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      overflow: hidden; text-align: center;
     }
     .cover[hidden] { display: none; }
     .cover-bg {
-      position: absolute; inset: 0; z-index: 0;
+      position: absolute; inset: -4%;
       background-size: cover; background-position: center;
-      transform: scale(1.04); animation: coverZoom 18s ease-out forwards;
+      transform: scale(1.06);
+      animation: kenburns 26s ease-out infinite alternate;
+      filter: brightness(0.55) saturate(1.05);
     }
-    @keyframes coverZoom { to { transform: scale(1); } }
-    .cover-veil {
-      position: absolute; inset: 0; z-index: 1;
-      /* Voile double : un assombrissement radial central garantit la
-         lisibilité du titre/kicker quelle que soit la photo (claire ou
-         sombre), + un dégradé vertical pour l'ancrage haut/bas. */
+    @keyframes kenburns {
+      from { transform: scale(1.06) translate(0,0); }
+      to   { transform: scale(1.16) translate(-1.5%, -2%); }
+    }
+    .cover::after {
+      content: ""; position: absolute; inset: 0; z-index: 1;
       background:
-        radial-gradient(ellipse 85% 62% at 50% 50%, rgba(10,10,10,0.6) 0%, rgba(10,10,10,0.2) 60%, transparent 82%),
-        linear-gradient(to bottom, rgba(10,10,10,0.55) 0%, rgba(10,10,10,0.25) 30%, rgba(10,10,10,0.3) 60%, rgba(10,10,10,0.92) 100%);
+        radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.45) 100%),
+        linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 25%, transparent 60%, rgba(0,0,0,0.55) 100%);
     }
-    .cover-inner { position: relative; z-index: 2; padding: 0 24px; max-width: 900px; }
+    .is-light .cover-bg { filter: brightness(0.72) saturate(1.04); }
+    .is-light .cover::after {
+      background:
+        radial-gradient(ellipse at center, transparent 35%, rgba(20,16,12,0.32) 100%),
+        linear-gradient(to bottom, rgba(20,16,12,0.30) 0%, transparent 30%, transparent 62%, rgba(20,16,12,0.42) 100%);
+    }
+    @keyframes rise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+
     .cover-mk {
+      position: relative; z-index: 2;
       font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
-      font-size: 16px; color: var(--ink); opacity: 0.9; margin-bottom: 22px;
+      font-size: 16px; color: rgba(255,255,255,0.85); margin-bottom: 30px;
+      opacity: 0; animation: rise 1.3s ease 0.6s forwards;
     }
     .cover-mk img { max-height: 44px; max-width: 190px; object-fit: contain; }
+
+    .cover-frame {
+      display: none; position: relative; z-index: 2;
+      align-items: center; justify-content: center;
+      max-width: min(88vw, 1180px); margin: 0;
+      opacity: 0; animation: rise 1.5s ease 0.55s forwards;
+    }
+    .cover-photo {
+      display: block; width: auto; height: auto;
+      max-width: 100%; max-height: 58vh; object-fit: contain;
+      box-shadow: var(--shadow);
+      opacity: 0; transform: scale(0.985);
+      transition: opacity 1.1s ease, transform 1.4s ease;
+    }
+    .cover-photo.on { opacity: 1; transform: scale(1); }
+
+    .cover-inner { position: relative; z-index: 2; padding: 0 24px; color: #fff; }
     .cover-kicker {
       font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase;
       color: var(--accent); margin-bottom: 18px; font-weight: 500;
+      opacity: 0; animation: rise 1.3s ease 0.75s forwards;
     }
     .cover-title {
-      font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 500;
-      font-size: clamp(2.6rem, 9vw, 5.5rem); line-height: 1.02; letter-spacing: -0.01em;
-      color: #fff;
+      font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 300; font-style: italic;
+      font-size: clamp(3rem, 11vw, 8.5rem); line-height: 0.95; letter-spacing: 0.005em;
+      margin: 0; text-shadow: 0 4px 40px rgba(0,0,0,0.4);
+      opacity: 0; animation: rise 1.5s ease 0.9s forwards;
     }
-    .cover-sub { font-size: 13.5px; letter-spacing: 0.04em; color: var(--ink); opacity: 0.85; margin-top: 18px; }
+    .cover-sub {
+      margin-top: 30px; font-size: 10.5px; text-transform: uppercase;
+      letter-spacing: 0.4em; color: rgba(255,255,255,0.82);
+      display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap;
+      opacity: 0; animation: rise 1.3s ease 1.25s forwards;
+    }
+    .cover-sub i { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); font-style: normal; }
+
     .cover-scroll {
-      position: absolute; left: 50%; bottom: clamp(22px, 5vh, 44px); z-index: 2;
-      transform: translateX(-50%); color: var(--ink); opacity: 0.6;
-      font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase;
-      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      position: absolute; bottom: 34px; left: 0; right: 0;
+      z-index: 2; background: none; border: none; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      color: rgba(255,255,255,0.75); font-family: 'Jost', sans-serif;
+      font-size: 9px; text-transform: uppercase; letter-spacing: 0.34em;
+      opacity: 0; animation: rise 1.2s ease 1.6s forwards;
     }
-    .cover-scroll .ln { width: 1px; height: 34px; background: currentColor; animation: coverLine 2.2s ease-in-out infinite; transform-origin: top; }
-    @keyframes coverLine { 0%,100% { transform: scaleY(0.4); opacity: 0.4; } 50% { transform: scaleY(1); opacity: 0.9; } }
+    .cover-scroll span:not(.ln) { margin-left: 0.34em; }
+    .cover-scroll .ln { width: 1px; height: 46px; background: rgba(255,255,255,0.4); position: relative; overflow: hidden; }
+    .cover-scroll .ln::after {
+      content: ""; position: absolute; left: 0; top: -60%; width: 100%; height: 60%;
+      background: #fff; animation: scrollPulse 2.2s ease infinite;
+    }
+    @keyframes scrollPulse { 0% { top: -60%; } 60%, 100% { top: 120%; } }
+
+    /* — CADRÉE : photo au ratio naturel sur fond palette — */
+    .cover.mode-fit { justify-content: center; gap: clamp(24px, 4.2vh, 50px);
+      padding: clamp(64px, 9vh, 104px) clamp(20px, 5vw, 56px) clamp(74px, 10vh, 116px);
+      background: var(--bg); }
+    .cover.mode-fit .cover-bg { display: none; }
+    .cover.mode-fit::after { display: none; }
+    .cover.mode-fit .cover-frame { display: flex; }
+    .cover.mode-fit.is-portrait  .cover-photo { max-height: 68vh; }
+    .cover.mode-fit.is-landscape .cover-photo { max-height: 56vh; }
+    .cover.mode-fit .cover-mk { color: var(--ink-soft); margin-bottom: 0; }
+    .cover.mode-fit .cover-title { color: var(--ink); text-shadow: none; font-size: clamp(2.4rem, 7vw, 5.4rem); }
+    .cover.mode-fit .cover-sub { color: var(--ink-soft); margin-top: 18px; }
+    .cover.mode-fit .cover-scroll { color: var(--ink-soft); }
+    .cover.mode-fit .cover-scroll .ln { background: var(--line); }
+    .cover.mode-fit .cover-scroll .ln::after { background: var(--accent); }
+
+    /* — Tronc commun SPLIT / ÉDITORIAL : deux volets, fond palette — */
+    .cover.mode-split,
+    .cover.mode-editorial {
+      flex-direction: row; align-items: stretch; gap: 0; padding: 0;
+      text-align: left; background: var(--bg);
+    }
+    .cover.mode-split::after,
+    .cover.mode-editorial::after,
+    .cover.mode-portrait::after { display: none; }
+    .cover.mode-split .cover-bg,
+    .cover.mode-editorial .cover-bg,
+    .cover.mode-portrait .cover-bg { display: none; }
+    .cover.mode-split .cover-frame,
+    .cover.mode-editorial .cover-frame {
+      display: flex; position: relative; z-index: 2;
+      max-width: none; margin: 0; height: 100%; align-self: stretch;
+      opacity: 0; animation: rise 1.5s ease 0.45s forwards;
+    }
+    .cover.mode-split .cover-frame     { flex: 0 0 46%; padding: clamp(26px, 4vw, 68px); }
+    .cover.mode-editorial              { flex-direction: row-reverse; }
+    .cover.mode-editorial .cover-frame { flex: 0 0 54%; }
+    .cover.mode-split .cover-photo,
+    .cover.mode-editorial .cover-photo {
+      width: 100%; height: 100%; max-width: none; max-height: none;
+      object-fit: cover;
+    }
+    .cover.mode-split .cover-photo     { box-shadow: var(--shadow); }
+    .cover.mode-editorial .cover-photo { box-shadow: none; }
+    .cover.mode-split .cover-inner {
+      /* min-width:0 : sans lui, le flex item refuse de rétrécir sous la
+         largeur de son titre et le volet déborde hors de l'écran. */
+      flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;
+      padding: clamp(36px, 6vw, 104px); color: var(--ink);
+    }
+    .cover.mode-editorial .cover-inner {
+      flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between;
+      padding: clamp(92px, 14vh, 152px) clamp(36px, 6vw, 92px) clamp(40px, 7vh, 82px);
+      color: var(--ink);
+    }
+    .cover.mode-split .cover-title,
+    .cover.mode-editorial .cover-title { overflow-wrap: break-word; }
+    .cover.mode-split .cover-title,
+    .cover.mode-editorial .cover-title { color: var(--ink); text-shadow: none; }
+    .cover.mode-split .cover-title { font-size: clamp(2.4rem, 5.5vw, 4.6rem); letter-spacing: 0; }
+    .cover.mode-editorial .cover-title {
+      font-style: normal; font-weight: 400; letter-spacing: 0.005em;
+      font-size: clamp(3.2rem, 9vw, 9rem); line-height: 0.92;
+      text-transform: uppercase; margin: 0;
+    }
+    .cover.mode-split .cover-sub,
+    .cover.mode-editorial .cover-sub { color: var(--ink-soft); justify-content: flex-start; }
+    .cover.mode-editorial .cover-sub { order: -1; margin: 0; }
+    .cover.mode-split .cover-kicker,
+    .cover.mode-editorial .cover-kicker { animation-delay: 0.6s; }
+
+    /* — PORTRAIT : photo arquée centrée, titre dessous — */
+    .cover.mode-portrait {
+      background: var(--bg); justify-content: center;
+      gap: clamp(28px, 4.5vh, 56px);
+      padding: clamp(92px, 12vh, 148px) 24px clamp(70px, 9vh, 112px);
+    }
+    .cover.mode-portrait .cover-frame {
+      display: flex; position: relative; z-index: 2; margin: 0;
+      max-width: min(78vw, 500px);
+      opacity: 0; animation: rise 1.5s ease 0.5s forwards;
+    }
+    .cover.mode-portrait .cover-photo {
+      width: 100%; height: auto; max-width: 100%; max-height: 58vh;
+      object-fit: cover;
+      border-radius: clamp(110px, 22vw, 250px) clamp(110px, 22vw, 250px) 14px 14px;
+      box-shadow: var(--shadow);
+    }
+    .cover.mode-portrait .cover-inner { padding-top: 0; }
+    .cover.mode-portrait .cover-title { color: var(--ink); text-shadow: none; font-size: clamp(2.4rem, 7vw, 5rem); }
+    .cover.mode-portrait .cover-sub { color: var(--ink-soft); }
+
+    /* Marque de l'agence selon la disposition */
+    .cover.mode-editorial .cover-mk,
+    .cover.mode-portrait .cover-mk {
+      position: absolute; top: clamp(26px, 5vh, 54px); left: clamp(26px, 5vw, 56px);
+      margin: 0; color: var(--ink-soft);
+    }
+    .cover.mode-split .cover-mk {
+      position: absolute; bottom: clamp(24px, 5vh, 46px); right: clamp(26px, 5vw, 56px);
+      top: auto; left: auto; margin: 0; color: var(--ink-soft);
+    }
+    .cover.mode-split .cover-scroll,
+    .cover.mode-editorial .cover-scroll,
+    .cover.mode-portrait .cover-scroll { color: var(--ink-soft); }
+    .cover.mode-split .cover-scroll .ln,
+    .cover.mode-editorial .cover-scroll .ln,
+    .cover.mode-portrait .cover-scroll .ln { background: var(--line); }
+    .cover.mode-split .cover-scroll .ln::after,
+    .cover.mode-editorial .cover-scroll .ln::after,
+    .cover.mode-portrait .cover-scroll .ln::after { background: var(--accent); }
+
+    /* Empilement mobile des dispositions à deux volets */
+    @media (max-width: 880px) {
+      .cover.mode-split,
+      .cover.mode-editorial { flex-direction: column; }
+      .cover.mode-split .cover-frame {
+        flex: 0 0 auto; width: 100%; height: 44svh; padding: 14px 14px 0;
+      }
+      .cover.mode-editorial .cover-frame { flex: 0 0 auto; width: 100%; height: 42svh; }
+      .cover.mode-split .cover-inner,
+      .cover.mode-editorial .cover-inner {
+        justify-content: center; padding: 26px 22px 70px;
+      }
+      .cover.mode-split .cover-mk { bottom: auto; top: 16px; right: 20px; }
+    }
     /* ── HIG §16 : focus clavier toujours visible ──
        Le champ de code pose outline:none pour son style « pressé » ;
        sans remplacement, la navigation au clavier devient aveugle. */
@@ -229,17 +461,21 @@
 
   <!-- ── Galerie ── -->
   <div class="view" id="view">
-    <!-- Cover cinématique (rempli et révélé seulement en style « Cinématique ») -->
+    <!-- Couverture — 5 dispositions (remplie selon config.coverMode) -->
     <section class="cover" id="cover" hidden>
-      <div class="cover-bg" id="coverBg"></div>
-      <div class="cover-veil"></div>
+      <div class="cover-bg" id="coverBg" aria-hidden="true"></div>
+      <div class="cover-mk" id="coverMark"></div>
+      <figure class="cover-frame" id="coverFrame">
+        <img class="cover-photo" id="coverPhoto" alt="" />
+      </figure>
       <div class="cover-inner">
-        <div class="cover-mk" id="coverMark"></div>
         <div class="cover-kicker" id="coverKicker"></div>
         <h1 class="cover-title" id="coverTitle"></h1>
         <div class="cover-sub" id="coverSub"></div>
       </div>
-      <div class="cover-scroll" aria-hidden="true"><span>Découvrir</span><span class="ln"></span></div>
+      <button class="cover-scroll" id="coverScroll" aria-label="Découvrir la galerie">
+        <span>Découvrir</span><span class="ln" aria-hidden="true"></span>
+      </button>
     </section>
     <header class="head wrap">
       <div class="mk" id="vMark"></div>
@@ -369,24 +605,101 @@
       const bits = [who, cfg.date || '', cfg.lieu || ''].filter(Boolean);
       el('vSub').textContent = bits.join(' · ');
 
-      // ── Style « Cinématique » : cover plein écran en ouverture ──
-      // Photo de couverture choisie dans l'admin (cfg.cover = id de photo),
-      // sinon la 1re photo. Absent → style « Standard » (en-tête + grille).
-      const style = cfg.style === 'cinematic' ? 'cinematic' : 'standard';
+      // ── Palette de couleurs (parité event-photos.html) ──
+      // Choisie dans l'admin ; « custom » dérive toute la gamme depuis
+      // fond + accent + base sombre/claire (même moteur qu'event-photos).
+      const PAL = cfg.palette || 'noir';
+      const LIGHT_PRESETS = ['creme', 'lin', 'sauge', 'brume'];
+      let isLight = LIGHT_PRESETS.includes(PAL);
+      const rootStyle = document.documentElement.style;
+      if (PAL === 'custom') {
+        const hx = (h) => {
+          h = (h || '').replace('#', '').trim();
+          if (h.length === 3) h = h.split('').map(ch => ch + ch).join('');
+          if (!/^[0-9a-fA-F]{6}$/.test(h)) h = '1a1714';
+          return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+        };
+        const clp = (v) => Math.max(0, Math.min(255, Math.round(v)));
+        const hex = (c) => '#' + c.map(v => clp(v).toString(16).padStart(2, '0')).join('');
+        const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+        const rgba = (c, a) => 'rgba(' + c.map(v => clp(v)).join(',') + ',' + a + ')';
+        const W = [255, 255, 255], K = [0, 0, 0];
+        const bgC = hx(cfg.customBg || '#1a1714'), accC = hx(cfg.customAccent || '#b08968');
+        isLight = cfg.customMode === 'light';
+        const ink = isLight ? mix(K, bgC, 0.13) : mix(W, bgC, 0.07);
+        const vars = {
+          '--bg': hex(bgC),
+          '--bg-deep': hex(mix(bgC, K, isLight ? 0.06 : 0.42)),
+          '--bg-elev': hex(isLight ? mix(bgC, K, 0.045) : mix(bgC, W, 0.07)),
+          '--surface': hex(isLight ? mix(bgC, K, 0.045) : mix(bgC, W, 0.07)),
+          '--ink': hex(ink),
+          '--ink-soft': hex(mix(ink, bgC, isLight ? 0.46 : 0.44)),
+          '--ink-dim': hex(mix(ink, bgC, isLight ? 0.66 : 0.68)),
+          '--accent': hex(accC),
+          '--accent-gl': rgba(accC, isLight ? 0.12 : 0.14),
+          '--line': rgba(ink, 0.10),
+          '--line-soft': rgba(ink, isLight ? 0.05 : 0.06),
+          '--shadow': isLight ? '0 30px 90px rgba(0,0,0,0.15)' : '0 30px 90px rgba(0,0,0,0.7)',
+        };
+        for (const [k, v] of Object.entries(vars)) rootStyle.setProperty(k, v);
+      } else if (PAL !== 'noir') {
+        document.documentElement.setAttribute('data-theme', PAL);
+        // La palette choisie PORTE son accent : elle prime sur l'accent de
+        // marque posé par applyBrand (inline, qui gagnerait sinon sur le CSS).
+        rootStyle.removeProperty('--accent');
+      }
+      document.documentElement.classList.toggle('is-light', isLight);
+      // La barre d'état mobile suit le fond de la palette
+      try {
+        el('metaTheme').setAttribute('content',
+          getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#0a0a0a');
+      } catch (_) {}
+
+      // ── Couverture : 5 dispositions (config.coverMode) ──
+      // Héritage : style 'cinematic' (1re version) → 'fill' ; rien → en-tête
+      // simple (galeries déjà partagées : comportement inchangé).
+      const MODES = ['fill', 'fit', 'split', 'editorial', 'portrait'];
+      const coverMode = MODES.includes(cfg.coverMode) ? cfg.coverMode
+        : (cfg.style === 'cinematic' ? 'fill' : null);
       const hasPhotos = kind === 'photos' || kind === 'mixte';
-      if (style === 'cinematic' && hasPhotos) {
-        const ph = data.photos || [];
-        const cover = ph.find(p => String(p.id) === String(cfg.cover)) || ph[0];
-        if (cover) {
-          const cu = cover.url_original || cover.url_view || cover.url_grid || '';
-          el('coverBg').style.backgroundImage = `url("${cu.replace(/"/g, '%22')}")`;
-          el('coverMark').innerHTML = el('vMark').innerHTML;
-          el('coverKicker').textContent = T.kicker;
-          el('coverTitle').textContent = g.title || heading;
-          el('coverSub').textContent = bits.join(' · ');
-          el('cover').hidden = false;
-          el('view').querySelector('.head').style.display = 'none';
+      const flatPhotos = (data.photos || []).flatMap(c => (c && c.photos) || []);
+      const cover = flatPhotos.find(p => String(p.id) === String(cfg.cover)) || flatPhotos[0];
+      if (coverMode && hasPhotos && cover) {
+        el('coverMark').innerHTML = el('vMark').innerHTML;
+        el('coverKicker').textContent = T.kicker;
+        el('coverTitle').textContent = g.title || heading;
+        const sub = el('coverSub');
+        sub.innerHTML = '';
+        bits.forEach((b, i) => {
+          if (i) sub.appendChild(document.createElement('i'));
+          sub.appendChild(document.createTextNode(b));
+        });
+        const hi = cover.url_view || cover.url_original || cover.url_grid || '';
+        const lo = cover.url_grid || hi;
+        if (coverMode === 'fill') {
+          el('coverBg').style.backgroundImage = 'url("' + hi.replace(/"/g, '%22') + '")';
+        } else {
+          el('cover').classList.add('mode-' + coverMode);
+          const img = el('coverPhoto');
+          img.src = lo;
+          const big = new Image();
+          big.onload = () => {
+            if (coverMode === 'fit') {
+              const r = big.naturalWidth / big.naturalHeight;
+              el('cover').classList.add(r >= 1.15 ? 'is-landscape' : (r <= 0.85 ? 'is-portrait' : 'is-square'));
+            }
+            img.src = big.src;
+            requestAnimationFrame(() => img.classList.add('on'));
+          };
+          big.onerror = () => img.classList.add('on');
+          big.src = hi;
         }
+        el('cover').hidden = false;
+        el('view').querySelector('.head').style.display = 'none';
+        el('coverScroll').onclick = () => {
+          const target = el('videos').parentElement;
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
       }
 
       // ⚠️ La galerie est révélée AVANT le montage : la grille justifiée
@@ -402,9 +715,15 @@
         const vids = normalizeVideos(cfg);
         if (vids.length) await mountVideos(el('videos'), vids, { forceTitles: kind === 'mixte' });
       }
-      // Photos — 'photos' et 'mixte'
+      // Photos — 'photos' et 'mixte'.
+      // Mode galerie : 'flat' fusionne toutes les catégories en une seule
+      // (tout mélangé, sans têtes de section) ; 'categorized' les garde.
       if (kind === 'photos' || kind === 'mixte') {
-        mountPhotos(el('photos'), data.photos || [], { favKey: code, title: g.title });
+        let cats = data.photos || [];
+        if ((cfg.galleryMode || 'categorized') === 'flat' && cats.length > 1) {
+          cats = [{ category: '', photos: flatPhotos }];
+        }
+        mountPhotos(el('photos'), cats, { favKey: code, title: g.title });
       }
       return true;
     }

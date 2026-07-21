@@ -2514,10 +2514,15 @@
         title:    existing?.title    || `Galerie — ${client.name || client.code}`,
         kind:     existing?.kind     || 'photos',
         template: existing?.template || 'mariage',
-        // Style de rendu des photos : 'standard' (en-tête + grille) ou
-        // 'cinematic' (cover plein écran + grille). Voir galerie.html.
-        style:    existing?.config?.style || 'standard',
-        cover:    existing?.config?.cover || '',
+        // Options d'affichage (parité éditeur event-photos) — lues par
+        // galerie.html. Héritage : style 'cinematic' (1re version) → 'fill'.
+        coverMode:    existing?.config?.coverMode || 'fill',
+        galleryMode:  existing?.config?.galleryMode || 'categorized',
+        palette:      existing?.config?.palette || 'noir',
+        customBg:     existing?.config?.customBg || '#1a1714',
+        customAccent: existing?.config?.customAccent || '#b08968',
+        customMode:   existing?.config?.customMode || 'dark',
+        cover:        existing?.config?.cover || '',
       });
       // Photos de la galerie — pour choisir la couverture du mode cinématique.
       const [coverPhotos, setCoverPhotos] = useState([]);
@@ -2617,15 +2622,24 @@
           }
         }
 
-        // Style de rendu (galeries avec photos) : 'cinematic' pose aussi la
-        // photo de couverture (id). 'standard' = en-tête + grille.
+        // Options d'affichage (parité event-photos) : palette pour toutes
+        // les galeries ; disposition de couverture + mode galerie + photo de
+        // couverture pour celles qui ont des photos.
         const hasPhotos = form.kind === 'photos' || form.kind === 'mixte';
+        config.palette = form.palette;
+        if (form.palette === 'custom') {
+          config.customBg = form.customBg;
+          config.customAccent = form.customAccent;
+          config.customMode = form.customMode;
+        }
         if (hasPhotos) {
-          config.style = form.style === 'cinematic' ? 'cinematic' : 'standard';
-          if (config.style === 'cinematic' && form.cover) config.cover = form.cover;
-          else delete config.cover;
+          config.coverMode = form.coverMode;
+          config.galleryMode = form.galleryMode;
+          if (form.cover) config.cover = form.cover; else delete config.cover;
+          delete config.style; // remplacé par coverMode
         } else {
-          delete config.style; delete config.cover;
+          delete config.coverMode; delete config.galleryMode;
+          delete config.cover; delete config.style;
         }
 
         const payload = {
@@ -2696,38 +2710,231 @@
             </div>
 
             {(form.kind === 'photos' || form.kind === 'mixte') && (
-              <Field label="Style d'affichage des photos">
-                <Select value={form.style} onChange={e => setForm({ ...form, style: e.target.value })}>
-                  <option value="standard">Standard — en-tête + grille</option>
-                  <option value="cinematic">Cinématique — cover plein écran + grille</option>
-                </Select>
-                {form.style === 'cinematic' && (
-                  <div className="mt-3">
-                    <div className="text-[11px] text-stone-500 mb-2">
-                      {coverPhotos.length
-                        ? 'Photo de couverture — cliquez pour choisir (sinon la 1re photo).'
-                        : 'Ajoutez d’abord des photos : la 1re servira de couverture, modifiable ensuite ici.'}
-                    </div>
-                    {coverPhotos.length > 0 && (
-                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                        {coverPhotos.map(p => (
-                          <button type="button" key={p.id} aria-label="Choisir comme couverture"
-                            onClick={() => setForm({ ...form, cover: p.id })}
-                            className={`relative aspect-square rounded-lg overflow-hidden ${form.cover === p.id ? 'ring-2 ring-stone-800' : ''}`}>
-                            <img src={p.url_grid} alt="" loading="lazy" className="w-full h-full object-cover" />
-                            {form.cover === p.id && (
-                              <span className="absolute inset-0 bg-stone-900/30 flex items-center justify-center">
-                                <CheckCircle2 size={18} className="text-white" />
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+              <>
+                {/* ── Disposition de la couverture (parité event-photos) ── */}
+                <div className="mt-1">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Disposition de la couverture</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {[
+                      { id: 'fill', label: 'Plein écran', desc: 'Photo recadrée + zoom lent', icon: (
+                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                          <rect x="1" y="1" width="38" height="26" rx="1" fill="currentColor" opacity="0.8"/>
+                          <rect x="12" y="12" width="16" height="2.5" rx="1.25" fill="#fff" opacity="0.6"/>
+                        </svg>
+                      )},
+                      { id: 'fit', label: 'Cadrée', desc: 'Ratio naturel sur fond palette', icon: (
+                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                          <rect x="1" y="1" width="38" height="26" rx="1" fill="currentColor" opacity="0.18"/>
+                          <rect x="11" y="5" width="18" height="13" rx="1" fill="currentColor" opacity="0.85"/>
+                          <rect x="14" y="21" width="12" height="2.5" rx="1.25" fill="currentColor" opacity="0.5"/>
+                        </svg>
+                      )},
+                      { id: 'split', label: 'Split', desc: 'Photo encadrée à gauche, titre à droite', icon: (
+                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                          <rect x="1" y="1" width="38" height="26" rx="1" fill="currentColor" opacity="0.12"/>
+                          <rect x="4" y="5" width="16" height="18" rx="1" fill="currentColor" opacity="0.85"/>
+                          <rect x="25" y="11" width="11" height="2.5" rx="1.25" fill="currentColor" opacity="0.55"/>
+                          <rect x="26" y="16" width="9" height="2" rx="1" fill="currentColor" opacity="0.35"/>
+                        </svg>
+                      )},
+                      { id: 'editorial', label: 'Éditorial', desc: 'Grande typo à gauche, photo à droite', icon: (
+                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                          <rect x="1" y="1" width="38" height="26" rx="1" fill="currentColor" opacity="0.12"/>
+                          <rect x="21" y="1" width="18" height="26" rx="1" fill="currentColor" opacity="0.85"/>
+                          <rect x="4" y="4" width="7" height="2" rx="1" fill="currentColor" opacity="0.45"/>
+                          <rect x="4" y="17" width="14" height="6" rx="1" fill="currentColor" opacity="0.7"/>
+                        </svg>
+                      )},
+                      { id: 'portrait', label: 'Portrait', desc: 'Photo arquée centrée, titre dessous', icon: (
+                        <svg viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                          <rect x="1" y="1" width="38" height="26" rx="1" fill="currentColor" opacity="0.12"/>
+                          <rect x="15" y="4" width="10" height="16" rx="5" fill="currentColor" opacity="0.85"/>
+                          <rect x="14" y="22" width="12" height="2.5" rx="1.25" fill="currentColor" opacity="0.5"/>
+                        </svg>
+                      )},
+                    ].map(opt => {
+                      const isActive = form.coverMode === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setForm({ ...form, coverMode: opt.id })}
+                          style={isActive ? neu.pressedSm : neu.raisedXs}
+                          className={`rounded-xl p-3 flex flex-col items-center gap-2 transition-all active:scale-[0.97] ${isActive ? 'text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                        >
+                          <div className={`w-2/3 ${isActive ? 'text-stone-700' : 'text-stone-400'}`}>{opt.icon}</div>
+                          <div className="text-[11px] font-semibold">{opt.label}</div>
+                          <div className="text-[9.5px] text-stone-400 text-center leading-tight">{opt.desc}</div>
+                          {isActive && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5"/>}
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
-              </Field>
+                  <div className="text-[11px] text-stone-500 mt-3 mb-2">
+                    {coverPhotos.length
+                      ? 'Photo de couverture — cliquez pour choisir (sinon la 1ʳᵉ photo de la galerie).'
+                      : 'Couverture vide → la 1ʳᵉ photo de la galerie est utilisée automatiquement.'}
+                  </div>
+                  {coverPhotos.length > 0 && (
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                      {coverPhotos.map(p => (
+                        <button type="button" key={p.id} aria-label="Choisir comme couverture"
+                          onClick={() => setForm({ ...form, cover: form.cover === p.id ? '' : p.id })}
+                          className={`relative aspect-square rounded-lg overflow-hidden ${form.cover === p.id ? 'ring-2 ring-stone-800' : ''}`}>
+                          <img src={p.url_grid} alt="" loading="lazy" className="w-full h-full object-cover" />
+                          {form.cover === p.id && (
+                            <span className="absolute inset-0 bg-stone-900/30 flex items-center justify-center">
+                              <CheckCircle2 size={18} className="text-white" />
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Mode galerie ── */}
+                <div className="mt-5">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-3">Mode galerie</div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {[
+                      { id: 'categorized', label: 'Catégories', desc: 'Sections par thème' },
+                      { id: 'flat', label: 'Galerie unique', desc: 'Tout mélangé' },
+                    ].map(m => {
+                      const isActive = form.galleryMode === m.id;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setForm({ ...form, galleryMode: m.id })}
+                          style={isActive ? neu.pressedSm : neu.raisedXs}
+                          className={`rounded-xl p-3 flex flex-col items-center gap-2 transition-all active:scale-[0.97] ${isActive ? 'text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                        >
+                          <div className="text-[14px]">{m.id === 'categorized' ? '📁' : '📷'}</div>
+                          <div className="text-[11px] font-semibold">{m.label}</div>
+                          <div className="text-[9.5px] text-stone-400 text-center leading-tight">{m.desc}</div>
+                          {isActive && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5"/>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
             )}
+
+            {/* ── Palette de couleurs (toutes galeries) ── */}
+            <div className="mt-5">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold mb-1">Palette de couleurs</div>
+              <div className="text-[10px] text-stone-400 mb-3">Sourdes, riches ou sur mesure — la galerie s'adapte pour mettre les photos en valeur.</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {[
+                  { id: 'noir',     label: 'Noir',     sub: 'Or chaud',       bg: '#0a0a0a', accent: '#b08968' },
+                  { id: 'fumee',    label: 'Fumée',    sub: 'Bronze doux',    bg: '#1a1714', accent: '#b1916f' },
+                  { id: 'encre',    label: 'Encre',    sub: 'Bleu-nuit',      bg: '#0d0f14', accent: '#8a93a6' },
+                  { id: 'sapin',    label: 'Sapin',    sub: 'Vert profond',   bg: '#0c0f0d', accent: '#8a9c84' },
+                  { id: 'ardoise',  label: 'Ardoise',  sub: 'Bleu acier',     bg: '#13161c', accent: '#7fa0bd' },
+                  { id: 'bordeaux', label: 'Bordeaux', sub: 'Vin · tan',      bg: '#45100f', accent: '#d2b48c' },
+                  { id: 'acajou',   label: 'Acajou',   sub: 'Brun · caramel', bg: '#2a1812', accent: '#c98a5e' },
+                  { id: 'foret',    label: 'Forêt',    sub: 'Vert riche',     bg: '#0e2118', accent: '#c2a878' },
+                  { id: 'creme',    label: 'Crème',    sub: 'Sable clair',    bg: '#f3eee7', accent: '#8b6a48' },
+                  { id: 'lin',      label: 'Lin',      sub: 'Taupe chaud',    bg: '#f1ece3', accent: '#8a7458' },
+                  { id: 'sauge',    label: 'Sauge',    sub: 'Vert pâle',      bg: '#e8ebe4', accent: '#6e7d63' },
+                  { id: 'brume',    label: 'Brume',    sub: 'Gris-bleu',      bg: '#e9ebee', accent: '#6b7785' },
+                ].map(t => {
+                  const isActive = form.palette === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setForm({ ...form, palette: t.id })}
+                      style={isActive ? neu.pressedSm : neu.raisedXs}
+                      className={`rounded-xl p-2.5 flex items-center gap-2.5 transition-all active:scale-[0.98] ${isActive ? '' : 'opacity-70 hover:opacity-90'}`}
+                    >
+                      <div className="relative flex-shrink-0">
+                        <div style={{ background: t.bg, width: 34, height: 34, borderRadius: 8, border: '1px solid rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ width: 13, height: 2, background: t.accent, borderRadius: 2 }}/>
+                        </div>
+                        {isActive && (
+                          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+                            <Check size={7} color="white"/>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-left">
+                        <div className="text-[11px] font-semibold">{t.label}</div>
+                        <div className="text-[9px] text-stone-400">{t.sub}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {(() => {
+                  const isActive = form.palette === 'custom';
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, palette: 'custom' })}
+                      style={isActive ? neu.pressedSm : neu.raisedXs}
+                      className={`rounded-xl p-2.5 flex items-center gap-2.5 transition-all active:scale-[0.98] ${isActive ? '' : 'opacity-70 hover:opacity-90'}`}
+                    >
+                      <div className="relative flex-shrink-0">
+                        <div style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid rgba(0,0,0,0.12)', background: 'conic-gradient(from 210deg, #8B0000, #AA2704, #654321, #013220, #1f3a5f, #45100f, #8B0000)' }}/>
+                        {isActive && (
+                          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+                            <Check size={7} color="white"/>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-left">
+                        <div className="text-[11px] font-semibold">Personnalisé</div>
+                        <div className="text-[9px] text-stone-400">Couleur libre</div>
+                      </div>
+                    </button>
+                  );
+                })()}
+              </div>
+
+              {/* Éditeur sur mesure */}
+              {form.palette === 'custom' && (() => {
+                const pv = previewVars(form.customBg, form.customAccent, form.customMode);
+                return (
+                  <div style={neu.pressedSm} className="rounded-xl p-4 mt-3 space-y-4">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold mb-2">Base</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[['dark', 'Sombre'], ['light', 'Clair']].map(([m, lbl]) => {
+                          const a = form.customMode === m;
+                          return (
+                            <button key={m} type="button" onClick={() => setForm({ ...form, customMode: m })}
+                              style={a ? neu.dark : neu.raisedXs}
+                              className={`px-3 py-2.5 rounded-xl text-[11.5px] font-semibold transition active:scale-[0.98] ${a ? 'text-white' : 'text-stone-600'}`}>
+                              {lbl}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold mb-2">Fond</div>
+                        <input type="color" value={form.customBg} onChange={e => setForm({ ...form, customBg: e.target.value })}
+                          aria-label="Couleur de fond" className="w-full h-11 rounded-lg cursor-pointer" />
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold mb-2">Accent</div>
+                        <input type="color" value={form.customAccent} onChange={e => setForm({ ...form, customAccent: e.target.value })}
+                          aria-label="Couleur d'accent" className="w-full h-11 rounded-lg cursor-pointer" />
+                      </div>
+                    </div>
+                    <div style={{ background: pv.bg, borderRadius: 10, padding: '14px 16px' }}>
+                      <div style={{ color: pv.accent, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase' }}>Aperçu</div>
+                      <div style={{ color: pv.ink, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 17, marginTop: 4 }}>Éléa &amp; David</div>
+                      <div style={{ color: pv.soft, fontSize: 10, marginTop: 3 }}>12 juin 2026 · Château de la Loge</div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
 
             {showsVideos && (
               <Field label="Vidéos">

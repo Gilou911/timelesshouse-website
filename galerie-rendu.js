@@ -146,26 +146,34 @@ function injectStyles() {
   }
   body.g-locked { position: fixed; width: 100%; overflow: hidden; }
 
-  /* ── Lecteur vidéo ── */
-  .g-video { margin: 0 0 clamp(34px, 5vw, 56px); }
+  /* ── Lecteur vidéo — cadre cinéma aligné sur event-video.html ── */
+  .g-video { margin: 0 auto clamp(46px, 7vw, 84px); max-width: 1200px; }
   .g-video-title {
     font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 500;
-    font-size: clamp(1.35rem, 3.4vw, 1.9rem); letter-spacing: -0.01em;
-    color: var(--ink); margin: 0 0 14px;
+    font-size: clamp(1.5rem, 3.6vw, 2.2rem); letter-spacing: -0.01em; line-height: 1.15;
+    color: var(--ink); margin: 0 0 18px; text-align: center;
   }
+  /* Cadre cinéma : ombre portée profonde + halo chaud (accent) + fin liseré,
+     rayon 2px — la signature visuelle du lecteur event-video. */
   .g-video video {
-    width: 100%; display: block; border-radius: 6px; background: #000;
-    aspect-ratio: 16 / 9;
+    width: 100%; display: block; background: #000;
+    aspect-ratio: 16 / 9; border-radius: 2px;
+    box-shadow:
+      0 40px 80px rgba(0,0,0,0.7),
+      0 0 0 1px rgba(242,239,233,0.10),
+      0 0 120px rgba(176,137,104,0.10);
   }
   .g-video-bar {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; flex-wrap: wrap; margin-top: 20px;
   }
   .g-q {
-    min-height: 44px; padding: 0 16px; border-radius: 999px; cursor: pointer;
+    min-height: 44px; padding: 0 18px; border-radius: 999px; cursor: pointer;
     border: 1px solid var(--hair, rgba(127,127,127,0.25)); background: none;
-    color: var(--muted); font-family: inherit; font-size: 12px;
-    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); font-family: 'Jost', inherit; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; transition: color 0.3s ease, border-color 0.3s ease;
   }
+  .g-q:hover { color: var(--ink); }
   .g-q.active { color: var(--ink); border-color: var(--accent); }
   .g-dl {
     min-height: 44px; padding: 0 18px; border-radius: 999px; display: inline-flex;

@@ -7169,7 +7169,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       const copyCreds = () => {
         try {
-          navigator.clipboard.writeText(`Espace admin : ${window.location.origin}/communication-admin.html\nEmail : ${result.owner.email}\nMot de passe temporaire : ${result.owner.temp_password}`);
+          // La console du locataire, jamais l'origine de NOTRE onglet :
+          // l'installer sur laloge.app ou timelesshouse.org sème le bug
+          // des liens d'email bâtis sur la mauvaise origine.
+          const console_ = result.agency?.slug
+            ? `https://${result.agency.slug}.laloge.house/communication-admin`
+            : `${window.location.origin}/communication-admin.html`;
+          navigator.clipboard.writeText(`Espace admin : ${console_}\nEmail : ${result.owner.email}\nMot de passe temporaire : ${result.owner.temp_password}`);
           setCopied(true); setTimeout(() => setCopied(false), 2000);
         } catch (e) {}
       };

@@ -119,8 +119,33 @@ async function downloadSource(key, destPath) {
 /* ════════════════════════════════════════════════════════════
    Écriture du résultat
    ════════════════════════════════════════════════════════════ */
+
+/** « Votre film est prêt » — envoyé au client à la PREMIÈRE mise à
+ *  disposition (le drapeau d'attente était levé), jamais lors d'un
+ *  ré-encodage. Best effort : un email raté ne fait pas échouer le job. */
+async function notifyVideoReady({ clientId, title, url }) {
+  if (!clientId) return;
+  try {
+    const res = await fetch(`${SB_URL}/functions/v1/notify-client`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        kind: "video_ready", client_id: clientId,
+        extra: { title, ...(url ? { url } : {}) },
+      }),
+    });
+    const j = await res.json().catch(() => ({}));
+    log(j?.ok ? "  ✉ client prévenu — « votre film est prêt »"
+              : `  ✉ email non parti (${j?.error || j?.skipped || res.status})`);
+  } catch (e) { log(`  ✉ email non parti (${e.message})`); }
+}
+
 async function applyToMedia(job, { masterUrl, posterUrl, hoverUrl, src }) {
-  const { data: row } = await sb.from("media").select("id, thumb_url").eq("id", job.media_id).maybeSingle();
+  const { data: row } = await sb.from("media")
+    .select("id, thumb_url, awaiting_encode, client_id, title").eq("id", job.media_id).maybeSingle();
   if (!row) throw new Error("le média a été supprimé pendant l'encodage");
 
   const patch = {
@@ -138,19 +163,27 @@ async function applyToMedia(job, { masterUrl, posterUrl, hoverUrl, src }) {
 
   const { error } = await sb.from("media").update(patch).eq("id", job.media_id);
   if (error) throw new Error(`mise à jour du média : ${error.message}`);
+
+  if (row.awaiting_encode === true) {
+    await notifyVideoReady({ clientId: row.client_id, title: row.title || "Votre film" });
+  }
 }
 
 async function applyToGalleryVideo(job, { masterUrl }) {
   // Relecture JUSTE avant l'écriture : l'admin a pu modifier la
   // galerie pendant l'encodage (qui dure des minutes). On ne
   // réécrit que la clé `hls` de la vidéo concernée.
-  const { data: g } = await sb.from("galleries").select("config").eq("id", job.gallery_id).maybeSingle();
+  const { data: g } = await sb.from("galleries")
+    .select("config, client_id, agency_id, title, code, share_enabled")
+    .eq("id", job.gallery_id).maybeSingle();
   if (!g) throw new Error("la galerie a été supprimée pendant l'encodage");
 
   const config = g.config || {};
   const list = Array.isArray(config.videos) ? config.videos : [];
   const idx = list.findIndex((v) => v && v.key === job.video_key);
   if (idx === -1) throw new Error(`vidéo « ${job.video_key} » absente de la galerie (supprimée ?)`);
+
+  const etaitEnAttente = list[idx].awaitingEncode === true;
 
   // `awaitingEncode` disparaît : la vidéo devient visible par le client.
   const videos = list.map((v, i) => {
@@ -162,6 +195,22 @@ async function applyToGalleryVideo(job, { masterUrl }) {
     .update({ config: { ...config, videos } })
     .eq("id", job.gallery_id);
   if (error) throw new Error(`mise à jour de la galerie : ${error.message}`);
+
+  if (etaitEnAttente) {
+    // CTA idéal : le lien de partage de la galerie (si le partage est
+    // actif) — sinon notify-client retombe sur la porte de l'espace.
+    let url = null;
+    if (g.share_enabled !== false && g.code && g.agency_id) {
+      const { data: ag } = await sb.from("agencies").select("slug").eq("id", g.agency_id).maybeSingle();
+      if (ag?.slug && ag.slug !== "timelesshouse") url = `https://${ag.slug}.laloge.house/galerie?c=${g.code}`;
+      else if (ag?.slug === "timelesshouse") url = `https://timelesshouse.org/galerie?c=${g.code}`;
+    }
+    await notifyVideoReady({
+      clientId: g.client_id,
+      title: list[idx].title || g.title || "Votre film",
+      url,
+    });
+  }
 }
 
 /* ════════════════════════════════════════════════════════════

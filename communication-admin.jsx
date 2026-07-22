@@ -2650,6 +2650,29 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const showsPhotos = g.kind === 'photos' || g.kind === 'mixte';
       const encodeState = encodeStateOf(g.config?.videos, encodeJobs);
 
+      // Email ① « votre galerie est en ligne » — LE geste de livraison,
+      // à la marque de l'agence, avec le lien de partage en bouton.
+      const [envoiGalerie, setEnvoiGalerie] = useState(false);
+      const envoyerGalerie = async () => {
+        if (!client?.client_email) {
+          alert("Ajoutez d'abord l'email du client (Modifier → champ Email) pour lui envoyer sa galerie.");
+          return;
+        }
+        if (!confirm(`Envoyer « ${g.title} » par email à ${client.client_email} ?`)) return;
+        setEnvoiGalerie(true);
+        try {
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/notify-client`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body: JSON.stringify({ kind: 'gallery_ready', client_id: client.id, gallery_id: g.id }),
+          });
+          const j = await res.json().catch(() => ({}));
+          if (res.ok && j.ok && !j.skipped) alert(`✓ Galerie envoyée à ${client.client_email}`);
+          else alert(humaniseErreur(j.error || j.skipped || `Échec (${res.status})`));
+        } catch (e) { alert(humaniseErreur(e.message)); }
+        setEnvoiGalerie(false);
+      };
+
       return (
         <div style={neu.pressedSm} className="rounded-2xl p-4">
           <div className="flex items-start gap-3 flex-wrap">
@@ -2727,6 +2750,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               {shareUrl}
             </div>
             <div className="flex gap-3 mt-2.5 flex-wrap">
+              {g.share_enabled && (
+                <Btn kind="dark" icon={envoiGalerie ? Loader2 : Send} onClick={envoyerGalerie} disabled={busy || envoiGalerie}>
+                  {envoiGalerie ? 'Envoi…' : 'Envoyer au client'}
+                </Btn>
+              )}
               <CopyButton value={shareUrl} label="Copier le lien" />
               <a href={shareUrl} target="_blank" rel="noopener"
                  style={neu.raisedXs}
@@ -5187,6 +5215,25 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [editing, setEditing] = useState(null);
       const [showForm, setShowForm] = useState(false);
       const [loading, setLoading] = useState(true);
+
+      // Email ④ : la facture vient de PASSER à « payée » → proposer le reçu.
+      // `editing` porte encore l'état d'avant l'enregistrement : on ne
+      // propose rien si elle était déjà payée (pas de reçu en double).
+      const proposerRecu = async (saved) => {
+        if (!saved || saved.status !== 'payée') return;
+        if (editing && editing.status === 'payée') return;
+        if (!client?.client_email) return;
+        if (!confirm(`Facture ${saved.reference} marquée payée.\n\nEnvoyer un reçu de paiement à ${client.client_email} ?`)) return;
+        try {
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/notify-client`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body: JSON.stringify({ kind: 'invoice_paid', client_id: clientId, invoice_id: saved.id }),
+          });
+          const j = await res.json().catch(() => ({}));
+          alert(res.ok && j.ok ? `✓ Reçu envoyé à ${client.client_email}` : humaniseErreur(j.error || `Échec (${res.status})`));
+        } catch (e) { alert(humaniseErreur(e.message)); }
+      };
       const [notifying, setNotifying] = useState(null);
 
       const load = async () => {
@@ -5315,7 +5362,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             )}
           </div>
 
-          {showForm && <InvoiceForm clientId={clientId} existing={editing} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load(); }} />}
+          {showForm && <InvoiceForm clientId={clientId} existing={editing} onClose={() => setShowForm(false)} onSaved={(saved) => { setShowForm(false); load(); proposerRecu(saved); }} />}
         </div>
       );
     }
@@ -5357,10 +5404,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           }
           const payload = { ...rest, pdf_url, client_id: clientId, amount: parseFloat(form.amount), due_date: form.due_date || null, shoot_id: form.shoot_id || null };
           const result = existing
-            ? await sb.from('invoices').update(payload).eq('id', existing.id)
-            : await sb.from('invoices').insert(payload);
+            ? await sb.from('invoices').update(payload).eq('id', existing.id).select().single()
+            : await sb.from('invoices').insert(payload).select().single();
           if (result.error) throw new Error(result.error.message);
-          onSaved();
+          onSaved(result.data);
         } catch (err) {
           setUpPct(null); setLoading(false);
           alert(`✗ ${err.message || 'Erreur'}`);

@@ -158,6 +158,51 @@ serve(async (_req) => {
     }
   }
 
+  // ─── 4) FIN D'ACCÈS OFFRE DÉCOUVERTE (J-15 / J-3) ──────────
+  // La rétention Découverte coupe l'accès à 90 jours (brique 17,
+  // client_beyond_retention). Personne n'était prévenu : ni le client
+  // final (qui perdait son mariage sans un mot), ni le locataire.
+  // Anti-doublon : même principe que les factures — on ne tire QUE le
+  // jour exact (J-15 / J-3), le cron étant quotidien.
+  const { data: expClients } = await sb
+    .from("clients")
+    .select("id, name, client_email, created_at, agencies!inner(slug, plan)")
+    .eq("active", true)
+    .eq("agencies.plan", "decouverte");
+
+  for (const c of expClients || []) {
+    const expire = new Date(new Date(c.created_at).getTime() + 90 * 86400000);
+    const expireISO = expire.toLocaleDateString("fr-CA", { timeZone: "Europe/Paris" });
+    const left = daysBetween(today, expireISO);
+    if (left !== 15 && left !== 3) continue;
+
+    const dateLabel = expire.toLocaleDateString("fr-FR", {
+      timeZone: "Europe/Paris", day: "numeric", month: "long", year: "numeric",
+    });
+    const ag: any = (c as any).agencies;
+    const consoleUrl = ag?.slug
+      ? `https://${ag.slug}.laloge.house/communication-admin`
+      : "https://www.timelesshouse.org/communication-admin";
+
+    // a) Le client final — seulement s'il a un email
+    if (c.client_email) {
+      const r1 = await callNotify({
+        kind: "access_expiring", client_id: c.id,
+        extra: { days: left, dateLabel },
+      });
+      log.push({ client: c.name, kind: "access_expiring", days: left,
+        result: r1?.ok ? "sent" : (r1?.skipped || "error"), error: r1?.error });
+    }
+
+    // b) Le locataire — toujours (c'est lui qui peut prolonger l'accès)
+    const r2 = await callNotify({
+      kind: "admin_client_expiring", client_id: c.id,
+      extra: { days: left, dateLabel, url: consoleUrl },
+    });
+    log.push({ client: c.name, kind: "admin_client_expiring", days: left,
+      result: r2?.ok ? "sent" : (r2?.skipped || "error"), error: r2?.error });
+  }
+
   return new Response(JSON.stringify({ ok: true, date: today, processed: clients?.length || 0, log }), {
     headers: { "Content-Type": "application/json" },
   });

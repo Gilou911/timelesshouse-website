@@ -29,3 +29,7 @@ verify_jwt = false
 
 [functions.signup-agency]
 verify_jwt = false
+
+# Cron quotidien (Dashboard → Integrations → Cron) : appelée sans JWT.
+[functions.scheduled-notifications]
+verify_jwt = false

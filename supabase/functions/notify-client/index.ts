@@ -555,6 +555,119 @@ function buildAdminApproval(client, media, kind) {
 // Anti-bombardement + journal d'audit (table notifications)
 // ─────────────────────────────────────────────────────────────────
 /** Nombre d'emails déjà envoyés à ce client dans la fenêtre glissante. */
+// ── Nouveaux gabarits (22/07/2026) : livraison de galerie, film prêt,
+// fin d'accès Découverte, reçu de paiement — plus l'alerte locataire. ──
+
+/** ① Galerie publiée — LE moment de livraison du produit */
+function buildGalleryReady(client, gallery, url) {
+  const B = brandOf(client);
+  const prenom = esc(client.greeting ?? client.partner1 ?? client.name ?? "chers clients");
+  const titre = esc(gallery?.title || "Votre galerie");
+  const contenu = gallery?.kind === "video" ? "votre film"
+    : gallery?.kind === "mixte" ? "vos photos et votre film" : "vos photos";
+  return {
+    subject: `Votre galerie « ${gallery?.title || ""} » est en ligne — ${B.name}`,
+    html: layout(`
+      <h2>${titre} vous attend</h2>
+      <p>Bonjour ${prenom},</p>
+      <p>C'est le moment que l'on préfère&nbsp;: ${contenu} ${gallery?.kind === "video" ? "est" : "sont"} en ligne,
+         dans une galerie préparée pour vous.</p>
+      <div style="text-align:center">
+        <a class="btn" href="${esc(url)}">Découvrir ma galerie</a>
+      </div>
+      <p class="note">Ce lien est personnel — vous pouvez le transmettre à vos proches
+         pour qu'ils en profitent aussi.</p>
+    `)
+  };
+}
+
+/** ② Film prêt (fin d'encodage — envoyé par le worker) */
+function buildVideoReady(client, extra, url) {
+  const B = brandOf(client);
+  const prenom = esc(client.greeting ?? client.partner1 ?? client.name ?? "chers clients");
+  const titre = esc(extra?.title || "Votre film");
+  return {
+    subject: `Votre film est prêt ✨ — ${B.name}`,
+    html: layout(`
+      <h2>Votre film est prêt</h2>
+      <p>Bonjour ${prenom},</p>
+      <p>«&nbsp;${titre}&nbsp;» est maintenant disponible en qualité optimale,
+         prêt à être regardé (et re-regardé).</p>
+      <div style="text-align:center">
+        <a class="btn" href="${esc(url)}">Voir mon film</a>
+      </div>
+    `)
+  };
+}
+
+/** ③ Fin d'accès offre Découverte (J-15 / J-3) — protège des mauvaises surprises */
+function buildAccessExpiring(client, extra, url) {
+  const B = brandOf(client);
+  const prenom = esc(client.greeting ?? client.partner1 ?? client.name ?? "chers clients");
+  const dateLabel = esc(extra?.dateLabel || "");
+  const jours = Number(extra?.days) || 0;
+  return {
+    subject: jours <= 3
+      ? `Plus que ${jours} jours pour profiter de votre espace — ${B.name}`
+      : `Votre espace reste ouvert jusqu'au ${extra?.dateLabel || ""} — ${B.name}`,
+    html: layout(`
+      <h2>Pensez à télécharger vos souvenirs</h2>
+      <p>Bonjour ${prenom},</p>
+      <p>Votre espace personnel restera accessible jusqu'au <strong>${dateLabel}</strong>.
+         D'ici là, prenez un moment pour télécharger vos photos et films et les garder précieusement.</p>
+      <div style="text-align:center">
+        <a class="btn" href="${esc(url)}">Ouvrir mon espace</a>
+      </div>
+      <p class="note">Une question&nbsp;? Répondez simplement à cet email.</p>
+    `)
+  };
+}
+
+/** ④ Reçu de paiement — la facture vient de passer à « payée » */
+function buildInvoicePaid(client, invoice) {
+  const B = brandOf(client);
+  const prenom = esc(client.greeting ?? client.partner1 ?? client.name ?? "cher client");
+  const montant = Number.parseFloat(invoice?.amount ?? 0).toLocaleString("fr-FR");
+  return {
+    subject: `Paiement bien reçu — facture ${invoice?.reference || ""} · ${B.name}`,
+    html: layout(`
+      <h2>Merci, votre paiement est bien enregistré</h2>
+      <p>Bonjour ${prenom},</p>
+      <p>Nous confirmons la réception de votre règlement pour
+         «&nbsp;${esc(invoice?.description || "")}&nbsp;».</p>
+      <div style="text-align:center">
+        <span class="amount-box">${esc(montant)}&nbsp;€</span><br/>
+        <span class="ref">${esc(invoice?.reference || "")}</span>
+      </div>
+      <p class="note">Conservez cet email&nbsp;: il fait office de confirmation de paiement.</p>
+    `)
+  };
+}
+
+/** ⑦ Alerte LOCATAIRE : l'espace d'un de ses clients ferme bientôt */
+function buildAdminClientExpiring(client, extra) {
+  const B = brandOf(client);
+  const dateLabel = esc(extra?.dateLabel || "");
+  const jours = Number(extra?.days) || 0;
+  const url = esc(extra?.url || "https://www.timelesshouse.org/communication-admin");
+  return {
+    subject: `⏳ L'espace de ${client?.name || "votre client"} ferme dans ${jours} jours`,
+    html: layout(`
+      <h2>L'espace de ${esc(client?.name || "votre client")} ferme bientôt</h2>
+      <p>Cet espace (offre Découverte) atteindra ses 90&nbsp;jours le <strong>${dateLabel}</strong>.
+         Passé cette date, votre client n'y aura plus accès.</p>
+      <p>Deux options&nbsp;:</p>
+      <p>• <strong>Passez à une offre supérieure</strong> (Paramètres → Abonnement)&nbsp;:
+         l'accès redevient illimité, pour tous vos clients.<br/>
+      • Ou assurez-vous que votre client a bien téléchargé ses fichiers
+         ${client?.client_email ? "— il vient d'être prévenu par email de son côté" : "(il n'a pas d'email renseigné, pensez à le prévenir)"}.</p>
+      <div style="text-align:center">
+        <a class="btn" href="${url}">Ouvrir ma console</a>
+      </div>
+    `)
+  };
+}
+
 async function recentCount(clientId) {
   const since = new Date(Date.now() - RL_WINDOW_MIN * 60000).toISOString();
   const res = await fetch(
@@ -590,7 +703,7 @@ serve(async (req)=>{
   }
   try {
     const body = await req.json();
-    const { kind, client_id, media_id, invoice_id, strategy_id, reminder_type, extra, comment } = body;
+    const { kind, client_id, media_id, invoice_id, strategy_id, gallery_id, reminder_type, extra, comment } = body;
     if (!kind) {
       return new Response(JSON.stringify({
         error: "Paramètre 'kind' manquant"
@@ -656,11 +769,19 @@ serve(async (req)=>{
       "event_ready",
       "invoice_ready",
       "invoice_reminder",
+      "invoice_paid",
       "shoot_scheduled",
       "shoot_updated",
       "shoot_reminder",
-      "strategy_ready"
+      "strategy_ready",
+      "gallery_ready",
+      "video_ready",
+      "access_expiring"
     ];
+    // URL de l'espace du client (porte de connexion à la marque de l'agence)
+    const espaceUrl = !agency || agency.slug === "timelesshouse"
+      ? "https://timelesshouse.org/app"
+      : `https://${agency.slug}.laloge.house`;
     if (CLIENT_KINDS.includes(kind)) {
       if (!client?.client_email) {
         return new Response(JSON.stringify({
@@ -678,6 +799,12 @@ serve(async (req)=>{
         built = buildWelcome(client);
       } else if (kind === "new_media") {
         const media = media_id ? await sbGet("media", media_id) : null;
+        // Sécurité : le média doit appartenir AU client visé.
+        if (media && media.client_id !== client.id) {
+          return new Response(JSON.stringify({ error: "Ce média n'appartient pas à ce client." }), {
+            status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+          });
+        }
         built = buildNewMedia(client, media, extra);
       } else if (kind === "invoice_ready") {
         built = buildInvoiceReady(client, extra ?? {});
@@ -692,6 +819,12 @@ serve(async (req)=>{
               ...CORS,
               "Content-Type": "application/json"
             }
+          });
+        }
+        // Sécurité : la facture doit appartenir AU client visé.
+        if (invoice.client_id !== client.id) {
+          return new Response(JSON.stringify({ error: "Cette facture n'appartient pas à ce client." }), {
+            status: 400, headers: { ...CORS, "Content-Type": "application/json" }
           });
         }
         // Sécurité : si la facture a été payée entre-temps, on n'envoie rien
@@ -727,6 +860,13 @@ serve(async (req)=>{
             }
           });
         }
+        // Sécurité : la stratégie doit appartenir AU client visé (sinon un
+        // appelant pourrait exfiltrer le contenu d'un autre espace).
+        if (strategy.client_id !== client.id) {
+          return new Response(JSON.stringify({ error: "Cette stratégie n'appartient pas à ce client." }), {
+            status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+          });
+        }
         // Sécurité : on ne notifie jamais pour un brouillon (invisible côté client)
         if (strategy.status !== "published") {
           return new Response(JSON.stringify({
@@ -741,6 +881,52 @@ serve(async (req)=>{
           });
         }
         built = buildStrategyReady(client, strategy);
+      } else if (kind === "gallery_ready") {
+        const gallery = gallery_id ? await sbGet("galleries", gallery_id) : null;
+        if (!gallery) {
+          return new Response(JSON.stringify({ error: "Galerie introuvable (gallery_id manquant ou invalide)." }), {
+            status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+          });
+        }
+        // Sécurité : la galerie doit appartenir AU client visé.
+        if (gallery.client_id !== client.id) {
+          return new Response(JSON.stringify({ error: "Cette galerie n'appartient pas à ce client." }), {
+            status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+          });
+        }
+        // Partage coupé = lien mort : on n'envoie pas un email vers le vide.
+        if (gallery.share_enabled === false) {
+          return new Response(JSON.stringify({ ok: true, skipped: "gallery_share_disabled" }), {
+            status: 200, headers: { ...CORS, "Content-Type": "application/json" }
+          });
+        }
+        const galerieUrl = !agency || agency.slug === "timelesshouse"
+          ? `https://timelesshouse.org/galerie?c=${gallery.code}`
+          : `https://${agency.slug}.laloge.house/galerie?c=${gallery.code}`;
+        built = buildGalleryReady(client, gallery, galerieUrl);
+      } else if (kind === "video_ready") {
+        built = buildVideoReady(client, extra ?? {}, (extra && extra.url) || espaceUrl);
+      } else if (kind === "access_expiring") {
+        built = buildAccessExpiring(client, extra ?? {}, espaceUrl);
+      } else if (kind === "invoice_paid") {
+        const facture = invoice_id ? await sbGet("invoices", invoice_id) : null;
+        if (!facture) {
+          return new Response(JSON.stringify({ error: "Facture introuvable (invoice_id manquant ou invalide)." }), {
+            status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+          });
+        }
+        if (facture.client_id !== client.id) {
+          return new Response(JSON.stringify({ error: "Cette facture n'appartient pas à ce client." }), {
+            status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+          });
+        }
+        // On n'envoie un reçu QUE pour une facture réellement payée.
+        if (facture.status !== "payée") {
+          return new Response(JSON.stringify({ ok: true, skipped: "invoice_not_paid" }), {
+            status: 200, headers: { ...CORS, "Content-Type": "application/json" }
+          });
+        }
+        built = buildInvoicePaid(client, facture);
       } else {
         // event_ready
         built = buildEventReady(client, extra ?? {});
@@ -758,12 +944,15 @@ serve(async (req)=>{
     } else if ([
       "admin_new_comment",
       "admin_media_approved",
-      "admin_changes_requested"
+      "admin_changes_requested",
+      "admin_client_expiring"
     ].includes(kind)) {
       const media = media_id ? await sbGet("media", media_id) : null;
       let built;
       if (kind === "admin_new_comment") {
         built = buildAdminNewComment(client, media, comment ?? "");
+      } else if (kind === "admin_client_expiring") {
+        built = buildAdminClientExpiring(client, extra ?? {});
       } else {
         built = buildAdminApproval(client, media, kind);
       }

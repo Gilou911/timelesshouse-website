@@ -1061,3 +1061,21 @@ drop trigger if exists enforce_client_quota on clients;
 drop trigger if exists z_enforce_client_quota on clients;
 create trigger z_enforce_client_quota before insert on clients
   for each row execute function trg_enforce_client_quota();
+
+-- ══════════════════════════════════════════════════════════════
+-- BRIQUE 18 (préparée le 22/07/2026 — NON JOUÉE, en attente d'accès SQL)
+-- « Votre client n'a jamais ouvert son espace » (relance J+7)
+-- Prérequis : une trace de la dernière visite du client.
+-- ⚠️ AVANT de jouer : comparer get_client_portal avec
+--    pg_get_functiondef (dérive prod/fichier déjà constatée le 20/07).
+-- ══════════════════════════════════════════════════════════════
+-- alter table clients add column if not exists last_seen_at timestamptz;
+--
+-- Puis dans get_client_portal (security definer), au début du corps :
+--   update clients set last_seen_at = now() where id = v_client_id;
+--
+-- Enfin, dans scheduled-notifications : clients actifs créés il y a
+-- exactement 7 jours avec last_seen_at IS NULL et client_email non nul
+-- → email au LOCATAIRE (« votre client n'a pas encore ouvert son
+-- espace — renvoyez-lui son invitation »), auto-dédoublonné par
+-- l'égalité de date comme les autres rappels.

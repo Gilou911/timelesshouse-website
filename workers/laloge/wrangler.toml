@@ -1,8 +1,19 @@
 # Worker laloge-proxy — sert laloge.app / laloge.house / *.laloge.house
-# Déploiement : wrangler deploy (ou API Cloudflare — voir SAAS-ROADMAP)
+#
+# DÉPLOIEMENT (depuis ce dossier) :
+#   npx wrangler deploy
+#
+# ⚠️ Toujours lancer `node test-portier.mjs` avant : une règle de
+#    routage trop large casserait une galerie livrée à un client.
+#
+# `keep_vars` est VITAL : PAGES_HOST et SUPABASE_ANON_KEY sont posées
+# dans le dashboard Cloudflare et ne sont pas committées. Sans cette
+# ligne, un déploiement les efface — le proxy perd son origine et
+# TOUS les domaines La Loge tombent d'un coup.
 name = "laloge-proxy"
 main = "worker.js"
 compatibility_date = "2026-07-01"
+keep_vars = true
 
 routes = [
   { pattern = "laloge.app/*",    zone_name = "laloge.app" },

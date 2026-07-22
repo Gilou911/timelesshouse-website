@@ -65,7 +65,11 @@ let CURRENT_THEME = "standard";
 let CURRENT_MONO = null;
 function themeOf(client) {
   const u = String(client?.universe || "");
-  return (u === "celebration" || /mariage|wedding|fian|anniv/i.test(u)) ? "mariage" : "standard";
+  if (u === "celebration" || /mariage|wedding|fian|anniv/i.test(u)) return "mariage";
+  // Univers Communication : habillage NEUMORPHIQUE (modèle fourni par
+  // Gil le 22/07/2026) — le style de l'app, transposé en email.
+  if (u === "communication") return "neumorphique";
+  return "standard";
 }
 function monogramme(client) {
   const a = String(client?.partner1 || "").trim().charAt(0);
@@ -193,6 +197,7 @@ function esc(v) {
 function layout(body) {
   const B = CURRENT_BRAND;
   if (CURRENT_THEME === "mariage") return layoutMariage(body, B);
+  if (CURRENT_THEME === "neumorphique") return layoutNeumorphique(body, B);
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -255,6 +260,84 @@ function layout(body) {
 </body>
 </html>`;
 }
+/** Habillage NEUMORPHIQUE (univers Communication) — le style de l'app
+ *  transposé en email, d'après le modèle fourni par Gil (22/07/2026) :
+ *  fond #EAE5DE, ombres jumelles #d4cfc8/#ffffff, marque HORS de la
+ *  boîte (nom serif italique + « Espace client »), grande boîte
+ *  extrudée, blocs de données CREUSÉS (code, montant, tournage),
+ *  bouton pilule extrudé. Les classes des 15 gabarits sont restylées
+ *  ici : chaque email garde son contenu, seul l'habit change. */
+function layoutNeumorphique(body, B) {
+  const annee = new Date().getFullYear();
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+  body{margin:0;padding:0;-webkit-text-size-adjust:100%;background:#EAE5DE;
+       font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#272522}
+  table{border-collapse:collapse !important}
+  .wrap{max-width:600px;margin:0 auto;padding:40px 10px}
+  .marque{padding:0 10px 26px}
+  .marque h1{font-family:'Playfair Display',Georgia,Times,serif;font-size:24px;font-weight:700;
+             font-style:italic;color:#272522;margin:0;letter-spacing:-.5px}
+  .marque img{max-height:40px;max-width:200px;display:block}
+  .marque p{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+            color:#7A756D;margin:5px 0 0}
+  .body{background:#EAE5DE;border-radius:24px;padding:40px;
+        box-shadow:12px 12px 24px #d4cfc8,-12px -12px 24px #ffffff}
+  h2{font-family:'Playfair Display',Georgia,Times,serif;font-size:26px;font-weight:normal;
+     color:#272522;margin:0 0 14px;letter-spacing:-.5px;line-height:1.3}
+  p{font-size:14px;color:#656059;margin:0 0 16px;line-height:1.7}
+  .btn{display:inline-block;margin:20px 0 6px;padding:14px 30px;background:#EAE5DE;border-radius:50px;
+       box-shadow:5px 5px 10px #d4cfc8,-5px -5px 10px #ffffff;
+       font-family:'Inter',-apple-system,sans-serif;font-size:13px;font-weight:600;
+       color:#272522 !important;text-decoration:none}
+  .code-box{display:inline-block;margin:16px 0;padding:14px 30px;background:#EAE5DE;border-radius:14px;
+            box-shadow:inset 6px 6px 12px #d4cfc8,inset -6px -6px 12px #ffffff;
+            font-family:monospace;font-size:20px;letter-spacing:.18em;color:#272522}
+  .amount-box{display:inline-block;margin:16px 0;padding:16px 36px;background:#EAE5DE;border-radius:14px;
+              box-shadow:inset 6px 6px 12px #d4cfc8,inset -6px -6px 12px #ffffff;
+              font-family:'Playfair Display',Georgia,serif;font-size:26px;color:#272522}
+  .ref{display:inline-block;font-family:monospace;font-size:12.5px;letter-spacing:.1em;
+       background:#EAE5DE;border-radius:8px;padding:6px 14px;color:#656059;
+       box-shadow:inset 3px 3px 6px #d4cfc8,inset -3px -3px 6px #ffffff}
+  .note{font-size:12px;color:#7A756D;line-height:1.6}
+  .shoot-card{margin:20px 0;padding:26px;background:#EAE5DE;border-radius:16px;
+              box-shadow:inset 8px 8px 16px #d4cfc8,inset -8px -8px 16px #ffffff}
+  .shoot-kicker{font-size:11px;font-weight:600;color:#7A756D;text-transform:uppercase;letter-spacing:.5px}
+  .shoot-title{font-family:'Playfair Display',Georgia,serif;font-size:20px;color:#272522;margin-top:8px;line-height:1.3}
+  .shoot-meta{font-size:13px;color:#656059;margin-top:14px;line-height:1.9}
+  .shoot-meta strong{color:#272522}
+  blockquote{margin:16px 0;padding:18px 22px;background:#EAE5DE;border-radius:14px;
+             box-shadow:inset 6px 6px 12px #d4cfc8,inset -6px -6px 12px #ffffff;
+             font-style:italic;color:#656059}
+  .pied{text-align:center;padding-top:28px}
+  .pied p{font-size:11px;color:#8F8A82;margin:0}
+  .pied a{color:#8F8A82;text-decoration:none}
+  @media screen and (max-width:600px){
+    .wrap{padding:24px 8px !important}
+    .body{padding:30px 20px !important}
+    .btn{display:block !important;text-align:center}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="marque">
+    ${B.logo ? `<img src="${esc(B.logo)}" alt="${esc(B.name)}"/>` : `<h1>${esc(B.name)}<span style="color:#7A756D">.</span></h1>`}
+    <p>Espace client</p>
+  </div>
+  <div class="body">${body}</div>
+  <div class="pied">
+    <p>© ${annee} ${esc(B.name)}${B.email ? ` &nbsp;·&nbsp; <a href="mailto:${esc(B.email)}">${esc(B.email)}</a>` : ""}</p>
+  </div>
+</div>
+</body>
+</html>`;
+}
+
 /** Habillage MARIAGE — éditorial : papier crème, monogramme du couple,
  *  titre centré, ornement filet + losange, bouton bordé façon faire-part.
  *  Monogramme et ornement en TABLEAUX avec styles en ligne : les clients

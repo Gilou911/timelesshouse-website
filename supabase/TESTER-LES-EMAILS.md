@@ -165,6 +165,27 @@ test ensuite.
 
 ---
 
+## Les trois habillages — l'email suit l'univers du client
+
+Depuis le 22/07/2026, l'habillage d'un email est choisi automatiquement
+selon l'**univers du client** (la marque de l'agence — logo, couleurs,
+adresse de réponse — reste identique dans les trois cas) :
+
+| Univers | Habillage | Signes distinctifs à vérifier |
+|---|---|---|
+| **Mariage & célébrations** | Faire-part éditorial | papier crème, monogramme du couple (É & D), ornement filet + losange, titre centré, bouton bordé à lettres espacées, photo de couverture de l'album en tête |
+| **Communication & Marketing** | **Neumorphique** (modèle de Gil — le style de l'app) | marque hors de la boîte (« VisonMike. / ESPACE CLIENT »), grande boîte extrudée à ombres jumelles, code d'accès et montants **en creux**, bouton pilule extrudé |
+| **Espace neutre** (et repli) | Classique | en-tête coloré à l'accent de l'agence, boîte blanche |
+
+Les 15 gabarits (bienvenue, galerie, film, factures, tournages, fin
+d'accès…) existent dans les trois habillages — **seul l'habit change,
+le contenu reste propre à chaque type**. Pour la recette : crée un
+client par univers avec ton email, et envoie-lui le même email de
+bienvenue — tu dois recevoir trois mises en scène différentes du même
+message.
+
+---
+
 ## Les pièges
 
 **Le garde-fou anti-bombardement.** Au-delà de **12 emails vers le même

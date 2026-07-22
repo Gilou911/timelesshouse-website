@@ -1247,6 +1247,261 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     }
 
     /* ════════════════════════════════════════════════════════════
+       📈 REVENUS — rapport financier mensuel (22/07/2026)
+       CA depuis les factures PAYÉES de toute l'agence (la RLS borne
+       déjà la lecture), estimation des cotisations URSSAF et de
+       l'impôt selon le statut. Les taux sont PRÉREMPLIS (valeurs en
+       vigueur) mais MODIFIABLES : ils changent chaque année et selon
+       les situations (ACRE…). Estimation indicative, jamais un
+       substitut au comptable — c'est écrit sous le rapport.
+       Config persistée sur le COMPTE (user_metadata), comme le guide.
+       ════════════════════════════════════════════════════════════ */
+    const STATUTS_FISCAUX = {
+      micro_bnc: { label: 'Micro-entreprise — activité libérale (BNC)', urssaf: 26.1, vflTaux: 2.2, abattement: 0.34 },
+      micro_bic: { label: 'Micro-entreprise — prestations de services (BIC)', urssaf: 21.2, vflTaux: 1.7, abattement: 0.50 },
+      autre:     { label: 'Autre statut — taux de charges manuel', urssaf: 45, vflTaux: null, abattement: 0 },
+    };
+    // Barème IR (loi de finances 2025, 1 part) — à titre indicatif.
+    const BAREME_IR = [[11497, 0], [29315, 0.11], [83823, 0.30], [180294, 0.41], [Infinity, 0.45]];
+    const irBareme = (revenu) => {
+      let ir = 0, prev = 0;
+      for (const [plafond, taux] of BAREME_IR) {
+        if (revenu > prev) ir += (Math.min(revenu, plafond) - prev) * taux;
+        prev = plafond;
+        if (revenu <= plafond) break;
+      }
+      return ir;
+    };
+    const MOIS_INDEX = { janvier:0, fevrier:1, février:1, mars:2, avril:3, mai:4, juin:5,
+      juillet:6, aout:7, août:7, septembre:8, octobre:9, novembre:10, decembre:11, décembre:11 };
+    const eur = (n) => `${Math.round(n).toLocaleString('fr-FR')} €`;
+
+    function RevenusTab({ user, onClients }) {
+      const [factures, setFactures] = useState(null); // null = chargement
+      const [err, setErr] = useState('');
+      // Config fiscale — chargée du compte, enregistrée sur le compte
+      const meta = user?.user_metadata?.laloge_fiscal || {};
+      const [statut, setStatut] = useState(meta.statut || 'micro_bnc');
+      const [urssaf, setUrssaf] = useState(meta.urssaf ?? STATUTS_FISCAUX[meta.statut || 'micro_bnc'].urssaf);
+      const [vfl, setVfl] = useState(meta.vfl ?? false);
+      const [saving, setSaving] = useState(false);
+      const [savedMsg, setSavedMsg] = useState(false);
+
+      useEffect(() => {
+        sb.from('invoices').select('amount, status, date_label, created_at')
+          .then(({ data, error }) => {
+            if (error) { setErr(humaniseErreur(error.message)); setFactures([]); }
+            else setFactures(data || []);
+          });
+      }, []);
+
+      const changerStatut = (s) => {
+        setStatut(s);
+        setUrssaf(STATUTS_FISCAUX[s].urssaf);
+        if (STATUTS_FISCAUX[s].vflTaux == null) setVfl(false);
+      };
+      const enregistrer = async () => {
+        setSaving(true);
+        try {
+          await sb.auth.updateUser({ data: { laloge_fiscal: { statut, urssaf: parseFloat(urssaf) || 0, vfl } } });
+          setSavedMsg(true); setTimeout(() => setSavedMsg(false), 2500);
+        } catch (e) { alert(humaniseErreur(e.message)); }
+        setSaving(false);
+      };
+
+      // ── Mois d'une facture : le libellé français d'émission, sinon la
+      // date de création (les factures ne stockent pas de date ISO).
+      const moisDe = (f) => {
+        const m = String(f.date_label || '').toLowerCase()
+          .match(/(\d{1,2})\s+([a-zûéè]+)\s+(\d{4})/i);
+        if (m && MOIS_INDEX[m[2]] !== undefined) return `${m[3]}-${String(MOIS_INDEX[m[2]] + 1).padStart(2, '0')}`;
+        return String(f.created_at || '').slice(0, 7);
+      };
+
+      // ── Série des 12 derniers mois ──
+      const serie = useMemo(() => {
+        const out = [];
+        const now = new Date();
+        for (let i = 11; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          out.push({
+            cle: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+            label: d.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', ''),
+            annee: d.getFullYear(), ca: 0,
+          });
+        }
+        for (const f of factures || []) {
+          if (f.status !== 'payée') continue;
+          const hit = out.find(x => x.cle === moisDe(f));
+          if (hit) hit.ca += parseFloat(f.amount || 0);
+        }
+        return out;
+      }, [factures]);
+
+      if (factures === null) {
+        return <div className="py-16 flex justify-center"><Loader2 size={22} className="animate-spin text-stone-400" /></div>;
+      }
+
+      const caMois = serie[11].ca;
+      const caMoisPrec = serie[10].ca;
+      const evolution = caMoisPrec > 0 ? Math.round(((caMois - caMoisPrec) / caMoisPrec) * 100) : null;
+      const ca12mois = serie.reduce((s, x) => s + x.ca, 0);
+      const enAttente = (factures || []).filter(f => f.status !== 'payée')
+        .reduce((s, f) => s + parseFloat(f.amount || 0), 0);
+      const anneeCourante = new Date().getFullYear();
+      const caAnnee = serie.filter(x => x.annee === anneeCourante).reduce((s, x) => s + x.ca, 0)
+        + (factures || []).filter(f => f.status === 'payée' && moisDe(f) < serie[0].cle && moisDe(f).startsWith(String(anneeCourante)))
+          .reduce((s, f) => s + parseFloat(f.amount || 0), 0);
+
+      const tauxU = (parseFloat(urssaf) || 0) / 100;
+      const cfg = STATUTS_FISCAUX[statut];
+      const cotisAnnee = caAnnee * tauxU;
+      let irAnnee = null, irMention = '';
+      if (statut === 'autre') { irMention = 'Impôt non estimé pour ce statut — voyez votre comptable.'; }
+      else if (vfl) { irAnnee = caAnnee * (cfg.vflTaux / 100); irMention = `versement libératoire ${cfg.vflTaux} %`; }
+      else { irAnnee = irBareme(caAnnee * (1 - cfg.abattement)); irMention = `barème 2025, 1 part, après abattement de ${Math.round(cfg.abattement * 100)} %`; }
+      const netAnnee = caAnnee - cotisAnnee - (irAnnee ?? 0);
+      const maxCa = Math.max(...serie.map(x => x.ca), 1);
+
+      const aucunCA = ca12mois === 0;
+
+      return (
+        <div className="space-y-5 lg:space-y-6">
+          {err && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]"><AlertCircle size={14} /> {err}</div>}
+
+          {aucunCA ? (
+            <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
+              <EmptyState icon={TrendingUp}
+                texte="Aucune facture payée pour l'instant. Dès que vous marquez une facture « payée » dans une fiche client, votre chiffre d'affaires apparaît ici, mois par mois."
+                bouton="Voir mes clients" onAction={onClients} />
+            </div>
+          ) : (<>
+
+          {/* En-têtes chiffrés */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
+            <StatCard dark label="Encaissé ce mois-ci" value={eur(caMois)} />
+            <StatCard label="vs mois dernier" value={evolution === null ? '—' : `${evolution > 0 ? '+' : ''}${evolution} %`} />
+            <StatCard label="Encaissé sur 12 mois" value={eur(ca12mois)} />
+            <StatCard label="Facturé, en attente" value={eur(enAttente)} />
+          </div>
+
+          {/* Graphique 12 mois — une seule série, barres fines, infobulle */}
+          <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
+            <div className="flex items-baseline justify-between gap-3 flex-wrap">
+              <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>Chiffre d'affaires encaissé</h2>
+              <span className="text-[11px] uppercase tracking-[0.14em] text-stone-400 font-semibold">12 derniers mois</span>
+            </div>
+            <div className="flex items-end gap-1.5 h-40 mt-6" role="img"
+                 aria-label={`Chiffre d'affaires mensuel : ${serie.map(x => `${x.label} ${eur(x.ca)}`).join(', ')}`}>
+              {serie.map((x, i) => {
+                const h = Math.max(x.ca > 0 ? 4 : 2, Math.round((x.ca / maxCa) * 100));
+                const labelDirect = x.ca === maxCa || i === 11; // étiquettes sélectives : max + mois courant
+                return (
+                  <div key={x.cle} className="flex-1 flex flex-col items-center justify-end h-full relative group min-w-0">
+                    {labelDirect && x.ca > 0 && (
+                      <span className="text-[9.5px] text-stone-500 font-semibold mb-1 whitespace-nowrap">{eur(x.ca)}</span>
+                    )}
+                    <div className="w-full rounded-t-[4px] transition-opacity group-hover:opacity-80"
+                         style={{ height: `${h}%`, backgroundColor: x.ca > 0 ? neu.accent : 'rgba(138,130,114,0.25)' }} />
+                    {/* infobulle au survol */}
+                    <span style={neu.raisedXs}
+                          className="hidden group-hover:block absolute -top-9 left-1/2 -translate-x-1/2 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap z-10">
+                      {x.label} {String(x.annee).slice(2)} · {eur(x.ca)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex gap-1.5 mt-2">
+              {serie.map(x => (
+                <div key={x.cle} className="flex-1 text-center text-[9.5px] uppercase tracking-wide text-stone-400 truncate">{x.label}</div>
+              ))}
+            </div>
+          </div>
+
+          {/* Estimation annuelle */}
+          <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
+            <div className="flex items-baseline justify-between gap-3 flex-wrap">
+              <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>Estimation {anneeCourante}</h2>
+              <span className="text-[11px] uppercase tracking-[0.14em] text-stone-400 font-semibold">{STATUTS_FISCAUX[statut].label}</span>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-5">
+              <div><div className="text-[11px] uppercase tracking-[0.14em] text-stone-500 font-semibold">Encaissé {anneeCourante}</div>
+                <div className="text-[22px] mt-1.5" style={SERIF}>{eur(caAnnee)}</div></div>
+              <div><div className="text-[11px] uppercase tracking-[0.14em] text-stone-500 font-semibold">Cotisations ({urssaf} %)</div>
+                <div className="text-[22px] mt-1.5 text-stone-700" style={SERIF}>− {eur(cotisAnnee)}</div></div>
+              <div><div className="text-[11px] uppercase tracking-[0.14em] text-stone-500 font-semibold">Impôt estimé</div>
+                <div className="text-[22px] mt-1.5 text-stone-700" style={SERIF}>{irAnnee == null ? '—' : `− ${eur(irAnnee)}`}</div>
+                <div className="text-[10.5px] text-stone-500 mt-1">{irMention}</div></div>
+              <div><div className="text-[11px] uppercase tracking-[0.14em] text-stone-500 font-semibold">Net estimé</div>
+                <div className="text-[22px] mt-1.5" style={SERIF}>{eur(netAnnee)}</div></div>
+            </div>
+            {/* Tableau mensuel — la vue « table » du graphique */}
+            <div className="mt-6 pt-5" style={{ borderTop: '1px solid rgba(138,130,114,0.18)' }}>
+              <div className="space-y-1.5">
+                {serie.filter(x => x.ca > 0).map(x => (
+                  <div key={x.cle} className="flex items-baseline justify-between gap-3 text-[13px]">
+                    <span className="text-stone-600 capitalize">{x.label} {x.annee}</span>
+                    <span className="flex-1 border-b border-dotted border-stone-300 mx-1" aria-hidden="true" />
+                    <span className="font-semibold tabular-nums">{eur(x.ca)}</span>
+                    <span className="text-stone-500 tabular-nums w-24 text-right">− {eur(x.ca * tauxU)} cotis.</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="text-[11.5px] text-stone-500 leading-relaxed mt-5">
+              ⚖️ Estimation indicative, calculée sur vos factures marquées « payée » (groupées par date
+              d'émission). Elle ne remplace ni votre comptable ni l'URSSAF — taux modifiables ci-dessous
+              (pensez à l'ACRE ou à un taux particulier).
+            </p>
+          </div>
+
+          </>)}
+
+          {/* Configuration fiscale — visible même sans CA (on prépare) */}
+          <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
+            <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>Mon statut</h2>
+            <div className="space-y-4 mt-5">
+              <Field label="Statut fiscal">
+                <Select value={statut} onChange={e => changerStatut(e.target.value)}>
+                  {Object.entries(STATUTS_FISCAUX).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Taux de cotisations (%)">
+                <Input type="number" inputMode="decimal" step="0.1" value={urssaf}
+                       onChange={e => setUrssaf(e.target.value)} />
+                <div className="text-[11px] text-stone-500 mt-1.5">
+                  Prérempli avec le taux {statut === 'micro_bnc' ? 'micro-BNC 2026 (26,1 %)' : statut === 'micro_bic' ? 'micro-BIC prestations (21,2 %)' : 'moyen'} — ajustez-le à votre situation (ACRE…).
+                </div>
+              </Field>
+              {STATUTS_FISCAUX[statut].vflTaux != null && (
+                <button type="button" onClick={() => setVfl(!vfl)}
+                  style={vfl ? neu.dark : neu.pressedSm}
+                  className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${vfl ? 'text-white' : 'text-stone-700'}`}>
+                  <div className="text-left">
+                    <div className="font-semibold text-[13px]">Versement libératoire de l'impôt</div>
+                    <div className={`text-[10.5px] mt-0.5 ${vfl ? 'text-stone-300' : 'text-stone-500'}`}>
+                      Vous payez l'impôt en même temps que vos cotisations ({STATUTS_FISCAUX[statut].vflTaux} % du CA)
+                    </div>
+                  </div>
+                  <div className={`w-10 h-5.5 rounded-full p-0.5 transition shrink-0 ${vfl ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${vfl ? 'translate-x-4' : ''}`} />
+                  </div>
+                </button>
+              )}
+              <div className="flex items-center gap-3">
+                <Btn kind="dark" icon={saving ? Loader2 : Save} onClick={enregistrer} disabled={saving}>
+                  {saving ? 'Enregistrement…' : 'Enregistrer'}
+                </Btn>
+                {savedMsg && <span className="text-[12.5px] text-emerald-700 flex items-center gap-1.5"><CheckCircle2 size={14} /> Enregistré sur votre compte</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
        👥 CLIENTS LIST
        ════════════════════════════════════════════════════════════ */
     function ClientsList({ clients, onSelect, onCreate, refresh, checklist }) {
@@ -7226,6 +7481,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         portfolio:{ t: 'Portfolio', s: 'Vitrine et espaces de prospection.' },
         agences:  { t: 'Agences', s: 'Les locataires de votre plateforme marque blanche.' },
         settings: { t: 'Paramètres', s: 'Votre marque, votre abonnement et la sécurité de votre compte.' },
+        revenus:  { t: 'Revenus', s: 'Votre chiffre d\'affaires, vos cotisations et votre impôt — estimés depuis vos factures payées.' },
       };
 
       return (
@@ -7280,6 +7536,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 {[
                   { id: 'overview', icon: Home, label: 'Vue d\'ensemble' },
                   { id: 'clients', icon: Users, label: 'Clients' },
+                  { id: 'revenus', icon: TrendingUp, label: 'Revenus' },
                   ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),
                   ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),
                 ].map(n => (
@@ -7338,6 +7595,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <Overview clients={clients} {...overviewData} agency={myAgency} refreshBrand={loadFeatures} />
               ) : section === 'settings' ? (
                 <SettingsView billing={overviewData.billing} agency={myAgency} refreshBrand={loadFeatures} />
+              ) : section === 'revenus' ? (
+                <RevenusTab user={user} onClients={() => setSection('clients')} />
               ) : section === 'portfolio' && FEATURES.portfolio ? (
                 <AdminPortfolio sb={sb} neu={neu} SERIF={SERIF} isDark={isDark} />
               ) : section === 'agences' && agencies !== null ? (
@@ -7367,6 +7626,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             {[
               { id: 'overview', icon: Home, label: 'Aperçu' },
               { id: 'clients', icon: Users, label: 'Clients' },
+              { id: 'revenus', icon: TrendingUp, label: 'Revenus' },
               ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),
               ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),
             ].map(n => {

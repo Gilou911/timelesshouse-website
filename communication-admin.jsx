@@ -1343,14 +1343,17 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         sector:            existing?.sector            || '',
         client_email:      existing?.client_email      || '',
         agency_name:       existing?.agency_name       || 'TimelessHouse',
-        universe:          existing?.universe          || 'communication',
+        // UX vague 3 : Mariage pré-sélectionné pour un locataire (son cas
+        // le plus courant) — et une célébration démarre en livraison
+        // épurée, modules éteints (même logique qu'au changement d'univers).
+        universe:          existing?.universe          || (FEATURES.allUniverses ? 'communication' : 'celebration'),
         redirect_url:      existing?.redirect_url      || '',
         active:            existing?.active ?? true,
         analytics_enabled: existing?.analytics_enabled ?? false,
-        media_enabled:     existing?.media_enabled    ?? true,
-        invoices_enabled:  existing?.invoices_enabled ?? true,
-        shoots_enabled:    existing?.shoots_enabled   ?? true,
-        documents_enabled: existing?.documents_enabled ?? true,
+        media_enabled:     existing ? (existing.media_enabled ?? true) : FEATURES.allUniverses,
+        invoices_enabled:  existing ? (existing.invoices_enabled ?? true) : FEATURES.allUniverses,
+        shoots_enabled:    existing ? (existing.shoots_enabled ?? true) : FEATURES.allUniverses,
+        documents_enabled: existing ? (existing.documents_enabled ?? true) : FEATURES.allUniverses,
         // Stratégies : réservé à la plateforme (pas au point pour les
         // locataires) — un enregistrement de fiche par un locataire
         // remet le module à zéro, ce qui nettoie aussi son espace client.
@@ -1523,12 +1526,16 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </Field>
             )}
 
+            {/* UX vague 3 : le statut n'a de sens qu'en édition — un
+                nouvel espace est toujours actif. */}
+            {existing && (
             <Field label="Statut">
               <Select value={form.active ? 'actif' : 'pause'} onChange={e => setForm({...form, active: e.target.value === 'actif'})}>
                 <option value="actif">Actif (le client peut se connecter)</option>
                 <option value="pause">En pause (l'accès est bloqué)</option>
               </Select>
             </Field>
+            )}
 
             <Field label="Modules visibles dans l'espace client">
               <div className="space-y-2">
@@ -1695,8 +1702,23 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         ? 'event_pages'
         : (tabs[0]?.id || 'media');
 
+      // UX vague 3 : l'action la plus destructrice de la console était
+      // sans confirmation. On dit ce qui sera perdu, et on exige le code
+      // de l'espace — impossible de tout effacer par mégarde.
       const deleteClient = async () => {
-        await sb.from('clients').delete().eq('id', client.id);
+        const saisie = prompt(
+          `Supprimer définitivement l'espace de ${client.name} ?\n\n` +
+          `Seront perdus : ses galeries et leurs liens de partage, ses médias, ` +
+          `factures, documents et tournages. Cette action est irréversible.\n\n` +
+          `Pour confirmer, tapez le code de l'espace : ${client.code}`
+        );
+        if (saisie === null) return;
+        if ((saisie || '').trim() !== client.code) {
+          alert('Le code saisi est différent — suppression annulée.');
+          return;
+        }
+        const { error } = await sb.from('clients').delete().eq('id', client.id);
+        if (error) { alert(humaniseErreur(error.message)); return; }
         refresh();
         onBack();
       };
@@ -3278,7 +3300,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // Suppression : ligne SQL seulement — la purge des fichiers B2 est
       // différée (orphelins nettoyables par un script de ménage plateforme).
       const deletePhoto = async (p) => {
-        if (!confirm('Supprimer cette photo de la galerie ?')) return;
+        if (!confirm('Supprimer cette photo ?\n\nElle disparaîtra de la galerie de votre client. Cette action est irréversible.')) return;
         const { error } = await sb.from('gallery_photos').delete().eq('id', p.id);
         if (error) { alert(error.message); return; }
         setRows(rs => rs.filter(r => r.id !== p.id));
@@ -4291,7 +4313,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       useEffect(() => { load(); }, [clientId]);
 
       const remove = async (id) => {
-        if (!confirm('Supprimer ce média ?')) return;
+        if (!confirm('Supprimer ce média ?\n\nVotre client ne le verra plus dans son espace. Cette action est irréversible.')) return;
         await sb.from('media').delete().eq('id', id);
         load();
       };
@@ -5142,7 +5164,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       useEffect(() => { load(); }, [clientId]);
 
       const remove = async (id) => {
-        if (!confirm('Supprimer cette facture ?')) return;
+        if (!confirm('Supprimer cette facture ?\n\nElle disparaîtra aussi de l\'espace de votre client. Cette action est irréversible.')) return;
         await sb.from('invoices').delete().eq('id', id);
         load();
       };
@@ -5412,7 +5434,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       useEffect(() => { load(); }, [clientId]);
 
       const remove = async (id) => {
-        if (!confirm('Supprimer ce document ?')) return;
+        if (!confirm('Supprimer ce document ?\n\nVotre client n\'y aura plus accès. Cette action est irréversible.')) return;
         await sb.from('documents').delete().eq('id', id);
         load();
       };
@@ -6156,7 +6178,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       useEffect(() => { load(); }, [clientId]);
 
       const remove = async (id) => {
-        if (!confirm('Supprimer ce tournage ?')) return;
+        if (!confirm('Supprimer ce tournage ?\n\nIl disparaîtra du calendrier et de l\'espace de votre client.')) return;
         await sb.from('shoots').delete().eq('id', id);
         load();
       };

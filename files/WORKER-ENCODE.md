@@ -88,9 +88,28 @@ sinon il continue silencieusement avec l'ancienne version. Le symptôme
 est déroutant : les jobs se traitent correctement, mais le comportement
 ne correspond pas au code qu'on vient d'écrire.
 
+⚠️ **Si la modification a été poussée depuis une branche ou un
+worktree** (cas des sessions Claude), un `git pull` ne suffit pas
+forcément : le service lit le fichier du checkout PRINCIPAL
+(`~/Desktop/timelesshouse-website`). Le réflexe sûr, depuis le
+principal :
+
+```bash
+git fetch origin main
+git checkout origin/main -- workers/encoder/worker-encode.mjs
+launchctl kickstart -k gui/$(id -u)/org.timelesshouse.worker-encode
+```
+
 Le plist pointe sur `/opt/homebrew/bin/node` et déclare un `PATH`
 explicite : launchd n'hérite pas de l'environnement du shell, sans quoi
 `ffmpeg` serait introuvable au premier encodage.
+
+**Anti-veille (depuis le 22/07/2026)** : le Mac étant réglé pour
+s'endormir après 1 minute d'inactivité, le worker lance `caffeinate -i`
+au début de chaque job et l'arrête à la fin. La machine reste donc
+éveillée pendant un encodage, et dort normalement le reste du temps.
+Limite : `caffeinate` n'agit pas si on ferme le capot — le job gèlera
+et reprendra au réveil (aucune perte, la file attend).
 
 ---
 

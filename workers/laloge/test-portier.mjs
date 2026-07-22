@@ -12,16 +12,20 @@
    Sort en code 1 au premier écart (utilisable en CI).
    ════════════════════════════════════════════════════════════ */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const ICI = dirname(fileURLToPath(import.meta.url));
+const RACINE = join(ICI, "..", "..");
 const src = readFileSync(join(ICI, "worker.js"), "utf8")
   .replace(/^export default \{[\s\S]*$/m, ""); // on ne garde que les fonctions
 
 const portee = {};
-new Function("sortie", `${src}\n Object.assign(sortie, { redirectionPortier, nomDePage });`)(portee);
+new Function("sortie", `${src}\n Object.assign(sortie, {
+  redirectionPortier, nomDePage,
+  PAGES_LOGE, PAGES_VITRINE, PAGES_PARTOUT, PAGES_TIMELESSHOUSE,
+});`)(portee);
 const { redirectionPortier } = portee;
 
 const LOGE = "visonmike.laloge.house";
@@ -99,6 +103,32 @@ for (const [hote, cible, attendu] of CAS) {
     console.log(`     attendu : ${attendu ?? "laisser passer"}`);
     console.log(`     obtenu  : ${obtenu ?? "laisser passer"}`);
   }
+}
+
+/* ── AUCUNE PAGE ORPHELINE ────────────────────────────────────
+   Le portier décide à partir de listes. Une page créée demain et
+   oubliée de ces listes serait redirigée sans bruit sur les loges,
+   et on chercherait longtemps pourquoi elle « ne marche pas ».
+   Ici : toute page du dépôt doit être classée quelque part. */
+const connues = new Set([
+  ...portee.PAGES_LOGE, ...portee.PAGES_VITRINE,
+  ...portee.PAGES_PARTOUT, ...portee.PAGES_TIMELESSHOUSE,
+]);
+const orphelines = readdirSync(RACINE)
+  .filter((f) => f.endsWith(".html"))
+  .map((f) => f.slice(0, -5))
+  .filter((n) => !connues.has(n));
+
+if (orphelines.length) {
+  console.log(`\n❌ ${orphelines.length} page(s) non classée(s) : ${orphelines.join(", ")}`);
+  console.log("     Ajoutez chacune dans worker.js à la liste qui lui revient :");
+  console.log("       PAGES_LOGE          → espace client / galerie / console (les loges)");
+  console.log("       PAGES_VITRINE       → vente de La Loge (laloge.app)");
+  console.log("       PAGES_TIMELESSHOUSE → le studio de Gil (timelesshouse.org)");
+  console.log("       PAGES_PARTOUT       → valable sur tous les domaines");
+  ratés += orphelines.length;
+} else {
+  console.log(`✅ classement : les ${readdirSync(RACINE).filter((f) => f.endsWith(".html")).length} pages du dépôt appartiennent toutes à un domaine`);
 }
 
 console.log(`\n${CAS.length} cas contrôlés · ${ratés} écart(s)`);

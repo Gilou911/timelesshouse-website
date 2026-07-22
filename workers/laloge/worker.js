@@ -65,6 +65,20 @@ const PAGES_VITRINE = new Set([
  *  oublié). */
 const PAGES_PARTOUT = new Set(["reinitialiser", "404"]);
 
+/** Pages du STUDIO TimelessHouse — servies sur timelesshouse.org
+ *  seulement. Ce Worker ne couvre pas ce domaine : cette liste ne
+ *  sert pas au routage, elle sert à ce qu'AUCUNE page du dépôt ne
+ *  reste non classée. `test-portier.mjs` compare les .html du dépôt
+ *  aux quatre listes et échoue sur toute page inconnue — sans ça,
+ *  une page créée demain serait silencieusement redirigée sur les
+ *  loges, sans que personne comprenne pourquoi (crainte de Gil,
+ *  22/07/2026, parfaitement fondée). */
+const PAGES_TIMELESSHOUSE = new Set([
+  "index", "portfolio", "mariage", "immobilier", "communication",
+  "photobooth", "photobooth-inscription",
+  "demo-toggle", "social-v2-preview",
+]);
+
 /** Nom de page, ou null si ce n'est pas une page (asset, image,
  *  manifest, fichier d'un sous-dossier…) — ceux-là passent toujours,
  *  sinon la page servie arriverait sans son style ni son code. */

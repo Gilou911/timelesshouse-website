@@ -2748,6 +2748,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </button>
             </div>
             {g.access_code ? (<>
+            {/* Le code en clair (retour de Gil, 22/07/2026) : il n'était
+                lisible qu'enterré dans l'URL. Même motif que la carte
+                « Accès client » — un client peut aussi SAISIR ce code sur
+                la page de connexion de l'agence. */}
+            <div className="flex items-center gap-3 flex-wrap mt-2.5">
+              <span className="text-[10px] uppercase tracking-[0.15em] text-stone-500 font-semibold">Code</span>
+              <code style={neu.pressedSm} className="px-2.5 py-1.5 rounded-md font-mono text-[12.5px] leading-none">{g.access_code}</code>
+              <CopyButton value={g.access_code} label="Copier le code" iconOnly />
+            </div>
             <div className={`mt-2 font-mono text-[11px] break-all ${g.share_enabled ? 'text-stone-600' : 'text-stone-400 line-through'}`}>
               {shareUrl}
             </div>

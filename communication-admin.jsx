@@ -511,6 +511,20 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       </div>
     );
 
+    // Groupe thématique d'un formulaire (motif SwiftUI / inspecteur Apple,
+    // demande de Gil du 22/07/2026) : les champs qui ont une relation
+    // logique vivent sous un même intitulé, et tous les champs gardent la
+    // MÊME largeur — c'est ce qui crée la cohérence visuelle. Le premier
+    // groupe d'un formulaire se passe d'intitulé (c'est l'essentiel).
+    const FormSection = ({ title, children }) => (
+      <div className="space-y-4 pt-2 first:pt-0">
+        {title && (
+          <div className="text-[11px] uppercase tracking-[0.14em] text-stone-500 font-semibold">{title}</div>
+        )}
+        {children}
+      </div>
+    );
+
     // HIG : 16px minimum sur mobile — en dessous, iOS zoome toute la page au
     // focus de chaque champ. Le rendu desktop (sm:) reste inchangé.
     const Input = (props) => (
@@ -1493,15 +1507,28 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </button>
 
             {avance && (<>
-            <Field label="Code d'accès (sans espaces)">
-              <Input required value={form.code} onChange={e => setForm({...form, code: e.target.value})} placeholder={isCouple ? 'precieuse-ronny' : 'maison-lumiere'} />
-              <div className="text-[11px] text-stone-500 mt-1.5">C'est la clé de votre client. Elle est suggérée automatiquement — vous pouvez la personnaliser.</div>
-            </Field>
+            <FormSection title="Accès">
+              <Field label="Code d'accès (sans espaces)">
+                <Input required value={form.code} onChange={e => setForm({...form, code: e.target.value})} placeholder={isCouple ? 'precieuse-ronny' : 'maison-lumiere'} />
+                <div className="text-[11px] text-stone-500 mt-1.5">C'est la clé de votre client. Elle est suggérée automatiquement — vous pouvez la personnaliser.</div>
+              </Field>
+
+              {/* UX vague 3 : le statut n'a de sens qu'en édition — un
+                  nouvel espace est toujours actif. */}
+              {existing && (
+              <Field label="Statut">
+                <Select value={form.active ? 'actif' : 'pause'} onChange={e => setForm({...form, active: e.target.value === 'actif'})}>
+                  <option value="actif">Actif (le client peut se connecter)</option>
+                  <option value="pause">En pause (l'accès est bloqué)</option>
+                </Select>
+              </Field>
+              )}
+            </FormSection>
 
             {/* UX vague 2 : ces champs « entreprise » n'ont pas de sens pour
                 un mariage — les prénoms remplissent déjà les initiales. */}
             {!isCelebration(form.universe) && (
-            <div className="space-y-4">
+            <FormSection title="Informations du contact">
               <Field label="Prénom contact">
                 <Input value={form.greeting} onChange={e => setForm({...form, greeting: e.target.value})} placeholder="Camille" />
               </Field>
@@ -1511,12 +1538,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <Field label="Secteur">
                 <Input value={form.sector} onChange={e => setForm({...form, sector: e.target.value})} placeholder="Hôtellerie" />
               </Field>
-            </div>
+            </FormSection>
             )}
 
             {/* Page de redirection : héritage TimelessHouse (fichiers HTML
                 dédiés) — jargon masqué aux locataires (UX vague 1). */}
             {FEATURES.allUniverses && hasDeliveryTab(form.universe) && (
+              <FormSection title="Page client">
               <Field label="Page de redirection (laisser vide pour utiliser les templates dynamiques)">
                 <Input value={form.redirect_url} onChange={e => setForm({...form, redirect_url: e.target.value})} placeholder="Laisser vide → event-photos.html (template dynamique)" />
                 <div className="text-[11px] text-stone-500 mt-1.5">
@@ -1524,19 +1552,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   Pour pointer vers un fichier HTML spécifique (legacy), entrez son nom : <code>precieuse-ronny.html</code>
                 </div>
               </Field>
+              </FormSection>
             )}
 
-            {/* UX vague 3 : le statut n'a de sens qu'en édition — un
-                nouvel espace est toujours actif. */}
-            {existing && (
-            <Field label="Statut">
-              <Select value={form.active ? 'actif' : 'pause'} onChange={e => setForm({...form, active: e.target.value === 'actif'})}>
-                <option value="actif">Actif (le client peut se connecter)</option>
-                <option value="pause">En pause (l'accès est bloqué)</option>
-              </Select>
-            </Field>
-            )}
-
+            <FormSection title="Modules">
             <Field label="Modules visibles dans l'espace client">
               <div className="space-y-2">
                 {/* Médias */}
@@ -1647,6 +1666,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 </div>
               )}
             </Field>
+            </FormSection>
             </>)}
 
             {err && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]"><AlertCircle size={14} /> {err}</div>}
@@ -3788,7 +3808,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 </div>
                 <div className="space-y-4">
                   <Field label="Date de célébration">
-                    <div className="max-w-[200px]"><Input type="date" value={c.dateCelebrationISO || ''} onChange={e => updateConfigDate('dateCelebrationISO', 'dateCelebration', e.target.value)} /></div>
+                    <Input type="date" value={c.dateCelebrationISO || ''} onChange={e => updateConfigDate('dateCelebrationISO', 'dateCelebration', e.target.value)} />
                     <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.dateCelebration || '—'}</strong></div>
                   </Field>
                   <Field label="Lieu de la célébration">
@@ -3796,7 +3816,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   </Field>
                 </div>
                 <Field label="Date du mariage d'origine">
-                  <div className="max-w-[200px]"><Input type="date" value={c.dateMariageOriginalISO || ''} onChange={e => updateConfigDate('dateMariageOriginalISO', 'dateMariageOriginal', e.target.value)} /></div>
+                  <Input type="date" value={c.dateMariageOriginalISO || ''} onChange={e => updateConfigDate('dateMariageOriginalISO', 'dateMariageOriginal', e.target.value)} />
                   <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.dateMariageOriginal || '—'}</strong></div>
                 </Field>
               </>
@@ -3804,7 +3824,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <>
                 <div className="space-y-4">
                   <Field label="Date de la demande">
-                    <div className="max-w-[200px]"><Input type="date" value={c.dateDemandeISO || ''} onChange={e => updateConfigDate('dateDemandeISO', 'dateDemande', e.target.value)} /></div>
+                    <Input type="date" value={c.dateDemandeISO || ''} onChange={e => updateConfigDate('dateDemandeISO', 'dateDemande', e.target.value)} />
                     <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.dateDemande || '—'}</strong></div>
                   </Field>
                   <Field label="Lieu de la demande">
@@ -3812,7 +3832,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   </Field>
                 </div>
                 <Field label="Date du mariage prévue">
-                  <div className="max-w-[200px]"><Input type="date" value={c.dateMariagePrevuISO || ''} onChange={e => updateConfigDate('dateMariagePrevuISO', 'dateMariagePrevu', e.target.value)} /></div>
+                  <Input type="date" value={c.dateMariagePrevuISO || ''} onChange={e => updateConfigDate('dateMariagePrevuISO', 'dateMariagePrevu', e.target.value)} />
                   <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.dateMariagePrevu || '—'}</strong></div>
                 </Field>
               </>
@@ -3820,7 +3840,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <>
                 <div className="space-y-4">
                   <Field label="Date de l'événement">
-                    <div className="max-w-[200px]"><Input type="date" value={c.dateISO || ''} onChange={e => updateConfigDate('dateISO', 'date', e.target.value)} /></div>
+                    <Input type="date" value={c.dateISO || ''} onChange={e => updateConfigDate('dateISO', 'date', e.target.value)} />
                     <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.date || '—'}</strong></div>
                   </Field>
                   <Field label="Lieu">
@@ -4892,20 +4912,21 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return (
         <Modal title={existing ? 'Modifier le média' : 'Ajouter un média'} kicker={existing ? 'Édition' : 'Nouveau'} onClose={onClose} size="lg">
           <form onSubmit={submit} className="space-y-4">
-            <div className="space-y-4">
+            <FormSection>
               <Field label="Type">
                 <Select value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
                   <option value="photo">📸 Photo</option>
                   <option value="video">🎥 Vidéo</option>
                 </Select>
               </Field>
+              <Field label="Titre">
+                <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Campagne printemps — Hero" />
+              </Field>
               <Field label="Tag (catégorie)">
                 <Input value={form.tag} onChange={e => setForm({...form, tag: e.target.value})} placeholder="Réseaux sociaux, Site web…" />
               </Field>
-            </div>
-            <Field label="Titre">
-              <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Campagne printemps — Hero" />
-            </Field>
+            </FormSection>
+            <FormSection title="Le fichier">
             {form.type === 'video' ? (
               <>
                 <Field label="Fichier vidéo original (upload direct sur B2 — servira au téléchargement client)">
@@ -4986,29 +5007,31 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 )}
               </Field>
             )}
-            <Field label="Tournage associé (optionnel — permet de grouper les médias chez le client)">
-              <Select value={form.shoot_id} onChange={e => setForm({...form, shoot_id: e.target.value})}>
-                <option value="">— Hors tournage —</option>
-                {shoots.map(s => (
-                  <option key={s.id} value={s.id}>{s.month_label} {s.date_day} · {s.title}</option>
-                ))}
-              </Select>
-            </Field>
-            <div className="space-y-4">
+            </FormSection>
+            <FormSection title="Classement">
+              <Field label="Tournage associé (optionnel — permet de grouper les médias chez le client)">
+                <Select value={form.shoot_id} onChange={e => setForm({...form, shoot_id: e.target.value})}>
+                  <option value="">— Hors tournage —</option>
+                  {shoots.map(s => (
+                    <option key={s.id} value={s.id}>{s.month_label} {s.date_day} · {s.title}</option>
+                  ))}
+                </Select>
+              </Field>
               <Field label="Date (classe automatiquement le média)">
-                <div className="max-w-[200px]"><Input type="date" value={form.date_iso_local} onChange={e => handleMediaDate(e.target.value)} /></div>
+                <Input type="date" value={form.date_iso_local} onChange={e => handleMediaDate(e.target.value)} />
                 <div className="text-[11px] text-stone-500 mt-1">{form.date_label || '—'} · le plus récent apparaît en premier</div>
               </Field>
               {form.type === 'video' && (
                 <Field label="Durée">
-                  <Input value={form.duration} onChange={e => setForm({...form, duration: e.target.value})} placeholder="0:45" className="max-w-[130px]" />
+                  <Input value={form.duration} onChange={e => setForm({...form, duration: e.target.value})} placeholder="0:45" />
                 </Field>
               )}
               <Field label="Taille">
-                <Input value={form.size_label} onChange={e => setForm({...form, size_label: e.target.value})} placeholder="128 MB" className="max-w-[150px]" />
+                <Input value={form.size_label} onChange={e => setForm({...form, size_label: e.target.value})} placeholder="128 MB" />
               </Field>
-            </div>
+            </FormSection>
 
+            <FormSection title="Apparence">
             <Field label={form.type === 'video' ? (FEATURES.allUniverses ? "Vignette (optionnel — sinon générée automatiquement à l'encodage)" : "Vignette (optionnel)") : "Miniature (optionnel)"}>
               {/* 1) Choisir une image DANS la vidéo (si un fichier vidéo est sélectionné) */}
               {form.type === 'video' && videoObjUrl && (
@@ -5089,6 +5112,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 ))}
               </div>
             </Field>
+            </FormSection>
             {/* Progression de l'upload B2 */}
             {upProgress && (
               <div className="rounded-xl px-4 py-3" style={neu.pressedSm}>
@@ -5337,31 +5361,33 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return (
         <Modal title={existing ? 'Modifier la facture' : 'Nouvelle facture'} kicker="Facture" onClose={onClose} size="lg">
           <form onSubmit={submit} className="space-y-4">
-            <div className="space-y-4">
+            <FormSection>
               <Field label="Référence">
                 <Input required value={form.reference} onChange={e => setForm({...form, reference: e.target.value})} placeholder="FAC-2026-042" />
               </Field>
               <Field label="Date d'émission">
-                <div className="max-w-[200px]"><Input type="date" value={form.date_iso_local} onChange={e => handleEmissionDate(e.target.value)} /></div>
+                <Input type="date" value={form.date_iso_local} onChange={e => handleEmissionDate(e.target.value)} />
                 <div className="text-[11px] text-stone-500 mt-1">Libellé : <strong>{form.date_label || '—'}</strong></div>
               </Field>
-            </div>
-            <Field label="Description">
-              <Input required value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Production vidéo — Campagne printemps" />
-            </Field>
-            <Field label="Tournage couvert (optionnel)">
-              <Select value={form.shoot_id} onChange={e => setForm({...form, shoot_id: e.target.value})}>
-                <option value="">— Aucun —</option>
-                {shoots.map(s => <option key={s.id} value={s.id}>{shootOptionLabel(s)}</option>)}
-              </Select>
-              <div className="text-[11px] text-stone-500 mt-1">Le client verra à quel tournage cette facture correspond.</div>
-            </Field>
-            <div className="space-y-4">
+              <Field label="Description">
+                <Input required value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Production vidéo — Campagne printemps" />
+              </Field>
+            </FormSection>
+            <FormSection title="Rattachement">
+              <Field label="Tournage couvert (optionnel)">
+                <Select value={form.shoot_id} onChange={e => setForm({...form, shoot_id: e.target.value})}>
+                  <option value="">— Aucun —</option>
+                  {shoots.map(s => <option key={s.id} value={s.id}>{shootOptionLabel(s)}</option>)}
+                </Select>
+                <div className="text-[11px] text-stone-500 mt-1">Le client verra à quel tournage cette facture correspond.</div>
+              </Field>
+            </FormSection>
+            <FormSection title="Montant et paiement">
               <Field label="Montant (€)">
-                <Input required type="number" inputMode="decimal" step="0.01" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} placeholder="3200" className="max-w-[200px]" />
+                <Input required type="number" inputMode="decimal" step="0.01" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} placeholder="3200" />
               </Field>
               <Field label="Échéance (rappels auto)">
-                <div className="max-w-[200px]"><Input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} /></div>
+                <Input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} />
               </Field>
               <Field label="Statut">
                 <Select value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
@@ -5369,7 +5395,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   <option value="payée">Payée</option>
                 </Select>
               </Field>
-            </div>
+            </FormSection>
+            <FormSection title="Document joint">
             <Field label="Facture PDF (optionnel)">
               <input
                 type="file"
@@ -5386,6 +5413,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               )}
               <Input value={form.pdf_url} onChange={e => setForm({...form, pdf_url: e.target.value})} placeholder="… ou coller une URL" style={{ marginTop: '8px' }} />
             </Field>
+            </FormSection>
             {upPct !== null && (
               <div className="rounded-xl px-4 py-3" style={neu.pressedSm}>
                 <div className="flex justify-between text-[11.5px] font-semibold text-stone-600 mb-1.5"><span>☁️ Upload du PDF</span><span>{upPct}%</span></div>
@@ -5568,20 +5596,21 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return (
         <Modal title={existing ? 'Modifier le document' : 'Nouveau document'} kicker="Document" onClose={onClose} size="lg">
           <form onSubmit={submit} className="space-y-4">
-            <Field label="Titre">
-              <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Contrat de prestation 2026" />
-            </Field>
-            <div className="space-y-4">
+            <FormSection>
+              <Field label="Titre">
+                <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Contrat de prestation 2026" />
+              </Field>
               <Field label="Catégorie">
                 <Select value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
                   {DOC_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </Select>
               </Field>
               <Field label="Date">
-                <div className="max-w-[200px]"><Input type="date" value={form.date_iso_local} onChange={e => handleDocDate(e.target.value)} /></div>
+                <Input type="date" value={form.date_iso_local} onChange={e => handleDocDate(e.target.value)} />
                 <div className="text-[11px] text-stone-500 mt-1">Libellé : <strong>{form.date_label || '—'}</strong></div>
               </Field>
-            </div>
+            </FormSection>
+            <FormSection title="Fichier">
             <Field label="Fichier (PDF, image)">
               <input
                 type="file"
@@ -5598,13 +5627,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               )}
               <Input value={form.file_url} onChange={e => setForm({...form, file_url: e.target.value})} placeholder="… ou coller une URL publique" style={{ marginTop: '8px' }} />
             </Field>
+            </FormSection>
             {upPct !== null && (
               <div className="rounded-xl px-4 py-3" style={neu.pressedSm}>
                 <div className="flex justify-between text-[11.5px] font-semibold text-stone-600 mb-1.5"><span>☁️ Upload du fichier</span><span>{upPct}%</span></div>
                 <div className="h-1.5 rounded-full bg-stone-300/60 overflow-hidden"><div className="h-full bg-stone-900 transition-all" style={{ width: `${upPct}%` }} /></div>
               </div>
             )}
-            <div className="space-y-4">
+            <FormSection title="Rattachement">
               <Field label="Tournage lié (optionnel)">
                 <Select value={form.shoot_id} onChange={e => setForm({...form, shoot_id: e.target.value})}>
                   <option value="">— Aucun —</option>
@@ -5621,15 +5651,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 </Select>
               </Field>
               )}
-            </div>
-            <div className="space-y-4">
+            </FormSection>
+            <FormSection title="Affichage">
               <Field label="Taille (optionnel)">
-                <Input value={form.size_label} onChange={e => setForm({...form, size_label: e.target.value})} placeholder="1,2 MB" className="max-w-[150px]" />
+                <Input value={form.size_label} onChange={e => setForm({...form, size_label: e.target.value})} placeholder="1,2 MB" />
               </Field>
               <Field label="Ordre d'affichage">
-                <Input type="number" inputMode="numeric" value={form.position} onChange={e => setForm({...form, position: e.target.value})} placeholder="0" className="max-w-[110px]" />
+                <Input type="number" inputMode="numeric" value={form.position} onChange={e => setForm({...form, position: e.target.value})} placeholder="0" />
               </Field>
-            </div>
+            </FormSection>
             <div className="flex gap-3 pt-2">
               <Btn onClick={onClose} full>Annuler</Btn>
               <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>
@@ -6400,31 +6430,33 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return (
         <Modal title={existing ? 'Modifier le tournage' : 'Nouveau tournage'} kicker="Planning" onClose={onClose} size="lg">
           <form onSubmit={submit} className="space-y-4">
-            <Field label="Titre du tournage">
-              <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Shooting éditorial — Maison Lumière" />
-            </Field>
-            <div className="space-y-4">
+            <FormSection>
+              <Field label="Titre du tournage">
+                <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Shooting éditorial — Maison Lumière" />
+              </Field>
               <Field label="Type">
                 <Select value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
                   <option value="photo">📸 Photo</option>
                   <option value="video">🎥 Vidéo</option>
                 </Select>
               </Field>
+            </FormSection>
+            <FormSection title="Quand et où">
               <Field label="Date du tournage">
-                <div className="max-w-[200px]"><Input required type="date" value={form.date_iso} onChange={e => setForm({...form, date_iso: e.target.value})} /></div>
+                <Input required type="date" value={form.date_iso} onChange={e => setForm({...form, date_iso: e.target.value})} />
                 <div className="text-[11px] text-stone-500 mt-1">{form.date_iso ? isoToLabel(form.date_iso) : '—'}</div>
               </Field>
               <Field label="Horaire">
-                <Input value={form.time_label} onChange={e => setForm({...form, time_label: e.target.value})} placeholder="09:00 — 16:00" className="max-w-[200px]" />
+                <Input value={form.time_label} onChange={e => setForm({...form, time_label: e.target.value})} placeholder="09:00 — 16:00" />
               </Field>
-            </div>
-            <Field label="Lieu">
-              <Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} placeholder="Studio Bastille, Paris 11" />
-            </Field>
+              <Field label="Lieu">
+                <Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} placeholder="Studio Bastille, Paris 11" />
+              </Field>
+            </FormSection>
 
             {/* ── Liaison stratégie → concept (chaîne de production) ── */}
             {strategies.length > 0 && (
-              <div className="space-y-4">
+              <FormSection title="Rattachement">
                 <Field label="Stratégie liée (optionnel)">
                   <Select value={form.strategy_id} onChange={e => setForm({...form, strategy_id: e.target.value, concept_id: ''})}>
                     <option value="">— Aucune —</option>
@@ -6440,11 +6472,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     <div className="text-[11px] text-stone-500 mt-1">Le concept passera en « 🎬 planifié » puis « ✓ livré » dans la stratégie du client.</div>
                   </Field>
                 )}
-              </div>
+              </FormSection>
             )}
-            <Field label="Notes (optionnel, visibles uniquement par vous)">
-              <Textarea rows={3} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Équipe : 4 personnes. Pré-prod le 3 avril." />
-            </Field>
+            <FormSection title="Notes">
+              <Field label="Notes (optionnel, visibles uniquement par vous)">
+                <Textarea rows={3} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Équipe : 4 personnes. Pré-prod le 3 avril." />
+              </Field>
+            </FormSection>
             <div className="flex gap-3 pt-2">
               <Btn onClick={onClose} full>Annuler</Btn>
               <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}>

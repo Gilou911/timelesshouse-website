@@ -230,7 +230,9 @@ Sur chaque email reçu, vérifie ces cinq points :
 - [ ] **Logo de l'agence** en tête (fond blanc + filet à sa couleur) — ou
       le nom sur fond coloré si l'agence n'a pas de logo
 - [ ] **Répondre** → email de contact de l'agence, jamais La Loge
-- [ ] **Bouton d'action** → mène au bon endroit (galerie, espace, console)
+- [ ] **Bouton d'action** → mène au bon endroit **ET au bon domaine** :
+      `<slug>.laloge.house` pour un locataire, jamais `timelesshouse.org`
+      (bug corrigé le 22/07/2026 — 13 boutons partaient chez la plateforme)
 - [ ] **Aucune mention de TimelessHouse** dans un email de locataire
 
 Et pour couvrir l'essentiel en cinq minutes, teste dans cet ordre :

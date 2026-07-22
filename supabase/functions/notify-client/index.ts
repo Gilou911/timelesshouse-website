@@ -63,6 +63,16 @@ let CURRENT_BRAND = DEFAULT_BRAND;
 // un email compact. Posé ici car chaque gabarit passe par brandOf().
 let CURRENT_THEME = "standard";
 let CURRENT_MONO = null;
+// ── Destinations des boutons (22/07/2026) ───────────────────────
+// Constaté par Gil : TOUS les boutons renvoyaient vers
+// timelesshouse.org, y compris dans les emails d'un locataire — la
+// fuite de marque blanche la plus visible qui soit. Les gabarits
+// utilisaient `extra?.loginUrl` que personne ne fournissait, et
+// retombaient donc systématiquement sur le repli en dur. Ces deux
+// variables sont posées par brandOf() (comme le thème), juste avant
+// chaque construction : plus aucune URL en dur dans un gabarit.
+let CURRENT_ESPACE = "https://timelesshouse.org/app";
+let CURRENT_CONSOLE = "https://www.timelesshouse.org/communication-admin";
 function themeOf(client) {
   const u = String(client?.universe || "");
   if (u === "celebration" || /mariage|wedding|fian|anniv/i.test(u)) return "mariage";
@@ -83,6 +93,12 @@ function brandOf(client) {
   CURRENT_BRAND = b;
   CURRENT_THEME = themeOf(client);
   CURRENT_MONO = CURRENT_THEME === "mariage" ? monogramme(client) : null;
+  // Destinations à la marque de l'agence (voir plus haut)
+  const propre = b.slug && b.slug !== "timelesshouse";
+  CURRENT_ESPACE = propre ? `https://${b.slug}.laloge.house` : "https://timelesshouse.org/app";
+  CURRENT_CONSOLE = propre
+    ? `https://${b.slug}.laloge.house/communication-admin`
+    : "https://www.timelesshouse.org/communication-admin";
   return b;
 }
 const CORS = {
@@ -448,7 +464,7 @@ function buildWelcome(client) {
         <div class="code-box">${esc(client.code)}</div>
       </div>
       <div style="text-align:center">
-        <a class="btn" href="https://timelesshouse.org">Accéder à mon espace</a>
+        <a class="btn" href="${esc(CURRENT_ESPACE)}">Accéder à mon espace</a>
       </div>
       <p class="note">Conservez ce code précieusement — il vous sera demandé à chaque connexion.</p>
     `)
@@ -459,7 +475,7 @@ function buildNewMedia(client, media, extra) {
   const prenom = esc(client.greeting ?? client.name ?? "cher client");
   const typeLabel = media?.type === "video" ? "film" : "contenu";
   const title = esc(media?.title ?? "un nouveau contenu");
-  const url = esc(extra?.loginUrl ?? "https://timelesshouse.org");
+  const url = esc(extra?.loginUrl ?? CURRENT_ESPACE);
   return {
     subject: `Nouveau ${typeLabel} disponible — ${B.name}`,
     html: layout(`
@@ -495,7 +511,7 @@ function buildStrategyReady(client, strategy) {
       </div>
       <p>Vous pouvez la consulter, et la partager à vos collaborateurs grâce au lien de partage intégré — sans qu'ils aient besoin de se connecter.</p>
       <div style="text-align:center">
-        <a class="btn" href="https://timelesshouse.org">Consulter ma stratégie</a>
+        <a class="btn" href="${esc(CURRENT_ESPACE)}">Consulter ma stratégie</a>
       </div>
     `)
   };
@@ -522,7 +538,7 @@ function buildEventReady(client, extra) {
   }
   const coupleLabel = esc(client.partner1 && client.partner2 ? `${client.partner1} & ${client.partner2}` : client.partner1 ?? client.name ?? "");
   const phrase = coupleLabel ? `C'est avec une immense joie que nous vous remettons ${contenu} — les souvenirs de <strong>${coupleLabel}</strong>.` : `${contenu.charAt(0).toUpperCase() + contenu.slice(1)} est désormais disponible dans votre espace personnel.`;
-  const url = esc(deliveryUrl || "https://timelesshouse.org");
+  const url = esc(deliveryUrl || CURRENT_ESPACE);
   return {
     subject: sujet,
     html: layout(`
@@ -545,7 +561,7 @@ function buildInvoiceReady(client, extra) {
   const B = brandOf(client);
   const prenom = esc(client.greeting ?? client.name ?? "cher client");
   const ref = esc(extra?.reference ?? "");
-  const loginUrl = esc(extra?.loginUrl ?? "https://timelesshouse.org");
+  const loginUrl = esc(extra?.loginUrl ?? CURRENT_ESPACE);
   const montantHtml = extra?.amount != null ? `<div style="text-align:center">
          <div class="amount-box">${new Intl.NumberFormat("fr-FR").format(extra.amount)} €</div>
        </div>` : "";
@@ -576,7 +592,7 @@ function buildInvoiceReady(client, extra) {
 function buildInvoiceReminder(client, invoice, reminderType) {
   const B = brandOf(client);
   const prenom = esc(client.greeting ?? client.name ?? "cher client");
-  const loginUrl = "https://timelesshouse.org";
+  const loginUrl = CURRENT_ESPACE;
   const ref = esc(invoice?.reference ?? "");
   const dueDate = invoice?.due_date ?? null;
   const amount = invoice?.amount;
@@ -635,7 +651,7 @@ function buildShootScheduled(client, extra) {
   const B = brandOf(client);
   const prenom = esc(client.greeting ?? client.name ?? "cher client");
   const isVideo = extra?.type === "video";
-  const url = esc(extra?.loginUrl ?? "https://timelesshouse.org");
+  const url = esc(extra?.loginUrl ?? CURRENT_ESPACE);
   const titre = isVideo ? "Votre tournage vidéo est programmé" : "Votre shooting photo est programmé";
   return {
     subject: `${titre} — ${B.name}`,
@@ -656,7 +672,7 @@ function buildShootScheduled(client, extra) {
 function buildShootUpdated(client, extra) {
   const B = brandOf(client);
   const prenom = esc(client.greeting ?? client.name ?? "cher client");
-  const url = esc(extra?.loginUrl ?? "https://timelesshouse.org");
+  const url = esc(extra?.loginUrl ?? CURRENT_ESPACE);
   return {
     subject: `Mise à jour — votre tournage « ${extra?.title ?? ""} » — ${B.name}`,
     html: layout(`
@@ -681,7 +697,7 @@ function buildShootReminder(client, extra) {
   const prenom = esc(client.greeting ?? client.name ?? "cher client");
   const days = extra?.daysBefore ?? null;
   const isVideo = extra?.type === "video";
-  const url = esc(extra?.loginUrl ?? "https://timelesshouse.org");
+  const url = esc(extra?.loginUrl ?? CURRENT_ESPACE);
   const quand = days === 1 ? "demain" : days === 7 ? "dans une semaine" : days != null ? `dans ${days} jours` : "bientôt";
   const titre = days === 1 ? "C'est pour demain !" : `À ${quand} !`;
   return {
@@ -710,7 +726,7 @@ function buildAdminNewComment(client, media, comment) {
          sur <em>${esc(media?.title ?? "un média")}</em>&nbsp;:</p>
       <blockquote>${esc(comment)}</blockquote>
       <div style="text-align:center">
-        <a class="btn" href="https://timelesshouse.org/communication-admin.html">
+        <a class="btn" href="${esc(CURRENT_CONSOLE)}">
           Ouvrir l'espace admin
         </a>
       </div>
@@ -729,7 +745,7 @@ function buildAdminApproval(client, media, kind) {
       <p><strong>${esc(client?.name ?? "Votre client")}</strong> a ${action}
          <em>${esc(media?.title ?? "un média")}</em>.</p>
       <div style="text-align:center">
-        <a class="btn" href="https://timelesshouse.org/communication-admin.html">
+        <a class="btn" href="${esc(CURRENT_CONSOLE)}">
           Ouvrir l'espace admin
         </a>
       </div>
@@ -921,7 +937,7 @@ function buildAdminClientExpiring(client, extra) {
   const B = brandOf(client);
   const dateLabel = esc(extra?.dateLabel || "");
   const jours = Number(extra?.days) || 0;
-  const url = esc(extra?.url || "https://www.timelesshouse.org/communication-admin");
+  const url = esc(extra?.url || CURRENT_CONSOLE);
   return {
     subject: `⏳ L'espace de ${client?.name || "votre client"} ferme dans ${jours} jours`,
     html: layout(`
@@ -1017,6 +1033,8 @@ serve(async (req)=>{
       // serait bloquée par la plupart des clients mail (contenu mixte) et
       // afficherait une image cassée en haut de chaque envoi.
       logo: /^https:\/\//i.test(agency.logo_url || "") ? agency.logo_url : null,
+      // Le slug pilote les destinations des boutons (voir brandOf)
+      slug: agency.slug || null,
       site: agency.slug === "timelesshouse" ? DEFAULT_BRAND.site : null
     } : DEFAULT_BRAND;
 

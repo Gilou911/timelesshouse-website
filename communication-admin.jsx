@@ -2501,7 +2501,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // trigger set_gallery_code_upd refuse une collision avec le code
       // d'un espace client de l'agence (ceinture + bretelles).
       const regenCode = async (g) => {
-        if (!confirm(`Régénérer le code de « ${g.title} » ?\n\nL'ancien lien cessera immédiatement de fonctionner.`)) return;
+        // Pas d'avertissement quand il n'y a RIEN à casser (première génération)
+        if (g.access_code && !confirm(`Régénérer le lien de « ${g.title} » ?\n\nL'ancien lien cessera immédiatement de fonctionner.`)) return;
         setBusy(true);
         try {
           const { data, error } = await sb.rpc('gallery_code_suggest', {
@@ -2746,6 +2747,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 </span>
               </button>
             </div>
+            {g.access_code ? (<>
             <div className={`mt-2 font-mono text-[11px] break-all ${g.share_enabled ? 'text-stone-600' : 'text-stone-400 line-through'}`}>
               {shareUrl}
             </div>
@@ -2761,8 +2763,22 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                  className="px-5 py-3 min-h-[44px] rounded-full text-[13px] font-semibold flex items-center justify-center gap-2 text-stone-800">
                 <ExternalLink size={14} /> Ouvrir
               </a>
-              <Btn icon={RefreshCw} onClick={onRegenCode} disabled={busy}>Régénérer le code</Btn>
+              <Btn icon={RefreshCw} onClick={onRegenCode} disabled={busy}>Régénérer le lien</Btn>
             </div>
+            </>) : (
+            /* UX (22/07/2026, retour de Gil) : proposer « Régénérer » un
+               code qui n'a jamais existé n'avait aucun sens. État vide
+               honnête + génération en un clic (le filet du formulaire
+               couvre les créations neuves ; ceci rattrape les anciennes). */
+            <div className="mt-2">
+              <p className="text-[12px] text-stone-500 leading-relaxed mb-3">
+                Cette galerie n'a pas encore de lien de partage.
+              </p>
+              <Btn kind="dark" icon={RefreshCw} onClick={onRegenCode} disabled={busy}>
+                Générer le lien
+              </Btn>
+            </div>
+            )}
             {!g.share_enabled && (
               <div className="text-[11px] text-stone-500 mt-2">
                 Le partage est coupé : le lien ne donne plus rien tant qu'il n'est pas réactivé.
@@ -2929,6 +2945,24 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         }
 
         if (result.error) { setErr(humaniseErreur(result.error.message)); setLoading(false); return; }
+
+        // Filet (22/07/2026) : le lien de partage naît normalement d'un
+        // trigger SQL à l'insertion (set_gallery_code). Gil a constaté des
+        // galeries SANS code à la création — dérive base/fichier possible.
+        // Quoi qu'il en soit : une galerie ne doit JAMAIS exister sans
+        // lien partageable, on le génère donc ici si la base ne l'a pas fait.
+        if (result.data && !result.data.access_code) {
+          try {
+            const { data: code } = await sb.rpc('gallery_code_suggest', {
+              p_agency: result.data.agency_id, p_base: result.data.title,
+            });
+            if (code) {
+              const { data: fixed } = await sb.from('galleries')
+                .update({ access_code: code }).eq('id', result.data.id).select().single();
+              if (fixed) result.data = fixed;
+            }
+          } catch (_) { /* le bouton « Générer le lien » de la carte prendra le relais */ }
+        }
 
         // Chaque vidéo uploadée mais pas encore transcodée part en file
         // d'attente d'encodage (une seule fois : l'index anti-doublon

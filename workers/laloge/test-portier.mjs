@@ -35,6 +35,11 @@ const CAS = [
   [LOGE, "/offres.html",         `https://${LOGE}/app`],
   [LOGE, "/inscription",         `https://${LOGE}/app`],
   [LOGE, "/portfolio",           `https://${LOGE}/app`],
+  // Pages de VENTE TimelessHouse — la fuite du 22/07 : le nom de
+  // l'agence, en haut de la galerie, y menait en un clic.
+  [LOGE, "/mariage",             `https://${LOGE}/app`],
+  [LOGE, "/immobilier",          `https://${LOGE}/app`],
+  [LOGE, "/communication",       `https://${LOGE}/app`],
   [LOGE, "/photobooth",          `https://${LOGE}/app`],
   [LOGE, "/index.html",          `https://${LOGE}/app`],
   [LOGE, "/page-qui-nexiste-pas", `https://${LOGE}/app`],
@@ -51,8 +56,6 @@ const CAS = [
   [LOGE, "/event-engagement",    null],
   [LOGE, "/event-anniversary",   null],
   [LOGE, "/event-photos-cinematic", null],
-  [LOGE, "/mariage",             null],
-  [LOGE, "/immobilier",          null],
   [LOGE, "/reinitialiser",       null], // mot de passe oublié : jamais bloqué
   [NEUTRE, "/app",               null],
   [NEUTRE, "/galerie?c=abc",     null],

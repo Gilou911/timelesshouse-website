@@ -354,7 +354,7 @@
       try { code = localStorage.getItem('th_access_code'); } catch (e) {}
       if (code) sessionStorage.setItem('access_granted', code);
     }
-    if (!code) { window.location.href = 'communication.html'; throw new Error('No access'); }
+    if (!code) { window.location.href = '/app'; throw new Error('No access'); }
 
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -372,7 +372,7 @@
 
     if (cErr || !portal) {
       sessionStorage.removeItem('access_granted');
-      window.location.href = 'communication.html';
+      window.location.href = '/app';
       throw new Error('Client not found');
     }
 
@@ -390,6 +390,28 @@
       window.location.href = '/app';
       throw new Error('Code étranger à cet espace');
     }
+    /* ── Le client n'a QUE sa livraison ? → droit à ses photos ──
+       Depuis le 22/07/2026, le code d'accès ouvre toujours l'espace
+       (avant, un client célébration atterrissait sur sa galerie et ne
+       voyait jamais ses documents ni ses factures). Mais un couple
+       qui n'a rien d'autre que son album n'a que faire d'un tableau
+       de bord : ici, avec toutes les données en main, on le renvoie
+       droit à ses photos — l'arrivée d'origine, intacte.
+       `sessionStorage` évite la boucle si la page de livraison
+       renvoyait un jour vers l'espace. */
+    const aDesPages = Array.isArray(portal.event_pages) && portal.event_pages.length > 0;
+    const aAutreChose = (portal.documents || []).length > 0
+      || (portal.invoices || []).length > 0
+      || (portal.shoots || []).length > 0;
+    const { routeForDelivery } = await import('./univers.js');
+    if (new URLSearchParams(location.search).get('espace') === '1') {
+      sessionStorage.setItem('espace_demande', '1');
+    }
+    if (aDesPages && !aAutreChose && !sessionStorage.getItem('espace_demande')) {
+      window.location.replace(routeForDelivery(client.universe));
+      throw new Error('redirect → livraison');
+    }
+
     const agencyName = agency.name || client.agency_name || 'TimelessHouse';
     document.title = 'Tableau de bord — ' + agencyName;
     // Couleurs personnalisées : uniquement si l'agence a changé les
@@ -432,6 +454,12 @@
       // Galeries autonomes du client (peut être vide → la carte « Vos
       // galeries » ne s'affiche simplement pas)
       galleries:  await galleriesPromise,
+      // Livraison événement (album / film) : depuis le 22/07/2026 le
+      // code d'accès ouvre l'espace, il faut donc un chemin d'ici vers
+      // les photos — sans ça, un client qui a AUSSI des factures ne
+      // reverrait plus jamais son album.
+      deliveryUrl: aDesPages ? routeForDelivery(client.universe) : '',
+      deliveryKinds: (portal.event_pages || []).map(p => p.page_type),
       agencyName: agencyName,
       agencyEmail: agency.contact_email || 'service@timelesshouse.org',
       agencyLogo:  agency.logo_url || '',

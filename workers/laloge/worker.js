@@ -40,13 +40,17 @@ const DEFAULT_ICONS = [
 // Le portier ne DÉPLACE rien : il regarde par quelle porte on entre
 // et renvoie à la bonne adresse ce qui n'a rien à faire là.
 
-/** Pages du PRODUIT : espaces clients, galeries, console. */
+/** Pages du PRODUIT : espaces clients, galeries, console.
+ *  ⚠️ NE JAMAIS y remettre `mariage`, `immobilier`, `communication`
+ *  ni `index` : ce sont les pages de VENTE de TimelessHouse. Elles
+ *  figuraient ici au premier jet parce que `homeUrlFor()` les
+ *  référençait — et un client de VisonMike tombait donc sur le site
+ *  d'un autre studio (trouvé par Gil, 22/07/2026). */
 const PAGES_LOGE = new Set([
   "app", "galerie",
-  "communication", "communication-dashboard", "communication-admin",
+  "communication-dashboard", "communication-admin",
   "event-photos", "event-photos-cinematic", "event-video",
   "event-engagement", "event-anniversary",
-  "mariage", "immobilier",
 ]);
 
 /** Pages de la VITRINE La Loge : ce qu'on montre aux studios. */

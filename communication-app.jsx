@@ -80,6 +80,11 @@ const CLIENT = {
   // Galeries autonomes (SaaS B.3, brique 13) : chacune a son propre code
   // et son propre lien — l'espace client n'en est qu'un point d'entrée.
   galleries:  D.galleries  || [],
+  // Livraison événement (album / film). Depuis le 22/07/2026 le code
+  // d'accès ouvre l'espace : c'est d'ici que le client repart vers ses
+  // photos, sinon il ne les reverrait jamais.
+  deliveryUrl:   D.deliveryUrl   || '',
+  deliveryKinds: D.deliveryKinds || [],
 };
 
 const A = CLIENT.analytics;
@@ -915,6 +920,16 @@ const Dashboard = ({ goTo }) => {
 
   // Quick actions
   const actions = [];
+  // La livraison d'abord : c'est ce que le client vient voir.
+  if (CLIENT.deliveryUrl) {
+    const aPhotos = CLIENT.deliveryKinds.includes('photos');
+    const aFilm   = CLIENT.deliveryKinds.includes('video');
+    actions.push({
+      id: 'delivery', href: CLIENT.deliveryUrl, icon: ImageIcon,
+      title: aPhotos && aFilm ? 'Vos photos et votre film' : (aFilm ? 'Votre film' : 'Vos photos'),
+      sub:   'Votre espace de livraison',
+    });
+  }
   if (CLIENT.mediaEnabled)     actions.push({ id: 'media',     icon: ImageIcon,    title: 'Mes médias',  sub: `${CLIENT.media.length} fichiers · ${pending} à valider` });
   if (CLIENT.analyticsEnabled) actions.push({ id: 'analytics', icon: BarChart3,    title: 'Analyses',    sub: 'Mise à jour temps réel' });
   else if (CLIENT.shootsEnabled) actions.push({ id: 'calendar', icon: CalendarIcon, title: 'Calendrier',  sub: `${upcomingShoots} tournage${upcomingShoots > 1 ? 's' : ''} à venir` });
@@ -980,7 +995,7 @@ const Dashboard = ({ goTo }) => {
           return (
             <button
               key={a.id}
-              onClick={() => goTo(a.id)}
+              onClick={() => (a.href ? (window.location.href = a.href) : goTo(a.id))}
               style={neu.raised}
               className="rounded-[22px] lg:rounded-[24px] p-5 text-left flex items-center justify-between gap-4 group min-h-[88px] active:scale-[0.99] transition-transform">
               <div className="flex items-center gap-4 min-w-0">

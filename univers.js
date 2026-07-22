@@ -132,22 +132,51 @@ export function videoPageFor(universe) {
 export function routeForClient(data) {
   if (!data) return 'index.html';
   if (data.redirect_url) return data.redirect_url;
-  if (isDashboardUniverse(data.universe)) {
-    if (data.universe === 'autre' && data.has_delivery) return 'event-photos.html';
-    return 'communication-dashboard.html';
+  // Le code d'accès ouvre l'ESPACE du client, quel que soit l'univers
+  // (retour de Gil du 22/07/2026 : un couple de VisonMike arrivait sur
+  // « votre galerie est en cours de préparation » alors qu'il avait 1
+  // document et 3 factures qui l'attendaient — la livraison était le
+  // seul monde qu'on lui montrait).
+  //
+  // L'expérience « on arrive droit sur ses photos » n'est pas perdue :
+  // l'espace la rétablit lui-même quand le client n'a QUE de la
+  // livraison (voir la bascule dans communication-dashboard.html) —
+  // il a toutes les données en main pour en décider, pas la porte.
+  return 'communication-dashboard.html';
+}
+
+/**
+ * Page de LIVRAISON d'un client (galerie photos / film) — l'ancienne
+ * destination du code d'accès, désormais choisie par l'espace client
+ * une fois qu'il sait ce que le client possède réellement.
+ */
+export function routeForDelivery(universe) {
+  if (universe === 'fiancailles' || universe === 'anniversaire-mariage') {
+    return videoPageFor(universe);
   }
-  if (data.universe === 'fiancailles' || data.universe === 'anniversaire-mariage') {
-    return videoPageFor(data.universe);
-  }
+  // event-photos redirige lui-même vers la page vidéo s'il n'y a pas
+  // de galerie photos : « photos si elles existent, film sinon ».
   return 'event-photos.html';
 }
 
 /**
- * Page « accueil » affichée depuis un espace de livraison.
- * Ne renvoie que des pages qui EXISTENT (l'ancien
- * `universe + '.html'` fabriquait des URL mortes comme `autre.html`).
+ * Page « accueil » affichée depuis un espace de livraison — c'est le
+ * lien porté par le NOM DE LA MARQUE en haut de la galerie.
+ *
+ * ⚠️ Marque blanche : `mariage.html`, `immobilier.html` et
+ * `index.html` sont les pages de VENTE de TimelessHouse. Servies au
+ * client d'un locataire, elles lui apprenaient l'existence d'un autre
+ * studio en un clic sur le nom de SON photographe (trouvé par Gil le
+ * 22/07/2026). Pour un locataire, l'accueil est donc SON espace.
+ *
+ * @param {string} universe
+ * @param {string|null} agencySlug — slug de l'agence propriétaire
  */
-export function homeUrlFor(universe) {
+export function homeUrlFor(universe, agencySlug) {
+  // `?espace=1` : le client DEMANDE son espace. Sans ce drapeau, un
+  // client qui n'a que sa galerie serait aussitôt renvoyé vers elle
+  // par la bascule du tableau de bord — le lien ne ferait rien.
+  if (agencySlug && agencySlug !== 'timelesshouse') return 'communication-dashboard.html?espace=1';
   if (isCelebration(universe))     return 'mariage.html';
   if (universe === 'immobilier')   return 'immobilier.html';
   if (universe === 'communication') return 'communication.html';

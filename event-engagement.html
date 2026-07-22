@@ -33,6 +33,7 @@
     window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
 
     import { createClient } from '@supabase/supabase-js';
+    import { homeUrlFor } from './univers.js';
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     function showError(type, clientName) {
@@ -51,7 +52,7 @@
               <div style="font-size:11px;letter-spacing:0.25em;color:#666;text-transform:uppercase;margin-bottom:16px;">Accès</div>
               <div style="font-family:'Cormorant Garamond',serif;font-size:clamp(1.4rem,4vw,1.9rem);color:#f4f0eb;margin-bottom:16px;">Code non reconnu.</div>
               <p style="font-size:13px;color:#666;line-height:1.7;margin-bottom:28px;">Votre code d'accès semble incorrect ou expiré.</p>
-              <a href="mariage.html" style="display:inline-block;padding:12px 28px;border:1px solid #333;color:#b08968;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;text-decoration:none;margin-right:12px;">Réessayer</a>
+              <a href="/app" style="display:inline-block;padding:12px 28px;border:1px solid #333;color:#b08968;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;text-decoration:none;margin-right:12px;">Réessayer</a>
               <a href="mailto:${window.__AGENCY_EMAIL || 'service@timelesshouse.org'}" style="display:inline-block;padding:12px 28px;border:1px solid #222;color:#555;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;text-decoration:none;">Contacter</a>
             `}
           </div>
@@ -59,7 +60,7 @@
     }
 
     const code = sessionStorage.getItem('access_granted');
-    if (!code) { window.location.href = 'mariage.html'; throw new Error('No access'); }
+    if (!code) { window.location.href = '/app'; throw new Error('No access'); }
 
     // RPC scellée (SaaS B.2) : client + pages événement en un appel,
     // vérifié côté serveur par le code d'accès
@@ -132,7 +133,7 @@
     }, videoPage.config || {});
 
     cfg.photosUrl  = photosPage ? 'event-photos.html' : '';
-    cfg.accueilUrl = 'mariage.html';
+    cfg.accueilUrl = homeUrlFor(client.universe, AG.slug);
 
     window.ENGAGEMENT_CONFIG = cfg;
     window.__CLIENT = client;

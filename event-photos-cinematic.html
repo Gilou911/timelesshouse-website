@@ -74,7 +74,7 @@
               <p style="font-size:13px; color:#666; line-height:1.7; margin-bottom:28px;">
                 Votre code d'accès semble incorrect ou expiré. Merci de le vérifier ou de contacter votre photographe.
               </p>
-              <a href="mariage.html" style="
+              <a href="/app" style="
                 display:inline-block; padding:12px 28px; border:1px solid #333;
                 color:#b08968; font-size:11px; letter-spacing:0.2em; text-transform:uppercase;
                 text-decoration:none; margin-right:12px;
@@ -91,7 +91,7 @@
     }
 
     const code = sessionStorage.getItem('access_granted');
-    if (!code) { window.location.href = 'mariage.html'; throw new Error('No access'); }
+    if (!code) { window.location.href = '/app'; throw new Error('No access'); }
 
     // RPC scellée (SaaS B.2) : client + pages événement en un appel,
     // vérifié côté serveur par le code d'accès
@@ -172,7 +172,7 @@
     cfg.videoUrl = videoPage
       ? videoPageFor(client.universe)
       : '';
-    cfg.accueilUrl = homeUrlFor(client.universe);
+    cfg.accueilUrl = homeUrlFor(client.universe, AG.slug);
 
     window.WEDDING_CONFIG = cfg;
     window.__CLIENT = client;

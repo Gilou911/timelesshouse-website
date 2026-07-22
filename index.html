@@ -722,7 +722,7 @@
       <a href="index.html" class="logo" aria-label="TimelessHouse — Accueil">TimelessHouse</a>
 
       <div class="top-right">
-        <a onclick="openClientModal(event)" class="client-link" role="button" tabindex="0">
+        <a href="/app" class="client-link" aria-label="Espace clients">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <circle cx="8" cy="15" r="4"/>
               <path d="M10.85 12.15L19 4"/>
@@ -762,32 +762,11 @@
 
   </div>
 
-  <div class="modal-overlay" id="clientModal" onclick="closeClientModalOnOverlay(event)">
-      <div class="modal-content">
-          <span class="modal-close" onclick="closeClientModal()">✕</span>
-
-          <span class="kicker-modal"><span data-lang="fr">Espace Privé</span><span data-lang="en">Private Area</span></span>
-          <h2 class="title-modal"><span data-lang="fr">Espace Clients</span><span data-lang="en">Client Area</span></h2>
-
-          <p style="margin-bottom: 25px; font-size: 13px; color: var(--cine-cream-soft);">
-              <span data-lang="fr">Entrez votre code d'accès personnel.</span>
-              <span data-lang="en">Enter your personal access code.</span>
-          </p>
-
-          <div class="input-group">
-              <input type="password" id="clientCode" placeholder="VOTRE CODE" onkeypress="handleClientEnter(event)">
-          </div>
-
-          <button onclick="checkClientCode()" class="btn-primary">
-              <span data-lang="fr">Accéder à mon espace</span><span data-lang="en">Access my Space</span>
-          </button>
-
-          <p id="clientError" style="color: #ff6b6b; font-size: 12px; margin-top: 15px; display: none;">
-              <span data-lang="fr">Code incorrect. Veuillez réessayer.</span>
-              <span data-lang="en">Incorrect code. Please try again.</span>
-          </p>
-      </div>
-  </div>
+  <!-- La modale « entrez votre code » vivait ici. Retirée le 22/07/2026 :
+       il existait CINQ portes de connexion (index, mariage, communication,
+       immobilier, /app), chacune avec sa copie du routage — c'est cette
+       dispersion qui a produit les fuites de marque blanche de la journée.
+       Une seule porte désormais : /app, qui porte la marque de l'agence. -->
 
   <a class="floating-contact" id="floatingContact" aria-label="Contact">
     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -812,37 +791,10 @@
     window.SUPABASE_URL = SUPABASE_URL;
     window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
 
-    import { routeForClient } from './univers.js';
-
-    // Supabase (~130 Ko) n'est chargé QUE si un visiteur saisit son code
-    // client — rare sur la page d'accueil. Import dynamique → le SDK sort du
-    // bundle initial de la home (code-splitting Vite), au profit du LCP.
-    let _sbPromise = null;
-    const getSupabase = () => (_sbPromise ??= import('@supabase/supabase-js')
-      .then(({ createClient }) => createClient(SUPABASE_URL, SUPABASE_ANON_KEY)));
-
-    window.checkClientCode = async function() {
-      const raw = document.getElementById('clientCode').value;
-      const code = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/&/g, ' ').trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-
-      const btn = document.querySelector('#clientModal .btn-primary');
-      const err = document.getElementById('clientError');
-      if (btn) btn.disabled = true;
-      err.style.display = 'none';
-
-      try {
-        // RPC scellée (SaaS B.2) : validation du code côté serveur.
-        // Le SDK Supabase est chargé ici, à la demande (import dynamique).
-        const sb = await getSupabase();
-        const { data, error } = await sb.rpc('resolve_client_code', { p_code: code });
-        if (error || !data) { err.style.display = 'block'; if (btn) btn.disabled = false; return; }
-        sessionStorage.setItem('access_granted', code);
-        window.location.href = routeForClient(data);
-      } catch (e) {
-        console.error(e); err.style.display = 'block'; if (btn) btn.disabled = false;
-      }
-    };
-    window.handleClientEnter = function(e) { if (e.key === 'Enter') window.checkClientCode(); };
+    // La saisie du code d'accès vivait ici (routeForClient + Supabase).
+    // Elle appartient à la porte unique /app depuis le 22/07/2026 : la
+    // vitrine du studio n'a plus à connaître les univers clients, et la
+    // page ne charge plus le SDK Supabase pour rien.
   </script>
 
   <script>
@@ -911,18 +863,8 @@
       }
     ];
 
-    function openClientModal(e) {
-      if(e) e.preventDefault();
-      document.getElementById('clientModal').classList.add('active');
-    }
-    function closeClientModal() {
-      document.getElementById('clientModal').classList.remove('active');
-      document.getElementById('clientError').style.display = 'none';
-      document.getElementById('clientCode').value = '';
-    }
-    function closeClientModalOnOverlay(e) {
-      if(e.target.classList.contains('modal-overlay')) closeClientModal();
-    }
+    // (les trois fonctions de la modale d'accès client ont disparu avec
+    //  elle : le lien « Espace clients » mène droit à /app)
 
     /* ============================================================
        ✉️  CONTACT
@@ -1043,11 +985,10 @@
       const v = document.querySelector('.bg-video');
       if (v) v.play().catch(() => {});
 
-      // Ouvre automatiquement l'espace client si on vient d'une autre page via le lien
-      if(window.location.hash === '#clients') {
-        setTimeout(() => { openClientModal(); }, 300);
-        // Nettoie l'URL pour ne pas laisser le #clients visible
-        history.replaceState(null, null, ' ');
+      // Vieux liens « index.html#clients » (emails déjà envoyés, favoris) :
+      // ils menaient à la modale, ils mènent maintenant à la porte unique.
+      if (window.location.hash === '#clients') {
+        window.location.replace('/app');
       }
     });
 

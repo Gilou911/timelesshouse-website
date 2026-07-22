@@ -1521,10 +1521,10 @@
         <a href="#process" class="nav-pill">Process</a>
         <a href="#contact" class="nav-pill">Contact</a>
       </nav>
-      <button class="client-btn" onclick="openModal()">
+      <a class="client-btn" href="/app">
         <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15L19 4"/><path d="M18 5l2 2"/><path d="M15 8l2 2"/></svg>
         <span>Espace Clients</span>
-      </button>
+      </a>
     </div>
   </header>
 
@@ -2316,7 +2316,7 @@
         <ul>
           <li><a href="index.html" id="footerHome">Accueil</a></li>
           <li><a href="mariage.html">Mariage</a></li>
-          <li><button onclick="openModal()">Espace Clients</button></li>
+          <li><a href="/app">Espace Clients</a></li>
         </ul>
       </div>
       <div class="footer-col">
@@ -2346,40 +2346,8 @@
   </a>
 
 
-  <!-- ════════════════════════════════
-       MODALE ESPACE CLIENTS
-  ════════════════════════════════ -->
-  <div class="modal-overlay" id="clientModal" onclick="closeOnOverlay(event)">
-    <div class="modal-box">
-      <button class="modal-close" onclick="closeModal()" aria-label="Fermer">✕</button>
-
-      <div class="modal-icon">
-        <svg viewBox="0 0 24 24">
-          <circle cx="8" cy="15" r="4"/>
-          <path d="M10.85 12.15L19 4"/>
-          <path d="M18 5l2 2"/>
-          <path d="M15 8l2 2"/>
-        </svg>
-      </div>
-
-      <span class="modal-tag">Espace Privé</span>
-      <h2 class="modal-title">Accès Client</h2>
-      <p class="modal-desc">Entrez le code d'accès personnel<br>qui vous a été communiqué.</p>
-
-      <input
-        type="password"
-        class="modal-input"
-        id="clientCode"
-        placeholder="VOTRE CODE"
-        onkeydown="if(event.key==='Enter') checkCode()"
-        autocomplete="off"
-      >
-
-      <button class="modal-btn" onclick="checkCode()">Accéder à mon espace</button>
-
-      <p class="modal-error" id="modalError">Code incorrect — veuillez réessayer.</p>
-    </div>
-  </div>
+  <!-- Modale « entrez votre code » retirée le 22/07/2026 : une seule
+       porte de connexion pour tous les clients, /app. -->
 
 
   <!-- ════════════════════════════════
@@ -2387,39 +2355,8 @@
   ════════════════════════════════ -->
   <!-- 🔐 Codes clients — validés via Supabase (univers immobilier) -->
 
-  <script type="module">
-    // — Config Supabase injectée par Vite depuis .env (variables VITE_*)
-    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    // Rétrocompatibilité pour les scripts classiques de la page qui lisent window.SUPABASE_*
-    window.SUPABASE_URL = SUPABASE_URL;
-    window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
-
-    import { createClient } from '@supabase/supabase-js';
-    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    window.checkCode = async function() {
-      const raw = document.getElementById('clientCode').value;
-      const code = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/&/g, ' ').trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-
-      const err = document.getElementById('modalError');
-      err.style.display = 'none';
-
-      try {
-        // RPC scellée (SaaS B.2) : validation du code côté serveur ;
-        // le filtre « univers immobilier » reste appliqué ici
-        const { data, error } = await sb.rpc('resolve_client_code', { p_code: code });
-        if (error || !data || data.universe !== 'immobilier') {
-          err.style.display = 'block';
-          document.getElementById('clientCode').style.borderColor = 'rgba(217,112,112,0.5)';
-          setTimeout(function() { document.getElementById('clientCode').style.borderColor = ''; }, 1500);
-          return;
-        }
-        sessionStorage.setItem('access_granted', code);
-        window.location.href = data.redirect_url || 'immobilier.html';
-      } catch (e) { console.error(e); err.style.display = 'block'; }
-    };
-  </script>
+  <!-- La validation du code d'accès vivait ici (Supabase + univers) :
+       elle appartient à la porte unique /app depuis le 22/07/2026. -->
 
   <script>
     const CONTACT_EMAIL = 'service@timelesshouse.org';
@@ -2528,22 +2465,9 @@
     }
 
     /* ── MODALE ── */
-    function openModal() {
-      document.getElementById('clientModal').classList.add('active');
-      setTimeout(() => { document.getElementById('clientCode').focus(); }, 200);
-    }
-    function closeModal() {
-      document.getElementById('clientModal').classList.remove('active');
-      document.getElementById('modalError').style.display = 'none';
-      document.getElementById('clientCode').value = '';
-    }
-    function closeOnOverlay(e) { if (e.target === document.getElementById('clientModal')) closeModal(); }
-
-    if (window.location.hash === '#clients') {
-      setTimeout(openModal, 350);
-      history.replaceState(null, null, ' ');
-    }
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+    /* Vieux liens « immobilier.html#clients » (emails déjà envoyés,
+       favoris) : ils ouvraient la modale, ils mènent à la porte unique. */
+    if (window.location.hash === '#clients') window.location.replace('/app');
 
     /* ── FORMULAIRE CONTACT ── */
     function sendForm() {

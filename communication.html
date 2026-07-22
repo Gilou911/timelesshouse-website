@@ -677,37 +677,17 @@
         <span class="service-pill"><span data-lang="fr">Analyses live</span><span data-lang="en">Live analytics</span></span>
         <span class="service-pill"><span data-lang="fr">Calendrier</span><span data-lang="en">Calendar</span></span>
       </div>
-      <button class="access-btn" onclick="openClientModal()">
+      <a class="access-btn" href="/app">
         <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15L19 4"/><path d="M18 5l2 2"/><path d="M15 8l2 2"/></svg>
         <span data-lang="fr">Accéder à mon espace</span><span data-lang="en">Access my space</span>
-      </button>
+      </a>
     </main>
 
     <footer>&copy; 2026 TimelessHouse — <span data-lang="fr">Votre histoire, notre expertise.</span><span data-lang="en">Your story, our expertise.</span></footer>
   </div>
 
-  <div class="modal-overlay" id="clientModal" onclick="closeClientModalOnOverlay(event)">
-    <div class="modal-content">
-      <button class="modal-close" onclick="closeClientModal()" aria-label="Fermer">✕</button>
-      <div class="modal-icon">
-        <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15L19 4"/><path d="M18 5l2 2"/><path d="M15 8l2 2"/></svg>
-      </div>
-      <span class="modal-kicker"><span data-lang="fr">Espace privé</span><span data-lang="en">Private area</span></span>
-      <h2 class="modal-title"><span data-lang="fr">Tableau de bord</span><span data-lang="en">Dashboard</span></h2>
-      <p class="modal-text">
-        <span data-lang="fr">Entrez le code d'accès personnel<br>qui vous a été communiqué.</span>
-        <span data-lang="en">Enter the personal access code<br>that was sent to you.</span>
-      </p>
-      <input type="password" id="clientCode" placeholder="Votre code" class="modal-input" onkeypress="if(event.key==='Enter') checkClientCode()" autocomplete="off">
-      <button onclick="checkClientCode()" class="modal-btn" id="submitBtn">
-        <span data-lang="fr">Accéder à mon espace</span><span data-lang="en">Access my space</span>
-      </button>
-      <p id="clientError" class="modal-error">
-        <span data-lang="fr">Code incorrect. Veuillez réessayer.</span>
-        <span data-lang="en">Incorrect code. Please try again.</span>
-      </p>
-    </div>
-  </div>
+  <!-- Modale « entrez votre code » retirée le 22/07/2026 : une seule
+       porte de connexion pour tous les clients, /app. -->
 
   <!-- 🔑 Config Supabase -->
 
@@ -719,67 +699,7 @@
     window.SUPABASE_URL = SUPABASE_URL;
     window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
 
-    import { createClient } from '@supabase/supabase-js';
-    import { routeForClient } from './univers.js';
-
-    /* ════════════════════════════════════════════════════════════
-       🔐  VALIDATION DU CODE VIA SUPABASE
-       ════════════════════════════════════════════════════════════ */
-
-    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // Frein anti-devinette : les codes sont des slugs, faciles \u00e0 \u00e9num\u00e9rer.
-    // Apr\u00e8s quelques \u00e9checs, on impose une attente croissante c\u00f4t\u00e9 client
-    // (dissuade le for\u00e7age via l'interface ; la limite serveur reste \u00e0 ajouter
-    // sur la RPC resolve_client_code \u2014 voir migration de durcissement).
-    let __codeFails = 0;
-    const __throttleMs = () => __codeFails < 4 ? 0 : Math.min(1000 * 2 ** (__codeFails - 4), 30000);
-
-    window.checkClientCode = async function() {
-      const raw = document.getElementById('clientCode').value;
-      const code = raw.toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .replace(/&/g, ' ').trim()
-        .replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-
-      const btn = document.getElementById('submitBtn');
-      const err = document.getElementById('clientError');
-      btn.disabled = true; err.style.display = 'none';
-
-      const wait = __throttleMs();
-      if (wait) await new Promise(r => setTimeout(r, wait));
-
-      try {
-        // RPC scellée (SaaS B.2) : le code est vérifié côté serveur,
-        // plus aucun select direct sur la table clients avec la clé anon.
-        const { data, error } = await sb.rpc('resolve_client_code', { p_code: code });
-        if (error || !data) { __codeFails++; err.style.display = 'block'; btn.disabled = false; return; }
-        __codeFails = 0;
-        sessionStorage.setItem('access_granted', code);
-        // PWA : mémorise le code pour que l'app installée reste connectée
-        try { localStorage.setItem('th_access_code', code); } catch (e) {}
-        // Cette porte servait le tableau de bord à TOUT LE MONDE : un client
-        // de livraison qui saisissait son code ici tombait sur un tableau de
-        // bord vide. Le routage commun l'envoie désormais au bon endroit.
-        window.location.href = routeForClient(data);
-      } catch (e) {
-        __codeFails++; console.error(e); err.style.display = 'block'; btn.disabled = false;
-      }
-    };
-
-    window.openClientModal = function() {
-      document.getElementById('clientModal').classList.add('active');
-      document.body.style.overflow = 'hidden';
-      setTimeout(() => { document.getElementById('clientCode').focus(); }, 200);
-    };
-    window.closeClientModal = function() {
-      document.getElementById('clientModal').classList.remove('active');
-      document.body.style.overflow = '';
-      document.getElementById('clientError').style.display = 'none';
-      document.getElementById('clientCode').value = '';
-      document.getElementById('submitBtn').disabled = false;
-    };
-    window.closeClientModalOnOverlay = function(e) { if (e.target.classList.contains('modal-overlay')) closeClientModal(); };
+    // La validation du code vivait ici : elle appartient à /app.
     window.toggleLanguage = function() { document.body.classList.toggle('en-mode'); };
 
     window.toggleDarkMode = function() {

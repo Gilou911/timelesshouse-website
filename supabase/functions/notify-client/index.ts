@@ -37,7 +37,7 @@ const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 // locataire. Choix de Gil (22/07/2026) : un domaine NEUTRE partagé plutôt
 // que de demander à chaque locataire de vérifier le sien (zéro effort de
 // leur côté). Le NOM affiché reste celui de l'agence à chaque envoi.
-const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "La Loge <notifications@laloge.house>";
+const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "La Loge <noreply@laloge.house>";
 // Destinataire admin pour les notifications internes
 const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") ?? "service@timelesshouse.org";
 // ── Marque blanche (SaaS B.3) ──

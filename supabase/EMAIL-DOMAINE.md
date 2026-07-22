@@ -1,7 +1,7 @@
 # Échanger le domaine d'envoi Resend → `laloge.house`
 
 **But** : que le client final d'un locataire reçoive
-« **VisonMike** <notifications@laloge.house> » au lieu d'une adresse en
+« **VisonMike** <noreply@laloge.house> » au lieu d'une adresse en
 `@noreply.timelesshouse.org`. Le nom de l'agence est déjà correct ; c'est le
 **domaine** qui trahit la plateforme.
 
@@ -121,7 +121,7 @@ Les trois lignes doivent renvoyer quelque chose. Une ligne vide = piège ①.
 **Seulement une fois le statut `Verified`.**
 
 ```bash
-supabase secrets set FROM_EMAIL="La Loge <notifications@laloge.house>" --project-ref vpbxeqjvaeiytxcpilxf
+supabase secrets set FROM_EMAIL="La Loge <noreply@laloge.house>" --project-ref vpbxeqjvaeiytxcpilxf
 ```
 
 Ou : Supabase → **Project Settings** → **Edge Functions** → **Secrets**.
@@ -169,7 +169,7 @@ est calculé en un seul endroit dans `notify-client`).
 
 ## Verrous posés côté code
 
-- Le repli de `FROM_EMAIL` pointe désormais vers `notifications@laloge.house`.
+- Le repli de `FROM_EMAIL` pointe désormais vers `noreply@laloge.house`.
   L'ancienne valeur (`service@timelesshouse.org`) n'était **pas** un domaine
   vérifié chez Resend : si le secret avait disparu, tous les envois auraient
   échoué.

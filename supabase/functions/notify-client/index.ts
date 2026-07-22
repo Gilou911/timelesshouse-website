@@ -660,28 +660,112 @@ function buildAdminApproval(client, media, kind) {
 // ── Nouveaux gabarits (22/07/2026) : livraison de galerie, film prêt,
 // fin d'accès Découverte, reçu de paiement — plus l'alerte locataire. ──
 
-/** ① Galerie publiée — LE moment de livraison du produit */
-function buildGalleryReady(client, gallery, url) {
+/** ① Galerie publiée — LE moment de livraison du produit.
+ *  S'adapte au CONTENU (photos seules / film seul / les deux) et à
+ *  l'UNIVERS : en mariage, gabarit éditorial façon faire-part (modèle
+ *  fourni par Gil le 22/07/2026) avec photo de couverture de l'album. */
+function buildGalleryReady(client, gallery, url, photoUrl) {
   const B = brandOf(client);
-  // Un couple se salue à deux : « Bonjour Éléa & David »
+  // Un couple se salue à deux : « Chers Éléa & David »
   const prenom = esc(client.partner1 && client.partner2
     ? `${client.partner1} & ${client.partner2}`
     : (client.greeting ?? client.partner1 ?? client.name ?? "chers clients"));
   const titre = esc(gallery?.title || "Votre galerie");
-  const contenu = gallery?.kind === "video" ? "votre film"
-    : gallery?.kind === "mixte" ? "vos photos et votre film" : "vos photos";
+  const kind = gallery?.kind || "photos";
+  const aPhotos = kind === "photos" || kind === "mixte";
+  const aFilm = kind === "video" || kind === "mixte";
+  const sujet = kind === "video" ? `Votre film est prêt — ${B.name}`
+    : kind === "mixte" ? `Vos photos & votre film vous attendent — ${B.name}`
+    : `Vos photos vous attendent — ${B.name}`;
+  const photoHtml = photoUrl
+    ? `<img src="${esc(photoUrl)}" alt="" width="492"
+           style="width:100%;height:auto;display:block;border-radius:3px;margin:0 0 30px"/>`
+    : "";
+
+  // ── Habillage standard (communication, neutre) : concis, efficace ──
+  if (CURRENT_THEME !== "mariage") {
+    const contenu = kind === "video" ? "votre film" : kind === "mixte" ? "vos photos et votre film" : "vos photos";
+    return {
+      subject: `Votre galerie « ${gallery?.title || ""} » est en ligne — ${B.name}`,
+      html: layout(`
+        ${photoHtml}
+        <h2>${titre} vous attend</h2>
+        <p>Bonjour ${prenom},</p>
+        <p>C'est le moment que l'on préfère&nbsp;: ${contenu} ${kind === "video" ? "est" : "sont"} en ligne,
+           dans une galerie préparée pour vous.</p>
+        <div style="text-align:center">
+          <a class="btn" href="${esc(url)}">Découvrir ma galerie</a>
+        </div>
+        <p class="note">Ce lien est personnel — vous pouvez le transmettre à vos proches
+           pour qu'ils en profitent aussi.</p>
+      `)
+    };
+  }
+
+  // ── Habillage MARIAGE : éditorial, sections numérotées si besoin ──
+  const num = (n) => (aPhotos && aFilm ? `${n}.&nbsp;` : "");
+  const sectionPhotos = aPhotos ? `
+    <div style="border-top:1px solid #eee5d8;margin-top:34px;padding:36px 0 8px;text-align:center">
+      <h3 style="font-family:Georgia,serif;font-size:15px;font-weight:normal;letter-spacing:.2em;
+                 text-transform:uppercase;color:#2a2620;margin:0 0 12px">${num("I")}La galerie photographique</h3>
+      <p style="font-size:14px;line-height:1.7;color:#8a8272;margin:0 0 24px">
+        Vos images en haute définition, prêtes à être explorées, partagées et conservées pour toujours.</p>
+      <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr>
+        <td align="center" bgcolor="${B.accent}" style="border-radius:2px">
+          <a href="${esc(url)}" target="_blank"
+             style="display:inline-block;padding:14px 32px;font-family:Helvetica,Arial,sans-serif;font-size:12px;
+                    color:#fdfbf7;text-decoration:none;letter-spacing:.2em;text-transform:uppercase">Découvrir les photos</a>
+        </td></tr></table>
+    </div>` : "";
+  const sectionFilm = aFilm ? `
+    <div style="border-top:1px solid #eee5d8;margin-top:34px;padding:36px 0 8px;text-align:center">
+      <h3 style="font-family:Georgia,serif;font-size:15px;font-weight:normal;letter-spacing:.2em;
+                 text-transform:uppercase;color:#2a2620;margin:0 0 12px">${num("II")}Le film</h3>
+      <p style="font-size:14px;line-height:1.7;color:#8a8272;margin:0 0 24px">
+        Installez-vous confortablement, montez le son, et laissez-vous transporter.</p>
+      <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr>
+        <td align="center" style="border:1px solid ${B.accent};border-radius:2px">
+          <a href="${esc(url)}" target="_blank"
+             style="display:inline-block;padding:13px 32px;font-family:Helvetica,Arial,sans-serif;font-size:12px;
+                    color:${B.accent};text-decoration:none;letter-spacing:.2em;text-transform:uppercase">Visionner le film</a>
+        </td></tr></table>
+    </div>` : "";
+  const rituel = `
+    <div style="background:#f9f5ee;border-left:3px solid #dcd5c6;padding:24px 26px;margin:40px 0 8px;text-align:left">
+      <div style="font-family:Georgia,serif;font-size:17px;font-style:italic;color:#2a2620;margin-bottom:10px">
+        Le rituel de découverte</div>
+      <p style="font-size:14px;line-height:1.7;color:#6b6357;margin:0">
+        Ne vous précipitez pas. Pour cette première fois, attendez la fin de la journée&nbsp;:
+        coupez vos notifications, choisissez votre plus grand écran${aFilm ? ", montez le son" : ""},
+        et laissez les souvenirs traverser l'écran.</p>
+    </div>`;
+  const infos = `
+    <p style="font-size:13px;line-height:1.8;color:#8a8272;text-align:center;margin:28px 0 0">
+      <strong style="color:#635c50">Téléchargement&nbsp;:</strong> pensez à sauvegarder vos souvenirs
+      sur votre ordinateur et un disque externe.<br/>
+      <strong style="color:#635c50">Partage&nbsp;:</strong> ce lien est personnel —
+      transmettez-le à vos proches pour qu'ils en profitent aussi.</p>`;
+  const signature = `
+    <p style="font-family:Georgia,serif;font-size:19px;font-style:italic;color:#2a2620;text-align:center;margin:38px 0 8px">
+      Avec toute notre affection,</p>
+    <p style="text-align:center;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:.25em;
+              text-transform:uppercase;color:#2a2620;margin:0">${esc(B.name)}</p>`;
+
   return {
-    subject: `Votre galerie « ${gallery?.title || ""} » est en ligne — ${B.name}`,
+    subject: sujet,
     html: layout(`
-      <h2>${titre} vous attend</h2>
-      <p>Bonjour ${prenom},</p>
-      <p>C'est le moment que l'on préfère&nbsp;: ${contenu} ${gallery?.kind === "video" ? "est" : "sont"} en ligne,
-         dans une galerie préparée pour vous.</p>
-      <div style="text-align:center">
-        <a class="btn" href="${esc(url)}">Découvrir ma galerie</a>
-      </div>
-      <p class="note">Ce lien est personnel — vous pouvez le transmettre à vos proches
-         pour qu'ils en profitent aussi.</p>
+      ${photoHtml}
+      <h2 style="font-style:italic">${titre}</h2>
+      <p>Chers ${prenom},</p>
+      <p>Le moment est venu. Derrière ${aPhotos ? "chaque image de cette galerie" : "chaque plan de ce film"},
+         il y a un instant vrai de votre journée — un regard suspendu, un éclat de rire, une promesse.</p>
+      <p>Ce fut un privilège d'en être les témoins. Aujourd'hui, nous vous remettons vos
+         souvenirs&nbsp;: ils sont à vous, pour toujours.</p>
+      ${sectionPhotos}
+      ${sectionFilm}
+      ${rituel}
+      ${infos}
+      ${signature}
     `)
   };
 }
@@ -1034,7 +1118,23 @@ serve(async (req)=>{
         const galerieUrl = !agency || agency.slug === "timelesshouse"
           ? `https://timelesshouse.org/galerie?c=${gallery.code}`
           : `https://${agency.slug}.laloge.house/galerie?c=${gallery.code}`;
-        built = buildGalleryReady(client, gallery, galerieUrl);
+        // Photo de couverture pour l'email : celle choisie par le locataire
+        // (config.cover = id de photo), sinon la première de la galerie.
+        // url_view = taille d'affichage (l'original serait trop lourd).
+        let photoUrl = null;
+        if (gallery.kind !== "video") {
+          const enTetes = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` };
+          const premiere = async (filtre) => {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/gallery_photos?${filtre}&select=url_view,url_grid&limit=1`, { headers: enTetes });
+            const rows = await r.json().catch(() => []);
+            return rows?.[0] || null;
+          };
+          let p = gallery.config?.cover ? await premiere(`id=eq.${gallery.config.cover}`) : null;
+          if (!p) p = await premiere(`gallery_id=eq.${gallery.id}&order=position.asc`);
+          photoUrl = p?.url_view || p?.url_grid || null;
+          if (photoUrl && !/^https:\/\//i.test(photoUrl)) photoUrl = null; // http = image cassée en mail
+        }
+        built = buildGalleryReady(client, gallery, galerieUrl, photoUrl);
       } else if (kind === "video_ready") {
         built = buildVideoReady(client, extra ?? {}, (extra && extra.url) || espaceUrl);
       } else if (kind === "access_expiring") {

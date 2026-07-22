@@ -504,6 +504,22 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       );
     };
 
+    // Bouton « prévenir le client par email » — LE même partout (cloche),
+    // pour que l'action se reconnaisse d'un coup d'œil quel que soit
+    // l'onglet (médias, factures, documents, tournages, stratégies…).
+    const BellBtn = ({ onClick, busy, title, className = '' }) => (
+      <button
+        onClick={onClick}
+        disabled={busy}
+        aria-label={title}
+        title={title}
+        style={neu.raisedXs}
+        className={`w-10 h-10 rounded-full flex items-center justify-center text-stone-600 disabled:opacity-50 active:scale-95 transition-transform ${className}`}
+      >
+        {busy ? <Loader2 size={15} className="animate-spin" /> : <Bell size={15} />}
+      </button>
+    );
+
     // Libellé de champ — hiérarchie visuelle Apple (22/07/2026) : le
     // libellé est PROCHE du contenu, il doit donc être lisible et sombre,
     // en casse normale. Les petites capitales espacées à 10 px criaient
@@ -2154,7 +2170,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   se retrouvait coupé hors de l'écran. */}
               <div className="flex items-center gap-3 flex-wrap lg:flex-nowrap shrink-0">
                 {client.client_email && (
-                  <Btn icon={sendingWelcome ? Loader2 : Send} onClick={sendWelcomeEmail} disabled={sendingWelcome}>
+                  <Btn icon={sendingWelcome ? Loader2 : Bell} onClick={sendWelcomeEmail} disabled={sendingWelcome}>
                     <span className="hidden sm:inline">{sendingWelcome ? 'Envoi…' : 'Email de bienvenue'}</span>
                     <span className="sm:hidden">{sendingWelcome ? 'Envoi…' : 'Bienvenue'}</span>
                   </Btn>
@@ -2210,7 +2226,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           {tab === 'event_pages' && <EventPagesTab clientId={client.id} client={client} />}
           {tab === 'media' && <MediaTab clientId={client.id} client={client} />}
           {tab === 'invoices' && <InvoicesTab clientId={client.id} client={client} />}
-          {tab === 'documents' && <DocumentsTab clientId={client.id} />}
+          {tab === 'documents' && <DocumentsTab clientId={client.id} client={client} />}
           {tab === 'strategies' && <StrategiesTab clientId={client.id} client={client} />}
           {tab === 'shoots' && <ShootsTab clientId={client.id} client={client} />}
           {tab === 'analytics' && <AnalyticsTab clientId={client.id} />}
@@ -2525,8 +2541,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <div className="flex items-center gap-2 flex-wrap">
                 {hasAnyPage && client.client_email && (
                   <button onClick={notifyClient} disabled={notifying} style={neu.dark} className="px-4 py-2 rounded-full text-white text-[12px] font-semibold flex items-center gap-1.5 disabled:opacity-60">
-                    {notifying ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                    {notifying ? 'Envoi…' : 'Notifier le client'}
+                    {notifying ? <Loader2 size={12} className="animate-spin" /> : <Bell size={12} />}
+                    {notifying ? 'Envoi…' : 'Prévenir le client'}
                   </button>
                 )}
                 {client.redirect_url && (
@@ -3113,7 +3129,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </div>
             <div className="flex gap-3 mt-2.5 flex-wrap">
               {g.share_enabled && (
-                <Btn kind="dark" icon={envoiGalerie ? Loader2 : Send} onClick={envoyerGalerie} disabled={busy || envoiGalerie}>
+                <Btn kind="dark" icon={envoiGalerie ? Loader2 : Bell} onClick={envoyerGalerie} disabled={busy || envoiGalerie}>
                   {envoiGalerie ? 'Envoi…' : 'Envoyer au client'}
                 </Btn>
               )}
@@ -4846,9 +4862,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       </button>
 
                       {client?.client_email && (
-                        <button onClick={() => notifyClient(m)} disabled={notifying === m.id} aria-label="Notifier le client" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center disabled:opacity-50 active:scale-95 transition-transform" title="Notifier le client par email">
-                          {notifying === m.id ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}
-                        </button>
+                        <BellBtn onClick={() => notifyClient(m)} busy={notifying === m.id} title="Prévenir le client par email" />
                       )}
                       {m.url && <a href={m.url} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir dans un nouvel onglet" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-transform" title="Ouvrir dans un nouvel onglet"><ExternalLink size={14} /></a>}
                       <button onClick={() => { setEditing(m); setShowForm(true); }} aria-label="Modifier" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-transform" title="Modifier"><Edit3 size={14} /></button>
@@ -5713,9 +5727,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         </div>
                         <div className="flex items-center gap-2">
                           {client?.client_email && (
-                            <button onClick={() => notifyInvoiceReady(inv)} disabled={notifying === inv.id} aria-label="Notifier le client" className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-stone-600 disabled:opacity-50 active:scale-95 transition-transform" title="Prévenir le client que la facture est prête">
-                            {notifying === inv.id ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                            </button>
+                            <BellBtn onClick={() => notifyInvoiceReady(inv)} busy={notifying === inv.id} title="Prévenir le client que la facture est prête" />
                           )}
                           <button onClick={() => { setEditing(inv); setShowForm(true); }} aria-label="Modifier" className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform"><Edit3 size={14} /></button>
                           <button onClick={() => remove(inv.id)} aria-label="Supprimer" className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-rose-500 active:scale-95 transition-transform"><Trash2 size={14} /></button>
@@ -5734,9 +5746,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       </div>
                       <div className="col-span-1 flex items-center justify-end gap-1.5">
                         {client?.client_email && (
-                          <button onClick={() => notifyInvoiceReady(inv)} disabled={notifying === inv.id} aria-label="Notifier le client" className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100 disabled:opacity-50" title="Prévenir le client que la facture est prête">
-                            {notifying === inv.id ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                          </button>
+                          <BellBtn onClick={() => notifyInvoiceReady(inv)} busy={notifying === inv.id} title="Prévenir le client que la facture est prête" />
                         )}
                         <button onClick={() => { setEditing(inv); setShowForm(true); }} aria-label="Modifier" className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100"><Edit3 size={13} /></button>
                         <button onClick={() => remove(inv.id)} aria-label="Supprimer" className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500 hover:bg-rose-50"><Trash2 size={13} /></button>
@@ -5895,11 +5905,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       );
     };
 
-    function DocumentsTab({ clientId }) {
+    function DocumentsTab({ clientId, client }) {
       const [items, setItems] = useState([]);
       const [editing, setEditing] = useState(null);
       const [showForm, setShowForm] = useState(false);
       const [loading, setLoading] = useState(true);
+      const [notifying, setNotifying] = useState(null);
 
       const load = async () => {
         setLoading(true);
@@ -5912,6 +5923,29 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (!confirm('Supprimer ce document ?\n\nVotre client n\'y aura plus accès. Cette action est irréversible.')) return;
         await sb.from('documents').delete().eq('id', id);
         load();
+      };
+
+      // Prévenir le client qu'un document l'attend (kind: document_ready).
+      // L'email contient le lien de SON espace avec son code : un clic
+      // et il est connecté.
+      const notifyDocument = async (doc) => {
+        if (!client?.client_email) {
+          alert("Ajoutez d'abord l'email du client (Modifier → champ Email).");
+          return;
+        }
+        if (!confirm(`Envoyer un email à ${client.client_email} pour annoncer que « ${doc.title} » est disponible sur son espace ?`)) return;
+        setNotifying(doc.id);
+        try {
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/notify-client`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body:    JSON.stringify({ kind: 'document_ready', client_id: clientId, document_id: doc.id }),
+          });
+          if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
+          else if (res.status === 404) alert("La fonction de notification n'est pas déployée.");
+          else alert(`Erreur : ${humaniseErreur(await res.text(), 'email')}`);
+        } catch (e) { alert('Erreur réseau : ' + e.message); }
+        setNotifying(null);
       };
 
       return (
@@ -5951,6 +5985,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                             <ExternalLink size={12} /> Ouvrir
                           </a>
                           <div className="flex items-center gap-2">
+                            <BellBtn onClick={() => notifyDocument(doc)} busy={notifying === doc.id} title="Prévenir le client que ce document l'attend" />
                             <button onClick={() => { setEditing(doc); setShowForm(true); }} aria-label="Modifier" className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform"><Edit3 size={14} /></button>
                             <button onClick={() => remove(doc.id)} aria-label="Supprimer" className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-rose-500 active:scale-95 transition-transform"><Trash2 size={14} /></button>
                           </div>
@@ -5966,6 +6001,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         <div className="col-span-2 text-[12px] text-stone-500">{doc.date_label}</div>
                         <div className="col-span-2 text-[12px] text-stone-500 truncate">{doc.size_label || '—'}</div>
                         <div className="col-span-1 flex items-center justify-end gap-1.5">
+                          <BellBtn onClick={() => notifyDocument(doc)} busy={notifying === doc.id} title="Prévenir le client que ce document l'attend" />
                           <a href={doc.file_url} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir le document" className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100" title="Ouvrir le document"><ExternalLink size={13} /></a>
                           <button onClick={() => { setEditing(doc); setShowForm(true); }} aria-label="Modifier" className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100"><Edit3 size={13} /></button>
                           <button onClick={() => remove(doc.id)} aria-label="Supprimer" className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500 hover:bg-rose-50"><Trash2 size={13} /></button>
@@ -6281,9 +6317,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                           <div className="flex items-center gap-1.5 shrink-0">
                             <button onClick={() => setShootFor(s)} aria-label="Planifier un tournage" title="Planifier un tournage lié à cette stratégie" className="w-10 h-10 lg:w-9 lg:h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform"><CalendarIcon size={14} /></button>
                             {s.status === 'published' && client?.client_email && (
-                              <button onClick={() => notifyReady(s)} disabled={notifying === s.id} aria-label="Notifier le client" title="Envoyer un email au client" className="w-10 h-10 lg:w-9 lg:h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform disabled:opacity-50">
-                                {notifying === s.id ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                              </button>
+                              <BellBtn onClick={() => notifyReady(s)} busy={notifying === s.id} title="Prévenir le client par email" />
                             )}
                             <button onClick={() => duplicate(s)} disabled={busyId === s.id} aria-label="Dupliquer" title="Dupliquer (sert de modèle)" className="w-10 h-10 lg:w-9 lg:h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform disabled:opacity-50"><Copy size={14} /></button>
                             <button onClick={() => { setEditing(s); setShowForm(true); }} aria-label="Modifier" className="w-10 h-10 lg:w-9 lg:h-9 rounded-full flex items-center justify-center bg-white text-stone-600 active:scale-95 transition-transform"><Edit3 size={14} /></button>
@@ -6743,9 +6777,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   <div className="flex items-center gap-1.5 ml-auto">
                     <button onClick={() => setInvoiceFor(s)} aria-label="Facturer ce tournage" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-transform" title="Créer une facture liée à ce tournage"><FileText size={14} /></button>
                     {client?.client_email && (
-                      <button onClick={() => notifyScheduled(s)} disabled={notifying === s.id} aria-label="Notifier le client" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center disabled:opacity-50 active:scale-95 transition-transform" title="Prévenir le client de ce tournage par email">
-                      {notifying === s.id ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                    </button>
+                      <BellBtn onClick={() => notifyScheduled(s)} busy={notifying === s.id} title="Prévenir le client de ce tournage par email" />
                     )}
                     <button onClick={() => { setEditing(s); setShowForm(true); }} aria-label="Modifier" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-transform"><Edit3 size={14} /></button>
                     <button onClick={() => remove(s.id)} aria-label="Supprimer" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center text-rose-500 active:scale-95 transition-transform"><Trash2 size={14} /></button>

@@ -30,6 +30,7 @@ const portee = {};
 new Function("Deno", "serve", "sortie", `${src}
   Object.assign(sortie, {
     buildWelcome, buildNewMedia, buildEventReady, buildInvoiceReady,
+    buildDocumentReady,
     buildInvoiceReminder, buildInvoicePaid, buildShootScheduled,
     buildShootUpdated, buildShootReminder, buildGalleryReady,
     buildVideoReady, buildAccessExpiring, buildAdminNewComment,
@@ -77,6 +78,7 @@ for (const ag of AGENCES) {
       "nouveau média":     p.buildNewMedia(c, { title: "Photo" }, {}),
       "contenu prêt":      p.buildEventReady(c, { hasPhotos: true }),
       "facture dispo":     p.buildInvoiceReady(c, { reference: "FAC-1", amount: 1200 }),
+      "document livré":    p.buildDocumentReady(c, { title: "Contrat de prestation", category: "Contrat" }),
       "relance facture":   p.buildInvoiceReminder(c, facture, "before_due"),
       "reçu paiement":     p.buildInvoicePaid(c, facture),
       "tournage prévu":    p.buildShootScheduled(c, tournage),

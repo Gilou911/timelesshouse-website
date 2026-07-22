@@ -63,9 +63,9 @@ Retire `"dry_run": true` pour recevoir l'email pour de vrai.
 
 ---
 
-## Les 18 envois, et comment les déclencher
+## Les 19 envois, et comment les déclencher
 
-### A. Par l'interface — les plus simples (8)
+### A. Par l'interface — les plus simples (9)
 
 | # | Email | Où cliquer |
 |---|---|---|
@@ -77,6 +77,7 @@ Retire `"dry_run": true` pour recevoir l'email pour de vrai.
 | 6 | **Tournage programmé** | Onglet Tournages → créer un tournage → proposition d'envoi |
 | 7 | **Tournage modifié** | Modifier la date d'un tournage existant |
 | 8 | **Contenu disponible** | Page événement (plateforme uniquement) |
+| 9 | **Document déposé** ✨ | Onglet Documents → icône cloche sur un document. Le bouton de l'email porte le code du client : un clic et il est connecté à son espace |
 
 > ⑤ ne se propose **que** si la facture n'était pas déjà payée — c'est
 > volontaire, pour ne jamais envoyer deux reçus.
@@ -88,13 +89,13 @@ Connecte-toi à l'espace client avec le code de ta fiche de test, puis :
 
 | # | Email reçu par l'agence | Action côté client |
 |---|---|---|
-| 9 | **Nouveau commentaire** | Commenter un média |
-| 10 | **Média validé** | Valider un média |
-| 11 | **Retouches demandées** | Demander des modifications |
+| 10 | **Nouveau commentaire** | Commenter un média |
+| 11 | **Média validé** | Valider un média |
+| 12 | **Retouches demandées** | Demander des modifications |
 
 ### C. Automatiques — à provoquer (7)
 
-**12. « Votre film est prêt » ✨** — le plus satisfaisant à tester en réel :
+**13. « Votre film est prêt » ✨** — le plus satisfaisant à tester en réel :
 téléverse un MP4 dans une galerie, attends la fin de l'encodage
 (quelques minutes). L'email part tout seul. Suis l'opération :
 
@@ -105,25 +106,25 @@ tail -f ~/Desktop/timelesshouse-website/workers/encoder/worker.log
 Tu dois voir `✉ client prévenu — « votre film est prêt »`.
 *Il ne part qu'à la **première** mise à disposition, jamais lors d'un ré-encodage.*
 
-**13-14. Fin d'accès (client + locataire) ✨** — impossible à provoquer
+**14-15. Fin d'accès (client + locataire) ✨** — impossible à provoquer
 naturellement sans un client vieux de 75 jours exactement. Teste le
 contenu directement :
 
 ```bash
-# ⑬ au client final
+# ⑭ au client final
 curl -s -X POST "https://vpbxeqjvaeiytxcpilxf.supabase.co/functions/v1/notify-client" \
   -H "Content-Type: application/json" -H "Authorization: Bearer $K" \
   -d '{"kind":"access_expiring","client_id":"ID","extra":{"days":15,"dateLabel":"5 octobre 2026"}}'
 ```
 
 ```bash
-# ⑭ au locataire
+# ⑮ au locataire
 curl -s -X POST "https://vpbxeqjvaeiytxcpilxf.supabase.co/functions/v1/notify-client" \
   -H "Content-Type: application/json" -H "Authorization: Bearer $K" \
   -d '{"kind":"admin_client_expiring","client_id":"ID","extra":{"days":15,"dateLabel":"5 octobre 2026"}}'
 ```
 
-**15-16. Rappels tournage et facture** — le cron quotidien ne tire qu'à
+**16-17. Rappels tournage et facture** — le cron quotidien ne tire qu'à
 une date exacte (J-7/J-1 pour un tournage, J-3/J0/J+7/J+14 pour une
 facture). Pour un vrai test bout en bout : crée un tournage daté dans
 **exactement 7 jours**, ou une facture dont l'échéance est dans
@@ -137,7 +138,7 @@ La réponse est un journal détaillé (`log`) qui indique, pour chaque
 client, ce qui a été envoyé, ignoré ou raté. **Sans date correspondante,
 le journal sera vide — c'est le comportement normal, pas une panne.**
 
-**17-18. Alertes stockage 80 % / 100 % ✨** — elles partent quand la
+**18-19. Alertes stockage 80 % / 100 % ✨** — elles partent quand la
 mesure nocturne **franchit** le seuil. Deux façons :
 
 - déclencher la mesure depuis Supabase → **Integrations → Cron** ;
@@ -177,8 +178,8 @@ adresse de réponse — reste identique dans les trois cas) :
 | **Communication & Marketing** | **Neumorphique** (modèle de Gil — le style de l'app) | marque hors de la boîte (« VisonMike. / ESPACE CLIENT »), grande boîte extrudée à ombres jumelles, code d'accès et montants **en creux**, bouton pilule extrudé |
 | **Espace neutre** (et repli) | Classique | en-tête coloré à l'accent de l'agence, boîte blanche |
 
-Les 15 gabarits (bienvenue, galerie, film, factures, tournages, fin
-d'accès…) existent dans les trois habillages — **seul l'habit change,
+Les 16 gabarits (bienvenue, galerie, film, factures, documents,
+tournages, fin d'accès…) existent dans les trois habillages — **seul l'habit change,
 le contenu reste propre à chaque type**. Pour la recette : crée un
 client par univers avec ton email, et envoie-lui le même email de
 bienvenue — tu dois recevoir trois mises en scène différentes du même

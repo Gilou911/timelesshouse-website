@@ -271,6 +271,18 @@
         console.error(e2); err.style.display = 'block'; btn.disabled = false;
       }
     });
+
+    /* ── Lien d'email « ?code= » : connexion en un clic ─────────
+       Les emails (documents…) peuvent porter le code du client :
+       on le pré-remplit et on entre tout seul. Le code est retiré
+       de la barre d'adresse aussitôt lu ; s'il est faux, l'erreur
+       normale s'affiche avec le champ déjà rempli. */
+    const preCode = qs.get('code');
+    if (preCode) {
+      el('clientCode').value = preCode;
+      history.replaceState(null, '', location.pathname);
+      if (form.requestSubmit) form.requestSubmit(); else btn.click();
+    }
   </script>
 </body>
 </html>

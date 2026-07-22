@@ -12,6 +12,7 @@
 //   new_media                → nouveau média livré
 //   event_ready              → photos / film disponibles
 //   invoice_ready            → facture disponible dans l'espace client
+//   document_ready           → document déposé dans l'espace client
 //   invoice_reminder         → relance auto (J-3 / J0 / J+7 / J+14) ← NOUVEAU
 //   shoot_scheduled          → tournage programmé
 //   shoot_updated            → tournage modifié (date/lieu)
@@ -618,6 +619,37 @@ function buildInvoiceReady(client, extra) {
     `)
   };
 }
+// ── document_ready ───────────────────────────────────────────────
+// Le lien porte le code du client (`?code=`) : la porte d'entrée
+// (app.html) le pré-remplit et entre toute seule — un clic suffit.
+function espaceAvecCode(code) {
+  const base = CURRENT_ESPACE.endsWith("/app") ? CURRENT_ESPACE : `${CURRENT_ESPACE}/app`;
+  return code ? `${base}?code=${encodeURIComponent(code)}` : base;
+}
+function buildDocumentReady(client, doc) {
+  const B = brandOf(client);
+  const prenom = esc(client.greeting ?? client.name ?? "cher client");
+  const titre = esc(doc?.title ?? "un document");
+  const categorie = doc?.category ? ` <span class="ref">${esc(doc.category)}</span>` : "";
+  const url = espaceAvecCode(client.code);
+  return {
+    subject: `Un document est à votre disposition — ${B.name}`,
+    html: layout(`
+      <h2>Un document vous attend</h2>
+      <p>Bonjour ${prenom},</p>
+      <p>${esc(B.name)} vient de déposer <strong>${titre}</strong>${categorie}
+         dans votre espace. Vous pouvez le consulter et le télécharger
+         quand vous le souhaitez — il y restera disponible.</p>
+      <div style="text-align:center">
+        <a class="btn" href="${url}">Consulter mes documents</a>
+      </div>
+      <p class="note" style="margin-top:28px">
+        Le bouton vous connecte automatiquement. Si un code vous est
+        demandé, le vôtre est&nbsp;: <strong>${esc(client.code)}</strong>
+      </p>
+    `)
+  };
+}
 // ── invoice_reminder ─────────────────────────────────────────────
 // Reçoit `reminder_type` (envoyé par le cron scheduled-notifications) :
 //   • before_due  → J-3 avant échéance (ton doux)
@@ -1044,7 +1076,7 @@ serve(async (req)=>{
   }
   try {
     const body = await req.json();
-    const { kind, client_id, media_id, invoice_id, strategy_id, gallery_id, reminder_type, extra, comment } = body;
+    const { kind, client_id, media_id, invoice_id, strategy_id, gallery_id, document_id, reminder_type, extra, comment } = body;
     if (!kind) {
       return new Response(JSON.stringify({
         error: "Paramètre 'kind' manquant"
@@ -1120,6 +1152,7 @@ serve(async (req)=>{
       "invoice_ready",
       "invoice_reminder",
       "invoice_paid",
+      "document_ready",
       "shoot_scheduled",
       "shoot_updated",
       "shoot_reminder",
@@ -1277,6 +1310,20 @@ serve(async (req)=>{
         built = buildVideoReady(client, extra ?? {}, (extra && extra.url) || espaceUrl);
       } else if (kind === "access_expiring") {
         built = buildAccessExpiring(client, extra ?? {}, espaceUrl);
+      } else if (kind === "document_ready") {
+        const doc = document_id ? await sbGet("documents", document_id) : null;
+        if (!doc) {
+          return new Response(JSON.stringify({ error: "Document introuvable (document_id manquant ou invalide)." }), {
+            status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+          });
+        }
+        // Sécurité : le document doit appartenir AU client visé.
+        if (doc.client_id !== client.id) {
+          return new Response(JSON.stringify({ error: "Ce document n'appartient pas à ce client." }), {
+            status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+          });
+        }
+        built = buildDocumentReady(client, doc);
       } else if (kind === "invoice_paid") {
         const facture = invoice_id ? await sbGet("invoices", invoice_id) : null;
         if (!facture) {

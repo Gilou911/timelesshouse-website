@@ -677,6 +677,25 @@ async function recentCount(clientId) {
   const total = parseInt((res.headers.get("content-range") || "").split("/")[1] || "0", 10);
   return Number.isNaN(total) ? 0 : total;
 }
+/** Un envoi portant CETTE clé a-t-il déjà réussi ?
+ *  Le cron transmettait `dedupe_key` (« inv:<id>:j-3 »…) depuis toujours,
+ *  et son commentaire affirmait qu'elle était « gérée par notify-client » —
+ *  elle ne l'était pas. Résultat : deux exécutions du cron le même jour
+ *  envoyaient DEUX fois la même relance au client. Constaté et corrigé le
+ *  22/07/2026. En cas de doute (erreur réseau), on n'empêche pas l'envoi :
+ *  mieux vaut un doublon rare qu'une relance perdue. */
+async function alreadySent(dedupeKey) {
+  if (!dedupeKey) return false;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/notifications?payload->>dedupe_key=eq.${encodeURIComponent(dedupeKey)}&sent_at=not.is.null&select=id&limit=1`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+    );
+    const rows = await res.json().catch(() => []);
+    return Array.isArray(rows) && rows.length > 0;
+  } catch (_) { return false; }
+}
+
 /** Trace chaque envoi (sent_at null = échec). Best effort — jamais bloquant. */
 async function logNotification(clientId, kind, payload, ok) {
   try {
@@ -745,6 +764,13 @@ serve(async (req)=>{
     if (!body.dry_run && (await recentCount(client.id)) >= RL_MAX) {
       return new Response(JSON.stringify({ ok: true, skipped: "rate_limited" }), {
         status: 429, headers: { ...CORS, "Content-Type": "application/json" }
+      });
+    }
+    // Anti-doublon par clé : un rappel identique n'est jamais renvoyé,
+    // même si le cron est rejoué (test manuel, double planification…).
+    if (!body.dry_run && (await alreadySent(body.dedupe_key))) {
+      return new Response(JSON.stringify({ ok: true, skipped: "already_sent" }), {
+        status: 200, headers: { ...CORS, "Content-Type": "application/json" }
       });
     }
     /** Réponse dry_run : tout est construit, rien n'est envoyé */

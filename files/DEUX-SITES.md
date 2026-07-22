@@ -36,7 +36,13 @@ Le test refuse de passer si la page n'est déclarée nulle part, si elle
 est dans les deux builds, ou si son build et son classement se
 contredisent. Il vérifie aussi les 43 règles de routage du portier.
 
-## Mise en service (une seule fois)
+## Mise en service — ✅ FAITE le 22/07/2026
+
+Les deux projets Cloudflare Pages existent et les domaines sont
+répartis. La procédure ci-dessous est conservée pour mémoire (et pour
+recréer un projet si besoin).
+
+
 
 Le projet Cloudflare Pages existant devient **le produit** — rien à y
 changer. Il faut créer le second, pour le studio :

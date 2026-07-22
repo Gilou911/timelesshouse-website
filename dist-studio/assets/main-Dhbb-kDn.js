@@ -1,1 +1,0 @@
-import"./modulepreload-polyfill-B5Qt9EMX.js";const I="https://vpbxeqjvaeiytxcpilxf.supabase.co",i="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwYnhlcWp2YWVpeXR4Y3BpbHhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0MDkxMTMsImV4cCI6MjA5Mjk4NTExM30.v14QffjzBY83mlxAHzFLkMRolQlWHfYkGhx-q4pkoQI";window.SUPABASE_URL=I;window.SUPABASE_ANON_KEY=i;

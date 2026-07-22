@@ -127,13 +127,6 @@ const buildStudio = entrees("vite.config.studio.js");
 const pagesDuDepot = readdirSync(RACINE).filter((f) => f.endsWith(".html")).map((f) => f.slice(0, -5));
 const cotéProduit = new Set([...portee.PAGES_LOGE, ...portee.PAGES_VITRINE, ...portee.PAGES_PARTOUT]);
 
-/* Phase de transition : timelesshouse.org est encore servi par le
-   projet du produit. Ces pages sont donc volontairement dans les deux
-   builds jusqu'à la bascule du domaine (étape 4 de DEUX-SITES.md).
-   Les retirer avant ferait tomber la vitrine en 404. */
-const TRANSITION = new Set([...portee.PAGES_TIMELESSHOUSE]);
-let enTransition = 0;
-
 const soucis = [];
 for (const p of pagesDuDepot) {
   const dansProduit = buildProduit.has(p);
@@ -142,7 +135,6 @@ for (const p of pagesDuDepot) {
     soucis.push(`${p}.html n'est déclarée dans AUCUN build — elle ne sera servie nulle part.` +
       `\n        → ajoutez-la à vite.config.js (produit) OU vite.config.studio.js (studio), et à la liste correspondante de worker.js`);
   } else if (dansProduit && dansStudio) {
-    if (TRANSITION.has(p)) { enTransition++; continue; }
     soucis.push(`${p}.html est déclarée dans les DEUX builds — la séparation est annulée pour elle.`);
   } else if (dansProduit && portee.PAGES_TIMELESSHOUSE.has(p)) {
     soucis.push(`${p}.html est construite avec le produit mais classée « studio » dans worker.js — elle serait servie puis redirigée.`);
@@ -156,11 +148,7 @@ if (soucis.length) {
   soucis.forEach((s) => console.log(`     ${s}`));
   ratés += soucis.length;
 } else {
-  console.log(`✅ rangement : ${buildProduit.size} page(s) côté produit, ${buildStudio.size} côté studio, aucune oubliée`);
-  if (enTransition) {
-    console.log(`   ⏳ ${enTransition} page(s) du studio encore dans les deux builds — normal tant que`);
-    console.log(`      timelesshouse.org n'est pas bascule sur son projet (files/DEUX-SITES.md, étape 4).`);
-  }
+  console.log(`✅ rangement : ${buildProduit.size} page(s) côté produit, ${buildStudio.size} côté studio, aucune en double ni oubliée`);
 }
 
 console.log(`\n${CAS.length} cas contrôlés · ${ratés} écart(s)`);

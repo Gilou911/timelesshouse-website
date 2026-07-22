@@ -504,9 +504,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       );
     };
 
+    // Libellé de champ — hiérarchie visuelle Apple (22/07/2026) : le
+    // libellé est PROCHE du contenu, il doit donc être lisible et sombre,
+    // en casse normale. Les petites capitales espacées à 10 px criaient
+    // plus fort que la valeur saisie (et passaient sous le plancher des
+    // 11 px du guide). Ce sont les intitulés de GROUPE qui reculent,
+    // pas les libellés — exactement l'inverse de l'ancien réglage.
     const Field = ({ label, children }) => (
       <div>
-        <label className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold block mb-2">{label}</label>
+        <label className="text-[13px] text-stone-700 font-medium block mb-2 leading-snug">{label}</label>
         {children}
       </div>
     );
@@ -516,8 +522,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     // logique vivent sous un même intitulé, et tous les champs gardent la
     // MÊME largeur — c'est ce qui crée la cohérence visuelle. Le premier
     // groupe d'un formulaire se passe d'intitulé (c'est l'essentiel).
+    // pt-7 : la RESPIRATION fait le regroupement (principe « proximity »).
+    // 44 px entre deux groupes contre 16 px entre deux champs — un rapport
+    // franc, sans quoi l'œil ne perçoit pas les sections.
     const FormSection = ({ title, children }) => (
-      <div className="space-y-4 pt-2 first:pt-0">
+      <div className="space-y-4 pt-7 first:pt-0">
         {title && (
           <div className="text-[11px] uppercase tracking-[0.14em] text-stone-500 font-semibold">{title}</div>
         )}

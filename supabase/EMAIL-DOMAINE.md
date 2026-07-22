@@ -1,5 +1,10 @@
 # Échanger le domaine d'envoi Resend → `laloge.house`
 
+> ✅ **FAIT le 22/07/2026.** Domaine `laloge.house` vérifié chez Resend (Irlande),
+> 4 enregistrements posés par l'API Cloudflare (DKIM, MX/SPF sur `send`, DMARC),
+> secret `FROM_EMAIL = La Loge <noreply@laloge.house>` posé, `notify-client`
+> redéployée. Ce guide reste comme référence (retour arrière, second domaine).
+
 **But** : que le client final d'un locataire reçoive
 « **VisonMike** <noreply@laloge.house> » au lieu d'une adresse en
 `@noreply.timelesshouse.org`. Le nom de l'agence est déjà correct ; c'est le

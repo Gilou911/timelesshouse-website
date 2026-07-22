@@ -135,7 +135,32 @@ function esc(v) {
   const rows = await res.json();
   return rows?.[0] ?? null;
 }
+/** FILET DE MARQUE BLANCHE (22/07/2026) — dernière ligne de défense.
+ *  Le 22/07, 13 boutons renvoyaient les clients d'un locataire chez
+ *  TimelessHouse : des URL en dur dans les gabarits, invisibles tant
+ *  qu'on ne cliquait pas. Corrigées une à une — mais rien n'empêchait
+ *  la faute de revenir au prochain gabarit écrit distraitement.
+ *  Ici, JUSTE AVANT l'envoi : si la marque est celle d'un locataire,
+ *  toute URL de la plateforme est réécrite vers SON domaine, et le
+ *  fait est journalisé pour qu'on corrige la source. Aucun effet sur
+ *  les emails de la plateforme elle-même (slug timelesshouse). */
+function filetMarqueBlanche(html, brand) {
+  const slug = brand?.slug;
+  if (!slug || slug === "timelesshouse") return html;
+  const base = `https://${slug}.laloge.house`;
+  let n = 0;
+  const out = String(html).replace(
+    /https:\/\/(?:www\.)?timelesshouse\.org(\/app)?/g,
+    () => { n++; return base; },
+  );
+  if (n > 0) {
+    console.warn(`[notify-client] FILET : ${n} lien(s) de plateforme réécrit(s) vers ${base} — un gabarit contient une URL en dur, à corriger à la source.`);
+  }
+  return out;
+}
+
 /** Envoie un email via Resend (expéditeur au nom de la marque) */ async function sendEmail({ to, subject, html, brand, replyTo }) {
+  html = filetMarqueBlanche(html, brand);
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {

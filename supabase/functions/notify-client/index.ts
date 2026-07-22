@@ -644,8 +644,9 @@ function buildDocumentReady(client, doc) {
         <a class="btn" href="${url}">Consulter mes documents</a>
       </div>
       <p class="note" style="margin-top:28px">
-        Le bouton vous connecte automatiquement. Si un code vous est
-        demandé, le vôtre est&nbsp;: <strong>${esc(client.code)}</strong>
+        Votre code d'accès sera déjà rempli à l'arrivée — appuyez
+        simplement sur « Entrer ». Le voici en cas de besoin&nbsp;:
+        <strong>${esc(client.code)}</strong>
       </p>
     `)
   };

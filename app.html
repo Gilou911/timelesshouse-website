@@ -272,16 +272,17 @@
       }
     });
 
-    /* ── Lien d'email « ?code= » : connexion en un clic ─────────
-       Les emails (documents…) peuvent porter le code du client :
-       on le pré-remplit et on entre tout seul. Le code est retiré
-       de la barre d'adresse aussitôt lu ; s'il est faux, l'erreur
-       normale s'affiche avec le champ déjà rempli. */
+    /* ── Lien d'email « ?code= » : code pré-rempli, JAMAIS soumis ──
+       Les emails (documents…) portent le code du client : on le
+       pré-remplit et on s'arrête là — le client voit la porte de sa
+       loge et entre lui-même (retour de Gil du 22/07 : l'entrée
+       automatique l'expédiait d'office sur sa page d'univers, il
+       veut arriver sur /app). Le code est retiré de la barre
+       d'adresse aussitôt lu. */
     const preCode = qs.get('code');
     if (preCode) {
       el('clientCode').value = preCode;
       history.replaceState(null, '', location.pathname);
-      if (form.requestSubmit) form.requestSubmit(); else btn.click();
     }
   </script>
 </body>

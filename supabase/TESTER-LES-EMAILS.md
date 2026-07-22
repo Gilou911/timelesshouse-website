@@ -77,7 +77,7 @@ Retire `"dry_run": true` pour recevoir l'email pour de vrai.
 | 6 | **Tournage programmé** | Onglet Tournages → créer un tournage → proposition d'envoi |
 | 7 | **Tournage modifié** | Modifier la date d'un tournage existant |
 | 8 | **Contenu disponible** | Page événement (plateforme uniquement) |
-| 9 | **Document déposé** ✨ | Onglet Documents → icône cloche sur un document. Le bouton de l'email porte le code du client : un clic et il est connecté à son espace |
+| 9 | **Document déposé** ✨ | Onglet Documents → icône cloche sur un document. Le bouton de l'email amène sur la porte de la loge (`/app`), le code du client déjà pré-rempli — il n'a plus qu'à appuyer sur « Entrer » |
 
 > ⑤ ne se propose **que** si la facture n'était pas déjà payée — c'est
 > volontaire, pour ne jamais envoyer deux reçus.

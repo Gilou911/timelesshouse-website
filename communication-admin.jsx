@@ -5001,11 +5001,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </Field>
               {form.type === 'video' && (
                 <Field label="Durée">
-                  <Input value={form.duration} onChange={e => setForm({...form, duration: e.target.value})} placeholder="0:45" />
+                  <Input value={form.duration} onChange={e => setForm({...form, duration: e.target.value})} placeholder="0:45" className="max-w-[130px]" />
                 </Field>
               )}
               <Field label="Taille">
-                <Input value={form.size_label} onChange={e => setForm({...form, size_label: e.target.value})} placeholder="128 MB" />
+                <Input value={form.size_label} onChange={e => setForm({...form, size_label: e.target.value})} placeholder="128 MB" className="max-w-[150px]" />
               </Field>
             </div>
 
@@ -5358,7 +5358,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </Field>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Field label="Montant (€)">
-                <Input required type="number" step="0.01" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} placeholder="3200" />
+                <Input required type="number" inputMode="decimal" step="0.01" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} placeholder="3200" className="max-w-[200px]" />
               </Field>
               <Field label="Échéance (rappels auto)">
                 <Input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} />
@@ -5611,19 +5611,23 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   {shoots.map(s => <option key={s.id} value={s.id}>{shootOptionLabel(s)}</option>)}
                 </Select>
               </Field>
+              {/* Stratégie liée : module réservé à la plateforme (retiré des
+                  locataires) — le champ ne s'affiche plus que pour elle. */}
+              {FEATURES.allUniverses && (
               <Field label="Stratégie liée (optionnel)">
                 <Select value={form.strategy_id} onChange={e => setForm({...form, strategy_id: e.target.value})}>
                   <option value="">— Aucune —</option>
                   {strategies.map(s => <option key={s.id} value={s.id}>💡 {s.subtitle || s.title}</option>)}
                 </Select>
               </Field>
+              )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Taille (optionnel)">
-                <Input value={form.size_label} onChange={e => setForm({...form, size_label: e.target.value})} placeholder="1,2 MB" />
+                <Input value={form.size_label} onChange={e => setForm({...form, size_label: e.target.value})} placeholder="1,2 MB" className="max-w-[150px]" />
               </Field>
               <Field label="Ordre d'affichage">
-                <Input type="number" value={form.position} onChange={e => setForm({...form, position: e.target.value})} placeholder="0" />
+                <Input type="number" inputMode="numeric" value={form.position} onChange={e => setForm({...form, position: e.target.value})} placeholder="0" className="max-w-[110px]" />
               </Field>
             </div>
             <div className="flex gap-3 pt-2">

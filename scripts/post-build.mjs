@@ -42,20 +42,26 @@ const STUDIO = [
   "",
 ].join("\n");
 
-/* Le produit n'a plus de page d'accueil : `index.html` appartient au
-   studio. Sur les domaines La Loge, le Worker redirige déjà la racine
-   (vers /offres ou /app selon le domaine) et ce fichier n'est jamais
-   atteint ; sur app.timelesshouse.org, il n'y a pas de Worker — sans
-   cette ligne, la racine renverrait une 404. */
-const LOGE = [
+/* Racine du produit — DÉPEND DE LA PHASE, et se tromper casse un site :
+   · pendant la transition, `index.html` est encore dans ce build parce
+     que timelesshouse.org y pointe. Poser « / → /app » ferait alors
+     disparaître la vitrine de Gil derrière une redirection.
+   · une fois le domaine basculé, index.html quitte ce build : sans la
+     redirection, la racine de app.timelesshouse.org rendrait une 404.
+   Le script tranche sur un fait plutôt que sur une intention : la
+   présence du fichier dans le dossier qui vient d'être construit. */
+const racineDejaServie = (dossier) => existsSync(join(dossier, "index.html"));
+const logeRedirects = (dossier) => [
   "# Généré par scripts/post-build.mjs — ne pas éditer à la main.",
-  "/  /app  302",
+  racineDejaServie(dossier)
+    ? "# (aucune redirection de racine : index.html est encore dans ce build)"
+    : "/  /app  302",
   "",
 ].join("\n");
 
 const CIBLES = {
-  studio: { dossier: "dist-studio", contenu: STUDIO },
-  loge:   { dossier: "dist",        contenu: LOGE },
+  studio: { dossier: "dist-studio", contenu: () => STUDIO },
+  loge:   { dossier: "dist",        contenu: logeRedirects },
 };
 
 const choix = CIBLES[cible];
@@ -68,5 +74,6 @@ if (!existsSync(dossier)) {
   console.error(`✗ ${choix.dossier}/ n'existe pas — lancez le build d'abord.`);
   process.exit(1);
 }
-writeFileSync(join(dossier, "_redirects"), choix.contenu, "utf8");
-console.log(`✓ ${choix.dossier}/_redirects écrit (${choix.contenu.trim().split("\n").length} lignes)`);
+const contenu = choix.contenu(dossier);
+writeFileSync(join(dossier, "_redirects"), contenu, "utf8");
+console.log(`✓ ${choix.dossier}/_redirects écrit (${contenu.trim().split("\n").length} lignes)`);

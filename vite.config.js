@@ -38,11 +38,23 @@ export default defineConfig({
         },
       },
       input: {
-        // ⚠️ LE STUDIO N'EST PAS ICI. index, mariage, immobilier,
-        // communication, photobooth et portfolio sont le site de Gil :
-        // ils vivent dans vite.config.studio.js et ne sont servis que
-        // sur timelesshouse.org. Les remettre ici les rendrait à
-        // nouveau visibles chez les locataires (bug du 22/07/2026).
+        // ┌─ TRANSITION (22/07/2026) ────────────────────────────────┐
+        // │ Le studio a sa propre configuration (vite.config.studio) │
+        // │ mais timelesshouse.org pointe ENCORE sur ce projet-ci.   │
+        // │ Retirer ces six pages avant la bascule ferait tomber la  │
+        // │ vitrine en 404. Elles restent donc ici JUSQU'À l'étape 4 │
+        // │ de files/DEUX-SITES.md (custom domain sur le nouveau     │
+        // │ projet Pages) — puis on supprime ce bloc, et la          │
+        // │ séparation est complète.                                 │
+        // │ Le portier les empêche déjà d'apparaître sur une loge.   │
+        main:                   resolve(__dirname, 'index.html'),
+        mariage:                resolve(__dirname, 'mariage.html'),
+        immobilier:             resolve(__dirname, 'immobilier.html'),
+        communication:          resolve(__dirname, 'communication.html'),
+        photobooth:             resolve(__dirname, 'photobooth.html'),
+        photoboothInscription:  resolve(__dirname, 'photobooth-inscription.html'),
+        portfolio:              resolve(__dirname, 'portfolio.html'),
+        // └──────────────────────────────────────────────────────────┘
 
         // — Espaces clients / agence —
         app:                    resolve(__dirname, 'app.html'),

@@ -149,8 +149,17 @@ function filetMarqueBlanche(html, brand) {
   if (!slug || slug === "timelesshouse") return html;
   const base = `https://${slug}.laloge.house`;
   let n = 0;
-  const out = String(html).replace(
+  let out = String(html).replace(
     /https:\/\/(?:www\.)?timelesshouse\.org(\/app)?/g,
+    () => { n++; return base; },
+  );
+  // Vitrines La Loge (bug du 22/07 : la console envoyait l'origine de
+  // l'onglet — laloge.app/… atterrit sur la page Offres). Un chemin sur
+  // une vitrine n'a aucun sens pour un client final : on replie l'URL
+  // ENTIÈRE sur la racine de la loge, qui mène à l'écran de connexion.
+  // L'ancrage https:// épargne les sous-domaines *.laloge.house.
+  out = out.replace(
+    /https:\/\/(?:www\.)?laloge\.(?:app|house)[^"'\s<]*/g,
     () => { n++; return base; },
   );
   if (n > 0) {

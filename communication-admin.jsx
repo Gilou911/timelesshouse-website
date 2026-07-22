@@ -2485,9 +2485,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
         setNotifying(true);
         try {
-          // Mène toujours au login de l'espace client (modale auto-ouverte via #clients)
-          const deliveryUrl = window.location.origin + '/index.html#clients';
-
+          // Pas d'URL depuis la console : l'origine de l'onglet n'est pas
+          // la porte du client (laloge.app → vitrine !). notify-client
+          // met la bonne porte selon la marque (CURRENT_ESPACE).
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {
             method:  'POST',
@@ -2498,7 +2498,6 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               extra: {
                 hasPhotos: !!photosPage,
                 hasVideo:  !!videoPage,
-                deliveryUrl,
               },
             }),
           });
@@ -4789,7 +4788,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
             },
-            body: JSON.stringify({ client_id: clientId, media_id: media.id, kind: 'new_media', extra: { loginUrl: window.location.origin + '/index.html#clients' } }),
+            body: JSON.stringify({ client_id: clientId, media_id: media.id, kind: 'new_media' }),
           });
           if (res.ok) {
             alert(`✓ Email envoyé à ${client.client_email}`);
@@ -5652,8 +5651,6 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (!confirm(`Envoyer un email à ${client.client_email} pour annoncer que la facture ${inv.reference} est disponible sur son espace client ?`)) return;
         setNotifying(inv.id);
         try {
-          // Mène toujours au login de l'espace client (la modale d'accès s'ouvre via #clients)
-          const loginUrl = window.location.origin + '/index.html#clients';
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {
             method:  'POST',
@@ -5664,7 +5661,6 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               extra: {
                 reference: inv.reference,
                 amount:    parseFloat(inv.amount || 0),
-                loginUrl,
               },
             }),
           });
@@ -6677,7 +6673,6 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (!confirm(`Envoyer un email à ${client.client_email} pour annoncer le tournage « ${shoot.title} » ?`)) return;
         setNotifying(shoot.id);
         try {
-          const loginUrl = window.location.origin + '/index.html#clients';
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {
             method:  'POST',
@@ -6694,7 +6689,6 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 year:        shoot.year,
                 time_label:  shoot.time_label || '',
                 location:    shoot.location || '',
-                loginUrl,
               },
             }),
           });
@@ -6810,7 +6804,6 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           : `prévenir du changement sur le tournage « ${shoot.title} »`;
         if (!confirm(`Envoyer un email à ${client.client_email} pour ${label} ?`)) return;
         try {
-          const loginUrl = window.location.origin + '/index.html#clients';
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {
             method:  'POST',
@@ -6827,7 +6820,6 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 year:        shoot.year,
                 time_label:  shoot.time_label || '',
                 location:    shoot.location || '',
-                loginUrl,
               },
             }),
           });

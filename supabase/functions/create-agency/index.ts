@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
         <div style="display:inline-block;padding:12px 24px;background:#f5f0e8;border:1px solid #e0dbd0;border-radius:10px;font-family:monospace;font-size:15px">${esc(ag.slug)}.laloge.house</div>
       </div>
       <div style="text-align:center">
-        <a href="https://laloge.app/communication-admin.html" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Ouvrir ma console</a>
+        <a href="https://${esc(ag.slug)}.laloge.house/communication-admin" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Ouvrir ma console</a>
       </div>
     </div>
   </div>

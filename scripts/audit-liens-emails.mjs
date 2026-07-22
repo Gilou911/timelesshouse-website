@@ -116,6 +116,47 @@ for (const ag of AGENCES) {
   }
 }
 
+/* ── ÉPREUVE DU FILET (bug n°2 du 22/07/2026) ──────────────────
+   La console envoyait `loginUrl`/`deliveryUrl` bâtis sur l'origine de
+   l'onglet : ouverte sur laloge.app, chaque email menait le client à
+   la page Offres de la vitrine. La source est corrigée (la console
+   n'envoie plus d'URL), mais on prouve ici que même un appelant
+   hostile ne peut plus produire ce lien : extras empoisonnés → le
+   filet doit replier l'URL entière sur la loge. */
+{
+  const ag = AGENCES[0]; // locataire
+  const hostile = "https://laloge.app/index.html#clients";
+  const c = client(ag, "communication");
+  const epreuves = {
+    "nouveau média":    portee.buildNewMedia(c, { title: "Photo" }, { loginUrl: hostile }),
+    "contenu prêt":     portee.buildEventReady(c, { hasPhotos: true, deliveryUrl: hostile }),
+    "facture dispo":    portee.buildInvoiceReady(c, { reference: "FAC-1", amount: 1200, loginUrl: hostile }),
+    "tournage prévu":   portee.buildShootScheduled(c, { ...tournage, loginUrl: hostile }),
+    "rappel tournage":  portee.buildShootReminder(c, { ...tournage, daysBefore: 7, loginUrl: hostile }),
+  };
+  let repliés = 0, ratés = [];
+  for (const [nom, mail] of Object.entries(epreuves)) {
+    const html = portee.filetMarqueBlanche(mail.html, c.__brand);
+    if (html !== mail.html) repliés++;
+    for (const [, lien] of html.matchAll(/href="([^"]+)"/g)) {
+      if (lien.startsWith("mailto:")) continue;
+      liensTotal++;
+      const hote = (lien.match(/^https:\/\/([^/]+)/) || [])[1] || "";
+      if (hote !== ag.hote) { ratés.push(`${nom} → ${lien}`); fuites++; }
+    }
+  }
+  if (ratés.length) {
+    console.log(`❌ épreuve du filet : ${ratés.length} lien(s) hostile(s) passé(s)`);
+    ratés.forEach((r) => console.log(`     FUITE → ${r}`));
+  } else if (repliés === 0) {
+    // Aucune réécriture = l'épreuve n'a rien exercé : le filet est mort.
+    console.log("❌ épreuve du filet : aucun repli constaté, le filet ne réécrit plus");
+    fuites++;
+  } else {
+    console.log(`✅ épreuve du filet : extras hostiles (console sur laloge.app) repliés sur la loge (${repliés}/${Object.keys(epreuves).length} gabarits)`);
+  }
+}
+
 console.log(`\n${liensTotal} liens contrôlés · ${fuites} fuite(s)`);
 if (fuites > 0) {
   console.error("\n✗ Des emails de locataire renvoient vers la plateforme.");

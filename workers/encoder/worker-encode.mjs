@@ -19,6 +19,7 @@
 // identique, seules les variables d'environnement changent.
 // ════════════════════════════════════════════════════════════
 
+import { spawn } from "node:child_process";
 import { appendFileSync, createWriteStream, mkdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -304,6 +305,25 @@ async function requeueOrphans() {
   } catch (e) { log(`⚠ requeue des orphelins : ${e.message}`); }
 }
 
+/* ── Veille : rester éveillé PENDANT un encodage seulement ──
+   macOS suspend les processus quand la machine s'endort. Un job en
+   cours reprendrait au réveil, mais des heures plus tard — et une
+   connexion coupée en plein téléversement B2 le ferait échouer.
+   `caffeinate -i` (sommeil d'inactivité) est lancé au début d'un job
+   et tué à la fin : aucun effet sur la veille normale du Mac.
+   Best effort — si caffeinate manque, le worker continue sans. */
+let cafeine = null;
+function empecherSommeil() {
+  if (cafeine) return;
+  try { cafeine = spawn("caffeinate", ["-i"], { stdio: "ignore", detached: false }); }
+  catch (_) { cafeine = null; }
+}
+function autoriserSommeil() {
+  if (!cafeine) return;
+  try { cafeine.kill(); } catch (_) {}
+  cafeine = null;
+}
+
 log(`🎬 worker d'encodage démarré (${ONCE ? "mode --once" : `boucle ${POLL_MS / 1000} s`})`);
 await requeueOrphans();
 
@@ -312,8 +332,15 @@ while (!stopping) {
 
   if (job) {
     busy = true;
+    // Le Mac est réglé pour s'endormir après 1 min d'inactivité : sans
+    // ça, un encodage lancé la nuit gèlerait en plein vol (le client
+    // attendrait son film jusqu'au réveil). `caffeinate -i` empêche le
+    // sommeil d'inactivité UNIQUEMENT le temps du job — la machine
+    // continue de dormir normalement le reste du temps.
+    empecherSommeil();
     try { await processJob(job); }
     catch (err) { await failJob(job, err); }
+    finally { autoriserSommeil(); }
     busy = false;
     if (ONCE) break;
     continue;                       // enchaîne sans attendre : la file peut être pleine

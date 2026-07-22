@@ -1284,6 +1284,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [statut, setStatut] = useState(meta.statut || 'micro_bnc');
       const [urssaf, setUrssaf] = useState(meta.urssaf ?? STATUTS_FISCAUX[meta.statut || 'micro_bnc'].urssaf);
       const [vfl, setVfl] = useState(meta.vfl ?? false);
+      // Périodicité des déclarations URSSAF — celle choisie par le
+      // locataire sur autoentrepreneur.urssaf.fr. C'est elle qui dit
+      // COMBIEN préparer et POUR QUAND (l'annuel seul serait frustrant).
+      const [periodicite, setPeriodicite] = useState(meta.periodicite || 'mensuelle');
+      // Les taux changent au 1er janvier : on mémorise l'année de la
+      // dernière vérification pour alerter chaque nouvelle année.
+      const [tauxVerifiesEn, setTauxVerifiesEn] = useState(meta.tauxVerifiesEn || null);
       const [saving, setSaving] = useState(false);
       const [savedMsg, setSavedMsg] = useState(false);
 
@@ -1303,10 +1310,24 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const enregistrer = async () => {
         setSaving(true);
         try {
-          await sb.auth.updateUser({ data: { laloge_fiscal: { statut, urssaf: parseFloat(urssaf) || 0, vfl } } });
+          const annee = new Date().getFullYear();
+          await sb.auth.updateUser({ data: { laloge_fiscal: {
+            statut, urssaf: parseFloat(urssaf) || 0, vfl, periodicite, tauxVerifiesEn: annee,
+          } } });
+          setTauxVerifiesEn(annee);
           setSavedMsg(true); setTimeout(() => setSavedMsg(false), 2500);
         } catch (e) { alert(humaniseErreur(e.message)); }
         setSaving(false);
+      };
+      // « J'ai vérifié mes taux » — éteint l'alerte jusqu'à l'an prochain
+      const confirmerTaux = async () => {
+        const annee = new Date().getFullYear();
+        setTauxVerifiesEn(annee);
+        try {
+          await sb.auth.updateUser({ data: { laloge_fiscal: {
+            statut, urssaf: parseFloat(urssaf) || 0, vfl, periodicite, tauxVerifiesEn: annee,
+          } } });
+        } catch (_) {}
       };
 
       // ── Mois d'une facture : le libellé français d'émission, sinon la
@@ -1365,9 +1386,59 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       const aucunCA = ca12mois === 0;
 
+      // ── Prochaine échéance URSSAF ─────────────────────────────
+      // Mensuelle : le CA du mois M se déclare avant la fin du mois
+      // M+1 → la prochaine échéance est la fin du mois courant, pour
+      // le CA du mois précédent. Trimestrielle : T1→30 avril,
+      // T2→31 juillet, T3→31 octobre, T4→31 janvier.
+      const _now = new Date();
+      let echeanceDate, moisCouverts;
+      if (periodicite === 'trimestrielle') {
+        const an = _now.getFullYear();
+        const candidats = [
+          { d: new Date(an, 0, 31),     mois: [9, 10, 11], anCA: an - 1 },
+          { d: new Date(an, 3, 30),     mois: [0, 1, 2],   anCA: an },
+          { d: new Date(an, 6, 31),     mois: [3, 4, 5],   anCA: an },
+          { d: new Date(an, 9, 31),     mois: [6, 7, 8],   anCA: an },
+          { d: new Date(an + 1, 0, 31), mois: [9, 10, 11], anCA: an },
+        ];
+        const c = candidats.find(x => x.d >= _now) || candidats[candidats.length - 1];
+        echeanceDate = c.d;
+        moisCouverts = c.mois.map(m => `${c.anCA}-${String(m + 1).padStart(2, '0')}`);
+      } else {
+        echeanceDate = new Date(_now.getFullYear(), _now.getMonth() + 1, 0);
+        const prec = new Date(_now.getFullYear(), _now.getMonth() - 1, 1);
+        moisCouverts = [`${prec.getFullYear()}-${String(prec.getMonth() + 1).padStart(2, '0')}`];
+      }
+      const nomMois = (cle) => new Date(`${cle}-01T12:00:00`).toLocaleDateString('fr-FR', { month: 'long' });
+      const caEcheance = serie.filter(x => moisCouverts.includes(x.cle)).reduce((s, x) => s + x.ca, 0);
+      const cotisEcheance = caEcheance * tauxU;
+      const vflEcheance = (vfl && cfg.vflTaux != null) ? caEcheance * cfg.vflTaux / 100 : 0;
+      const totalEcheance = cotisEcheance + vflEcheance;
+      const echeanceLabel = echeanceDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+      const periodeLabel = periodicite === 'trimestrielle'
+        ? `CA de ${nomMois(moisCouverts[0])} à ${nomMois(moisCouverts[2])}`
+        : `CA de ${nomMois(moisCouverts[0])}`;
+      // Alerte annuelle : uniquement si des taux ont déjà été confirmés
+      // une année passée — les taux bougent au 1er janvier.
+      const alerteTaux = tauxVerifiesEn != null && tauxVerifiesEn < _now.getFullYear();
+
       return (
         <div className="space-y-5 lg:space-y-6">
           {err && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]"><AlertCircle size={14} /> {err}</div>}
+
+          {/* Alerte de nouvelle année : les taux changent au 1er janvier */}
+          {alerteTaux && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl bg-amber-50 text-amber-800">
+              <AlertCircle size={17} className="shrink-0 hidden sm:block" />
+              <div className="text-[13px] leading-relaxed flex-1">
+                <strong>Nouvelle année : vérifiez vos taux.</strong> Les cotisations et le
+                versement libératoire changent souvent au 1ᵉʳ janvier. Comparez les taux
+                ci-dessous avec votre espace URSSAF, ajustez si besoin, puis confirmez.
+              </div>
+              <Btn onClick={confirmerTaux}>J'ai vérifié mes taux</Btn>
+            </div>
+          )}
 
           {aucunCA ? (
             <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
@@ -1383,6 +1454,22 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             <StatCard label="vs mois dernier" value={evolution === null ? '—' : `${evolution > 0 ? '+' : ''}${evolution} %`} />
             <StatCard label="Encaissé sur 12 mois" value={eur(ca12mois)} />
             <StatCard label="Facturé, en attente" value={eur(enAttente)} />
+          </div>
+
+          {/* Prochaine échéance — LE chiffre à préparer, au rythme réel
+              des déclarations (mensuel ou trimestriel, jamais l'annuel
+              imposé : ce serait frustrant et faux au quotidien). */}
+          <div style={neu.dark} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7 text-white">
+            <div className="flex items-baseline justify-between gap-3 flex-wrap">
+              <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>Prochaine échéance URSSAF</h2>
+              <span className="text-[11px] uppercase tracking-[0.14em] text-stone-400 font-semibold">à déclarer avant le {echeanceLabel}</span>
+            </div>
+            <div className="text-[34px] lg:text-[40px] mt-3 leading-none" style={SERIF}>{eur(totalEcheance)}</div>
+            <div className="text-[13px] text-stone-300 mt-3 leading-relaxed">
+              {periodeLabel}&nbsp;: {eur(caEcheance)} encaissés → cotisations {eur(cotisEcheance)}
+              {vflEcheance > 0 ? <> + impôt (versement libératoire) {eur(vflEcheance)}</> : null}.
+              {caEcheance === 0 && <> Rien à payer ce coup-ci — mais la déclaration à 0&nbsp;€ reste obligatoire.</>}
+            </div>
           </div>
 
           {/* Graphique 12 mois — une seule série, barres fines, infobulle */}
@@ -1472,6 +1559,16 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                        onChange={e => setUrssaf(e.target.value)} />
                 <div className="text-[11px] text-stone-500 mt-1.5">
                   Prérempli avec le taux {statut === 'micro_bnc' ? 'micro-BNC 2026 (26,1 %)' : statut === 'micro_bic' ? 'micro-BIC prestations (21,2 %)' : 'moyen'} — ajustez-le à votre situation (ACRE…).
+                </div>
+              </Field>
+              <Field label="Périodicité de vos déclarations URSSAF">
+                <Select value={periodicite} onChange={e => setPeriodicite(e.target.value)}>
+                  <option value="mensuelle">Mensuelle — je déclare chaque mois</option>
+                  <option value="trimestrielle">Trimestrielle — je déclare tous les 3 mois</option>
+                </Select>
+                <div className="text-[11px] text-stone-500 mt-1.5">
+                  Celle que vous avez choisie sur autoentrepreneur.urssaf.fr — c'est elle qui
+                  règle la carte «&nbsp;Prochaine échéance&nbsp;».
                 </div>
               </Field>
               {STATUTS_FISCAUX[statut].vflTaux != null && (

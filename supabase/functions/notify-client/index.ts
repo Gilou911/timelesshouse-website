@@ -26,18 +26,31 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-// Expéditeur : modifiable dans les secrets Supabase (FROM_EMAIL)
+// Expéditeur : modifiable dans les secrets Supabase (FROM_EMAIL).
+//
+// ⚠️ MARQUE BLANCHE — le domaine de cette adresse est VISIBLE par le client
+// final du locataire. Tant que le repli ci-dessous s'applique, il reçoit
+// « VisonMike <service@timelesshouse.org> » : le nom est bon, le domaine
+// trahit la plateforme. Choix de Gil (22/07/2026) : domaine NEUTRE plutôt
+// que de demander à chaque locataire de vérifier le sien (zéro effort de
+// leur côté). Bascule en deux gestes, sans redéploiement de code :
+//   1. vérifier le domaine laloge.house dans Resend (enregistrements DNS) ;
+//   2. secret Supabase FROM_EMAIL = "La Loge <notifications@laloge.house>".
+// Ne PAS écrire cette adresse en dur ici avant l'étape 1 : un domaine non
+// vérifié fait échouer TOUS les envois.
 const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "TimelessHouse <service@timelesshouse.org>";
 // Destinataire admin pour les notifications internes
 const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") ?? "service@timelesshouse.org";
 // ── Marque blanche (SaaS B.3) ──
-// L'adresse d'expédition reste celle du domaine vérifié Resend ; seul
-// le NOM affiché change (« Studio Lumière <service@timelesshouse.org> »).
+// L'adresse d'expédition reste celle du domaine vérifié Resend ; le NOM
+// affiché, la couleur d'accent, le LOGO et l'adresse de réponse viennent
+// de l'agence (« Studio Lumière <notifications@laloge.house> »).
 const FROM_ADDR = (FROM_EMAIL.match(/<(.+)>/) || [null, FROM_EMAIL])[1];
 const DEFAULT_BRAND = {
   name: "TimelessHouse",
   email: ADMIN_EMAIL,
   accent: "#2a2620",
+  logo: null,
   site: "https://timelesshouse.org"
 };
 // Posée de façon SYNCHRONE par chaque builder (via brandOf) juste avant
@@ -169,9 +182,15 @@ function layout(body) {
   body{margin:0;padding:0;background:#f5f0e8;font-family:Georgia,serif;color:#2a2620}
   .wrap{max-width:580px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;
         box-shadow:0 4px 32px rgba(42,38,32,.10)}
-  .header{background:${B.accent};padding:32px 40px;text-align:center}
+  /* Avec logo : fond BLANC + filet d'accent. Un logo est presque toujours
+     dessiné pour un fond clair — le poser sur l'accent de l'agence (souvent
+     sombre) le rendrait invisible une fois sur deux. Sans logo : on garde
+     l'en-tête coloré et le nom en toutes lettres. */
+  .header{background:${B.logo ? "#ffffff" : B.accent};padding:${B.logo ? "26px 40px" : "32px 40px"};
+          text-align:center;${B.logo ? `border-bottom:3px solid ${B.accent};` : ""}}
   .header h1{margin:0;color:#e8d8be;font-size:13px;letter-spacing:.25em;
              text-transform:uppercase;font-weight:400;font-family:sans-serif}
+  .header img{max-height:44px;max-width:220px;display:block;margin:0 auto}
   .body{padding:40px}
   h2{margin:0 0 20px;font-size:22px;color:#2a2620;font-weight:400;line-height:1.4}
   p{margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a4540}
@@ -204,7 +223,9 @@ function layout(body) {
 </head>
 <body>
 <div class="wrap">
-  <div class="header"><h1>${esc(B.name)}</h1></div>
+  <div class="header">${B.logo
+    ? `<img src="${esc(B.logo)}" alt="${esc(B.name)}"/>`
+    : `<h1>${esc(B.name)}</h1>`}</div>
   <div class="body">${body}</div>
   <div class="footer">
     ${esc(B.name)} &nbsp;·&nbsp;
@@ -589,6 +610,10 @@ serve(async (req)=>{
       name: agency.name || DEFAULT_BRAND.name,
       email: agency.contact_email || DEFAULT_BRAND.email,
       accent: agency.accent_color || DEFAULT_BRAND.accent,
+      // Logo de l'agence dans l'en-tête. https OBLIGATOIRE : une URL http
+      // serait bloquée par la plupart des clients mail (contenu mixte) et
+      // afficherait une image cassée en haut de chaque envoi.
+      logo: /^https:\/\//i.test(agency.logo_url || "") ? agency.logo_url : null,
       site: agency.slug === "timelesshouse" ? DEFAULT_BRAND.site : null
     } : DEFAULT_BRAND;
 

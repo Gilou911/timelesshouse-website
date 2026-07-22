@@ -1053,7 +1053,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             Votre identité, appliquée partout : espaces clients, pages événement, écran de connexion et emails.
           </p>
 
-          <div className="grid sm:grid-cols-2 gap-4 mt-5">
+          <div className="space-y-4 mt-5">
             <Field label="Nom du studio">
               <Input value={form.name} onChange={set('name')} placeholder="Studio Lumière" />
             </Field>
@@ -1074,7 +1074,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <Input value={form.bg_color} onChange={set('bg_color')} className="font-mono" />
               </div>
             </Field>
-            <div className="sm:col-span-2">
+            <div>
               <Field label="Logo (URL https, optionnel)">
                 <div className="flex items-center gap-3 flex-wrap">
                   {form.logo_url.trim() && (
@@ -1456,7 +1456,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </Field>
 
             {isCouple ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <Field label="Prénom 1">
                   <Input required value={form.partner1} onChange={e => updatePartners(e.target.value, form.partner2)} placeholder="Précieuse" />
                 </Field>
@@ -1501,7 +1501,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             {/* UX vague 2 : ces champs « entreprise » n'ont pas de sens pour
                 un mariage — les prénoms remplissent déjà les initiales. */}
             {!isCelebration(form.universe) && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-4">
               <Field label="Prénom contact">
                 <Input value={form.greeting} onChange={e => setForm({...form, greeting: e.target.value})} placeholder="Camille" />
               </Field>
@@ -2908,7 +2908,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </div>
             </Field>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <Field label="Type">
                 <Select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })}>
                   {GALLERY_KINDS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
@@ -3778,7 +3778,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
             {isAnniversary ? (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <Field label="Nombre d'années">
                     <Input type="number" value={c.nombreAnnees || ''} onChange={e => updateConfig('nombreAnnees', parseInt(e.target.value) || 0)} placeholder="50" min="1" max="100" />
                   </Field>
@@ -3786,9 +3786,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     <Input value={c.typeNoces || ''} onChange={e => updateConfig('typeNoces', e.target.value)} placeholder="Auto-détecté (Noces d'Or, etc.)" />
                   </Field>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <Field label="Date de célébration">
-                    <Input type="date" value={c.dateCelebrationISO || ''} onChange={e => updateConfigDate('dateCelebrationISO', 'dateCelebration', e.target.value)} />
+                    <div className="max-w-[200px]"><Input type="date" value={c.dateCelebrationISO || ''} onChange={e => updateConfigDate('dateCelebrationISO', 'dateCelebration', e.target.value)} /></div>
                     <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.dateCelebration || '—'}</strong></div>
                   </Field>
                   <Field label="Lieu de la célébration">
@@ -3796,15 +3796,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   </Field>
                 </div>
                 <Field label="Date du mariage d'origine">
-                  <Input type="date" value={c.dateMariageOriginalISO || ''} onChange={e => updateConfigDate('dateMariageOriginalISO', 'dateMariageOriginal', e.target.value)} />
+                  <div className="max-w-[200px]"><Input type="date" value={c.dateMariageOriginalISO || ''} onChange={e => updateConfigDate('dateMariageOriginalISO', 'dateMariageOriginal', e.target.value)} /></div>
                   <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.dateMariageOriginal || '—'}</strong></div>
                 </Field>
               </>
             ) : isEngagement ? (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <Field label="Date de la demande">
-                    <Input type="date" value={c.dateDemandeISO || ''} onChange={e => updateConfigDate('dateDemandeISO', 'dateDemande', e.target.value)} />
+                    <div className="max-w-[200px]"><Input type="date" value={c.dateDemandeISO || ''} onChange={e => updateConfigDate('dateDemandeISO', 'dateDemande', e.target.value)} /></div>
                     <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.dateDemande || '—'}</strong></div>
                   </Field>
                   <Field label="Lieu de la demande">
@@ -3812,15 +3812,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   </Field>
                 </div>
                 <Field label="Date du mariage prévue">
-                  <Input type="date" value={c.dateMariagePrevuISO || ''} onChange={e => updateConfigDate('dateMariagePrevuISO', 'dateMariagePrevu', e.target.value)} />
+                  <div className="max-w-[200px]"><Input type="date" value={c.dateMariagePrevuISO || ''} onChange={e => updateConfigDate('dateMariagePrevuISO', 'dateMariagePrevu', e.target.value)} /></div>
                   <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.dateMariagePrevu || '—'}</strong></div>
                 </Field>
               </>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <Field label="Date de l'événement">
-                    <Input type="date" value={c.dateISO || ''} onChange={e => updateConfigDate('dateISO', 'date', e.target.value)} />
+                    <div className="max-w-[200px]"><Input type="date" value={c.dateISO || ''} onChange={e => updateConfigDate('dateISO', 'date', e.target.value)} /></div>
                     <div className="text-[11px] text-stone-500 mt-1">Affiché : <strong>{c.date || '—'}</strong></div>
                   </Field>
                   <Field label="Lieu">
@@ -3837,7 +3837,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <div className="text-[11px] text-stone-500 mb-2 leading-relaxed">
                   Les photos se livrent désormais via la section <strong>« Galerie B2 »</strong> de l'onglet Page client — ces champs ne servent qu'aux anciennes galeries Cloudinary.
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <Field label="Cloud Name">
                     <Input value={c.cloudName || ''} onChange={e => updateConfig('cloudName', e.target.value)} placeholder="dyfa4zztq" />
                   </Field>
@@ -4218,7 +4218,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
                       <details>
                         <summary className="text-[11px] text-stone-500 cursor-pointer select-none">URLs à qualité fixe (ancien système)</summary>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                        <div className="space-y-4 mt-2">
                           <Field label="URL 1080p">
                             <Input value={(v.urls || {})['1080p'] || ''} onChange={e => updateVideo(i, { urls: { ...(v.urls || {}), '1080p': e.target.value } })} placeholder="https://..." />
                           </Field>
@@ -4250,7 +4250,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   </div>
                 </button>
                 {c.upsellBouton && (
-                  <div className="grid grid-cols-2 gap-4 mt-3">
+                  <div className="space-y-4 mt-3">
                     <Field label="Texte du bouton">
                       <Input value={c.upsellTexte || ''} onChange={e => updateConfig('upsellTexte', e.target.value)} placeholder="Commander ce film" />
                     </Field>
@@ -4892,7 +4892,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return (
         <Modal title={existing ? 'Modifier le média' : 'Ajouter un média'} kicker={existing ? 'Édition' : 'Nouveau'} onClose={onClose} size="lg">
           <form onSubmit={submit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <Field label="Type">
                 <Select value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
                   <option value="photo">📸 Photo</option>
@@ -4994,9 +4994,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 ))}
               </Select>
             </Field>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-4">
               <Field label="Date (classe automatiquement le média)">
-                <Input type="date" value={form.date_iso_local} onChange={e => handleMediaDate(e.target.value)} />
+                <div className="max-w-[200px]"><Input type="date" value={form.date_iso_local} onChange={e => handleMediaDate(e.target.value)} /></div>
                 <div className="text-[11px] text-stone-500 mt-1">{form.date_label || '—'} · le plus récent apparaît en premier</div>
               </Field>
               {form.type === 'video' && (
@@ -5337,12 +5337,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return (
         <Modal title={existing ? 'Modifier la facture' : 'Nouvelle facture'} kicker="Facture" onClose={onClose} size="lg">
           <form onSubmit={submit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <Field label="Référence">
                 <Input required value={form.reference} onChange={e => setForm({...form, reference: e.target.value})} placeholder="FAC-2026-042" />
               </Field>
               <Field label="Date d'émission">
-                <Input type="date" value={form.date_iso_local} onChange={e => handleEmissionDate(e.target.value)} />
+                <div className="max-w-[200px]"><Input type="date" value={form.date_iso_local} onChange={e => handleEmissionDate(e.target.value)} /></div>
                 <div className="text-[11px] text-stone-500 mt-1">Libellé : <strong>{form.date_label || '—'}</strong></div>
               </Field>
             </div>
@@ -5356,12 +5356,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </Select>
               <div className="text-[11px] text-stone-500 mt-1">Le client verra à quel tournage cette facture correspond.</div>
             </Field>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-4">
               <Field label="Montant (€)">
                 <Input required type="number" inputMode="decimal" step="0.01" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} placeholder="3200" className="max-w-[200px]" />
               </Field>
               <Field label="Échéance (rappels auto)">
-                <Input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} />
+                <div className="max-w-[200px]"><Input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} /></div>
               </Field>
               <Field label="Statut">
                 <Select value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
@@ -5571,14 +5571,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             <Field label="Titre">
               <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Contrat de prestation 2026" />
             </Field>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <Field label="Catégorie">
                 <Select value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
                   {DOC_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </Select>
               </Field>
               <Field label="Date">
-                <Input type="date" value={form.date_iso_local} onChange={e => handleDocDate(e.target.value)} />
+                <div className="max-w-[200px]"><Input type="date" value={form.date_iso_local} onChange={e => handleDocDate(e.target.value)} /></div>
                 <div className="text-[11px] text-stone-500 mt-1">Libellé : <strong>{form.date_label || '—'}</strong></div>
               </Field>
             </div>
@@ -5604,7 +5604,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <div className="h-1.5 rounded-full bg-stone-300/60 overflow-hidden"><div className="h-full bg-stone-900 transition-all" style={{ width: `${upPct}%` }} /></div>
               </div>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <Field label="Tournage lié (optionnel)">
                 <Select value={form.shoot_id} onChange={e => setForm({...form, shoot_id: e.target.value})}>
                   <option value="">— Aucun —</option>
@@ -5622,7 +5622,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </Field>
               )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <Field label="Taille (optionnel)">
                 <Input value={form.size_label} onChange={e => setForm({...form, size_label: e.target.value})} placeholder="1,2 MB" className="max-w-[150px]" />
               </Field>
@@ -6121,7 +6121,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </Field>
 
             {/* Publication + partage */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <Field label="Statut">
                 <Select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
                   <option value="draft">Brouillon</option>
@@ -6403,7 +6403,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             <Field label="Titre du tournage">
               <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Shooting éditorial — Maison Lumière" />
             </Field>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-4">
               <Field label="Type">
                 <Select value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
                   <option value="photo">📸 Photo</option>
@@ -6411,11 +6411,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 </Select>
               </Field>
               <Field label="Date du tournage">
-                <Input required type="date" value={form.date_iso} onChange={e => setForm({...form, date_iso: e.target.value})} />
+                <div className="max-w-[200px]"><Input required type="date" value={form.date_iso} onChange={e => setForm({...form, date_iso: e.target.value})} /></div>
                 <div className="text-[11px] text-stone-500 mt-1">{form.date_iso ? isoToLabel(form.date_iso) : '—'}</div>
               </Field>
               <Field label="Horaire">
-                <Input value={form.time_label} onChange={e => setForm({...form, time_label: e.target.value})} placeholder="09:00 — 16:00" />
+                <Input value={form.time_label} onChange={e => setForm({...form, time_label: e.target.value})} placeholder="09:00 — 16:00" className="max-w-[200px]" />
               </Field>
             </div>
             <Field label="Lieu">
@@ -6424,7 +6424,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
             {/* ── Liaison stratégie → concept (chaîne de production) ── */}
             {strategies.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <Field label="Stratégie liée (optionnel)">
                   <Select value={form.strategy_id} onChange={e => setForm({...form, strategy_id: e.target.value, concept_id: ''})}>
                     <option value="">— Aucune —</option>
@@ -6731,7 +6731,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           {/* ─── Nouvelle agence ─── */}
           <div style={neu.raised} className="rounded-[28px] p-6 lg:p-7">
             <div className="text-[17px] tracking-tight mb-5" style={SERIF}>Nouvelle agence</div>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <Field label="Nom de l'agence *">
                 <Input value={form.name} onChange={set('name')} placeholder="Studio Lumière" />
               </Field>

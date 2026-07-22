@@ -76,7 +76,7 @@ const PAGES_PARTOUT = new Set(["reinitialiser", "404"]);
 const PAGES_TIMELESSHOUSE = new Set([
   "index", "portfolio", "mariage", "immobilier", "communication",
   "photobooth", "photobooth-inscription",
-  "demo-toggle", "social-v2-preview",
+
 ]);
 
 /** Nom de page, ou null si ce n'est pas une page (asset, image,

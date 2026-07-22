@@ -6,7 +6,8 @@
   "description": "TimelessHouse — plateforme studio & agence (compilation Vite + Tailwind v4)",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/post-build.mjs loge",
+    "build:studio": "vite build --config vite.config.studio.js && node scripts/post-build.mjs studio",
     "preview": "vite preview",
     "encode": "node scripts/encode-hls.mjs",
     "b2-cors": "node scripts/setup-b2-cors.mjs",

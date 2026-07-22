@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>TimelessHouse – Communication & Marketing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="TimelessHouse - Agence de communication et marketing. Espace client privé." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Apply theme BEFORE rendering to avoid flash -->
+  <script>
+    (function(){
+      try {
+        if (localStorage.getItem('th-dark-mode') === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } catch(e) {}
+    })();
+  </script>
+
+  <style>
+    /* ════════════════════════════════════════════════════════════
+       🎨 NEUMORPHIC DESIGN — refonte mai 2026
+       LIGHT : cream warm (#e9e4d9) — pebble surfaces
+       DARK  : graphite bleuté (#181b20) — ivoire accent (#e8d8be)
+       ════════════════════════════════════════════════════════════ */
+    :root {
+      --bg:            #e9e4d9;
+      --surface:       #efeae0;
+      --surface-deep:  #e3ddd0;
+      --shadow-dark:   rgba(168,156,134,0.32);
+      --shadow-light:  rgba(255,253,247,0.92);
+      --shadow-dark-sm:rgba(168,156,134,0.26);
+      --shadow-light-sm:rgba(255,253,247,0.88);
+      --shadow-dark-xs:rgba(168,156,134,0.22);
+      --shadow-light-xs:rgba(255,253,247,0.82);
+      --text:          #2a2620;
+      --text-soft:     #6b6357;
+      --text-muted:    #86796a;
+      --accent:        #2a2620;
+      --accent-on:     #f5f1e6;
+      --accent-glow:   rgba(42,38,32,0.18);
+      --divider:       rgba(42,38,32,0.08);
+      --error:         #c14545;
+    }
+    [data-theme="dark"] {
+      --bg:            #181b20;
+      --surface:       #22262d;
+      --surface-deep:  #14171c;
+      --shadow-dark:   rgba(0,0,0,0.62);
+      --shadow-light:  rgba(54,60,72,0.25);
+      --shadow-dark-sm:rgba(0,0,0,0.55);
+      --shadow-light-sm:rgba(54,60,72,0.22);
+      --shadow-dark-xs:rgba(0,0,0,0.5);
+      --shadow-light-xs:rgba(54,60,72,0.18);
+      --text:          #e6e8eb;
+      --text-soft:     #b6b9c0;
+      --text-muted:    #7e828b;
+      --accent:        #e8d8be;
+      --accent-on:     #1a1410;
+      --accent-glow:   rgba(232,216,190,0.35);
+      --divider:       rgba(255,255,255,0.06);
+      --error:         #ff7a7a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Manrope', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      transition: background 0.5s ease, color 0.5s ease;
+    }
+    a { text-decoration: none; color: inherit; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+    [data-lang="en"] { display: none; }
+    body.en-mode [data-lang="fr"] { display: none; }
+    body.en-mode [data-lang="en"] { display: inline; }
+    ::selection { background: var(--accent-glow); color: var(--accent-on); }
+    *:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+    /* ─── Layout ─── */
+    .page { position: relative; min-height: 100vh; display: flex; flex-direction: column; padding: 28px 40px; }
+
+    .top-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 20px; }
+    .back-link {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 11px 18px; border-radius: 999px;
+      background: var(--surface);
+      box-shadow: 3px 3px 7px var(--shadow-dark-xs), -3px -3px 7px var(--shadow-light-xs);
+      font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--text-soft);
+      transition: all 0.35s ease, box-shadow 0.35s ease;
+    }
+    .back-link:hover {
+      color: var(--text);
+      transform: translateY(-1px);
+      box-shadow: 4px 4px 10px var(--shadow-dark-sm), -4px -4px 10px var(--shadow-light-sm);
+    }
+    .back-link svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .logo {
+      font-family: 'Instrument Serif', serif;
+      font-style: italic;
+      font-size: 22px;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      justify-self: center;
+      transition: color 0.4s ease;
+    }
+    .logo-dot { color: var(--text-muted); }
+
+    .top-right { justify-self: end; display: flex; align-items: center; gap: 10px; }
+
+    .pill-btn {
+      background: var(--surface);
+      box-shadow: 3px 3px 7px var(--shadow-dark-xs), -3px -3px 7px var(--shadow-light-xs);
+      border-radius: 999px;
+      padding: 0 14px;
+      height: 38px;
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--text-soft);
+      transition: all 0.35s ease;
+    }
+    .pill-btn:hover { color: var(--text); transform: translateY(-1px); }
+    .pill-btn.icon-only { width: 38px; padding: 0; justify-content: center; }
+    .pill-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ─── Dark toggle (fin + arc SVG qui voyage — dimensions verrouillées) ─── */
+    .dark-toggle {
+      width: 42px !important; min-width: 42px !important; max-width: 42px !important;
+      height: 22px !important; min-height: 22px !important; max-height: 22px !important;
+      border-radius: 11px !important;
+      padding: 0 !important;
+      display: inline-flex !important; align-items: center; justify-content: center;
+      flex: 0 0 auto; align-self: center;
+      box-sizing: border-box;
+      position: relative;
+      background: linear-gradient(145deg, #28282c, #323236);
+      box-shadow:
+        inset 0 1.5px 4px rgba(0,0,0,0.6),
+        inset 0 -1px 1px rgba(255,255,255,0.03),
+        0 1px 2px rgba(0,0,0,0.25);
+      transition: box-shadow 0.4s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .dark-toggle:hover { transform: none; }
+    .dark-toggle .th-arc-svg {
+      display: block !important;
+      width: 42px !important; height: 22px !important;
+      overflow: visible; pointer-events: none;
+      flex: 0 0 auto;
+      stroke-width: 2.4 !important;
+    }
+    .dark-toggle .th-arc {
+      fill: none;
+      stroke: rgba(135,135,140,0.75);   /* JOUR : arc foncé */
+      stroke-width: 2.4;
+      stroke-dasharray: 50 50;
+      stroke-dashoffset: -9.8;
+      transition:
+        stroke-dashoffset 0.7s cubic-bezier(0.65,0.05,0.35,1),
+        stroke 0.7s cubic-bezier(0.65,0.05,0.35,1);
+    }
+    [data-theme="dark"] .dark-toggle .th-arc {
+      stroke: rgba(255,255,255,0.92);   /* NUIT : arc blanc */
+    }
+    /* Override : le toggle ne suit jamais la grille des .pill-btn */
+    .dark-toggle.pill-btn,
+    .dark-toggle.pill-btn.icon-only {
+      width: 42px !important; height: 22px !important;
+      padding: 0 !important; justify-content: center;
+    }
+
+    /* ─── Main content ─── */
+    .main-content {
+      flex: 1;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      text-align: center;
+      padding: 60px 20px 40px;
+      max-width: 720px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .brand-kicker {
+      font-size: 0.72rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.32em;
+      color: var(--text-muted);
+      margin-bottom: 26px;
+      opacity: 0; animation: fadeUp 1.2s ease 0.3s forwards;
+    }
+
+    .hero-title {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(2.6rem, 5.5vw, 4.2rem);
+      font-weight: 400;
+      line-height: 1.04;
+      color: var(--text);
+      margin-bottom: 24px;
+      letter-spacing: -0.02em;
+      opacity: 0; animation: fadeUp 1.4s cubic-bezier(0.2,0.8,0.2,1) 0.5s forwards;
+    }
+    .hero-title em {
+      font-style: italic;
+      color: var(--text);
+    }
+    [data-theme="dark"] .hero-title em {
+      color: var(--accent);
+      text-shadow: 0 0 24px rgba(232,216,190,0.25);
+    }
+
+    .hero-text {
+      font-size: 0.96rem; line-height: 1.7;
+      color: var(--text-soft);
+      max-width: 520px;
+      margin: 0 auto 38px;
+      opacity: 0; animation: fadeUp 1.4s cubic-bezier(0.2,0.8,0.2,1) 0.7s forwards;
+    }
+
+    .services {
+      display: flex; flex-wrap: wrap;
+      justify-content: center; gap: 10px;
+      margin-bottom: 44px;
+      opacity: 0; animation: fadeUp 1.4s cubic-bezier(0.2,0.8,0.2,1) 0.9s forwards;
+    }
+    .service-pill {
+      padding: 9px 18px;
+      border-radius: 999px;
+      background: var(--surface);
+      box-shadow: 3px 3px 7px var(--shadow-dark-xs), -3px -3px 7px var(--shadow-light-xs);
+      font-size: 10.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--text-soft);
+    }
+
+    /* ─── Bouton CTA principal — accent neumorphique ─── */
+    .access-btn {
+      display: inline-flex; align-items: center; gap: 12px;
+      padding: 18px 38px;
+      background: var(--accent);
+      color: var(--accent-on);
+      font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+      border-radius: 999px;
+      transition: all 0.4s cubic-bezier(0.2,0.8,0.2,1);
+      opacity: 0; animation: fadeUp 1.4s cubic-bezier(0.2,0.8,0.2,1) 1.1s forwards;
+      box-shadow: 8px 8px 18px var(--shadow-dark), -3px -3px 8px var(--shadow-light), inset 1px 1px 2px rgba(255,255,255,0.08);
+      position: relative;
+    }
+    [data-theme="dark"] .access-btn {
+      box-shadow: 8px 8px 18px rgba(0,0,0,0.62), -3px -3px 8px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.35), 0 0 24px rgba(232,216,190,0.25);
+    }
+    .access-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 12px 12px 24px var(--shadow-dark), -5px -5px 12px var(--shadow-light), inset 1px 1px 2px rgba(255,255,255,0.08);
+    }
+    [data-theme="dark"] .access-btn:hover {
+      box-shadow: 12px 12px 24px rgba(0,0,0,0.62), -5px -5px 12px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.5), 0 0 36px rgba(232,216,190,0.45);
+    }
+    .access-btn:active { transform: translateY(0); }
+    .access-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    footer {
+      text-align: center;
+      padding: 28px 20px;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    /* ─── Modal — pebble card neumorphique ─── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(20,18,12,0.65);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; padding: 20px;
+      opacity: 0; visibility: hidden;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+    [data-theme="dark"] .modal-overlay { background: rgba(0,0,0,0.72); }
+    .modal-overlay.active { opacity: 1; visibility: visible; }
+
+    .modal-content {
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 32px;
+      padding: 44px 36px 36px;
+      max-width: 420px; width: 100%;
+      text-align: center;
+      position: relative;
+      transform: translateY(20px) scale(0.96);
+      transition: transform 0.5s cubic-bezier(0.2,0.8,0.2,1);
+      box-shadow: 12px 12px 28px var(--shadow-dark), -10px -10px 24px var(--shadow-light);
+    }
+    .modal-overlay.active .modal-content { transform: translateY(0) scale(1); }
+
+    .modal-close {
+      /* HIG : cible tactile 44px (34px auparavant) — position compensée
+         pour garder le même placement optique du symbole */
+      position: absolute; top: 13px; right: 13px;
+      width: 44px; height: 44px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--surface);
+      box-shadow: 3px 3px 7px var(--shadow-dark-xs), -3px -3px 7px var(--shadow-light-xs);
+      color: var(--text-soft);
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    .modal-close:hover { color: var(--text); transform: rotate(90deg); }
+
+    /* HIG : supprime le double-tap-zoom accidentel sur les contrôles */
+    button, a, .pill-btn, .service-pill, .access-btn, .modal-btn, .modal-close { touch-action: manipulation; }
+
+    .modal-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--accent-on);
+      margin-bottom: 22px;
+      box-shadow: 8px 8px 18px var(--shadow-dark), -3px -3px 8px var(--shadow-light), inset 1px 1px 2px rgba(255,255,255,0.08);
+    }
+    [data-theme="dark"] .modal-icon {
+      box-shadow: 8px 8px 18px rgba(0,0,0,0.62), -3px -3px 8px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.35), 0 0 20px rgba(232,216,190,0.3);
+    }
+    .modal-icon svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    .modal-kicker {
+      display: block;
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.28em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .modal-title {
+      font-family: 'Instrument Serif', serif;
+      font-size: 2.2rem; font-weight: 400;
+      font-style: italic;
+      letter-spacing: -0.01em;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .modal-text {
+      margin-bottom: 26px;
+      font-size: 12.5px; line-height: 1.65;
+      color: var(--text-soft);
+    }
+
+    /* ─── Input — inset / pressed neumorphique ─── */
+    .modal-input {
+      width: 100%;
+      padding: 16px 20px;
+      background: var(--surface-deep);
+      box-shadow: inset 6px 6px 12px var(--shadow-dark-sm), inset -5px -5px 10px var(--shadow-light-sm);
+      border: 1px solid transparent;
+      border-radius: 999px;
+      font-family: 'Manrope', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-align: center;
+      color: var(--text);
+      transition: box-shadow 0.3s, border-color 0.3s;
+    }
+    .modal-input::placeholder { color: var(--text-muted); font-weight: 500; }
+    .modal-input:focus {
+      border-color: var(--accent);
+      box-shadow: inset 6px 6px 12px var(--shadow-dark-sm), inset -5px -5px 10px var(--shadow-light-sm), 0 0 0 3px var(--accent-glow);
+    }
+
+    /* ─── Bouton submit modal — accent ─── */
+    .modal-btn {
+      width: 100%;
+      margin-top: 18px;
+      padding: 16px 24px;
+      background: var(--accent);
+      color: var(--accent-on);
+      font-size: 12px; font-weight: 700;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      border-radius: 999px;
+      box-shadow: 6px 6px 14px var(--shadow-dark-sm), -4px -4px 10px var(--shadow-light-sm), inset 1px 1px 2px rgba(255,255,255,0.08);
+      transition: all 0.3s;
+    }
+    [data-theme="dark"] .modal-btn {
+      box-shadow: 6px 6px 14px rgba(0,0,0,0.55), -4px -4px 10px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.3);
+    }
+    .modal-btn:hover { transform: translateY(-1px); }
+    [data-theme="dark"] .modal-btn:hover { box-shadow: 6px 6px 14px rgba(0,0,0,0.55), -4px -4px 10px rgba(54,60,72,0.22), inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px rgba(232,216,190,0.5), 0 0 20px rgba(232,216,190,0.35); }
+    .modal-btn:disabled { opacity: 0.5; cursor: wait; transform: none; }
+
+    .modal-error {
+      color: var(--error);
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-top: 16px;
+      display: none;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Decorative ambient orbs ─── */
+    .ambient-orb {
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(80px);
+      opacity: 0.18;
+      transition: opacity 0.6s ease, background 0.6s ease;
+    }
+    .ambient-orb.a {
+      top: -120px; left: -120px;
+      width: 360px; height: 360px;
+      background: var(--accent);
+    }
+    .ambient-orb.b {
+      bottom: -140px; right: -120px;
+      width: 380px; height: 380px;
+      background: var(--accent);
+      opacity: 0.12;
+    }
+    [data-theme="dark"] .ambient-orb.a { opacity: 0.13; }
+    [data-theme="dark"] .ambient-orb.b { opacity: 0.08; }
+
+    .page > * { position: relative; z-index: 1; }
+
+    /* ─── Smooth theme transitions globales ─── */
+    body, .back-link, .pill-btn, .service-pill, .modal-content, .modal-close, .modal-icon, .modal-input, .modal-btn, .access-btn {
+      transition: background-color 0.45s ease, color 0.45s ease, box-shadow 0.45s ease, border-color 0.45s ease, transform 0.3s ease;
+    }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 900px) {
+      .page { padding: 22px 24px; }
+      .top-bar { gap: 12px; align-items: center; }
+      .logo { font-size: 19px; line-height: 1; }
+      .back-link, .pill-btn { height: 36px; padding: 0 14px; font-size: 10.5px; }
+      .back-link { padding: 10px 14px; }
+      .pill-btn.icon-only { width: 36px; padding: 0; }
+      /* Toggle fin : dimensions verrouillées en base, on ne touche qu'à l'alignement */
+      .top-right .dark-toggle { align-self: center; }
+      .main-content { padding: 36px 14px 24px; }
+      .hero-title { font-size: 2.4rem; }
+      .hero-text { font-size: 0.92rem; line-height: 1.65; padding: 0 6px; }
+      .services { gap: 8px; margin-bottom: 36px; }
+      .service-pill { padding: 7px 14px; font-size: 9.5px; letter-spacing: 0.14em; }
+      .access-btn { padding: 16px 32px; font-size: 11px; letter-spacing: 0.18em; }
+      .modal-content { padding: 38px 28px 30px; max-width: 92vw; border-radius: 28px; }
+      .modal-title { font-size: 1.85rem; }
+      .modal-text { font-size: 12px; }
+      /* HIG : ≥16px sinon iOS zoome toute la page au focus */
+      .modal-input { font-size: 16px; padding: 14px 18px; letter-spacing: 0.14em; }
+      .modal-btn { padding: 14px 20px; font-size: 11px; }
+    }
+    @media (max-width: 640px) {
+      .page { padding: 16px 16px; }
+      /* Tous les éléments du header à la même hauteur (40px) et alignés au centre */
+      .top-bar {
+        grid-template-columns: auto 1fr auto;
+        gap: 10px;
+        align-items: center;
+      }
+      .logo { font-size: 17px; line-height: 1; }
+      .back-link span { display: none; }
+      .back-link,
+      .top-right .pill-btn {
+        height: 40px;
+        flex-shrink: 0;
+      }
+      .back-link,
+      .top-right .pill-btn.icon-only {
+        width: 40px;
+        padding: 0;
+        justify-content: center;
+      }
+      .top-right .pill-btn:not(.icon-only) {
+        padding: 0 14px;
+      }
+      /* Le toggle garde sa taille fine (verrouillée en base) et se centre */
+      .top-right .dark-toggle {
+        align-self: center;
+        flex-shrink: 0;
+      }
+      .top-right { gap: 8px; }
+
+      .main-content { padding: 28px 12px 20px; }
+      .hero-title { font-size: 2rem; letter-spacing: -0.015em; }
+      .hero-text { font-size: 0.88rem; margin-bottom: 30px; }
+      .brand-kicker { font-size: 0.66rem; letter-spacing: 0.26em; margin-bottom: 20px; }
+      .ambient-orb.a, .ambient-orb.b { filter: blur(60px); }
+      .modal-content { padding: 32px 22px 26px; border-radius: 24px; }
+      .modal-icon { width: 56px; height: 56px; margin-bottom: 18px; }
+      .modal-icon svg { width: 20px; height: 20px; }
+      .modal-kicker { font-size: 9.5px; letter-spacing: 0.24em; }
+      .modal-title { font-size: 1.65rem; }
+    }
+    @media (max-width: 380px) {
+      .hero-title { font-size: 1.75rem; }
+      .modal-content { padding: 28px 18px 22px; }
+      .modal-input { letter-spacing: 0.08em; font-size: 16px; }
+    }
+  
+    /* ════════════════════════════════════════════════
+       DURCISSEMENT RESPONSIVE UNIVERSEL — TimelessHouse
+       Filet de sécurité mobile/tablette, additif et non destructif
+       ════════════════════════════════════════════════ */
+
+    /* 1 — Anti-débordement horizontal global */
+    html, body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
+    img, video, svg, iframe { max-width: 100%; height: auto; }
+    video, iframe { display: block; }
+
+    /* 2 — 100vh → utilise la hauteur dynamique réelle (barre URL mobile) */
+    @supports (height: 100dvh) {
+      .full-h, .hero, .min-h-screen { min-height: 100dvh; }
+    }
+
+    /* 3 — Confort tactile : cibles ≥ 44px sur écrans tactiles */
+    @media (hover: none) and (pointer: coarse) {
+      a, button, [role="button"], input[type="submit"], input[type="button"], .btn, .btn-primary, .btn-action, .filter-btn {
+        min-height: 44px;
+      }
+      a:not(.logo):not(.inline-link), button, [role="button"] {
+        touch-action: manipulation;
+      }
+    }
+
+    /* 4 — Empêche le zoom auto iOS sur focus champ (police ≥ 16px) */
+    @media (max-width: 768px) {
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+    }
+
+    /* 5 — Safe-area : encoches & barre gestuelle iPhone */
+    @supports (padding: max(0px)) {
+      body {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+    }
+
+    /* 6 — Tablette : conteneurs fluides */
+    @media (max-width: 1024px) {
+      .container, .wrapper, [class*="max-w-"] {
+        padding-left: clamp(16px, 4vw, 40px);
+        padding-right: clamp(16px, 4vw, 40px);
+      }
+    }
+
+    /* 7 — Téléphone : typographie & espacement resserrés */
+    @media (max-width: 640px) {
+      h1 { font-size: clamp(1.6rem, 7vw, 2.4rem); line-height: 1.1; }
+      h2 { font-size: clamp(1.3rem, 5.5vw, 2rem); }
+      h3 { font-size: clamp(1.1rem, 4.5vw, 1.5rem); }
+      .grid, [class*="grid-cols"] { gap: 12px; }
+    }
+
+    /* 8 — Très petits écrans : grilles multi-colonnes → 1 colonne */
+    @media (max-width: 420px) {
+      [style*="grid-template-columns"]:not([data-keep-grid]) {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+    /* 9 — Scroll fluide tactile pour barres horizontales */
+    .filter-bar, .scroll-x, [class*="overflow-x"] {
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .filter-bar::-webkit-scrollbar, .scroll-x::-webkit-scrollbar { display: none; }
+
+    /* 10 — Désactive le hover « collant » sur tactile */
+    @media (hover: none) {
+      *:hover { transition: none !important; }
+    }
+
+    /* ════════════════════════════════════════════════
+       ✅ CORRECTIF RESPONSIVE MOBILE — Communication (mai 2026)
+       ════════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      body { overflow-x: hidden; }
+      .page {
+        min-height: 100dvh;
+        padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+      }
+
+      /* Moins de vide : le héros respire sans paraître perdu */
+      .main-content { padding: 20px 14px; }
+      .brand-kicker { margin-bottom: 16px; }
+      .hero-title  { margin-bottom: 18px; }
+      .hero-text   { margin-bottom: 24px; }
+      .services    { margin-bottom: 30px; }
+
+      /* Header : le toggle nuit/jour aligné, pas un disque isolé */
+      .top-right { gap: 8px; align-items: center; }
+      .top-right .dark-toggle { align-self: center; }
+
+      /* Footer jamais rogné par la barre du navigateur */
+      footer {
+        padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+        line-height: 1.5;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .hero-text { font-size: 0.85rem; }
+      footer { font-size: 10px; }
+    }
+
+  </style>
+  <script type="module" crossorigin src="/assets/communication-JqBEcQvo.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
+</head>
+<body>
+  <div class="ambient-orb a"></div>
+  <div class="ambient-orb b"></div>
+
+  <div class="page">
+    <header class="top-bar">
+      <div>
+        <a href="index.html" class="back-link">
+          <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <span data-lang="fr">Retour</span><span data-lang="en">Back</span>
+        </a>
+      </div>
+      <a href="index.html" class="logo">TimelessHouse<span class="logo-dot">.</span></a>
+      <div class="top-right">
+        <button class="pill-btn" onclick="toggleLanguage()" aria-label="Changer de langue">FR/EN</button>
+        <button class="pill-btn icon-only dark-toggle" onclick="toggleDarkMode()" role="switch" aria-checked="false" aria-label="Basculer mode jour/nuit" id="darkToggleBtn">
+          <svg class="th-arc-svg" width="42" height="22" viewBox="0 0 42 22" preserveAspectRatio="none" aria-hidden="true">
+            <rect class="th-arc" x="1.2" y="1.2" width="39.6" height="19.6" rx="9.8" ry="9.8" pathLength="100"/>
+          </svg>
+        </button>
+        <a href="communication-admin.html" class="pill-btn icon-only" title="Administration" style="opacity:0.45;">
+          <svg viewBox="0 0 24 24"><path d="M12 15v2"/><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4"/></svg>
+        </a>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <span class="brand-kicker">
+        <span data-lang="fr">Communication & Marketing</span>
+        <span data-lang="en">Communication & Marketing</span>
+      </span>
+      <h1 class="hero-title">
+        <span data-lang="fr">Votre <em>tableau de bord</em><br>marketing privé.</span>
+        <span data-lang="en">Your private<br><em>marketing dashboard</em>.</span>
+      </h1>
+      <p class="hero-text">
+        <span data-lang="fr">Retrouvez en un seul endroit tous vos médias livrés, vos factures, vos analyses de réseaux sociaux en temps réel et le calendrier de vos prochains tournages.</span>
+        <span data-lang="en">All your delivered media, invoices, real-time social media analytics and upcoming shoot schedule — in one private space.</span>
+      </p>
+      <div class="services">
+        <span class="service-pill"><span data-lang="fr">Médias</span><span data-lang="en">Media</span></span>
+        <span class="service-pill"><span data-lang="fr">Factures</span><span data-lang="en">Invoices</span></span>
+        <span class="service-pill"><span data-lang="fr">Analyses live</span><span data-lang="en">Live analytics</span></span>
+        <span class="service-pill"><span data-lang="fr">Calendrier</span><span data-lang="en">Calendar</span></span>
+      </div>
+      <a class="access-btn" href="/app">
+        <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15L19 4"/><path d="M18 5l2 2"/><path d="M15 8l2 2"/></svg>
+        <span data-lang="fr">Accéder à mon espace</span><span data-lang="en">Access my space</span>
+      </a>
+    </main>
+
+    <footer>&copy; 2026 TimelessHouse — <span data-lang="fr">Votre histoire, notre expertise.</span><span data-lang="en">Your story, our expertise.</span></footer>
+  </div>
+
+  <!-- Modale « entrez votre code » retirée le 22/07/2026 : une seule
+       porte de connexion pour tous les clients, /app. -->
+
+  <!-- 🔑 Config Supabase -->
+
+</body>
+</html>

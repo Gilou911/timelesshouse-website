@@ -1,0 +1,23 @@
+# Généré par scripts/post-build.mjs — ne pas éditer à la main.
+# Anciens liens d'espace client (emails déjà envoyés, favoris) :
+# la vitrine ne les sert plus, le produit oui.
+/app      https://app.timelesshouse.org/app      301
+/app.html https://app.timelesshouse.org/app      301
+/galerie      https://app.timelesshouse.org/galerie      301
+/galerie.html https://app.timelesshouse.org/galerie      301
+/communication-admin      https://app.timelesshouse.org/communication-admin      301
+/communication-admin.html https://app.timelesshouse.org/communication-admin      301
+/communication-dashboard      https://app.timelesshouse.org/communication-dashboard      301
+/communication-dashboard.html https://app.timelesshouse.org/communication-dashboard      301
+/event-photos      https://app.timelesshouse.org/event-photos      301
+/event-photos.html https://app.timelesshouse.org/event-photos      301
+/event-photos-cinematic      https://app.timelesshouse.org/event-photos-cinematic      301
+/event-photos-cinematic.html https://app.timelesshouse.org/event-photos-cinematic      301
+/event-video      https://app.timelesshouse.org/event-video      301
+/event-video.html https://app.timelesshouse.org/event-video      301
+/event-engagement      https://app.timelesshouse.org/event-engagement      301
+/event-engagement.html https://app.timelesshouse.org/event-engagement      301
+/event-anniversary      https://app.timelesshouse.org/event-anniversary      301
+/event-anniversary.html https://app.timelesshouse.org/event-anniversary      301
+/reinitialiser      https://app.timelesshouse.org/reinitialiser      301
+/reinitialiser.html https://app.timelesshouse.org/reinitialiser      301

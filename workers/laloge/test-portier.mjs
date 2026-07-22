@@ -105,30 +105,50 @@ for (const [hote, cible, attendu] of CAS) {
   }
 }
 
-/* ── AUCUNE PAGE ORPHELINE ────────────────────────────────────
-   Le portier décide à partir de listes. Une page créée demain et
-   oubliée de ces listes serait redirigée sans bruit sur les loges,
-   et on chercherait longtemps pourquoi elle « ne marche pas ».
-   Ici : toute page du dépôt doit être classée quelque part. */
-const connues = new Set([
-  ...portee.PAGES_LOGE, ...portee.PAGES_VITRINE,
-  ...portee.PAGES_PARTOUT, ...portee.PAGES_TIMELESSHOUSE,
-]);
-const orphelines = readdirSync(RACINE)
-  .filter((f) => f.endsWith(".html"))
-  .map((f) => f.slice(0, -5))
-  .filter((n) => !connues.has(n));
+/* ── CHAQUE PAGE EST DANS UN BUILD, ET DANS LE BON ─────────────
+   Depuis la séparation du 22/07/2026, deux builds sont déployés :
+   le produit (vite.config.js → dist) et le studio de Gil
+   (vite.config.studio.js → dist-studio). Trois façons de se
+   tromper, toutes silencieuses :
+     · créer une page et ne la déclarer nulle part → elle n'existe
+       sur aucun site, et on cherche pourquoi « elle ne marche pas » ;
+     · la déclarer dans les deux → la séparation est annulée ;
+     · la déclarer dans un build mais la classer dans l'autre côté
+       du portier → elle est servie puis redirigée aussitôt.
+   Ce contrôle compare les deux configurations Vite aux listes du
+   portier et refuse tout désaccord. */
+const entrees = (fichier) => {
+  const src = readFileSync(join(RACINE, fichier), "utf8");
+  return new Set([...src.matchAll(/resolve\(__dirname,\s*'([^']+)\.html'\)/g)].map((m) => m[1]));
+};
+const buildProduit = entrees("vite.config.js");
+const buildStudio = entrees("vite.config.studio.js");
 
-if (orphelines.length) {
-  console.log(`\n❌ ${orphelines.length} page(s) non classée(s) : ${orphelines.join(", ")}`);
-  console.log("     Ajoutez chacune dans worker.js à la liste qui lui revient :");
-  console.log("       PAGES_LOGE          → espace client / galerie / console (les loges)");
-  console.log("       PAGES_VITRINE       → vente de La Loge (laloge.app)");
-  console.log("       PAGES_TIMELESSHOUSE → le studio de Gil (timelesshouse.org)");
-  console.log("       PAGES_PARTOUT       → valable sur tous les domaines");
-  ratés += orphelines.length;
+const pagesDuDepot = readdirSync(RACINE).filter((f) => f.endsWith(".html")).map((f) => f.slice(0, -5));
+const cotéProduit = new Set([...portee.PAGES_LOGE, ...portee.PAGES_VITRINE, ...portee.PAGES_PARTOUT]);
+
+const soucis = [];
+for (const p of pagesDuDepot) {
+  const dansProduit = buildProduit.has(p);
+  const dansStudio = buildStudio.has(p);
+  if (!dansProduit && !dansStudio) {
+    soucis.push(`${p}.html n'est déclarée dans AUCUN build — elle ne sera servie nulle part.` +
+      `\n        → ajoutez-la à vite.config.js (produit) OU vite.config.studio.js (studio), et à la liste correspondante de worker.js`);
+  } else if (dansProduit && dansStudio) {
+    soucis.push(`${p}.html est déclarée dans les DEUX builds — la séparation est annulée pour elle.`);
+  } else if (dansProduit && portee.PAGES_TIMELESSHOUSE.has(p)) {
+    soucis.push(`${p}.html est construite avec le produit mais classée « studio » dans worker.js — elle serait servie puis redirigée.`);
+  } else if (dansStudio && cotéProduit.has(p)) {
+    soucis.push(`${p}.html est construite avec le studio mais classée « La Loge » dans worker.js.`);
+  }
+}
+
+if (soucis.length) {
+  console.log(`\n❌ ${soucis.length} page(s) mal rangée(s) :`);
+  soucis.forEach((s) => console.log(`     ${s}`));
+  ratés += soucis.length;
 } else {
-  console.log(`✅ classement : les ${readdirSync(RACINE).filter((f) => f.endsWith(".html")).length} pages du dépôt appartiennent toutes à un domaine`);
+  console.log(`✅ rangement : ${buildProduit.size} page(s) côté produit, ${buildStudio.size} côté studio, aucune en double ni oubliée`);
 }
 
 console.log(`\n${CAS.length} cas contrôlés · ${ratés} écart(s)`);

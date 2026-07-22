@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Contrat de sous-traitance (RGPD) — La Loge</title>
+  <meta name="description" content="Accord de traitement des données personnelles entre La Loge et les studios utilisateurs, au titre de l'article 28 du RGPD." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/laloge-legal.css" />
+</head>
+<body>
+
+  <header class="top">
+    <div class="wrap">
+      <a class="logo" href="/offres">La Loge<span>.</span></a>
+      <a class="back" href="/offres">← Retour aux offres</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="kicker">Annexe contractuelle</div>
+    <h1>Contrat de sous-traitance des données personnelles</h1>
+    <p class="maj">Article 28 du Règlement (UE) 2016/679 (RGPD) · Version 1.0 — 20 juillet 2026</p>
+
+    <div class="todo">
+      <strong>Document à faire relire par un juriste avant mise en ligne.</strong>
+      Il a été rédigé à partir de l'architecture technique réelle du service et
+      des obligations de l'article 28 du RGPD, mais il n'a pas valeur de conseil
+      juridique. Les mentions <code>[À COMPLÉTER]</code> ne peuvent être remplies
+      que par l'éditeur.
+    </div>
+
+    <h2>1. Qui fait quoi</h2>
+    <p>
+      La Loge est un service qui permet à un studio photo ou vidéo (ci-après
+      « <strong>le Studio</strong> ») de mettre à disposition de ses propres clients un
+      espace privé à sa marque : livraison de films et de galeries, validation,
+      factures, documents.
+    </p>
+    <p>Il faut donc distinguer deux traitements, qui n'obéissent pas aux mêmes règles :</p>
+
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th>Données concernées</th><th>Responsable de traitement</th><th>Rôle de La Loge</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Compte du Studio : nom du studio, email, mot de passe, facturation, journaux de connexion</td>
+            <td><strong>La Loge</strong></td>
+            <td>Responsable — voir la <a href="/laloge-confidentialite.html">politique de confidentialité</a></td>
+          </tr>
+          <tr>
+            <td>Données que le Studio dépose : identité et coordonnées de ses clients, photos et vidéos livrées, commentaires, factures, documents</td>
+            <td><strong>Le Studio</strong></td>
+            <td><strong>Sous-traitant</strong> — objet du présent contrat</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      Autrement dit : le Studio décide de ce qu'il collecte auprès de ses clients et
+      pourquoi ; La Loge se contente de l'héberger et de le lui restituer. La Loge
+      n'utilise jamais ces contenus pour son propre compte.
+    </p>
+
+    <h2>2. Objet, durée et nature du traitement</h2>
+    <p>
+      <strong>Objet :</strong> hébergement, stockage, mise à disposition et transmission
+      des contenus et données déposés par le Studio dans son espace La Loge.
+    </p>
+    <p>
+      <strong>Durée :</strong> le contrat s'applique tant que le Studio dispose d'un compte
+      actif. Il prend fin à la clôture du compte, sous réserve des opérations de
+      restitution et d'effacement prévues à l'article 8.
+    </p>
+    <p><strong>Nature des opérations :</strong> collecte via l'interface, enregistrement,
+      conservation, organisation, consultation, transmission au client final,
+      sauvegarde, transcodage vidéo, et effacement sur instruction.</p>
+    <p><strong>Finalité :</strong> permettre au Studio de livrer ses prestations et de suivre
+      la relation avec ses clients.</p>
+
+    <h3>Catégories de personnes concernées</h3>
+    <ul>
+      <li>Les clients du Studio (particuliers : mariés, familles ; ou professionnels).</li>
+      <li>Les personnes apparaissant sur les photographies et vidéos livrées (invités, participants, tiers).</li>
+    </ul>
+
+    <h3>Catégories de données</h3>
+    <ul>
+      <li><strong>Identité et contact :</strong> nom, prénoms, adresse email, secteur d'activité.</li>
+      <li><strong>Contenus :</strong> photographies et vidéos — qui constituent des données
+        personnelles dès lors que des personnes y sont identifiables, et relèvent
+        par nature de la vie privée et familiale.</li>
+      <li><strong>Données de gestion :</strong> factures, montants, documents, dates de tournage, commentaires et validations.</li>
+      <li><strong>Données techniques :</strong> code d'accès, horodatage des consultations.</li>
+    </ul>
+
+    <div class="note">
+      <strong>Point de vigilance.</strong> Les images d'un mariage ou d'un événement
+      familial peuvent révéler indirectement des convictions religieuses ou
+      l'appartenance à un groupe. Le service n'est pas conçu pour traiter
+      délibérément des données sensibles au sens de l'article 9 du RGPD, ni des
+      données de santé, ni des données bancaires (celles-ci restent chez Stripe).
+      Le Studio s'engage à ne pas en déposer.
+    </div>
+
+    <h2>3. Obligations de La Loge</h2>
+    <p>La Loge s'engage à :</p>
+    <ul>
+      <li>ne traiter les données que sur instruction documentée du Studio — l'usage
+        normal du service valant instruction — et jamais pour ses propres finalités
+        (aucune revente, aucune exploitation commerciale, aucun entraînement de
+        modèle d'intelligence artificielle) ;</li>
+      <li>garantir la confidentialité des données et n'y accéder que lorsque c'est
+        strictement nécessaire au support technique ou à la sécurité du service ;</li>
+      <li>mettre en œuvre les mesures de sécurité décrites à l'article 5 ;</li>
+      <li>notifier au Studio toute violation de données <strong>dans les meilleurs délais et
+        au plus tard sous 48 heures</strong> après en avoir pris connaissance, avec les
+        éléments permettant au Studio de remplir sa propre obligation de
+        notification à la CNIL ;</li>
+      <li>aider le Studio à répondre aux demandes d'exercice de droits de ses clients
+        (accès, rectification, effacement, portabilité) ;</li>
+      <li>tenir un registre des catégories de traitements effectués pour le compte du Studio.</li>
+    </ul>
+
+    <h2>4. Obligations du Studio</h2>
+    <p>Le Studio, en tant que responsable de traitement, s'engage à :</p>
+    <ul>
+      <li>disposer d'une base légale pour les données qu'il dépose, et avoir informé
+        ses clients de l'existence de l'espace privé et de son hébergement ;</li>
+      <li>obtenir, lorsque c'est nécessaire, l'autorisation des personnes
+        photographiées ou filmées (droit à l'image) ;</li>
+      <li>ne déposer que des données nécessaires à sa prestation ;</li>
+      <li>transmettre les codes d'accès de manière raisonnablement sûre et ne pas les
+        diffuser publiquement ;</li>
+      <li>documenter ses propres traitements et répondre aux demandes de ses clients.</li>
+    </ul>
+
+    <h2>5. Mesures de sécurité effectivement en place</h2>
+    <p>
+      Ces mesures décrivent l'état réel du service à la date de publication. Elles
+      peuvent évoluer, sans jamais diminuer le niveau de protection.
+    </p>
+    <ul>
+      <li><strong>Cloisonnement par studio :</strong> les données de chaque studio sont isolées
+        au niveau de la base de données elle-même (politiques de sécurité par ligne).
+        Un studio ne peut techniquement pas lire ni modifier les données d'un autre,
+        même en détournant l'interface.</li>
+      <li><strong>Accès client scellé :</strong> l'espace d'un client final n'est accessible que
+        par son code, vérifié côté serveur ; aucune donnée n'est lisible avec la
+        seule clé publique de l'application.</li>
+      <li><strong>Chiffrement en transit :</strong> l'ensemble des échanges est protégé par TLS (HTTPS).</li>
+      <li><strong>Mots de passe :</strong> jamais stockés en clair — hachés par le fournisseur
+        d'authentification. La Loge n'a pas accès aux mots de passe des studios.</li>
+      <li><strong>Fichiers :</strong> stockés chez un hébergeur dédié, servis par des adresses
+        non indexées et non devinables, et non référencés par les moteurs de recherche.</li>
+      <li><strong>Journalisation :</strong> inscriptions et demandes de réinitialisation de mot
+        de passe sont journalisées et limitées en fréquence (anti-abus).</li>
+      <li><strong>Sauvegardes :</strong> assurées par l'hébergeur de la base de données.</li>
+    </ul>
+
+    <div class="todo">
+      <strong>[À COMPLÉTER]</strong> Préciser la durée de rétention des sauvegardes
+      offerte par votre offre Supabase, ainsi que l'existence éventuelle d'une
+      double authentification sur les comptes d'administration.
+    </div>
+
+    <h2>6. Sous-traitants ultérieurs</h2>
+    <p>
+      Le Studio autorise La Loge à faire appel aux prestataires ci-dessous, qui
+      interviennent chacun sur une partie du service. La Loge informera le Studio de
+      tout ajout ou remplacement, en lui laissant la possibilité d'y objecter.
+    </p>
+
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th>Prestataire</th><th>Rôle</th><th>Hébergement</th><th>Encadrement des transferts</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Supabase</td><td>Base de données, authentification</td><td>Union européenne (Paris)</td><td>Pas de transfert hors UE</td></tr>
+          <tr><td>Backblaze B2</td><td>Stockage des photos et vidéos</td><td>Union européenne (Amsterdam)</td><td>Pas de transfert hors UE</td></tr>
+          <tr><td>Cloudflare</td><td>Diffusion, protection, sous-domaines</td><td>Réseau mondial — siège États-Unis</td><td>Clauses contractuelles types</td></tr>
+          <tr><td>Resend</td><td>Envoi des emails du service</td><td>États-Unis</td><td>Clauses contractuelles types</td></tr>
+          <tr><td>Stripe</td><td>Paiement des abonnements des studios</td><td>Irlande / États-Unis</td><td>Clauses contractuelles types</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      Les contenus déposés par les studios (photos, vidéos, documents) sont stockés
+      <strong>dans l'Union européenne</strong> et transitent par le réseau de diffusion de
+      Cloudflare. Stripe ne reçoit aucune donnée des clients finaux : il ne traite
+      que l'abonnement du studio.
+    </p>
+
+    <h2>7. Assistance et exercice des droits</h2>
+    <p>
+      Le Studio dispose dans sa console des moyens de consulter, corriger, exporter
+      et supprimer lui-même les données de ses clients — ce qui lui permet de
+      répondre directement à la plupart des demandes. Lorsqu'une demande dépasse ces
+      moyens, La Loge apporte son aide dans un délai raisonnable et au plus tard sous
+      <strong>15 jours ouvrés</strong>.
+    </p>
+
+    <h2>8. Sort des données à la fin du contrat</h2>
+    <ul>
+      <li>Le Studio peut à tout moment exporter ou télécharger les contenus qu'il a déposés.</li>
+      <li>À la clôture du compte, les données sont conservées <strong>30 jours</strong> afin de
+        permettre une réactivation ou une récupération, puis effacées.</li>
+      <li>Sur l'offre gratuite Découverte, l'accès aux espaces est limité à
+        <strong>90 jours</strong> ; passé ce délai les contenus ne sont plus consultables par
+        les clients finaux, mais <strong>ils ne sont pas supprimés</strong> : le passage à une
+        offre payante en rétablit l'accès.</li>
+      <li>Les sauvegardes techniques disparaissent selon le cycle de rotation de l'hébergeur.</li>
+      <li>Les données de facturation du Studio sont conservées 10 ans, comme l'exige la loi comptable.</li>
+    </ul>
+
+    <h2>9. Audit</h2>
+    <p>
+      Le Studio peut demander, une fois par an et moyennant un préavis raisonnable,
+      les informations nécessaires pour vérifier le respect du présent contrat. Les
+      audits sur site restent exceptionnels et à la charge du demandeur.
+    </p>
+
+    <h2>10. Contact</h2>
+    <p>
+      Pour toute question relative à ce contrat ou à la protection des données :
+      <a href="mailto:service@timelesshouse.org">service@timelesshouse.org</a>.
+    </p>
+
+    <div class="todo">
+      <strong>[À COMPLÉTER]</strong> Raison sociale, forme juridique, SIRET, adresse du
+      siège et représentant légal de l'éditeur — indispensables pour que ce
+      document soit opposable.
+    </div>
+  </main>
+
+  <footer class="bottom">
+    <div class="wrap">
+      La Loge — service édité par TimelessHouse.
+      <div class="links">
+        <a href="/offres">Offres</a>
+        <a href="/laloge-cgv.html">Conditions générales</a>
+        <a href="/laloge-confidentialite.html">Confidentialité</a>
+        <a href="mailto:service@timelesshouse.org">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -24,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
-  <link rel="preload" as="image" href="Vignette_Eunice_Josue-1920.webp" type="image/webp" fetchpriority="high" />
+  <link rel="preload" as="image" href="/assets/Vignette_Eunice_Josue-1920-DTIBZgrg.webp" type="image/webp" fetchpriority="high" />
 
   <style>
     :root {
@@ -692,18 +692,20 @@
     }
 
   </style>
+  <script type="module" crossorigin src="/assets/main-Dhbb-kDn.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
 </head>
 <body>
 
   <div class="bg-video-wrap">
 
     <picture>
-      <source type="image/webp" srcset="Vignette_Eunice_Josue-1920.webp">
-      <img src="Vignette_Eunice_Josue-1920.jpg" alt="Portrait cinematique mariage" class="bg-poster" loading="eager">
+      <source type="image/webp" srcset="/assets/Vignette_Eunice_Josue-1920-DTIBZgrg.webp">
+      <img src="/assets/Vignette_Eunice_Josue-1920-DFtsztYE.jpg" alt="Portrait cinematique mariage" class="bg-poster" loading="eager">
     </picture>
 
     <video autoplay muted loop playsinline preload="auto" disableremoteplayback
-           poster="Vignette_Eunice_Josue-1920.webp"
+           poster="/assets/Vignette_Eunice_Josue-1920-DTIBZgrg.webp"
            class="bg-video"
            onplaying="this.classList.add('is-playing')">
         <source src="https://streamable.com/l/9eoymb/mp4-high.mp4" type="video/mp4" />
@@ -783,19 +785,6 @@
 
   <!-- 🔐 Codes clients — validés via Supabase (tous univers) -->
 
-  <script type="module">
-    // — Config Supabase injectée par Vite depuis .env (variables VITE_*)
-    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    // Rétrocompatibilité pour les scripts classiques de la page qui lisent window.SUPABASE_*
-    window.SUPABASE_URL = SUPABASE_URL;
-    window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
-
-    // La saisie du code d'accès vivait ici (routeForClient + Supabase).
-    // Elle appartient à la porte unique /app depuis le 22/07/2026 : la
-    // vitrine du studio n'a plus à connaître les univers clients, et la
-    // page ne charge plus le SDK Supabase pour rien.
-  </script>
 
   <script>
     /* ============================================================

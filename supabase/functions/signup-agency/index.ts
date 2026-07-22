@@ -123,10 +123,10 @@ function notifyPlatform(name: string, slug: string, email: string, total: number
            cette loge est <strong>en attente</strong> et ne peut rien publier pour l'instant.
          </p>
          <div style="text-align:center">
-           <a href="https://www.timelesshouse.org/communication-admin" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Valider dans la console</a>
+           <a href="https://app.timelesshouse.org/communication-admin" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Valider dans la console</a>
          </div>`
       : `<div style="text-align:center">
-           <a href="https://www.timelesshouse.org/communication-admin" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Voir mes agences</a>
+           <a href="https://app.timelesshouse.org/communication-admin" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Voir mes agences</a>
          </div>`}`;
   sendMail(PLATFORM_EMAIL, `${pending ? "⏳ Demande" : "🎭 Nouvelle loge"} — ${name}`, shell(pending ? "Une loge attend votre validation" : "Nouvelle inscription", body), email);
 }

@@ -72,8 +72,8 @@ let CURRENT_MONO = null;
 // retombaient donc systématiquement sur le repli en dur. Ces deux
 // variables sont posées par brandOf() (comme le thème), juste avant
 // chaque construction : plus aucune URL en dur dans un gabarit.
-let CURRENT_ESPACE = "https://timelesshouse.org/app";
-let CURRENT_CONSOLE = "https://www.timelesshouse.org/communication-admin";
+let CURRENT_ESPACE = "https://app.timelesshouse.org/app";
+let CURRENT_CONSOLE = "https://app.timelesshouse.org/communication-admin";
 function themeOf(client) {
   const u = String(client?.universe || "");
   if (u === "celebration" || /mariage|wedding|fian|anniv/i.test(u)) return "mariage";
@@ -96,10 +96,10 @@ function brandOf(client) {
   CURRENT_MONO = CURRENT_THEME === "mariage" ? monogramme(client) : null;
   // Destinations à la marque de l'agence (voir plus haut)
   const propre = b.slug && b.slug !== "timelesshouse";
-  CURRENT_ESPACE = propre ? `https://${b.slug}.laloge.house` : "https://timelesshouse.org/app";
+  CURRENT_ESPACE = propre ? `https://${b.slug}.laloge.house` : "https://app.timelesshouse.org/app";
   CURRENT_CONSOLE = propre
     ? `https://${b.slug}.laloge.house/communication-admin`
-    : "https://www.timelesshouse.org/communication-admin";
+    : "https://app.timelesshouse.org/communication-admin";
   return b;
 }
 const CORS = {
@@ -151,7 +151,11 @@ function filetMarqueBlanche(html, brand) {
   const base = `https://${slug}.laloge.house`;
   let n = 0;
   let out = String(html).replace(
-    /https:\/\/(?:www\.)?timelesshouse\.org(\/app)?/g,
+    // `app.` depuis la séparation du 22/07/2026 : les espaces clients de
+    // la plateforme ont quitté timelesshouse.org pour app.timelesshouse.org.
+    // Sans ce préfixe, une URL de plateforme écrite en dur passerait le
+    // filet et enverrait le client d'un locataire chez TimelessHouse.
+    /https:\/\/(?:www\.|app\.)?timelesshouse\.org(\/app)?/g,
     () => { n++; return base; },
   );
   // Vitrines La Loge (bug du 22/07 : la console envoyait l'origine de
@@ -1164,7 +1168,7 @@ serve(async (req)=>{
     ];
     // URL de l'espace du client (porte de connexion à la marque de l'agence)
     const espaceUrl = !agency || agency.slug === "timelesshouse"
-      ? "https://timelesshouse.org/app"
+      ? "https://app.timelesshouse.org/app"
       : `https://${agency.slug}.laloge.house`;
     if (CLIENT_KINDS.includes(kind)) {
       if (!client?.client_email) {

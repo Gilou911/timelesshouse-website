@@ -38,17 +38,17 @@ export default defineConfig({
         },
       },
       input: {
-        // — Pages vitrines —
-        main:                   resolve(__dirname, 'index.html'),
-        mariage:                resolve(__dirname, 'mariage.html'),
-        immobilier:             resolve(__dirname, 'immobilier.html'),
+        // ⚠️ LE STUDIO N'EST PAS ICI. index, mariage, immobilier,
+        // communication, photobooth et portfolio sont le site de Gil :
+        // ils vivent dans vite.config.studio.js et ne sont servis que
+        // sur timelesshouse.org. Les remettre ici les rendrait à
+        // nouveau visibles chez les locataires (bug du 22/07/2026).
 
         // — Espaces clients / agence —
         app:                    resolve(__dirname, 'app.html'),
         offres:                 resolve(__dirname, 'offres.html'),
         inscription:            resolve(__dirname, 'inscription.html'),
         reinitialiser:          resolve(__dirname, 'reinitialiser.html'),
-        communication:          resolve(__dirname, 'communication.html'),
         admin:                  resolve(__dirname, 'communication-admin.html'),
         dashboard:              resolve(__dirname, 'communication-dashboard.html'),
 
@@ -61,14 +61,6 @@ export default defineConfig({
         eventVideo:             resolve(__dirname, 'event-video.html'),
         eventPhotos:            resolve(__dirname, 'event-photos.html'),
         eventPhotosCinematic:   resolve(__dirname, 'event-photos-cinematic.html'),
-        photobooth:             resolve(__dirname, 'photobooth.html'),
-        photoboothInscription:  resolve(__dirname, 'photobooth-inscription.html'),
-
-        // — Outils / démo internes —
-        demoToggle:             resolve(__dirname, 'demo-toggle.html'),
-
-        // — Prospection —
-        portfolio:              resolve(__dirname, 'portfolio.html'),
       },
     },
   },

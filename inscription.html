@@ -53,6 +53,18 @@
       background:var(--pressed); color:var(--ink); font-size:16px; font-family:inherit; outline:none;
       box-shadow:inset 3px 3px 6px var(--shadow-d), inset -3px -3px 6px var(--shadow-l);
     }
+    /* Œil « voir le mot de passe » : cible 44 px logée dans le champ (HIG §4) */
+    .pwd-wrap { position:relative; }
+    .pwd-wrap input { padding-right:56px; }
+    .eye {
+      position:absolute; top:50%; right:4px; transform:translateY(-50%);
+      width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center;
+      border:none; background:none; padding:0; cursor:pointer;
+      color:var(--faint); border-radius:999px;
+    }
+    .eye .i-hide { display:none; }
+    .eye.on .i-show { display:none; }
+    .eye.on .i-hide { display:block; }
     .addr { font-size:12.5px; color:var(--muted); margin-top:8px; padding-left:4px; }
     .addr b { color:var(--ink); font-family:monospace; }
     .btn {
@@ -119,7 +131,23 @@
       </div>
       <div class="row">
         <label for="pwd">Mot de passe</label>
-        <input id="pwd" type="password" required minlength="8" placeholder="8 caractères minimum" autocomplete="new-password" />
+        <div class="pwd-wrap">
+          <input id="pwd" type="password" required minlength="8" placeholder="8 caractères minimum" autocomplete="new-password" />
+          <button type="button" class="eye" data-for="pwd" aria-label="Afficher le mot de passe" aria-pressed="false">
+            <svg class="i-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="i-hide" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="row">
+        <label for="pwd2">Confirmer le mot de passe</label>
+        <div class="pwd-wrap">
+          <input id="pwd2" type="password" required minlength="8" placeholder="Retapez le même mot de passe" autocomplete="new-password" />
+          <button type="button" class="eye" data-for="pwd2" aria-label="Afficher le mot de passe" aria-pressed="false">
+            <svg class="i-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="i-hide" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
       </div>
       <button class="btn" type="submit" id="btn">Créer ma loge</button>
     </form>
@@ -172,6 +200,18 @@
       el('addr').textContent = slugify(el('studio').value) || 'votre-studio';
     });
 
+    // Œil « voir le mot de passe » (un par champ)
+    document.querySelectorAll('.eye').forEach((b) => {
+      b.addEventListener('click', () => {
+        const input = el(b.dataset.for);
+        const visible = input.type === 'password';
+        input.type = visible ? 'text' : 'password';
+        b.classList.toggle('on', visible);
+        b.setAttribute('aria-pressed', String(visible));
+        b.setAttribute('aria-label', visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+      });
+    });
+
     el('form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const studio_name = el('studio').value.trim();
@@ -180,6 +220,7 @@
       const slug = slugify(studio_name);
       if (!slug) return say('Indiquez le nom de votre studio.', 'err');
       if (password.length < 8) return say('Le mot de passe doit faire au moins 8 caractères.', 'err');
+      if (password !== el('pwd2').value) return say('Les deux mots de passe ne correspondent pas.', 'err');
 
       el('btn').disabled = true; say('Création de votre loge…');
       try {

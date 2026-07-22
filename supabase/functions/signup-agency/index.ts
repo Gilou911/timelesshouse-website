@@ -123,16 +123,16 @@ function notifyPlatform(name: string, slug: string, email: string, total: number
            cette loge est <strong>en attente</strong> et ne peut rien publier pour l'instant.
          </p>
          <div style="text-align:center">
-           <a href="https://laloge.app/communication-admin.html" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Valider dans la console</a>
+           <a href="https://www.timelesshouse.org/communication-admin" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Valider dans la console</a>
          </div>`
       : `<div style="text-align:center">
-           <a href="https://laloge.app/communication-admin.html" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Voir mes agences</a>
+           <a href="https://www.timelesshouse.org/communication-admin" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Voir mes agences</a>
          </div>`}`;
   sendMail(PLATFORM_EMAIL, `${pending ? "⏳ Demande" : "🎭 Nouvelle loge"} — ${name}`, shell(pending ? "Une loge attend votre validation" : "Nouvelle inscription", body), email);
 }
 
 // Accusé de réception quand l'inscription part en file d'attente
-function pendingHtml(name: string) {
+function pendingHtml(name: string, slug: string) {
   return shell("Votre demande est enregistrée", `
     <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a4540">
       Merci ${esc(name)} ! Votre compte est créé. Chaque nouvelle loge étant désormais
@@ -144,7 +144,7 @@ function pendingHtml(name: string) {
       votre demande.
     </p>
     <div style="text-align:center">
-      <a href="https://laloge.app/communication-admin.html" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Voir ma console</a>
+      <a href="https://${esc(slug)}.laloge.house/communication-admin" style="display:inline-block;margin:20px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Voir ma console</a>
     </div>`);
 }
 
@@ -171,7 +171,7 @@ function welcomeHtml(name: string, slug: string) {
         personnel — et découvrira ses films à VOTRE marque.
       </p>
       <div style="text-align:center">
-        <a href="https://laloge.app/communication-admin.html" style="display:inline-block;margin:24px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Ouvrir ma console</a>
+        <a href="${space}/communication-admin" style="display:inline-block;margin:24px 0 8px;padding:14px 32px;background:#2a2620;color:#e8d8be;text-decoration:none;border-radius:32px;font-family:sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Ouvrir ma console</a>
       </div>
       <p style="font-size:13px;color:#8a8480;line-height:1.6;margin-top:24px">
         Vous êtes sur l'offre Découverte (3 Go, offerte). Vous pourrez passer à un palier
@@ -264,7 +264,7 @@ Deno.serve(async (req) => {
 
     // Emails (best effort) : accusé au studio + notification plateforme
     if (pending) {
-      sendMail(email, "Votre demande est bien reçue — La Loge", pendingHtml(name));
+      sendMail(email, "Votre demande est bien reçue — La Loge", pendingHtml(name, slug));
     } else {
       sendMail(email, "Votre loge est ouverte 🎭", welcomeHtml(name, slug));
     }

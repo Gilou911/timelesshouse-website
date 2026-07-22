@@ -12,6 +12,16 @@
   <meta property="og:title" content="La Loge — Tout ce que vous livrez, avec VOTRE marque" />
   <meta property="og:description" content="Espaces clients en marque blanche pour photographes, vidéastes et agences : livraison 4K, validation, factures, analyses — à VOTRE marque." />
   <meta name="theme-color" content="#e9e4d9" />
+  <script>
+    /* Cette page appartient à la vitrine La Loge. Le Worker la garde
+       chez elle sur les domaines laloge.*, mais timelesshouse.org est
+       hors de son périmètre : on renvoie ici. Sans ça, les tarifs du
+       SaaS s'affichent sur le site du studio (contenu dupliqué pour
+       Google, et confusion entre les deux marques). */
+    if (/(^|\.)timelesshouse\.org$/.test(location.hostname)) {
+      location.replace('https://laloge.app' + location.pathname + location.search);
+    }
+  </script>
   <link rel="icon" href="/favicon-th.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

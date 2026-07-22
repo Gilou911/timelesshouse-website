@@ -23,6 +23,80 @@ const DEFAULT_ICONS = [
   { src: "/icons/client-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
 ];
 
+// ════════════════════════════════════════════════════════════
+// 🚪  LE PORTIER — chaque domaine n'ouvre que SES pièces
+// ════════════════════════════════════════════════════════════
+// Un seul site est déployé, et il répondait à TOUT sur TOUS les
+// domaines. Conséquence mesurée le 22/07/2026 :
+//   · visonmike.laloge.house/offres  → les TARIFS de La Loge (29 €,
+//     49 €…) s'affichaient chez un locataire, sous sa marque ;
+//   · visonmike.laloge.house/portfolio → le portfolio TimelessHouse ;
+//   · laloge.app/galerie, /app, /communication-admin → les espaces
+//     clients sur la vitrine commerciale.
+// C'est aussi la racine des bugs de liens d'email : quand la console
+// vit à quatre adresses, `window.location.origin` ne veut plus rien
+// dire (deux corrections le même jour, mêmes causes).
+//
+// Le portier ne DÉPLACE rien : il regarde par quelle porte on entre
+// et renvoie à la bonne adresse ce qui n'a rien à faire là.
+
+/** Pages du PRODUIT : espaces clients, galeries, console. */
+const PAGES_LOGE = new Set([
+  "app", "galerie",
+  "communication", "communication-dashboard", "communication-admin",
+  "event-photos", "event-photos-cinematic", "event-video",
+  "event-engagement", "event-anniversary",
+  "mariage", "immobilier",
+]);
+
+/** Pages de la VITRINE La Loge : ce qu'on montre aux studios. */
+const PAGES_VITRINE = new Set([
+  "offres", "inscription",
+  "laloge-cgv", "laloge-confidentialite", "laloge-sous-traitance",
+]);
+
+/** Pages valables partout (réinitialisation : `account-recovery`
+ *  retombe sur laloge.app/reinitialiser, un locataire la demande
+ *  depuis sa loge — la bloquer d'un côté casserait un mot de passe
+ *  oublié). */
+const PAGES_PARTOUT = new Set(["reinitialiser", "404"]);
+
+/** Nom de page, ou null si ce n'est pas une page (asset, image,
+ *  manifest, fichier d'un sous-dossier…) — ceux-là passent toujours,
+ *  sinon la page servie arriverait sans son style ni son code. */
+function nomDePage(pathname) {
+  const p = pathname.replace(/^\/+/, "").replace(/\/+$/, "");
+  if (!p) return null;               // racine : traitée séparément
+  if (p.includes("/")) return null;  // /assets/…, /icons/…
+  if (p.endsWith(".html")) return p.slice(0, -5);
+  if (/\.[a-z0-9]+$/i.test(p)) return null; // .js, .png, .txt…
+  return p;                          // URL propre : /offres
+}
+
+/** Destination si la page n'est pas à sa place ici, sinon null. */
+function redirectionPortier(hostname, pathname, search) {
+  const nom = nomDePage(pathname);
+  if (nom === null || PAGES_PARTOUT.has(nom)) return null;
+
+  if (hostname === "laloge.app") {
+    if (PAGES_VITRINE.has(nom)) return null;
+    // Un lien d'espace client sur la vitrine : on l'emmène à la porte
+    // neutre des clients EN GARDANT le chemin et le code — un vieux
+    // lien de galerie doit continuer de mener à la galerie.
+    if (PAGES_LOGE.has(nom)) return `https://laloge.house${pathname}${search}`;
+    return "https://laloge.app/offres";
+  }
+
+  // laloge.house et <slug>.laloge.house — les loges.
+  if (PAGES_LOGE.has(nom)) return null;
+  // Les pages légales du SaaS restent lisibles, mais chez le SaaS.
+  if (nom.startsWith("laloge-")) return `https://laloge.app${pathname}`;
+  // Tarifs, inscription, portfolio, photobooth, page inconnue… :
+  // rien de tout ça n'existe pour le client d'un locataire. Il est
+  // ramené à la porte de SA loge, jamais vers La Loge.
+  return `https://${hostname}/app`;
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -43,6 +117,12 @@ export default {
         return Response.redirect(`https://${url.hostname}/offres`, 302);
       }
     }
+
+    // ── Le portier : cette page a-t-elle sa place ici ? ──
+    // (après les racines, avant le manifest : un asset n'est jamais
+    //  redirigé, `redirectionPortier` le laisse passer.)
+    const ailleurs = redirectionPortier(url.hostname, url.pathname, url.search);
+    if (ailleurs) return Response.redirect(ailleurs, 302);
 
     // ── Manifest PWA aux couleurs de l'agence ──
     if (slug && url.pathname === "/manifest-client.webmanifest") {

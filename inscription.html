@@ -9,6 +9,13 @@
   <title>Créer votre loge — La Loge</title>
   <meta name="description" content="Ouvrez votre espace client en marque blanche en une minute. Offre Découverte gratuite, 3 Go, sans carte bancaire." />
   <meta name="theme-color" content="#e9e4d9" />
+  <script>
+    /* Même règle que la page Offres : l'inscription des studios vit
+       sur laloge.app, pas sur le site du studio de Gil. */
+    if (/(^|\.)timelesshouse\.org$/.test(location.hostname)) {
+      location.replace('https://laloge.app' + location.pathname + location.search);
+    }
+  </script>
   <link rel="icon" href="/favicon-th.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

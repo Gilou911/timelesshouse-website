@@ -1495,6 +1495,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <div className="text-[11px] text-stone-500 mt-1.5">C'est la clé de votre client. Elle est suggérée automatiquement — vous pouvez la personnaliser.</div>
             </Field>
 
+            {/* UX vague 2 : ces champs « entreprise » n'ont pas de sens pour
+                un mariage — les prénoms remplissent déjà les initiales. */}
+            {!isCelebration(form.universe) && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Field label="Prénom contact">
                 <Input value={form.greeting} onChange={e => setForm({...form, greeting: e.target.value})} placeholder="Camille" />
@@ -1506,6 +1509,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <Input value={form.sector} onChange={e => setForm({...form, sector: e.target.value})} placeholder="Hôtellerie" />
               </Field>
             </div>
+            )}
 
             {/* Page de redirection : héritage TimelessHouse (fichiers HTML
                 dédiés) — jargon masqué aux locataires (UX vague 1). */}
@@ -2498,10 +2502,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           {loading ? (
             <div className="py-8 flex justify-center"><Loader2 size={18} className="animate-spin text-stone-400" /></div>
           ) : galleries.length === 0 ? (
-            <div className="text-center text-[12.5px] text-stone-400 py-6 leading-relaxed">
-              Aucune galerie pour l'instant.<br />
-              Créez-en une pour livrer des photos ou un film.
-            </div>
+            <EmptyState icon={ImageIcon}
+              texte="C'est ici que vous livrez photos et films : chaque galerie a son lien de partage, prêt à envoyer."
+              bouton="Créer ma première galerie" onAction={() => setEditing({})} />
           ) : (
             <div className="space-y-3 mt-4">
               {galleries.map((g, idx) => (
@@ -2543,6 +2546,24 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        Trois états visibles par l'admin : rien (pas de vidéo), en
        cours (le worker n'a pas encore fini) et adaptatif (fini).
        Discret : c'est une information de confort, pas une action. */
+    // ── État vide guidé (UX vague 2) : une zone vide dit toujours
+    // QUOI faire et offre le bouton pour le faire, au lieu d'un « (0) ».
+    function EmptyState({ icon: Icon, texte, bouton, onAction }) {
+      return (
+        <div className="text-center py-10">
+          <div style={neu.pressedSm} className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center text-stone-400" aria-hidden="true">
+            <Icon size={22} />
+          </div>
+          <p className="text-[13.5px] text-stone-500 mt-4 max-w-sm mx-auto leading-relaxed">{texte}</p>
+          {bouton && (
+            <div className="mt-5 flex justify-center">
+              <Btn kind="dark" icon={Plus} onClick={onAction}>{bouton}</Btn>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function EncodeBadge({ state }) {
       if (!state || state === 'none') return null;
       const map = {
@@ -2615,6 +2636,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 )}
                 <EncodeBadge state={encodeState} />
               </div>
+              {/* UX vague 2 : pendant l'optimisation, dire clairement
+                  qu'il n'y a RIEN à faire — l'inquiétude naît du silence. */}
+              {encodeState === 'pending' && (
+                <div className="text-[11.5px] text-amber-700 mt-1.5 leading-relaxed">
+                  Nous préparons votre film — vous n'avez rien d'autre à faire.
+                  Votre client le verra dès qu'il sera prêt.
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
@@ -4355,7 +4384,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   </div>
                 );
               })}
-              {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucun média livré pour l'instant. Ajoutez-en un pour démarrer la livraison.</div>}
+              {items.length === 0 && (
+                <EmptyState icon={ImageIcon}
+                  texte="Aucun média pour l'instant. Ajoutez une photo ou une vidéo : votre client la verra dans son espace, et pourra la valider ou la commenter."
+                  bouton="Ajouter un média" onAction={() => { setEditing(null); setShowForm(true); }} />
+              )}
             </div>
           )}
 
@@ -5218,7 +5251,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     </div>
                   </div>
                 ))}
-                {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucune facture pour l'instant.</div>}
+                {items.length === 0 && (
+                  <EmptyState icon={FileText}
+                    texte="Aucune facture pour l'instant. Créez-en une : votre client la retrouvera dans son espace, avec son statut de paiement."
+                    bouton="Créer une facture" onAction={() => { setEditing(null); setShowForm(true); }} />
+                )}
               </div>
             )}
           </div>
@@ -5439,7 +5476,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       </div>
                     </div>
                   ))}
-                  {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucun document partagé pour l'instant.</div>}
+                  {items.length === 0 && (
+                    <EmptyState icon={FolderOpen}
+                      texte="Aucun document pour l'instant. Partagez un contrat, un devis ou un brief : votre client l'aura toujours sous la main."
+                      bouton="Partager un document" onAction={() => { setEditing(null); setShowForm(true); }} />
+                  )}
                 </div>
               )}
             </div>
@@ -6210,7 +6251,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   </div>
                 </div>
               ))}
-              {items.length === 0 && <div className="text-center py-12 text-[13px] text-stone-400">Aucun tournage programmé.</div>}
+              {items.length === 0 && (
+                <EmptyState icon={CalendarIcon}
+                  texte="Aucun tournage programmé. Planifiez-en un : votre client verra la date et le lieu dans son espace."
+                  bouton="Programmer un tournage" onAction={() => { setEditing(null); setShowForm(true); }} />
+              )}
             </div>
           )}
 

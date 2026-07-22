@@ -28,17 +28,16 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 // Expéditeur : modifiable dans les secrets Supabase (FROM_EMAIL).
 //
-// ⚠️ MARQUE BLANCHE — le domaine de cette adresse est VISIBLE par le client
-// final du locataire. Tant que le repli ci-dessous s'applique, il reçoit
-// « VisonMike <service@timelesshouse.org> » : le nom est bon, le domaine
-// trahit la plateforme. Choix de Gil (22/07/2026) : domaine NEUTRE plutôt
+// ⚠️ Ce repli doit TOUJOURS pointer vers un domaine réellement vérifié chez
+// Resend. L'ancienne valeur (service@timelesshouse.org) ne l'était pas —
+// cette adresse vit dans Google Workspace, pas dans Resend : si le secret
+// avait disparu, tous les envois auraient échoué. Voir EMAIL-DOMAINE.md.
+//
+// MARQUE BLANCHE — le domaine ci-dessous est VISIBLE par le client final du
+// locataire. Choix de Gil (22/07/2026) : un domaine NEUTRE partagé plutôt
 // que de demander à chaque locataire de vérifier le sien (zéro effort de
-// leur côté). Bascule en deux gestes, sans redéploiement de code :
-//   1. vérifier le domaine laloge.house dans Resend (enregistrements DNS) ;
-//   2. secret Supabase FROM_EMAIL = "La Loge <notifications@laloge.house>".
-// Ne PAS écrire cette adresse en dur ici avant l'étape 1 : un domaine non
-// vérifié fait échouer TOUS les envois.
-const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "TimelessHouse <service@timelesshouse.org>";
+// leur côté). Le NOM affiché reste celui de l'agence à chaque envoi.
+const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "La Loge <notifications@laloge.house>";
 // Destinataire admin pour les notifications internes
 const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") ?? "service@timelesshouse.org";
 // ── Marque blanche (SaaS B.3) ──

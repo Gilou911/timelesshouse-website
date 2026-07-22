@@ -60,6 +60,12 @@ const RESERVED = new Set([
   "laloge", "la-loge", "timelesshouse", "timeless", "support", "aide", "help",
   "compte", "account", "billing", "facturation", "stripe", "test", "demo",
   "espace", "client", "clients", "agence", "agences", "media", "medias",
+  // Réservés à l'email (22/07/2026) : Resend pose le chemin de retour des
+  // rebonds sur send.laloge.house et la clé DKIM sur resend._domainkey.
+  // Un locataire qui prendrait « send » comme adresse casserait la
+  // délivrabilité de TOUTE la plateforme.
+  "send", "resend", "noreply", "no-reply", "notifications", "bounce",
+  "bounces", "dmarc", "dkim", "spf", "email", "mx",
 ]);
 
 function slugify(s: string): string {

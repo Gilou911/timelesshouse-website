@@ -55,6 +55,16 @@
        conteneur lui-même, ombres internes) sont exemptés. */
     .overflow-x-auto.no-scrollbar:not(.rounded-full) { display: flex; padding-top: 12px; padding-bottom: 12px; }
     input, textarea, select { font-family: inherit; }
+    /* ── HIG P0 : AUCUN contrôle sous 16 px sur téléphone ──
+       Sous 16 px, iOS zoome la page au focus… et le zoom RESTE après
+       fermeture : c'est le bug « barre de navigation au milieu de
+       l'écran » constaté par Gil le 22/07/2026 (formulaire galerie —
+       des champs écrits hors composants héritaient de 13-14 px).
+       Filet global : impossible d'oublier un champ à l'avenir.
+       Les tailles desktop (sm:) restent libres. */
+    @media (max-width: 639px) {
+      input, select, textarea { font-size: 16px !important; }
+    }
     input:focus, textarea:focus, select:focus { outline: none; }
 
     /* ─── Dark-mode color overrides (palette graphite + ivoire chaud) ─── */

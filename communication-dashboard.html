@@ -53,6 +53,13 @@
        Les contrôles segmentés (.rounded-full, relief porté par le
        conteneur lui-même, ombres internes) sont exemptés. */
     .overflow-x-auto.no-scrollbar:not(.rounded-full) { display: flex; padding-top: 12px; padding-bottom: 12px; }
+    /* ── HIG P0 : AUCUN contrôle sous 16 px sur téléphone ──
+       Sous 16 px, iOS zoome la page au focus et le zoom RESTE après —
+       page « cassée » (nav flottante au milieu). Filet global, même
+       raison que côté console (bug du 22/07/2026). */
+    @media (max-width: 639px) {
+      input, select, textarea { font-size: 16px !important; }
+    }
     .loading-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #e9e4d9; z-index: 9999; transition: opacity 0.5s ease, background 0.5s ease; }
     [data-theme="dark"] .loading-screen { background: #181b20; }
     .loading-screen.hide { opacity: 0; pointer-events: none; }

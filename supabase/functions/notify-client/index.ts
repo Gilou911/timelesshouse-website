@@ -56,9 +56,29 @@ const DEFAULT_BRAND = {
 // les appels à layout() — aucun await entre les deux, donc aucune
 // requête concurrente ne peut mélanger les marques.
 let CURRENT_BRAND = DEFAULT_BRAND;
+// ── Habillage par UNIVERS (22/07/2026, demande de Gil) ──────────
+// La marque (logo, accent, reply-to) reste celle de l'AGENCE ; le
+// thème, lui, suit l'univers du CLIENT : un couple qui reçoit ses
+// photos de mariage mérite un email éditorial, une équipe marketing
+// un email compact. Posé ici car chaque gabarit passe par brandOf().
+let CURRENT_THEME = "standard";
+let CURRENT_MONO = null;
+function themeOf(client) {
+  const u = String(client?.universe || "");
+  return (u === "celebration" || /mariage|wedding|fian|anniv/i.test(u)) ? "mariage" : "standard";
+}
+function monogramme(client) {
+  const a = String(client?.partner1 || "").trim().charAt(0);
+  const b = String(client?.partner2 || "").trim().charAt(0);
+  if (a && b) return `${a.toUpperCase()}&nbsp;&amp;&nbsp;${b.toUpperCase()}`;
+  const ini = String(client?.initials || "").trim().toUpperCase();
+  return ini ? esc(ini) : null;
+}
 function brandOf(client) {
   const b = client && client.__brand || DEFAULT_BRAND;
   CURRENT_BRAND = b;
+  CURRENT_THEME = themeOf(client);
+  CURRENT_MONO = CURRENT_THEME === "mariage" ? monogramme(client) : null;
   return b;
 }
 const CORS = {
@@ -172,6 +192,7 @@ function esc(v) {
 // ─────────────────────────────────────────────────────────────────
 function layout(body) {
   const B = CURRENT_BRAND;
+  if (CURRENT_THEME === "mariage") return layoutMariage(body, B);
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -234,6 +255,87 @@ function layout(body) {
 </body>
 </html>`;
 }
+/** Habillage MARIAGE — éditorial : papier crème, monogramme du couple,
+ *  titre centré, ornement filet + losange, bouton bordé façon faire-part.
+ *  Monogramme et ornement en TABLEAUX avec styles en ligne : les clients
+ *  mail (Outlook en tête) ne comprennent ni flexbox ni les classes
+ *  seules. Les mêmes classes que l'habillage standard sont définies
+ *  (code-box, amount-box, shoot-card…) pour que TOUS les gabarits
+ *  restent lisibles, factures et tournages compris. */
+function layoutMariage(body, B) {
+  const mono = CURRENT_MONO
+    ? `<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto 26px"><tr>
+         <td style="width:62px;height:62px;border:1px solid #d9cfc0;border-radius:50%;text-align:center;vertical-align:middle;
+                    font-family:Georgia,serif;font-size:16px;letter-spacing:.06em;color:${B.accent}">${CURRENT_MONO}</td>
+       </tr></table>`
+    : "";
+  const ornement = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 24px"><tr>
+      <td style="width:50%;border-top:1px solid #e4dbcc;font-size:0;line-height:0">&nbsp;</td>
+      <td style="width:36px;text-align:center;font-size:9px;color:#c9bda8;line-height:1;padding:0 6px">&#9670;</td>
+      <td style="width:50%;border-top:1px solid #e4dbcc;font-size:0;line-height:0">&nbsp;</td>
+    </tr></table>`;
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+  body{margin:0;padding:0;background:#f2ede4;font-family:Georgia,serif;color:#2a2620}
+  .wrap{max-width:580px;margin:40px auto;background:#fdfbf7;border-radius:16px;overflow:hidden;
+        box-shadow:0 4px 32px rgba(42,38,32,.10)}
+  .header{background:${B.logo ? "#ffffff" : B.accent};padding:${B.logo ? "26px 40px" : "32px 40px"};
+          text-align:center;${B.logo ? `border-bottom:3px solid ${B.accent};` : ""}}
+  .header h1{margin:0;color:#e8d8be;font-size:13px;letter-spacing:.25em;
+             text-transform:uppercase;font-weight:400;font-family:sans-serif}
+  .header img{max-height:44px;max-width:220px;display:block;margin:0 auto}
+  .body{padding:48px 44px}
+  h2{margin:0 0 18px;font-size:27px;color:#2a2620;font-weight:400;line-height:1.3;text-align:center;letter-spacing:.01em}
+  p{margin:0 0 16px;font-size:15.5px;line-height:1.85;color:#4a4540}
+  .btn{display:inline-block;margin:26px 0 8px;padding:15px 38px;background:#fdfbf7;
+       color:${B.accent} !important;text-decoration:none;border:1px solid ${B.accent};border-radius:2px;
+       font-family:Georgia,serif;font-size:13px;letter-spacing:.18em;text-transform:uppercase}
+  .code-box{display:inline-block;margin:16px 0;padding:12px 28px;background:#f5f0e8;
+            border-radius:6px;font-family:monospace;font-size:20px;letter-spacing:.18em;
+            color:#2a2620;border:1px solid #e4dbcc}
+  .amount-box{display:inline-block;margin:16px 0;padding:14px 36px;background:#f5f0e8;
+              border-radius:6px;font-family:Georgia,serif;font-size:28px;letter-spacing:.04em;
+              color:#2a2620;border:1px solid #e4dbcc}
+  .ref{display:inline-block;font-family:monospace;font-size:13px;letter-spacing:.12em;
+       background:#f5f0e8;border:1px solid #e4dbcc;padding:4px 12px;border-radius:4px;color:#4a4540}
+  .note{font-size:12.5px;color:#a39786;line-height:1.7;font-style:italic;text-align:center}
+  .shoot-card{margin:20px 0;padding:22px 26px;background:#f9f5ee;border-left:2px solid ${B.accent};
+              border-radius:0 8px 8px 0}
+  .shoot-kicker{font-family:sans-serif;font-size:11px;color:#a09078;
+                text-transform:uppercase;letter-spacing:.2em;font-weight:600}
+  .shoot-title{font-family:Georgia,serif;font-size:20px;color:#2a2620;margin-top:6px;line-height:1.3}
+  .shoot-meta{font-family:sans-serif;font-size:13px;color:#4a4540;margin-top:14px;line-height:1.8}
+  .shoot-meta strong{color:#2a2620}
+  blockquote{border-left:2px solid #e4dbcc;margin:16px 0;padding:12px 20px;
+             background:#f9f5ee;border-radius:0 8px 8px 0;font-style:italic;color:#4a4540}
+  .footer{padding:26px 40px;border-top:1px solid #f0e9dd;text-align:center;
+          font-size:11px;font-family:sans-serif;color:#b3a893;letter-spacing:.12em;text-transform:uppercase}
+  .footer a{color:#b3a893;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">${B.logo
+    ? `<img src="${esc(B.logo)}" alt="${esc(B.name)}"/>`
+    : `<h1>${esc(B.name)}</h1>`}</div>
+  <div class="body">
+    ${mono}
+    ${ornement}
+    ${body}
+  </div>
+  <div class="footer">
+    ${esc(B.name)}${B.email ? ` &nbsp;·&nbsp; <a href="mailto:${esc(B.email)}">${esc(B.email)}</a>` : ""}
+  </div>
+</div>
+</body>
+</html>`;
+}
+
 /** Bloc « carte tournage » réutilisé par les 3 emails tournage */ function shootCard(s) {
   const isVideo = s?.type === "video";
   return `
@@ -561,7 +663,10 @@ function buildAdminApproval(client, media, kind) {
 /** ① Galerie publiée — LE moment de livraison du produit */
 function buildGalleryReady(client, gallery, url) {
   const B = brandOf(client);
-  const prenom = esc(client.greeting ?? client.partner1 ?? client.name ?? "chers clients");
+  // Un couple se salue à deux : « Bonjour Éléa & David »
+  const prenom = esc(client.partner1 && client.partner2
+    ? `${client.partner1} & ${client.partner2}`
+    : (client.greeting ?? client.partner1 ?? client.name ?? "chers clients"));
   const titre = esc(gallery?.title || "Votre galerie");
   const contenu = gallery?.kind === "video" ? "votre film"
     : gallery?.kind === "mixte" ? "vos photos et votre film" : "vos photos";

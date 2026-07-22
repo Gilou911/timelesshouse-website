@@ -40,6 +40,13 @@ const STUDIO = [
     `/${p}.html ${APP}/${p}      301`,
   ]),
   "",
+  "# La vitrine de La Loge n'a jamais eu sa place sur le site du studio :",
+  "# ces deux chemins y répondaient par accident (un seul build servait",
+  "# tout). Après la séparation ils rendraient une 404 — on les envoie",
+  "# chez elles plutôt que dans le vide.",
+  "/offres       https://laloge.app/offres        301",
+  "/inscription  https://laloge.app/inscription   301",
+  "",
 ].join("\n");
 
 /* Racine du produit — DÉPEND DE LA PHASE, et se tromper casse un site :

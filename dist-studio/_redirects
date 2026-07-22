@@ -21,3 +21,10 @@
 /event-anniversary.html https://app.timelesshouse.org/event-anniversary      301
 /reinitialiser      https://app.timelesshouse.org/reinitialiser      301
 /reinitialiser.html https://app.timelesshouse.org/reinitialiser      301
+
+# La vitrine de La Loge n'a jamais eu sa place sur le site du studio :
+# ces deux chemins y répondaient par accident (un seul build servait
+# tout). Après la séparation ils rendraient une 404 — on les envoie
+# chez elles plutôt que dans le vide.
+/offres       https://laloge.app/offres        301
+/inscription  https://laloge.app/inscription   301

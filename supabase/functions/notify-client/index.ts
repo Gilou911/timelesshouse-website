@@ -1109,15 +1109,18 @@ serve(async (req)=>{
             status: 400, headers: { ...CORS, "Content-Type": "application/json" }
           });
         }
-        // Partage coupé = lien mort : on n'envoie pas un email vers le vide.
-        if (gallery.share_enabled === false) {
+        // Partage coupé ou sans code = lien mort : on n'envoie pas un
+        // email vers le vide. ⚠️ La colonne du code de partage s'appelle
+        // access_code (galleries.code n'existe pas — leçon du 22/07 :
+        // le lien partait en « ?c=undefined », galerie introuvable).
+        if (gallery.share_enabled === false || !gallery.access_code) {
           return new Response(JSON.stringify({ ok: true, skipped: "gallery_share_disabled" }), {
             status: 200, headers: { ...CORS, "Content-Type": "application/json" }
           });
         }
         const galerieUrl = !agency || agency.slug === "timelesshouse"
-          ? `https://timelesshouse.org/galerie?c=${gallery.code}`
-          : `https://${agency.slug}.laloge.house/galerie?c=${gallery.code}`;
+          ? `https://timelesshouse.org/galerie?c=${gallery.access_code}`
+          : `https://${agency.slug}.laloge.house/galerie?c=${gallery.access_code}`;
         // Photo de couverture pour l'email : celle choisie par le locataire
         // (config.cover = id de photo), sinon la première de la galerie.
         // url_view = taille d'affichage (l'original serait trop lourd).

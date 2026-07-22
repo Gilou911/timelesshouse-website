@@ -174,7 +174,7 @@ async function applyToGalleryVideo(job, { masterUrl }) {
   // galerie pendant l'encodage (qui dure des minutes). On ne
   // réécrit que la clé `hls` de la vidéo concernée.
   const { data: g } = await sb.from("galleries")
-    .select("config, client_id, agency_id, title, code, share_enabled")
+    .select("config, client_id, agency_id, title, access_code, share_enabled")
     .eq("id", job.gallery_id).maybeSingle();
   if (!g) throw new Error("la galerie a été supprimée pendant l'encodage");
 
@@ -200,10 +200,10 @@ async function applyToGalleryVideo(job, { masterUrl }) {
     // CTA idéal : le lien de partage de la galerie (si le partage est
     // actif) — sinon notify-client retombe sur la porte de l'espace.
     let url = null;
-    if (g.share_enabled !== false && g.code && g.agency_id) {
+    if (g.share_enabled !== false && g.access_code && g.agency_id) {
       const { data: ag } = await sb.from("agencies").select("slug").eq("id", g.agency_id).maybeSingle();
-      if (ag?.slug && ag.slug !== "timelesshouse") url = `https://${ag.slug}.laloge.house/galerie?c=${g.code}`;
-      else if (ag?.slug === "timelesshouse") url = `https://timelesshouse.org/galerie?c=${g.code}`;
+      if (ag?.slug && ag.slug !== "timelesshouse") url = `https://${ag.slug}.laloge.house/galerie?c=${g.access_code}`;
+      else if (ag?.slug === "timelesshouse") url = `https://timelesshouse.org/galerie?c=${g.access_code}`;
     }
     await notifyVideoReady({
       clientId: g.client_id,

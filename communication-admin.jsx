@@ -48,7 +48,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        galeries (<slug>.laloge.house, ou timelesshouse.org pour la
        plateforme) depuis n'importe quel composant, sans faire descendre
        l'agence par les props sur toute la profondeur de l'arbre. */
-    const AGENCY = { slug: null, name: null, plan: null, maxClients: null };
+    const AGENCY = { id: null, slug: null, name: null, plan: null, maxClients: null, betaChat: false };
 
     /* ════════════════════════════════════════════════════════════
        ☁️ UPLOAD DIRECT VERS BACKBLAZE B2 (via Edge Function b2-sign)
@@ -7216,6 +7216,33 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     };
 
     function AdminAgencies({ agencies, refresh }) {
+      /* Le label bêta ne vient pas de `platform_list_agencies` (fonction
+         existante qu'on ne réécrit pas pour si peu) mais d'un appel
+         dédié — d'où cette petite table `{ agencyId: true }`. */
+      const [beta, setBeta] = useState({});
+      const [betaDispo, setBetaDispo] = useState(false);
+      const [busyBeta, setBusyBeta] = useState(null);
+      // Tant que la migration du chat n'est pas appliquée, la RPC
+      // n'existe pas : on n'affiche AUCUN bouton plutôt qu'un bouton
+      // qui échoue — un bouton mort est pire que pas de bouton.
+      const chargerBeta = async () => {
+        const { data, error } = await sb.rpc('beta_fils');
+        if (error) { setBetaDispo(false); return; }
+        setBetaDispo(true);
+        setBeta(Object.fromEntries((data || []).map(f => [f.agency_id, f.beta_chat === true])));
+      };
+      useEffect(() => { chargerBeta(); }, [agencies]);
+
+      const basculerBeta = async (agency) => {
+        const nouveau = !beta[agency.id];
+        if (!nouveau && !confirm(`Retirer « ${agency.name} » des bêta-testeurs ?\n\nLe chat disparaîtra de sa console. Les messages déjà échangés sont conservés.`)) return;
+        setBusyBeta(agency.id);
+        const { error } = await sb.rpc('beta_toggle', { p_agency: agency.id, p_on: nouveau });
+        if (error) alert(humaniseErreur(error.message, 'bêta'));
+        else setBeta(b => ({ ...b, [agency.id]: nouveau }));
+        setBusyBeta(null);
+      };
+
       const empty = { name: '', owner_email: '', slug: '', contact_email: '', plan: 'fondateur', accent_color: '#2a2620', bg_color: '#e9e4d9', logo_url: '' };
       const [form, setForm] = useState(empty);
       const [busy, setBusy] = useState(false);
@@ -7411,6 +7438,18 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <div className="text-[11px] text-stone-400 mt-2">Créée le {new Date(a.created_at).toLocaleDateString('fr-FR')}</div>
                 {a.slug !== 'timelesshouse' && (
                   <div className="flex gap-2 mt-4 flex-wrap items-center">
+                    {/* Label « bêta testeur » : ouvre à cette agence le fil
+                        de discussion direct. Retirer le label referme
+                        l'accès aussitôt — c'est la base qui le vérifie,
+                        les messages déjà écrits restent. */}
+                    {betaDispo && (
+                      <Btn icon={MessageSquare}
+                           kind={beta[a.id] ? 'dark' : 'soft'}
+                           onClick={() => basculerBeta(a)}
+                           disabled={busyBeta === a.id}>
+                        {busyBeta === a.id ? '…' : (beta[a.id] ? 'Bêta testeur' : 'Passer en bêta')}
+                      </Btn>
+                    )}
                     {a.active ? (
                       <Btn icon={Power} onClick={() => setActive(a, false)} disabled={busyId === a.id}>
                         {busyId === a.id ? '…' : 'Suspendre'}
@@ -7451,6 +7490,243 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        Six chapitres courts, adossés au produit réel : les exemples
        utilisent la vraie adresse de l'agence connectée.
        ════════════════════════════════════════════════════════════ */
+    /* ════════════════════════════════════════════════════════════
+       💬  CHAT BÊTA — un fil direct entre Gil et chaque locataire
+       ════════════════════════════════════════════════════════════
+       Réservé aux agences labellisées « bêta testeur » depuis la
+       section Agences. Les fils sont cloisonnés : un locataire ne
+       voit que le sien, jamais celui d'un autre — c'est la base qui
+       le garantit (RLS), pas cet écran.
+
+       L'état « lu » vit dans les métadonnées du compte plutôt qu'en
+       base : ça évite une politique UPDATE sur les messages (donc
+       tout risque d'écriture croisée) et ça suit l'utilisateur d'un
+       appareil à l'autre. Côté Gil c'est une date par agence.
+
+       Rafraîchissement par sondage : 10 s panneau ouvert, 60 s fermé
+       (juste pour la pastille). Le temps réel Supabase ferait mieux,
+       mais il demande une configuration que je ne peux pas éprouver
+       d'ici — à basculer plus tard si le rythme le justifie. */
+    function ChatBeta({ user, estPlateforme, agencyId, agencyNom }) {
+      const [ouvert, setOuvert] = useState(false);
+      const [fils, setFils] = useState([]);          // Gil : la liste des agences
+      const [filActif, setFilActif] = useState(estPlateforme ? null : agencyId);
+      const [messages, setMessages] = useState([]);
+      const [texte, setTexte] = useState('');
+      const [envoi, setEnvoi] = useState(false);
+      const [erreur, setErreur] = useState('');
+      const [nonLus, setNonLus] = useState(0);
+      const finRef = useRef(null);
+
+      const monRole = estPlateforme ? 'plateforme' : 'agence';
+      const roleEnFace = estPlateforme ? 'agence' : 'plateforme';
+
+      /* ── Date de dernière lecture ─────────────────────────────── */
+      const cleLu = estPlateforme ? 'laloge_chat_lu_par_agence' : 'laloge_chat_lu';
+      const luLe = (aId) => {
+        const m = user?.user_metadata?.[cleLu];
+        return estPlateforme ? (m && m[aId]) || null : m || null;
+      };
+      const marquerLu = async (aId) => {
+        const maintenant = new Date().toISOString();
+        const m = user?.user_metadata?.[cleLu];
+        const val = estPlateforme ? { ...(m || {}), [aId]: maintenant } : maintenant;
+        if (user?.user_metadata) user.user_metadata[cleLu] = val;  // écho local immédiat
+        try { await sb.auth.updateUser({ data: { [cleLu]: val } }); } catch (_) {}
+      };
+
+      /* ── Chargement ───────────────────────────────────────────── */
+      const chargerFils = async () => {
+        if (!estPlateforme) return;
+        const { data, error } = await sb.rpc('beta_fils');
+        if (error) return;
+        const liste = (data || []).filter(f => f.beta_chat);
+        setFils(liste);
+        // Pastille : nombre d'agences dont le dernier message reçu est
+        // postérieur à ma dernière lecture de CE fil.
+        setNonLus(liste.filter(f => f.dernier_recu && (!luLe(f.agency_id) || f.dernier_recu > luLe(f.agency_id))).length);
+      };
+
+      const chargerMessages = async (aId) => {
+        if (!aId) return;
+        const { data, error } = await sb.from('beta_messages')
+          .select('id, auteur_role, corps, created_at')
+          .eq('agency_id', aId).order('created_at', { ascending: true }).limit(300);
+        if (error) { setErreur(humaniseErreur(error.message, 'chat')); return; }
+        setErreur('');
+        setMessages(data || []);
+        if (!estPlateforme) {
+          const dernierRecu = [...(data || [])].reverse().find(m => m.auteur_role === roleEnFace);
+          setNonLus(dernierRecu && (!luLe(aId) || dernierRecu.created_at > luLe(aId)) ? 1 : 0);
+        }
+      };
+
+      // Sondage : rapide quand on regarde, lent quand le panneau dort.
+      useEffect(() => {
+        const tic = () => { if (estPlateforme) chargerFils(); if (filActif) chargerMessages(filActif); };
+        tic();
+        const id = setInterval(tic, ouvert ? 10000 : 60000);
+        return () => clearInterval(id);
+      }, [ouvert, filActif, estPlateforme]);
+
+      // Toujours voir le dernier message en arrivant.
+      useEffect(() => {
+        if (ouvert && finRef.current) finRef.current.scrollIntoView({ block: 'end' });
+      }, [messages, ouvert, filActif]);
+
+      // Ouvrir un fil = l'avoir lu.
+      useEffect(() => {
+        if (ouvert && filActif) { marquerLu(filActif); setNonLus(n => (estPlateforme ? Math.max(0, n - 1) : 0)); }
+      }, [ouvert, filActif]);
+
+      /* ── Envoi ────────────────────────────────────────────────── */
+      const envoyer = async (e) => {
+        e?.preventDefault?.();
+        const corps = texte.trim();
+        if (!corps || envoi || !filActif) return;
+        setEnvoi(true); setErreur('');
+        const { error } = await sb.from('beta_messages').insert({
+          agency_id: filActif, auteur_role: monRole, auteur_id: user.id, corps,
+        });
+        if (error) setErreur(humaniseErreur(error.message, 'chat'));
+        else { setTexte(''); await chargerMessages(filActif); }
+        setEnvoi(false);
+      };
+
+      // Entrée envoie, Maj+Entrée passe à la ligne — l'usage de tous
+      // les messageries ; sans ça on cherche le bouton à chaque phrase.
+      const auClavier = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); envoyer(); }
+      };
+
+      const heure = (iso) => new Date(iso).toLocaleString('fr-FR',
+        { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+      const titre = estPlateforme
+        ? (filActif ? (fils.find(f => f.agency_id === filActif)?.nom || 'Bêta') : 'Mes bêta-testeurs')
+        : 'La Loge';
+
+      return (
+        <>
+          {/* Bouton flottant — discret par défaut (Gil : « translucide,
+              qui ne gêne pas »), franc dès qu'un message attend. Au-dessus
+              de la barre du bas sur téléphone. */}
+          {!ouvert && (
+            <button onClick={() => setOuvert(true)}
+              aria-label={nonLus ? `Chat bêta — ${nonLus} non lu` : 'Chat bêta'}
+              title="Chat bêta"
+              style={{ ...neu.raised, opacity: nonLus ? 1 : 0.45 }}
+              className="fixed right-5 bottom-[92px] lg:bottom-6 z-40 w-14 h-14 rounded-full flex items-center justify-center
+                         text-stone-700 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-200 active:scale-95">
+              <MessageSquare size={20} />
+              {nonLus > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white
+                                 text-[11px] font-bold flex items-center justify-center">{nonLus}</span>
+              )}
+            </button>
+          )}
+
+          {ouvert && (
+            <div role="dialog" aria-label="Chat bêta"
+                 style={neu.raised}
+                 className="fixed right-4 left-4 sm:left-auto bottom-[92px] lg:bottom-6 sm:right-5 z-40
+                            sm:w-[380px] max-h-[70vh] rounded-[24px] flex flex-col overflow-hidden">
+              {/* En-tête */}
+              <div className="flex items-center gap-2 px-4 py-3 shrink-0"
+                   style={{ borderBottom: '1px solid rgba(127,127,127,0.15)' }}>
+                {estPlateforme && filActif && (
+                  <button onClick={() => setFilActif(null)} aria-label="Tous les fils"
+                          className="w-9 h-9 -ml-1 rounded-full flex items-center justify-center text-stone-500 hover:text-stone-900 shrink-0">
+                    <ArrowLeft size={16} />
+                  </button>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] uppercase tracking-[0.15em] text-stone-400 font-semibold">Bêta</div>
+                  <div className="text-[14px] font-semibold truncate">{titre}</div>
+                </div>
+                <button onClick={() => setOuvert(false)} aria-label="Fermer le chat"
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-stone-500 hover:text-stone-900 shrink-0">
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Gil sans fil choisi : la liste de ses testeurs */}
+              {estPlateforme && !filActif ? (
+                <div className="p-3 overflow-y-auto">
+                  {fils.length === 0 ? (
+                    <p className="text-[12.5px] text-stone-500 text-center py-8 px-4 leading-relaxed">
+                      Aucun bêta-testeur pour l'instant.<br />
+                      Ouvrez le chat d'une agence depuis la section « Agences ».
+                    </p>
+                  ) : fils.map(f => {
+                    const aLire = f.dernier_recu && (!luLe(f.agency_id) || f.dernier_recu > luLe(f.agency_id));
+                    return (
+                      <button key={f.agency_id} onClick={() => setFilActif(f.agency_id)}
+                              style={neu.raisedXs}
+                              className="w-full flex items-center gap-3 px-3.5 py-3 min-h-[56px] rounded-2xl text-left mb-2 active:scale-[0.99] transition">
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[13px] font-semibold text-stone-800 truncate">{f.nom}</span>
+                          <span className="block text-[11.5px] text-stone-500 mt-0.5">
+                            {f.messages ? `${f.messages} message${f.messages > 1 ? 's' : ''}` : 'Aucun message'}
+                            {f.dernier_le && ` · ${heure(f.dernier_le)}`}
+                          </span>
+                        </span>
+                        {aLire && <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" aria-label="non lu" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <>
+                  {/* Le fil */}
+                  <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5 min-h-[180px]">
+                    {messages.length === 0 && (
+                      <p className="text-[12.5px] text-stone-500 text-center py-8 leading-relaxed">
+                        {estPlateforme
+                          ? 'Rien encore. Écrivez le premier message.'
+                          : <>Un souci, une idée, une contrainte&nbsp;?<br />Écrivez-nous ici, on lit tout.</>}
+                      </p>
+                    )}
+                    {messages.map(m => {
+                      const deMoi = m.auteur_role === monRole;
+                      return (
+                        <div key={m.id} className={`flex ${deMoi ? 'justify-end' : 'justify-start'}`}>
+                          <div style={deMoi ? neu.dark : neu.pressedSm}
+                               className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${deMoi ? 'text-white' : 'text-stone-800'}`}>
+                            <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{m.corps}</p>
+                            <div className={`text-[10.5px] mt-1 ${deMoi ? 'text-white/60' : 'text-stone-400'}`}>{heure(m.created_at)}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div ref={finRef} />
+                  </div>
+
+                  {erreur && <p className="px-4 pb-2 text-[12px] text-rose-600">{erreur}</p>}
+
+                  {/* Composer */}
+                  <form onSubmit={envoyer} className="p-3 shrink-0 flex items-end gap-2"
+                        style={{ borderTop: '1px solid rgba(127,127,127,0.15)' }}>
+                    <label htmlFor="chat-texte" className="sr-only">Votre message</label>
+                    <textarea id="chat-texte" value={texte} rows={1}
+                      onChange={(e) => setTexte(e.target.value)} onKeyDown={auClavier}
+                      placeholder="Votre message…"
+                      style={neu.pressed}
+                      className="flex-1 min-w-0 rounded-2xl px-3.5 py-3 text-[13.5px] bg-transparent border-none outline-none resize-none max-h-28 placeholder:text-stone-400" />
+                    <button type="submit" disabled={!texte.trim() || envoi} aria-label="Envoyer"
+                            style={neu.dark}
+                            className="w-11 h-11 rounded-full flex items-center justify-center text-white shrink-0 disabled:opacity-40 active:scale-95 transition">
+                      {envoi ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                    </button>
+                  </form>
+                </>
+              )}
+            </div>
+          )}
+        </>
+      );
+    }
+
     /* ════════════════════════════════════════════════════════════
        📚  CENTRE D'AIDE — entrée par OBJECTIF, pas par fonctionnalité
        ════════════════════════════════════════════════════════════
@@ -7754,13 +8030,24 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // Fonctionnalités de MON agence (RLS : je ne vois que la mienne).
       // Renseigne FEATURES avant le premier rendu des sections.
       const loadFeatures = async () => {
-        const { data } = await sb.from('agencies')
-          .select('name, slug, active, status, plan, contact_email, logo_url, accent_color, bg_color, features_analytics, features_portfolio, features_all_universes')
-          .limit(1).maybeSingle();
+        /* ⚠️ `beta_chat` est demandée à part. PostgREST rejette TOUTE la
+           requête si une seule colonne lui est inconnue : demandée dans
+           le select principal, elle ferait échouer le chargement de
+           l'agence — donc plus de marque, plus de plan, plus de
+           fonctionnalités — chez tous les locataires tant que la
+           migration du chat n'est pas appliquée. Ici, au pire, le chat
+           n'apparaît pas. */
+        const CHAMPS = 'id, name, slug, active, status, plan, contact_email, logo_url, accent_color, bg_color, features_analytics, features_portfolio, features_all_universes';
+        const { data } = await sb.from('agencies').select(CHAMPS).limit(1).maybeSingle();
         FEATURES.analytics    = data?.features_analytics === true;
         FEATURES.portfolio    = data?.features_portfolio === true;
         FEATURES.allUniverses = data?.features_all_universes === true;
+        AGENCY.id   = data?.id || null;
         AGENCY.slug = data?.slug || null;
+        try {
+          const { data: b } = await sb.from('agencies').select('beta_chat').limit(1).maybeSingle();
+          AGENCY.betaChat = b?.beta_chat === true;
+        } catch (_) { AGENCY.betaChat = false; }
         AGENCY.name = data?.name || null;
         AGENCY.plan = data?.plan || null;
         // Limites de l'offre (brique 17) : l'offre Découverte plafonne à
@@ -7943,6 +8230,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               `onAller` permet à un article d'emmener à l'écran concerné :
               montrer vaut mieux que décrire. */}
           {showGuide && <CentreAide onClose={fermerGuide} onAller={setSection} />}
+
+          {/* Chat bêta — Gil le voit toujours (c'est sa boîte de réception) ;
+              un locataire seulement s'il est labellisé bêta-testeur. */}
+          {featuresReady && user && (FEATURES.allUniverses ? agencies !== null : AGENCY.betaChat) && (
+            <ChatBeta user={user} estPlateforme={agencies !== null}
+                      agencyId={AGENCY.id} agencyNom={AGENCY.name} />
+          )}
 
           {/* Bottom nav — mobile uniquement, 52px tactile, verre dépoli translucide */}
           <nav

@@ -520,6 +520,71 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       </button>
     );
 
+    /* ════════════════════════════════════════════════════════════
+       💡  ASTUCE CONTEXTUELLE
+       ════════════════════════════════════════════════════════════
+       Le guide en chapitres reste utile, mais un tour lu une fois
+       s'oublie : ce qui s'apprend vraiment, c'est ce qu'on lit AU
+       MOMENT où on en a besoin. Une astuce s'affiche donc là où
+       l'action se joue, propose le geste plutôt que de le décrire,
+       et disparaît définitivement une fois comprise.
+
+       · une seule fois par COMPTE (métadonnées Supabase, donc sur
+         tous les appareils — comme l'ouverture du guide) ;
+       · une seule à l'écran à la fois : deux astuces simultanées
+         ne sont plus une aide, c'est du bruit ;
+       · jamais pour la plateforme (Gil connaît son outil).
+       Les astuces déjà refermées sont chargées au démarrage dans
+       ASTUCES_VUES par App(). */
+    let ASTUCES_VUES = new Set();
+    let ASTUCE_AFFICHEE = null;   // la clé occupant l'écran
+
+    function Astuce({ cle, titre, texte, action, libelleAction }) {
+      const [ferme, setFerme] = useState(() => ASTUCES_VUES.has(cle));
+      // Réserve la place à l'écran au premier rendu ; libère-la en partant.
+      useEffect(() => {
+        if (ferme) return;
+        if (!ASTUCE_AFFICHEE) ASTUCE_AFFICHEE = cle;
+        return () => { if (ASTUCE_AFFICHEE === cle) ASTUCE_AFFICHEE = null; };
+      }, [ferme, cle]);
+
+      if (ferme || FEATURES.allUniverses) return null;
+      if (ASTUCE_AFFICHEE && ASTUCE_AFFICHEE !== cle) return null;
+
+      const fermer = () => {
+        setFerme(true);
+        ASTUCES_VUES.add(cle);
+        if (ASTUCE_AFFICHEE === cle) ASTUCE_AFFICHEE = null;
+        sb.auth.updateUser({ data: { laloge_astuces: [...ASTUCES_VUES] } }).catch(() => {});
+      };
+
+      return (
+        <div style={neu.raisedXs} role="note"
+             className="rounded-2xl p-4 flex items-start gap-3.5 my-3">
+          <span style={neu.pressedSm} aria-hidden="true"
+                className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-amber-600">
+            <Lightbulb size={16} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-semibold text-stone-800">{titre}</div>
+            <p className="text-[12.5px] text-stone-600 leading-relaxed mt-1">{texte}</p>
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              {action && (
+                <button onClick={() => { action(); fermer(); }} style={neu.dark}
+                        className="px-4 py-2 min-h-[38px] rounded-full text-white text-[12px] font-semibold active:scale-95 transition">
+                  {libelleAction || 'Montrez-moi'}
+                </button>
+              )}
+              <button onClick={fermer}
+                      className="px-3 py-2 min-h-[38px] text-[12px] font-semibold text-stone-500 hover:text-stone-800 transition">
+                J'ai compris
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // Libellé de champ — hiérarchie visuelle Apple (22/07/2026) : le
     // libellé est PROCHE du contenu, il doit donc être lisible et sombre,
     // en casse normale. Les petites capitales espacées à 10 px criaient
@@ -2203,6 +2268,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   </a>
                 </div>
               </div>
+              {/* Astuce nº1 — au moment exact où l'on découvre une fiche
+                  client : ce code est la seule chose à transmettre, et
+                  « Copier l'invitation » fait le message à sa place. */}
+              <Astuce cle="acces-client"
+                titre="Ce code, c'est la clé de votre client"
+                texte="Il n'a besoin de rien d'autre pour entrer chez vous — ni compte, ni mot de passe. « Copier l'invitation » prépare le message complet : adresse, code et mode d'emploi, prêt à coller dans un SMS ou un email." />
             </div>
           </div>
 
@@ -3141,6 +3212,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </a>
               <Btn icon={RefreshCw} onClick={onRegenCode} disabled={busy}>Régénérer le lien</Btn>
             </div>
+            {/* Astuce nº2 — la question que tout le monde se pose devant
+                une galerie : ce code-là n'est pas celui de l'espace
+                client, et la cloche fait le travail d'annonce. */}
+            <Astuce cle="galerie-partage"
+              titre="Cette galerie a sa propre clé"
+              texte="Ce code n'est pas celui de l'espace client : il ouvre cette galerie et rien d'autre — pratique pour les proches, sans leur donner accès aux factures. « Envoyer au client » prévient par email, à vos couleurs, avec le bon lien." />
             </>) : (
             /* UX (22/07/2026, retour de Gil) : proposer « Régénérer » un
                code qui n'a jamais existé n'avait aucun sens. État vide
@@ -4832,6 +4909,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               Ajouter un média
             </Btn>
           </div>
+
+          {/* Astuce nº3 — n'apparaît qu'une fois un média livré : avant,
+              la cloche n'existe pas encore à l'écran et la montrer du
+              doigt n'aurait aucun sens. */}
+          {items.length > 0 && (
+            <Astuce cle="cloche"
+              titre="La cloche prévient votre client"
+              texte="Sur chaque ligne, l'icône 🔔 envoie un email annonçant ce média — à votre nom, avec votre logo. C'est le même geste partout : médias, factures, documents, tournages." />
+          )}
 
           {loading ? <div className="text-center py-12 text-stone-400">Chargement…</div> : (
             <div className="space-y-2.5">
@@ -7362,36 +7448,61 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        Six chapitres courts, adossés au produit réel : les exemples
        utilisent la vraie adresse de l'agence connectée.
        ════════════════════════════════════════════════════════════ */
-    function guideChapitres() {
+    /* ════════════════════════════════════════════════════════════
+       📚  CENTRE D'AIDE — entrée par OBJECTIF, pas par fonctionnalité
+       ════════════════════════════════════════════════════════════
+       Le guide était un tour linéaire en six chapitres : on le lit une
+       fois, à un moment où l'on n'a encore rien à faire, et on l'oublie.
+       Il devient un centre d'aide consultable à tout moment, où chaque
+       article répond à une question que le locataire se pose vraiment
+       (« comment je livre un film ? ») plutôt que de décrire un écran.
+       Cherchable : `mots` couvre le vocabulaire des gens, pas le nôtre
+       (« facture » mais aussi « devis », « payé », « argent »). */
+    function aideArticles() {
       const domaine = AGENCY.slug ? `${AGENCY.slug}.laloge.house` : 'votre-studio.laloge.house';
       return [
         {
-          titre: 'Votre loge',
+          id: 'loge',
+          but: 'Comprendre ma loge',
           icone: '🏠',
+          resume: 'Ce que voient vos clients, et ce qu\'ils ne voient jamais.',
+          mots: 'loge adresse domaine marque blanche client console différence',
           contenu: [
             ['Votre espace, votre adresse', `Vos clients entrent par ${domaine} — pas par La Loge. Ils ne voient que votre studio : votre nom, votre logo, vos couleurs.`],
             ['Deux mondes séparés', 'Cette console est la vôtre. Vos clients, eux, n\'y accèdent jamais : chacun entre dans son espace privé avec le code que vous lui remettez.'],
           ],
         },
         {
-          titre: 'Votre marque',
+          id: 'marque',
+          but: 'Mettre mon logo et mes couleurs',
           icone: '🎨',
+          resume: 'Réglé une fois, appliqué partout — jusque dans vos emails.',
+          mots: 'marque logo couleur charte identité nom personnaliser design réglages paramètres compte',
           contenu: [
             ['Réglez-la une fois', 'Dans « Paramètres » (en bas du menu), la carte « Ma marque » : nom affiché, logo, deux couleurs, email de contact.'],
             ['Elle s\'applique partout', 'Page de connexion, espaces clients, galeries, emails envoyés à vos clients — tout suit instantanément.'],
           ],
+          action: { section: 'settings', libelle: 'Ouvrir Ma marque' },
         },
         {
-          titre: 'Un espace client',
+          id: 'espace-client',
+          but: 'Créer l\'espace d\'un client',
           icone: '👤',
+          resume: 'Deux prénoms, un email — et sa clé d\'entrée.',
+          mots: 'client espace créer nouveau code accès invitation clé connexion mot de passe identifiant inviter',
           contenu: [
             ['Créez l\'espace', '« Nouveau client », choisissez le type : Mariage & célébrations (livraison), Communication & Marketing (suivi complet), ou Espace neutre.'],
             ['Remettez le code', 'En haut de la fiche, la carte « Accès client » : copiez le code et le lien de connexion, envoyez-les à votre client. C\'est sa clé.'],
+            ['Le plus simple', 'Le bouton « Copier l\'invitation » prépare un message complet — adresse, code, mode d\'emploi. Vous n\'avez qu\'à le coller.'],
           ],
+          action: { section: 'clients', libelle: 'Aller à mes clients' },
         },
         {
-          titre: 'Livrer une galerie',
+          id: 'livrer',
+          but: 'Livrer des photos ou un film',
           icone: '🖼️',
+          resume: 'Une galerie par projet, avec son propre lien.',
+          mots: 'galerie livrer photos film vidéo album partage lien code encodage mp4 envoyer client télécharger',
           contenu: [
             ['Autant de galeries que de projets', 'Dans la fiche client, « Nouvelle galerie » : photos, film ou les deux, avec un habillage selon la prestation (mariage, immobilier, mannequinat…).'],
             ['Un lien direct par galerie', 'Chaque galerie a son propre code et son propre lien de partage — vos clients (ou leurs invités) y entrent sans passer par l\'espace client. Coupez le partage quand vous voulez.'],
@@ -7399,71 +7510,151 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           ],
         },
         {
-          titre: 'Le quotidien',
-          icone: '🗂️',
+          id: 'prevenir',
+          but: 'Prévenir un client par email',
+          icone: '🔔',
+          resume: 'Partout la même cloche — une cloche, un email part.',
+          mots: 'email prévenir notifier cloche envoyer message alerte notification mail relance rappel',
           contenu: [
-            ['Tout au même endroit', 'Médias livrés, factures, documents, tournages : chaque onglet de la fiche client alimente son espace en direct.'],
-            ['Validation et échanges', 'Vos clients approuvent ou commentent les médias depuis leur espace — vous le voyez ici immédiatement.'],
+            ['La cloche, partout', 'Sur un média, une facture, un document, un tournage, une galerie : l\'icône 🔔 envoie un email à votre client. C\'est toujours le même geste.'],
+            ['À vos couleurs', 'L\'email part au nom de votre studio, avec votre logo, et ramène votre client chez vous — jamais chez La Loge.'],
+            ['Ce qui part tout seul', 'Vous n\'avez rien à faire pour : le film prêt après encodage, la fin d\'accès (J-15 et J-3), les relances de facture impayée.'],
           ],
         },
         {
-          titre: 'Votre offre',
+          id: 'quotidien',
+          but: 'Suivre factures, documents et tournages',
+          icone: '🗂️',
+          resume: 'Chaque onglet de la fiche alimente l\'espace du client.',
+          mots: 'facture devis payé argent document contrat tournage agenda calendrier rendez-vous validation commentaire',
+          contenu: [
+            ['Tout au même endroit', 'Médias livrés, factures, documents, tournages : chaque onglet de la fiche client alimente son espace en direct.'],
+            ['Validation et échanges', 'Vos clients approuvent ou commentent les médias depuis leur espace — vous le voyez ici immédiatement.'],
+            ['Vos revenus, si vous voulez', 'L\'onglet « Revenus » calcule votre chiffre d\'affaires, vos cotisations URSSAF et une estimation d\'impôt à partir des factures que vous passez en « payée ». Il est facultatif.'],
+          ],
+        },
+        {
+          id: 'offre',
+          but: 'Gérer mon offre et mon stockage',
           icone: '⭐',
+          resume: 'Où vous en êtes, et comment changer d\'offre.',
+          mots: 'offre abonnement plan stockage quota go payer résilier désabonner facture prix réglages paramètres arrêter',
           contenu: [
             ['Où vous en êtes', 'La Vue d\'ensemble affiche votre stockage ; votre abonnement vit dans « Paramètres ». L\'offre Découverte : 1 espace client, 3 Go, accès 90 jours.'],
             ['Évoluer quand vous voulez', 'Le passage à une offre supérieure — ou la résiliation — se fait dans « Paramètres », carte Abonnement. Sans engagement.'],
-            ['Une question ?', `Écrivez-nous : service@timelesshouse.org.`],
           ],
+          action: { section: 'settings', libelle: 'Ouvrir Paramètres' },
         },
       ];
     }
 
-    function GuideLoge({ onClose }) {
-      const chapitres = guideChapitres();
-      const [idx, setIdx] = useState(0);
-      const ch = chapitres[idx];
-      const dernier = idx === chapitres.length - 1;
+    /* Centre d'aide : liste d'objectifs + recherche + article.
+       Remplace le tour linéaire — on entre par ce qu'on cherche, on
+       ressort quand on a trouvé, et le bouton d'action emmène à
+       l'écran concerné plutôt que de le décrire. */
+    function CentreAide({ onClose, onAller }) {
+      const articles = aideArticles();
+      const [q, setQ] = useState('');
+      const [ouvert, setOuvert] = useState(null);   // id de l'article lu
+      const art = ouvert ? articles.find(a => a.id === ouvert) : null;
+
+      // Recherche mot à mot, accents et casse ignorés. Un `includes` sur
+      // la phrase entière échouait sur « code client » : les deux mots
+      // existent, mais pas côte à côte — or c'est exactement ainsi qu'on
+      // tape dans une barre de recherche.
+      // …et on ignore les mots-outils : beaucoup de gens tapent une
+      // question entière (« où est mon logo ? ») plutôt qu'un mot-clé.
+      // (écrits SANS accent : la comparaison se fait sur le texte normalisé)
+      const VIDES = new Set(['ou', 'est', 'le', 'la', 'les', 'un', 'une', 'des', 'de', 'du',
+        'mon', 'ma', 'mes', 'je', 'comment', 'que', 'qui', 'quoi', 'pour', 'a', 'au', 'aux',
+        'en', 'et', 'sur', 'dans', 'avec', 'faire', 'peux', 'puis',
+        // verbes d'intention : ils disent l'envie, jamais le sujet
+        'changer', 'modifier', 'mettre', 'trouver', 'voir', 'regler', 'ajouter', 'utiliser']);
+      const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const mots = norm(q).replace(/[?!.,;:]/g, ' ').split(/\s+/).filter(m => m && !VIDES.has(m));
+      // Pluriel toléré : on écrit « couleur » dans les mots-clés, les gens
+      // tapent « couleurs » — et `includes` ne va que dans un sens.
+      const trouve = (foin, m) => foin.includes(m) || (m.endsWith('s') && foin.includes(m.slice(0, -1)));
+      const filtres = mots.length
+        ? articles.filter(a => {
+            const foin = norm(`${a.but} ${a.resume} ${a.mots}`);
+            return mots.every(m => trouve(foin, m));
+          })
+        : articles;
 
       return (
-        <Modal title="Bienvenue dans votre loge" kicker={`Guide · ${idx + 1}/${chapitres.length}`} onClose={onClose} size="lg">
-          {/* Chapitres : rail en creux (règle « halo ») — rangée défilante
-              au doigt sur mobile, colonne latérale sur grand écran */}
-          <div className="flex flex-col sm:flex-row gap-5 sm:gap-4">
-            <nav aria-label="Chapitres du guide" className="sm:w-48 shrink-0 max-w-full">
-              <div style={neu.pressed}
-                   className="rounded-full sm:rounded-2xl p-1 flex sm:flex-col gap-1 overflow-x-auto no-scrollbar max-w-full">
-                {chapitres.map((c, i) => (
-                  <button key={c.titre} onClick={() => setIdx(i)}
-                    aria-current={i === idx ? 'step' : undefined}
-                    style={i === idx ? neu.dark : {}}
-                    className={`px-3.5 py-2.5 min-h-[44px] rounded-full sm:rounded-xl text-[12.5px] font-semibold flex items-center gap-2 whitespace-nowrap sm:whitespace-normal text-left shrink-0 transition active:scale-95 ${i === idx ? 'text-white' : 'text-stone-600'}`}>
-                    <span aria-hidden="true">{c.icone}</span> {c.titre}
-                  </button>
-                ))}
-              </div>
-            </nav>
+        <Modal
+          title={art ? art.but : 'Centre d\'aide'}
+          kicker={art ? 'Aide' : 'Que voulez-vous faire ?'}
+          onClose={onClose}
+          size="lg">
 
-            <div className="flex-1 min-w-0">
+          {art ? (
+            <div>
               <div className="space-y-4">
-                {ch.contenu.map(([t, p]) => (
+                {art.contenu.map(([t, p]) => (
                   <div key={t}>
                     <div className="text-[14px] font-bold">{t}</div>
                     <p className="text-[13.5px] text-stone-600 leading-relaxed mt-1">{p}</p>
                   </div>
                 ))}
               </div>
-
-              <div className="flex items-center justify-between gap-3 mt-6 pt-4" style={{ borderTop: '1px solid rgba(127,127,127,0.15)' }}>
-                {/* Sortie toujours offerte, même au premier chapitre */}
-                {idx > 0
-                  ? <Btn onClick={() => setIdx(idx - 1)}>Précédent</Btn>
-                  : <Btn onClick={onClose}>Passer le guide</Btn>}
-                {dernier
-                  ? <Btn kind="dark" icon={CheckCircle2} onClick={onClose}>C'est parti</Btn>
-                  : <Btn kind="dark" onClick={() => setIdx(idx + 1)}>Continuer</Btn>}
+              <div className="flex items-center justify-between gap-3 mt-6 pt-4 flex-wrap"
+                   style={{ borderTop: '1px solid rgba(127,127,127,0.15)' }}>
+                <Btn icon={ArrowLeft} onClick={() => setOuvert(null)}>Toutes les aides</Btn>
+                {art.action && (
+                  <Btn kind="dark" icon={ArrowUpRight}
+                       onClick={() => { onAller(art.action.section); onClose(); }}>
+                    {art.action.libelle}
+                  </Btn>
+                )}
               </div>
             </div>
-          </div>
+          ) : (
+            <div>
+              <label htmlFor="aide-q" className="sr-only">Rechercher dans l'aide</label>
+              <div style={neu.pressed} className="rounded-full flex items-center gap-2.5 px-4 mb-4">
+                <Search size={16} className="text-stone-400 shrink-0" aria-hidden="true" />
+                <input id="aide-q" value={q} onChange={(e) => setQ(e.target.value)}
+                       placeholder="Chercher — « facture », « logo », « livrer un film »…"
+                       className="flex-1 bg-transparent border-none outline-none py-3 min-h-[44px] text-[13.5px] placeholder:text-stone-400" />
+                {q && (
+                  <button onClick={() => setQ('')} aria-label="Effacer la recherche"
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-800 shrink-0">
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-2.5">
+                {filtres.map(a => (
+                  <button key={a.id} onClick={() => setOuvert(a.id)} style={neu.raisedXs}
+                          className="w-full flex items-center gap-3.5 px-4 py-3.5 min-h-[60px] rounded-2xl text-left active:scale-[0.99] transition">
+                    <span aria-hidden="true" className="text-[20px] shrink-0">{a.icone}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13.5px] font-semibold text-stone-800">{a.but}</span>
+                      <span className="block text-[12px] text-stone-500 mt-0.5">{a.resume}</span>
+                    </span>
+                    <ChevronRight size={16} className="shrink-0 text-stone-400" />
+                  </button>
+                ))}
+                {filtres.length === 0 && (
+                  <div className="text-center py-10">
+                    <p className="text-[13.5px] text-stone-500">Rien trouvé pour « {q} ».</p>
+                    <p className="text-[12.5px] text-stone-400 mt-2">
+                      Écrivez-nous : <a href="mailto:service@timelesshouse.org" className="underline">service@timelesshouse.org</a>
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-[12px] text-stone-400 text-center mt-5 pt-4"
+                 style={{ borderTop: '1px solid rgba(127,127,127,0.15)' }}>
+                Une question qui n'est pas là ?{' '}
+                <a href="mailto:service@timelesshouse.org" className="underline">Écrivez-nous</a>.
+              </p>
+            </div>
+          )}
         </Modal>
       );
     }
@@ -7487,11 +7678,19 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [myAgency, setMyAgency] = useState(null);
       const [showGuide, setShowGuide] = useState(false);
 
-      // Guide : s'ouvre SEUL à la PREMIÈRE connexion d'un locataire
+      // Astuces contextuelles : on recharge celles déjà refermées AVANT
+      // le premier rendu utile, sinon une astuce comprise il y a un mois
+      // réapparaîtrait à chaque connexion.
+      useEffect(() => {
+        if (!user) return;
+        ASTUCES_VUES = new Set(user.user_metadata?.laloge_astuces || []);
+      }, [user]);
+
+      // Aide : s'ouvre SEULE à la PREMIÈRE connexion d'un locataire
       // (jamais pour la plateforme), puis plus jamais, sur aucun
       // appareil — le « vu » est écrit dans les métadonnées du COMPTE
       // Supabase dès l'ouverture automatique ; localStorage ne sert
-      // que de cache local. Réouverture à la demande via « Guide ».
+      // que de cache local. Réouverture à la demande via « Aide ».
       useEffect(() => {
         if (!featuresReady || FEATURES.allUniverses || !user) return;
         if (user.user_metadata?.laloge_guide_vu) return;
@@ -7636,7 +7835,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <Settings size={16} />
               </button>
               {featuresReady && !FEATURES.allUniverses && (
-                <button onClick={() => setShowGuide(true)} aria-label="Guide" title="Guide" style={neu.raisedXs} className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
+                <button onClick={() => setShowGuide(true)} aria-label="Aide" title="Aide" style={neu.raisedXs} className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
                   <HelpCircle size={16} />
                 </button>
               )}
@@ -7695,7 +7894,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 </button>
                 {featuresReady && !FEATURES.allUniverses && (
                   <button onClick={() => setShowGuide(true)} className="w-full flex items-center gap-3.5 px-4 py-3.5 min-h-[48px] rounded-2xl text-stone-500 hover:text-stone-800 transition">
-                    <HelpCircle size={18} /> <span className="text-[14px] font-medium tracking-tight">Guide</span>
+                    <HelpCircle size={18} /> <span className="text-[14px] font-medium tracking-tight">Aide</span>
                   </button>
                 )}
                 <a href="communication.html" className="w-full flex items-center gap-3.5 px-4 py-3.5 min-h-[48px] rounded-2xl text-stone-500 hover:text-stone-800 transition">
@@ -7737,8 +7936,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </main>
           </div>
 
-          {/* Guide de la loge — première connexion d'un locataire, ou bouton « ? » */}
-          {showGuide && <GuideLoge onClose={fermerGuide} />}
+          {/* Centre d'aide — première connexion d'un locataire, ou bouton « ? ».
+              `onAller` permet à un article d'emmener à l'écran concerné :
+              montrer vaut mieux que décrire. */}
+          {showGuide && <CentreAide onClose={fermerGuide} onAller={setSection} />}
 
           {/* Bottom nav — mobile uniquement, 52px tactile, verre dépoli translucide */}
           <nav

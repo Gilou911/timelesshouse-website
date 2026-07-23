@@ -565,7 +565,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-amber-600">
             <Lightbulb size={16} />
           </span>
-          <div className="min-w-0 flex-1">
+          {/* Largeur de lecture bornée : dans une carte pleine largeur,
+              la phrase s'étirait sur ~1300 px d'un seul tenant — l'œil
+              perd la ligne suivante au retour. */}
+          <div className="min-w-0 flex-1 max-w-[68ch]">
             <div className="text-[13px] font-semibold text-stone-800">{titre}</div>
             <p className="text-[12.5px] text-stone-600 leading-relaxed mt-1">{texte}</p>
             <div className="flex items-center gap-2 mt-3 flex-wrap">

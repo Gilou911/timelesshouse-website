@@ -13,7 +13,7 @@
    ni « TimelessHouse » — les clients des locataires le voient aussi.
    ════════════════════════════════════════════════════════════ */
 (function () {
-  var MAINTENANCE = true;
+  var MAINTENANCE = false;
   if (!MAINTENANCE) return;
 
   var MESSAGE = "Maintenance en cours — l'affichage et l'envoi des médias " +

@@ -1119,6 +1119,47 @@ serve(async (req)=>{
         status: 400, headers: { ...CORS, "Content-Type": "application/json" }
       });
     }
+    // ── GARDE D'AUTHENTIFICATION (durcissement sécurité, 24/07/2026) ──
+    // verify_jwt=false → la fonction est joignable par tous. Avant, quiconque
+    // connaissait un client_id pouvait déclencher un email de marque à ce
+    // client (audit du 24/07). On distingue ici trois appelants légitimes,
+    // chacun avec SA preuve :
+    //   ① interne (worker, cron) : porte la clé service (secret serveur) ;
+    //   ② admin (console) : JWT valide ET membre de l'agence du client ;
+    //   ③ client sans compte : uniquement pour prévenir SON agence
+    //      (commentaire / validation), et seulement en prouvant qu'il
+    //      détient le code d'accès du client.
+    {
+      const CLIENT_TO_ADMIN = new Set(["admin_new_comment", "admin_media_approved", "admin_changes_requested"]);
+      const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
+      let autorise = false;
+      if (bearer && bearer === SB_KEY) {
+        autorise = true;                                    // ① interne de confiance
+      } else {
+        // ② un JWT d'utilisateur ? (la clé anon ne résout aucun utilisateur)
+        const who = bearer ? await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: { apikey: SB_KEY, Authorization: `Bearer ${bearer}` },
+        }).then((r) => (r.ok ? r.json() : null)).catch(() => null) : null;
+        if (who?.id && client.agency_id) {
+          const membre = await fetch(
+            `${SUPABASE_URL}/rest/v1/agency_members?user_id=eq.${who.id}&agency_id=eq.${client.agency_id}&select=user_id&limit=1`,
+            { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } },
+          ).then((r) => r.json()).catch(() => []);
+          autorise = Array.isArray(membre) && membre.length > 0;   // ② admin de la bonne agence
+        } else if (CLIENT_TO_ADMIN.has(kind)) {
+          // ③ client anonyme : doit prouver la possession du code
+          const norm = (s) => (s || "").toString().toLowerCase().normalize("NFD")
+            .replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
+          autorise = !!(body.access_code && client.code &&
+                        norm(body.access_code) === norm(client.code));
+        }
+      }
+      if (!autorise) {
+        return new Response(JSON.stringify({ error: "Non autorisé pour ce client." }), {
+          status: 403, headers: { ...CORS, "Content-Type": "application/json" },
+        });
+      }
+    }
     // Anti-bombardement : au-delà de RL_MAX emails vers ce client sur la
     // fenêtre, on refuse (protège la boîte du client, le coût Resend et la
     // réputation d'envoi). Le mode dry_run (test) n'est pas compté.

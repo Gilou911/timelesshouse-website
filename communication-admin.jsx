@@ -33,6 +33,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Jeton de l'admin connecté, envoyé à notify-client (durcie le
+    // 24/07/2026 : elle vérifie désormais que l'appelant est bien membre
+    // de l'agence du client). Repli sur la clé anon avant chargement de
+    // session ; tenu à jour à chaque changement d'auth. Les envois ne
+    // partent que sur action, bien après la connexion → le JWT est prêt.
+    let ADMIN_TOKEN = SUPABASE_ANON_KEY;
+    sb.auth.getSession().then(({ data }) => { if (data.session?.access_token) ADMIN_TOKEN = data.session.access_token; });
+    sb.auth.onAuthStateChange((_e, s) => { ADMIN_TOKEN = s?.access_token || SUPABASE_ANON_KEY; });
+
     /* 🔐 Fonctionnalités de l'agence connectée (SaaS B.3, brique 7).
        Renseigné par App dès le chargement de l'agence ; faux par
        défaut → un locataire ne voit ni les analyses sociales (apps
@@ -2199,7 +2208,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
             body:    JSON.stringify({ kind: 'welcome', client_id: client.id }),
           });
           if (res.ok) alert(`✓ Email de bienvenue envoyé à ${client.client_email}`);
@@ -2581,7 +2590,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
             body:    JSON.stringify({
               kind: 'event_ready',
               client_id: client.id,
@@ -3105,7 +3114,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         try {
           const res = await fetch(`${SUPABASE_URL}/functions/v1/notify-client`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
             body: JSON.stringify({ kind: 'gallery_ready', client_id: client.id, gallery_id: g.id }),
           });
           const j = await res.json().catch(() => ({}));
@@ -4882,7 +4891,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              'Authorization': `Bearer ${ADMIN_TOKEN}`,
             },
             body: JSON.stringify({ client_id: clientId, media_id: media.id, kind: 'new_media' }),
           });
@@ -5724,7 +5733,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         try {
           const res = await fetch(`${SUPABASE_URL}/functions/v1/notify-client`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
             body: JSON.stringify({ kind: 'invoice_paid', client_id: clientId, invoice_id: saved.id }),
           });
           const j = await res.json().catch(() => ({}));
@@ -5757,7 +5766,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
             body:    JSON.stringify({
               kind:      'invoice_ready',
               client_id: clientId,
@@ -6027,7 +6036,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         try {
           const res = await fetch(`${SUPABASE_URL}/functions/v1/notify-client`, {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
             body:    JSON.stringify({ kind: 'document_ready', client_id: clientId, document_id: doc.id }),
           });
           if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
@@ -6297,7 +6306,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
             body:    JSON.stringify({ kind: 'strategy_ready', client_id: clientId, strategy_id: s.id }),
           });
           if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
@@ -6799,7 +6808,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
             body:    JSON.stringify({
               kind:      'shoot_scheduled',
               client_id: clientId,
@@ -6928,7 +6937,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
             body:    JSON.stringify({
               kind,
               client_id: clientId,

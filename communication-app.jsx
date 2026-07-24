@@ -1366,6 +1366,7 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
           body:    JSON.stringify({
             kind:      'admin_new_comment',
             client_id: window.__CLIENT.id,
+            access_code: accessCode,
             media_id:  m.id,
             comment:   payload.comment,
           }),
@@ -1394,6 +1395,7 @@ const Lightbox = ({ items, index, onIndex, onClose, onMediaUpdate }) => {
             body:    JSON.stringify({
               kind:       status === 'approved' ? 'admin_media_approved' : 'admin_changes_requested',
               client_id:  window.__CLIENT.id,
+              access_code: accessCode,
               media_id:   m.id,
               dedupe_key: `${status}:${m.id}:${new Date().toISOString().slice(0,10)}`,
             }),

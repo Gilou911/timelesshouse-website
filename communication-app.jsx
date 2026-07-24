@@ -44,7 +44,7 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const accessCode = sessionStorage.getItem('access_granted');
 const expectedCode = (window.CLIENT_DATA && window.CLIENT_DATA.code) || null;
 if (!accessCode || (expectedCode && accessCode !== expectedCode)) {
-  window.location.href = 'communication.html';
+  window.location.href = '/app';
 }
 
 const sb = window.__SUPABASE;
@@ -3882,7 +3882,7 @@ function App() {
   const handleLogout = () => {
     sessionStorage.removeItem('access_granted');
     try { localStorage.removeItem('th_access_code'); } catch (e) {}
-    window.location.href = 'communication.html';
+    window.location.href = '/app';
   };
 
   const titles = {

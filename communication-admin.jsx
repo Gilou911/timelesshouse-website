@@ -128,13 +128,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const contentType = file.type || 'application/octet-stream';
 
       if (file.size <= B2_MPU_THRESHOLD) {
-        const { url, publicUrl, disposition } = await b2Sign({ action: 'sign-put', key, contentType });
+        const { url, publicUrl, disposition } = await b2Sign({ action: 'sign-put', key, contentType, size: file.size });
         await b2PutRetry(url, file, contentType, onProgress, disposition);
         return publicUrl;
       }
 
       // Multipart — gros fichiers (l'ETag de chaque part est exigé à la fin)
-      const { uploadId } = await b2Sign({ action: 'mpu-create', key, contentType });
+      const { uploadId } = await b2Sign({ action: 'mpu-create', key, contentType, size: file.size });
       try {
         const partCount = Math.ceil(file.size / B2_MPU_PART_SIZE);
         const parts = [];
@@ -152,7 +152,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             parts.push({ PartNumber: n, ETag: (xhr.getResponseHeader('ETag') || '').replace(/"/g, '') });
           }
         }
-        const { publicUrl } = await b2Sign({ action: 'mpu-complete', key, uploadId, parts });
+        const { publicUrl } = await b2Sign({ action: 'mpu-complete', key, uploadId, parts, size: file.size });
         return publicUrl;
       } catch (err) {
         await b2Sign({ action: 'mpu-abort', key, uploadId }).catch(() => {});

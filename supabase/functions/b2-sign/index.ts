@@ -202,6 +202,65 @@ async function storageInfo(agencyId: string) {
   };
 }
 
+// Go lisibles (1 décimale sous 10 Go, entier au-delà) pour les messages.
+function fmtGo(bytes: number): string {
+  const go = bytes / 1073741824;
+  return go >= 10 ? `${Math.round(go)} Go` : `${go.toFixed(1)} Go`;
+}
+
+// ── DURCISSEMENT QUOTA (24/07/2026) ────────────────────────────────
+// Avant, le quota était purement informatif : un locataire plein pouvait
+// continuer d'uploader, et rien ne vérifiait la taille du fichier. Ici on
+// BLOQUE avant de signer :
+//   • si l'agence est déjà pleine (used ≥ quota) ;
+//   • si le fichier annoncé ferait dépasser le quota (used + size > quota).
+// La taille `size` est fournie par le navigateur (file.size). Un plan sans
+// quota connu (quota null) n'est jamais bloqué.
+// Renvoie une Response 413 à renvoyer tel quel, ou { used, quota } si OK.
+async function checkQuota(agencyId: string, size: unknown): Promise<
+  { block: Response } | { ok: true; used: number; quota: number | null }
+> {
+  const { data } = await sbAdmin.from("agencies")
+    .select("storage_used_bytes, plan").eq("id", agencyId).single();
+  if (!data) return { ok: true, used: 0, quota: null };
+  const { data: q } = await sbAdmin.rpc("plan_quota_bytes", { p_plan: data.plan });
+  const quota = q == null ? null : Number(q);
+  const used = data.storage_used_bytes || 0;
+  const incoming = Math.max(0, Number(size) || 0);
+  if (quota != null) {
+    if (used >= quota) {
+      return { block: json(413, {
+        error: `Espace de stockage plein (${fmtGo(used)} / ${fmtGo(quota)}). Libérez de l'espace en supprimant des médias, ou passez à une offre supérieure.`,
+        code: "quota_full",
+        storage: { used_bytes: used, quota_bytes: quota, pct: 100 },
+      }) };
+    }
+    if (incoming > 0 && used + incoming > quota) {
+      return { block: json(413, {
+        error: `Ce fichier (${fmtGo(incoming)}) dépasse l'espace restant (${fmtGo(quota - used)}). Libérez de l'espace, ou passez à une offre supérieure.`,
+        code: "quota_exceeded",
+        storage: { used_bytes: used, quota_bytes: quota, pct: Math.round(used / quota * 100) },
+      }) };
+    }
+  }
+  return { ok: true, used, quota };
+}
+
+// Incrément OPTIMISTE du compteur (après une signature/finalisation) : les
+// uploads successifs d'une même session sont ainsi correctement gated sans
+// attendre la mesure nocturne, qui reste la source de vérité (elle réécrit
+// la valeur absolue chaque nuit et corrige toute dérive — échecs, purges).
+async function bumpUsage(agencyId: string, delta: unknown): Promise<void> {
+  const d = Math.max(0, Number(delta) || 0);
+  if (!d) return;
+  try {
+    const { data } = await sbAdmin.from("agencies")
+      .select("storage_used_bytes").eq("id", agencyId).single();
+    const cur = data?.storage_used_bytes || 0;
+    await sbAdmin.from("agencies").update({ storage_used_bytes: cur + d }).eq("id", agencyId);
+  } catch (_) { /* best effort — la mesure nocturne rattrape */ }
+}
+
 // ─── Handler ────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -228,6 +287,8 @@ Deno.serve(async (req) => {
     switch (action) {
       // ── Upload simple (≤ ~4 Go) ──────────────────────────
       case "sign-put": {
+        const q = await checkQuota(keyAgency, body.size);
+        if ("block" in q) return q.block;
         const disposition = dispositionFor(key);
         const url = await getSignedUrl(
           s3,
@@ -239,6 +300,8 @@ Deno.serve(async (req) => {
           }),
           { expiresIn: 3600 }
         );
+        // Compteur incrémenté à la signature (le PUT suit immédiatement).
+        await bumpUsage(keyAgency, body.size);
         // `disposition` est renvoyé : le navigateur DOIT envoyer cet en-tête à
         // l'identique, sinon la signature ne correspond plus.
         return json(200, { url, key, publicUrl: publicUrl(key), disposition, storage: await storageInfo(keyAgency) });
@@ -259,6 +322,10 @@ Deno.serve(async (req) => {
 
       // ── Multipart (gros fichiers, ex : films de mariage) ─
       case "mpu-create": {
+        // Contrôle du quota AVANT de démarrer un gros upload (l'incrément,
+        // lui, se fait à la finalisation mpu-complete : fichier confirmé).
+        const q = await checkQuota(keyAgency, body.size);
+        if ("block" in q) return q.block;
         // Content-Disposition posé ici : il est porté par l'upload multipart
         // lui-même, les parts n'ont pas à le renvoyer.
         const res = await s3.send(
@@ -320,6 +387,8 @@ Deno.serve(async (req) => {
           console.error("[b2-sign] mpu-complete échec:", res.status, text.slice(0, 300));
           return json(502, { error: `Finalisation B2 échouée (${res.status})`, detail: text.slice(0, 200) });
         }
+        // Upload confirmé → on crédite le compteur de la taille du fichier.
+        await bumpUsage(keyAgency, body.size);
         return json(200, { key, publicUrl: publicUrl(key) });
       }
 

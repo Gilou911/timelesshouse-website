@@ -23,7 +23,28 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SB_URL         = Deno.env.get("SUPABASE_URL")!;
 const SB_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const CRON_SECRET    = Deno.env.get("CRON_SECRET") || "";
 const sb = createClient(SB_URL, SB_SERVICE_KEY);
+
+// ── Garde d'entrée (durcissement sécurité, 24/07/2026) ──
+// Avant, cette fonction ignorait la requête (`_req`) : n'importe qui avec
+// la clé publique pouvait déclencher la tournée nocturne. Sans danger
+// (anti-doublon → jamais de double envoi, cibles non choisies par
+// l'appelant), mais elle ne doit répondre qu'à SON planificateur.
+// Deux clés acceptées, comme measure-storage : le secret du cron
+// (`x-cron-key`), ou le propriétaire de la plateforme (pour un test manuel).
+async function allowed(req: Request): Promise<boolean> {
+  if (CRON_SECRET && req.headers.get("x-cron-key") === CRON_SECRET) return true;
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!token) return false;
+  const { data } = await sb.auth.getUser(token);
+  if (!data?.user) return false;
+  const { data: rows } = await sb
+    .from("agency_members")
+    .select("role, agencies!inner(slug)")
+    .eq("user_id", data.user.id).eq("role", "owner").eq("agencies.slug", "timelesshouse");
+  return !!rows && rows.length > 0;
+}
 
 // Mapping mois français → numéro (fallback pour les anciens tournages sans date_iso)
 const MONTH_MAP: Record<string, number> = {
@@ -64,7 +85,13 @@ async function callNotify(payload: any) {
   return await r.json().catch(() => ({}));
 }
 
-serve(async (_req) => {
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok");
+  if (!(await allowed(req))) {
+    return new Response(JSON.stringify({ error: "Non autorisé" }), {
+      status: 401, headers: { "Content-Type": "application/json" },
+    });
+  }
   const today = todayISO();
   const log: any[] = [];
 

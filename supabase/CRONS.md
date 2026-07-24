@@ -23,3 +23,10 @@ soient oubliées. À terme : les exporter en migration versionnée.
   restent `awaiting_encode`. Un filet de requeue des jobs orphelins a été
   ajouté au démarrage du worker (audit #4), mais une exécution sur un
   petit serveur Linux 24/7 reste préférable à terme.
+
+
+## ⚠️ Garde ajoutée le 24/07/2026 — action requise sur le cron
+
+`scheduled-notifications` **exige désormais** l'en-tête `x-cron-key: <CRON_SECRET>` (comme `measure-storage`). Le cron **daily-notifications** (Integrations → Cron) doit donc envoyer cet en-tête, sinon la tournée nocturne renvoie 401 et **les rappels s'arrêtent**.
+
+À faire une fois : dans Supabase → **Integrations → Cron → daily-notifications → Edit**, ajouter aux *HTTP headers* la clé `x-cron-key` avec **la même valeur que le cron de mesure du stockage** (le `CRON_SECRET`). Rien d'autre à changer.

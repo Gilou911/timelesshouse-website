@@ -34,8 +34,15 @@ const sb = createClient(SB_URL, SB_SERVICE_KEY);
 // Deux clés acceptées, comme measure-storage : le secret du cron
 // (`x-cron-key`), ou le propriétaire de la plateforme (pour un test manuel).
 async function allowed(req: Request): Promise<boolean> {
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  // ① Le cron (Supabase → Integrations → Cron) appelle DÉJÀ avec la clé
+  //    service dans l'Authorization — un secret serveur. On l'accepte tel
+  //    quel : aucune modification du cron nécessaire. (Même principe que
+  //    notify-client pour le worker/cron.)
+  if (token && token === SB_SERVICE_KEY) return true;
+  // ② Repli : en-tête x-cron-key = CRON_SECRET (autre déclencheur possible).
   if (CRON_SECRET && req.headers.get("x-cron-key") === CRON_SECRET) return true;
-  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  // ③ Test manuel : propriétaire de la plateforme.
   if (!token) return false;
   const { data } = await sb.auth.getUser(token);
   if (!data?.user) return false;

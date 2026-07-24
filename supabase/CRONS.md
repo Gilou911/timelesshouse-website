@@ -25,8 +25,6 @@ soient oubliées. À terme : les exporter en migration versionnée.
   petit serveur Linux 24/7 reste préférable à terme.
 
 
-## ⚠️ Garde ajoutée le 24/07/2026 — action requise sur le cron
+## Garde ajoutée le 24/07/2026 (aucune action requise)
 
-`scheduled-notifications` **exige désormais** l'en-tête `x-cron-key: <CRON_SECRET>` (comme `measure-storage`). Le cron **daily-notifications** (Integrations → Cron) doit donc envoyer cet en-tête, sinon la tournée nocturne renvoie 401 et **les rappels s'arrêtent**.
-
-À faire une fois : dans Supabase → **Integrations → Cron → daily-notifications → Edit**, ajouter aux *HTTP headers* la clé `x-cron-key` avec **la même valeur que le cron de mesure du stockage** (le `CRON_SECRET`). Rien d'autre à changer.
+`scheduled-notifications` n'exécute plus sa tournée que pour un appelant autorisé : la **clé service** (que le cron `daily-notifications` envoie DÉJÀ dans son en-tête `Authorization`), ou en repli l'en-tête `x-cron-key: <CRON_SECRET>`, ou un JWT propriétaire de la plateforme (test manuel). Le cron existant fonctionne **sans modification**. Vérifié : un appel avec la clé publique renvoie 401.

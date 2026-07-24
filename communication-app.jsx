@@ -10,7 +10,7 @@
      ▸ Commentaires par média
    ════════════════════════════════════════════════════════════ */
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense, lazy } from 'react';
 import ReactDOM from 'react-dom/client';
 import {
   Home, Image as ImageIcon, FileText, BarChart3, Calendar as CalendarIcon,
@@ -27,12 +27,16 @@ import {
   // ━━━ Stratégies ━━━
   Lightbulb, Link2, ChevronDown, ChevronUp, Copy, Lock
 } from 'lucide-react';
-import {
-  BarChart, Bar, AreaChart, Area, XAxis, YAxis,
-  CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
-  // ━━━ Analytics v2 ━━━
-  LineChart, Line, ComposedChart, ReferenceLine, Legend
-} from 'recharts';
+// ━━━ Graphiques (Recharts) chargés à la demande ━━━
+// Recharts (~150 Ko) n'est utile qu'aux clients avec l'option Analyses.
+// On l'isole dans communication-charts.jsx et on le charge via React.lazy :
+// Rollup en fait un chunk séparé, téléchargé UNIQUEMENT quand un graphique
+// s'affiche (jamais pour un client mariage/portrait sans analyses).
+const AudienceAreaChart     = lazy(() => import('./communication-charts.jsx').then(m => ({ default: m.AudienceAreaChart })));
+const TimelineComposedChart = lazy(() => import('./communication-charts.jsx').then(m => ({ default: m.TimelineComposedChart })));
+const BudgetPie             = lazy(() => import('./communication-charts.jsx').then(m => ({ default: m.BudgetPie })));
+// Repli neutre le temps que le chunk arrive (occupe la place, aucun saut de mise en page).
+const ChartFallback = () => <div className="w-full h-full" aria-hidden="true" />;
 
 // — Config Supabase injectée par Vite depuis .env (variables VITE_*)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -953,18 +957,9 @@ const Dashboard = ({ goTo }) => {
           <h2 className="text-[22px] lg:text-[28px] tracking-tight leading-[1.1] max-w-md" style={SERIF}>Évolution de votre audience</h2>
           <div className="text-[13px] text-stone-500 mt-1.5 leading-relaxed">Sur les 4 dernières semaines.</div>
           <div className="mt-6 h-[180px] lg:h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={REVENUE_DATA}>
-                <defs>
-                  <linearGradient id="cgrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={neu.textChart} stopOpacity={0.35} />
-                    <stop offset="100%" stopColor={neu.textChart} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="value" stroke={neu.textChart} strokeWidth={2.2} fill="url(#cgrad)" />
-                <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              </AreaChart>
-            </ResponsiveContainer>
+            <Suspense fallback={<ChartFallback />}>
+              <AudienceAreaChart data={REVENUE_DATA} stroke={neu.textChart} />
+            </Suspense>
           </div>
         </div>
       ) : CLIENT.analyticsOffered ? (
@@ -2726,17 +2721,9 @@ const OverviewTab = ({ kpis, posts, insights, accounts }) => {
             </div>
           </div>
           <div className="h-[260px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={timeline}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#d6cfc0" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis yAxisId="r" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis yAxisId="e" orientation="right" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 6px 20px rgba(0,0,0,0.12)' }} />
-                <Bar yAxisId="r" dataKey="reach" fill="#2a2620" radius={[6, 6, 0, 0]} />
-                <Line yAxisId="e" type="monotone" dataKey="engagements" stroke="#9ca3af" strokeWidth={2.5} dot={false} />
-              </ComposedChart>
-            </ResponsiveContainer>
+            <Suspense fallback={<ChartFallback />}>
+              <TimelineComposedChart data={timeline} />
+            </Suspense>
           </div>
         </div>
 
@@ -3009,14 +2996,9 @@ const BudgetRing = ({ spent, total }) => {
   const tone = pct > 95 ? '#ef4444' : pct > 80 ? '#f59e0b' : '#10b981';
   return (
     <div className="relative w-28 h-28 shrink-0">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie data={data} innerRadius={38} outerRadius={50} startAngle={90} endAngle={-270} dataKey="v" stroke="none">
-            <Cell fill={tone} />
-            <Cell fill="rgba(0,0,0,0.06)" />
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
+      <Suspense fallback={<ChartFallback />}>
+        <BudgetPie data={data} tone={tone} />
+      </Suspense>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div className="text-[18px] leading-none" style={SERIF}>{Math.round(pct)}%</div>
         <div className="text-[9px] text-stone-400 uppercase tracking-wider mt-0.5">consommé</div>

@@ -895,8 +895,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return Math.max(0, Math.round(b / 1048576)) + ' Mo';
     };
 
-    // Jauge de stockage (Vue d'ensemble + cartes agences) — alerte 80 %,
-    // dépassement souple : on n'empêche jamais un upload.
+    // Jauge de stockage (Vue d'ensemble + cartes agences) — alerte 80 %.
+    // Depuis le 24/07/2026, l'upload est BLOQUÉ au-delà du quota (b2-sign) ;
+    // cette jauge est le repère visuel de ce plafond.
     function StorageGauge({ storage, compact }) {
       if (!storage) return null;
       const used = storage.used_bytes || 0;
@@ -7419,6 +7420,34 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </Btn>
             </div>
           </div>
+
+          {/* ─── Récapitulatif stockage (fondateur) ───
+              Chaque octet du bucket est attribué à une agence par
+              measure-storage (le contenu historique non rattaché tombe
+              sur TimelessHouse). Donc : total bucket = somme des agences,
+              et « ce que j'ai uploadé » = l'agence timelesshouse. */}
+          {(() => {
+            const list = agencies || [];
+            const total = list.reduce((s, a) => s + (a.storage_used_bytes || 0), 0);
+            const studio = list.find(a => a.slug === 'timelesshouse');
+            const mine = studio?.storage_used_bytes || 0;
+            return (
+              <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6 mb-4">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Stockage du bucket</div>
+                <div className="flex flex-wrap items-baseline gap-x-10 gap-y-4 mt-3">
+                  <div>
+                    <div className="text-[26px] lg:text-[30px] tracking-tight leading-none" style={SERIF}>{fmtBytes(total)}</div>
+                    <div className="text-[12px] text-stone-500 mt-1.5">au total · {list.length} agence{list.length > 1 ? 's' : ''}</div>
+                  </div>
+                  <div>
+                    <div className="text-[20px] lg:text-[22px] tracking-tight leading-none" style={SERIF}>{fmtBytes(mine)}</div>
+                    <div className="text-[12px] text-stone-500 mt-1.5">votre studio (TimelessHouse){studio && !studio.storage_quota_bytes ? ' · illimité' : ''}</div>
+                  </div>
+                </div>
+                <div className="text-[11px] text-stone-400 mt-4">Mesuré chaque nuit sur Backblaze ; ajusté en direct à chaque upload.</div>
+              </div>
+            );
+          })()}
 
           {/* ─── Agences existantes ─── */}
           <div className="grid sm:grid-cols-2 gap-4">

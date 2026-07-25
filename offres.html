@@ -238,6 +238,31 @@
        à quelqu'un qui ne l'a jamais vu — elle a donc le droit de durer,
        contrairement à une animation d'UI (< 300 ms). Uniquement transform
        et opacity (GPU, pas de layout), en CSS (hors thread principal). */
+    /* ══ Sélecteur de métier ══
+       La Loge se vend par secteur : le parcours montré (et le vocabulaire)
+       change selon qu'on parle à un photographe de mariage ou à un
+       filmmaker. Rail EN CREUX + pilule sombre active — la convention
+       maison pour toute barre d'onglets (règle « halo »). */
+    .univ { display: flex; justify-content: center; margin-top: 34px; }
+    .univ-rail {
+      display: inline-flex; align-items: center; gap: 6px; padding: 5px;
+      border-radius: 999px; background: var(--pressed); max-width: 100%;
+      box-shadow: inset 3px 3px 7px var(--shadow-d), inset -3px -3px 7px var(--shadow-l);
+      overflow-x: auto; -ms-overflow-style: none; scrollbar-width: none;
+    }
+    .univ-rail::-webkit-scrollbar { display: none; }
+    .univ-rail button {
+      flex: 0 0 auto; border: none; cursor: pointer; font-family: inherit;
+      min-height: 44px; padding: 0 18px; border-radius: 999px;
+      font-size: 13px; font-weight: 700; white-space: nowrap;
+      background: transparent; color: var(--muted);
+      transition: color 0.3s var(--ease-out), transform 0.16s var(--ease-out);
+    }
+    .univ-rail button:active { transform: scale(0.97); }
+    .univ-rail button[aria-selected="true"] { background: var(--btn-bg); color: var(--btn-text); }
+    .univ-rail button[disabled] { opacity: 0.55; cursor: default; }
+    .univ-rail button small { font-weight: 600; opacity: 0.75; margin-left: 6px; font-size: 11px; }
+
     /* text-align explicite : le héros est centré, l'aperçu ne doit pas l'être. */
     .walk { display: grid; gap: 26px; align-items: center; text-align: left; }
     @media (min-width: 920px) { .walk { grid-template-columns: 1.04fr 0.96fr; gap: 48px; } }
@@ -504,10 +529,23 @@
       </div>
       <div class="note reveal">Dès 0 €/mois · sans engagement · vos fichiers restent les vôtres</div>
 
+      <!-- ══ Choix du métier ══
+           La Loge se vend par secteur. Le sélecteur pilote les deux aperçus
+           et le vocabulaire de la page : un filmmaker ne livre pas « à un
+           couple », et un photographe de mariage ne parle pas de « client ».
+           Sans JS, l'univers Mariage (écrit en dur ci-dessous) reste servi. -->
+      <div class="univ reveal">
+        <div class="univ-rail" role="tablist" aria-label="Choisir votre métier">
+          <button type="button" role="tab" aria-selected="true"  data-univ="celebration">Mariage &amp; célébrations</button>
+          <button type="button" role="tab" aria-selected="false" data-univ="filmmaker">Filmmaker</button>
+          <button type="button" role="tab" aria-selected="false" data-univ="communication" disabled>Communication &amp; marketing<small>bientôt</small></button>
+        </div>
+      </div>
+
       <!-- ══ Aperçu animé nº1 : VOTRE côté — la console du studio ══
-           Le visiteur EST le photographe / vidéaste : on lui montre d'abord
-           son propre poste de travail, avant de lui montrer (plus bas) ce
-           que vivent ses mariés. -->
+           Le visiteur EST le photographe / vidéaste / filmmaker : on lui
+           montre d'abord son propre poste de travail, avant de lui montrer
+           (plus bas) ce que vivent ses clients. -->
       <div class="walk walk-hero reveal" data-walk data-nav="0,1,1,1,2">
         <div class="wk-device" aria-hidden="true">
           <div class="wk-inner">
@@ -521,9 +559,9 @@
               <div class="wk-screen" data-s="0">
                 <div class="wk-card st">
                   <div class="wk-lbl">Nouveau client</div>
-                  <div class="wk-h" style="margin-top:6px">Emma &amp; Jules</div>
-                  <div class="wk-p">emma.jules@email.fr · Mariage &amp; célébrations</div>
-                  <div class="wk-code">EJ-2026</div>
+                  <div class="wk-h" style="margin-top:6px" data-t="nom">Emma &amp; Jules</div>
+                  <div class="wk-p" data-t="ligne">emma.jules@email.fr · Mariage &amp; célébrations</div>
+                  <div class="wk-code" data-t="code">EJ-2026</div>
                 </div>
                 <div class="st"><div class="wk-btn">Créer l'espace</div></div>
               </div>
@@ -544,8 +582,8 @@
                 <div class="wk-card st" style="margin-top:9px">
                   <div class="wk-h" style="font-size:17px">Un écrin par prestation</div>
                   <div class="wk-chips">
-                    <span class="sel">Cinématique</span><span>Film</span>
-                    <span>Demande</span><span>Anniversaire</span>
+                    <span class="sel" data-t="c1">Cinématique</span><span data-t="c2">Film</span>
+                    <span data-t="c3">Demande</span><span data-t="c4">Anniversaire</span>
                   </div>
                   <div class="wk-p" style="margin-top:11px">Le même fonds, quatre mises en scène.</div>
                 </div>
@@ -565,7 +603,7 @@
               <div class="wk-screen" data-s="4">
                 <div class="st wk-lbl">Où en est la livraison</div>
                 <div class="wk-card st" style="margin-top:9px">
-                  <div class="wk-row"><span class="wk-dot"></span>Galerie ouverte par Emma</div>
+                  <div class="wk-row"><span class="wk-dot"></span><span data-t="suivi1">Galerie ouverte par Emma</span></div>
                   <div class="wk-row"><span class="wk-dot"></span>Film approuvé</div>
                   <div class="wk-row"><span class="wk-dot"></span>Facture réglée</div>
                 </div>
@@ -586,23 +624,23 @@
           <ol class="walk-steps">
             <li><button type="button" data-go="0">
               <span class="n">1</span>
-              <span class="tx"><b>Vous créez l'espace du couple</b><em>Deux prénoms, un email — son code est prêt.</em><span class="pg"><i></i></span></span>
+              <span class="tx"><b data-t="h1t">Vous créez l'espace du couple</b><em data-t="h1s">Deux prénoms, un email — son code est prêt.</em><span class="pg"><i></i></span></span>
             </button></li>
             <li><button type="button" data-go="1">
               <span class="n">2</span>
-              <span class="tx"><b>Vous déposez photos et film</b><em>Vos originaux partent intacts, jamais recompressés.</em><span class="pg"><i></i></span></span>
+              <span class="tx"><b data-t="h2t">Vous déposez photos et film</b><em data-t="h2s">Vos originaux partent intacts, jamais recompressés.</em><span class="pg"><i></i></span></span>
             </button></li>
             <li><button type="button" data-go="2">
               <span class="n">3</span>
-              <span class="tx"><b>Vous choisissez l'habillage</b><em>Cinématique, film, demande, anniversaire.</em><span class="pg"><i></i></span></span>
+              <span class="tx"><b data-t="h3t">Vous choisissez l'habillage</b><em data-t="h3s">Cinématique, film, demande, anniversaire.</em><span class="pg"><i></i></span></span>
             </button></li>
             <li><button type="button" data-go="3">
               <span class="n">4</span>
-              <span class="tx"><b>Vous partagez le lien</b><em>Un lien par galerie — aucun n'expire.</em><span class="pg"><i></i></span></span>
+              <span class="tx"><b data-t="h4t">Vous partagez le lien</b><em data-t="h4s">Un lien par galerie — aucun n'expire.</em><span class="pg"><i></i></span></span>
             </button></li>
             <li><button type="button" data-go="4">
               <span class="n">5</span>
-              <span class="tx"><b>Vous suivez tout</b><em>Ouvert, approuvé, réglé — sans relancer personne.</em><span class="pg"><i></i></span></span>
+              <span class="tx"><b data-t="h5t">Vous suivez tout</b><em data-t="h5s">Ouvert, approuvé, réglé — sans relancer personne.</em><span class="pg"><i></i></span></span>
             </button></li>
           </ol>
           <div class="walk-ctl">
@@ -620,8 +658,8 @@
     <section id="apercu">
       <div class="wrap">
         <div class="sec-head reveal">
-          <h2 class="serif">Ce que vivent <em>vos mariés</em></h2>
-          <p>Du lien reçu aux photos en pleine qualité et au film en 4K — le parcours exact, sans inscription pour le voir.</p>
+          <h2 class="serif">Ce que vivent <em data-t="qui">vos mariés</em></h2>
+          <p data-t="sous">Du lien reçu aux photos en pleine qualité et au film en 4K — le parcours exact, sans inscription pour le voir.</p>
         </div>
 
         <div class="walk" data-walk>
@@ -640,7 +678,7 @@
                   <div class="wk-card st">
                     <div class="wk-lbl">Nouveau message</div>
                     <div class="wk-h" style="margin-top:6px">Votre galerie est en ligne.</div>
-                    <div class="wk-p">Bonjour Emma &amp; Jules, vos photos et votre film vous attendent — envoyé par Votre Studio.</div>
+                    <div class="wk-p" data-t="mail">Bonjour Emma &amp; Jules, vos photos et votre film vous attendent — envoyé par Votre Studio.</div>
                   </div>
                   <div class="st" style="margin-top:12px">
                     <div class="wk-btn">Voir ma galerie</div>
@@ -651,11 +689,11 @@
                 <div class="wk-screen" data-s="1">
                   <div class="wk-card st" style="text-align:center;padding:20px 15px">
                     <div class="wk-h" style="font-size:22px">Votre Studio<span style="color:var(--faint)">.</span></div>
-                    <div class="wk-lbl" style="margin-top:7px">Emma &amp; Jules · 14 juin</div>
+                    <div class="wk-lbl" style="margin-top:7px" data-t="galtitre">Emma &amp; Jules · 14 juin</div>
                     <div class="wk-p" style="margin-top:9px">votre-studio.laloge.house/galerie</div>
                   </div>
                   <div class="st wk-chips" style="justify-content:center">
-                    <span class="sel">Cinématique</span><span>412 photos</span><span>1 film</span>
+                    <span class="sel" data-t="c1">Cinématique</span><span data-t="nbphotos">412 photos</span><span>1 film</span>
                   </div>
                 </div>
 
@@ -674,7 +712,7 @@
                 <div class="wk-screen" data-s="3">
                   <div class="st">
                     <div class="wk-film">
-                      <div class="ttl">Emma &amp; Jules — Le Film</div>
+                      <div class="ttl" data-t="filmtitre">Emma &amp; Jules — Le Film</div>
                       <div class="wk-4k">4K</div>
                       <div class="wk-play"></div>
                       <div class="wk-bar"><i></i></div>
@@ -689,8 +727,8 @@
                 <!-- 5 · approbation & commentaires -->
                 <div class="wk-screen" data-s="4">
                   <div class="wk-card st">
-                    <div class="wk-lbl">Retour des mariés</div>
-                    <div class="wk-p" style="margin-top:6px;color:var(--ink);font-size:12.5px">« La lumière de la cérémonie est parfaite 🤍 »</div>
+                    <div class="wk-lbl" data-t="retour">Retour des mariés</div>
+                    <div class="wk-p" style="margin-top:6px;color:var(--ink);font-size:12.5px" data-t="cite">« La lumière de la cérémonie est parfaite 🤍 »</div>
                   </div>
                   <div class="st" style="display:flex;gap:8px;margin-top:11px">
                     <div class="wk-btn" style="margin-top:0">✓ J'approuve</div>
@@ -714,23 +752,23 @@
             <ol class="walk-steps">
               <li><button type="button" data-go="0">
                 <span class="n">1</span>
-                <span class="tx"><b>Leur lien arrive par email</b><em>À votre nom, jamais au nôtre.</em><span class="pg"><i></i></span></span>
+                <span class="tx"><b data-t="a1t">Leur lien arrive par email</b><em data-t="a1s">À votre nom, jamais au nôtre.</em><span class="pg"><i></i></span></span>
               </button></li>
               <li><button type="button" data-go="1">
                 <span class="n">2</span>
-                <span class="tx"><b>Ils ouvrent votre galerie</b><em>Votre logo, vos couleurs, votre adresse.</em><span class="pg"><i></i></span></span>
+                <span class="tx"><b data-t="a2t">Ils ouvrent votre galerie</b><em data-t="a2s">Votre logo, vos couleurs, votre adresse.</em><span class="pg"><i></i></span></span>
               </button></li>
               <li><button type="button" data-go="2">
                 <span class="n">3</span>
-                <span class="tx"><b>Toutes les photos, pleine qualité</b><em>Des centaines de fichiers, sans lien qui expire.</em><span class="pg"><i></i></span></span>
+                <span class="tx"><b data-t="a3t">Toutes les photos, pleine qualité</b><em data-t="a3s">Des centaines de fichiers, sans lien qui expire.</em><span class="pg"><i></i></span></span>
               </button></li>
               <li><button type="button" data-go="3">
                 <span class="n">4</span>
-                <span class="tx"><b>Et le film, en 4K</b><em>Lecture fluide partout, master téléchargeable.</em><span class="pg"><i></i></span></span>
+                <span class="tx"><b data-t="a4t">Et le film, en 4K</b><em data-t="a4s">Lecture fluide partout, master téléchargeable.</em><span class="pg"><i></i></span></span>
               </button></li>
               <li><button type="button" data-go="4">
                 <span class="n">5</span>
-                <span class="tx"><b>Ils approuvent et téléchargent</b><em>Vous êtes prévenu aussitôt — tout est tracé.</em><span class="pg"><i></i></span></span>
+                <span class="tx"><b data-t="a5t">Ils approuvent et téléchargent</b><em data-t="a5s">Vous êtes prévenu aussitôt — tout est tracé.</em><span class="pg"><i></i></span></span>
               </button></li>
             </ol>
             <div class="walk-ctl">
@@ -930,6 +968,86 @@
       // Filet de sécurité : quoi qu'il arrive (IO capricieux, onglet en
       // arrière-plan…), rien ne reste masqué au-delà de 2,6 s.
       setTimeout(showAll, 2600);
+    })();
+
+    /* ── Sélecteur de métier ──
+       La Loge se vend par secteur. Le produit, lui, ne bouge pas : c'est le
+       MÊME espace de livraison (univers `celebration`) — seul le vocabulaire
+       de la page change, parce qu'un filmmaker ne livre pas « à un couple ».
+       L'univers Mariage est écrit en dur dans le HTML : sans JS, la page
+       reste juste et complète. */
+    (function () {
+      var rail = document.querySelector('.univ-rail');
+      if (!rail) return;
+      var cibles = document.querySelectorAll('[data-t]');
+      if (!cibles.length) return;
+
+      // Textes d'origine = univers Mariage (relevés depuis le HTML servi).
+      var base = {};
+      cibles.forEach(function (el) { base[el.getAttribute('data-t')] = el.innerHTML; });
+
+      var METIERS = {
+        celebration: base,
+        filmmaker: {
+          h1t: "Vous créez l'espace du client",
+          h1s: "Le nom de la marque, un email — son code est prêt.",
+          h2t: 'Vous déposez films et images',
+          h2s: 'Vos masters partent intacts, jamais recompressés.',
+          h3t: "Vous choisissez l'habillage",
+          h3s: 'Corporate, clip, événement, documentaire.',
+          h4t: 'Vous partagez le lien',
+          h4s: "Un lien par livraison — aucun n'expire.",
+          h5t: 'Vous suivez tout',
+          h5s: 'Vu, validé, réglé — sans relancer personne.',
+          nom: 'Maison Lumen',
+          ligne: 'contact@maisonlumen.fr · Films de marque',
+          code: 'ML-2026',
+          c1: 'Corporate', c2: 'Clip', c3: 'Événement', c4: 'Documentaire',
+          suivi1: 'Livraison ouverte par Maison Lumen',
+          qui: 'vos clients',
+          sous: 'Du lien reçu au film en 4K et aux images en pleine qualité — le parcours exact, sans inscription pour le voir.',
+          a1t: 'Leur lien arrive par email',
+          a1s: 'À votre nom, jamais au nôtre.',
+          a2t: 'Ils ouvrent votre livraison',
+          a2s: 'Votre logo, vos couleurs, votre adresse.',
+          a3t: 'Toutes les images, pleine qualité',
+          a3s: 'Photos de tournage, making-of, déclinaisons.',
+          a4t: 'Le film, en 4K',
+          a4s: 'Lecture fluide partout, master téléchargeable.',
+          a5t: 'Ils valident et téléchargent',
+          a5s: 'Vous êtes prévenu aussitôt — tout est tracé.',
+          mail: 'Bonjour Maison Lumen, votre film et vos images vous attendent — envoyé par Votre Studio.',
+          galtitre: 'Maison Lumen · Campagne 2026',
+          nbphotos: '180 images',
+          filmtitre: 'Maison Lumen — Le Film',
+          retour: 'Retour du client',
+          cite: '« Le montage est exactement ce qu\'on voulait. »',
+        },
+      };
+
+      function appliquer(metier) {
+        var set = METIERS[metier] || base;
+        cibles.forEach(function (el) {
+          var k = el.getAttribute('data-t');
+          var v = (set[k] != null) ? set[k] : base[k];
+          if (v != null) el.innerHTML = v;
+        });
+        // Les deux aperçus repartent de leur première étape : le visiteur
+        // vient de changer de métier, il doit voir le début de SON parcours.
+        document.querySelectorAll('[data-walk]').forEach(function (r) {
+          var premier = r.querySelector('.walk-steps button');
+          if (premier) premier.click();
+        });
+      }
+
+      rail.addEventListener('click', function (e) {
+        var b = e.target.closest('button[data-univ]');
+        if (!b || b.disabled) return;
+        rail.querySelectorAll('button[data-univ]').forEach(function (x) {
+          x.setAttribute('aria-selected', String(x === b));
+        });
+        appliquer(b.getAttribute('data-univ'));
+      });
     })();
 
     /* ── Aperçu animé du parcours des mariés ──

@@ -53,6 +53,30 @@
     }
     label { display:block; font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--faint); font-weight:700; margin:0 0 8px; }
     .row + .row { margin-top:16px; }
+
+    /* 💼 Choix du métier — une loge se vend par métier. Empilé en colonne
+       unique (convention maison) ; les métiers pas encore ouverts sont
+       montrés mais désactivés : on annonce la trajectoire sans promettre. */
+    .metiers { display:grid; gap:8px; }
+    .metier {
+      display:flex; align-items:flex-start; gap:12px; cursor:pointer;
+      padding:14px 16px; border-radius:18px; background:var(--pressed);
+      box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+      transition: background .25s ease;
+    }
+    .metier input { width:18px; min-height:18px; height:18px; margin-top:2px; flex:0 0 auto; accent-color:var(--btn-bg); padding:0; border-radius:50%; }
+    /* Le bloc entier est un <label> : il hérite sinon du style des libellés
+       de la page (majuscules + interlettrage). On repart de zéro ici, et on
+       empile titre puis description — deux <span> en ligne se collaient. */
+    .metier > span { display:block; min-width:0; text-transform:none; letter-spacing:normal; }
+    .metier .t { display:block; font-size:14.5px; font-weight:700; color:var(--ink); text-transform:none; letter-spacing:normal; }
+    .metier .d { display:block; font-size:12.5px; color:var(--muted); margin-top:3px; line-height:1.5; text-transform:none; letter-spacing:normal; font-weight:400; }
+    .metier:has(input:checked) { background:var(--surface); box-shadow: 5px 5px 12px var(--shadow-d), -5px -5px 12px var(--shadow-l); }
+    .metier.soon { opacity:.55; cursor:default; }
+    .metier .soon-tag {
+      font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+      color:var(--faint); margin-left:8px;
+    }
     input {
       width:100%; min-height:48px; padding:0 18px; border:none; border-radius:999px;
       background:var(--pressed); color:var(--ink); font-size:16px; font-family:inherit; outline:none;
@@ -129,6 +153,33 @@
         <label for="studio">Nom de votre studio</label>
         <input id="studio" required maxlength="80" placeholder="Studio Lumière" autocomplete="organization" />
         <div class="addr">Adresse de vos clients : <b id="addr">votre-studio</b>.laloge.house</div>
+      </div>
+      <div class="row">
+        <label>Votre métier</label>
+        <div class="metiers">
+          <label class="metier">
+            <input type="radio" name="metier" value="celebration" checked />
+            <span>
+              <span class="t">Mariage &amp; célébrations</span>
+              <span class="d">Galeries photos et films livrés à des couples et des familles.</span>
+            </span>
+          </label>
+          <label class="metier soon">
+            <input type="radio" name="metier" value="filmmaker" disabled />
+            <span>
+              <span class="t">Filmmaker<span class="soon-tag">bientôt</span></span>
+              <span class="d">Films de marque, clips, documentaires.</span>
+            </span>
+          </label>
+          <label class="metier soon">
+            <input type="radio" name="metier" value="communication" disabled />
+            <span>
+              <span class="t">Communication &amp; Marketing<span class="soon-tag">bientôt</span></span>
+              <span class="d">Tableau de bord complet, avec analyses réseaux sociaux.</span>
+            </span>
+          </label>
+        </div>
+        <div class="addr">Vous pourrez en ajouter d'autres plus tard depuis vos paramètres.</div>
       </div>
       <div class="row">
         <label for="email">Votre email</label>
@@ -219,6 +270,11 @@
 
     el('form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      // Métier choisi (le serveur revalide : lui seul décide de ce qui est ouvert).
+      const metierChoisi = () => {
+        const c = document.querySelector('input[name="metier"]:checked');
+        return c ? c.value : 'celebration';
+      };
       const studio_name = el('studio').value.trim();
       const email = el('email').value.trim();
       const password = el('pwd').value;
@@ -232,7 +288,7 @@
         const res = await fetch(`${SUPABASE_URL}/functions/v1/signup-agency`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-          body: JSON.stringify({ studio_name, email, password, slug }),
+          body: JSON.stringify({ studio_name, email, password, slug, universe: metierChoisi() }),
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok || !json.ok) throw new Error(json.error || `Inscription impossible (${res.status})`);

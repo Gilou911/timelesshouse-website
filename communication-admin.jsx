@@ -68,6 +68,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        Tableau VIDE = on ne bride rien (agence d'avant la migration) : on
        ne casse jamais une console existante sur une donnée manquante. */
     const MES_METIERS = [];
+    // Les mêmes, en détail (source / statut / échéance) — pour l'écran Paramètres.
+    const MES_METIERS_DETAIL = [];
 
     /* 💼 Métiers de CHAQUE agence — vue fondateur uniquement (la police
        d'accès `agency_universes_read_platform` n'ouvre cette lecture qu'à
@@ -1297,11 +1299,79 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     /* ════════════════════════════════════════════════════════════
        ⚙️ PARAMÈTRES — marque, abonnement (avec résiliation), sécurité
        ════════════════════════════════════════════════════════════ */
+    /* ════════════════════════════════════════════════════════════
+       💼 MÉTIERS DE MA LOGE (25/07/2026)
+       ════════════════════════════════════════════════════════════
+       Une loge se vend par métier : ce que l'agence possède, et ce
+       qu'elle pourra ajouter. L'ajout et la résiliation existent déjà
+       côté serveur (stripe-billing : univers-checkout / univers-cancel),
+       mais les métiers ne sont pas encore ouverts à la vente — ils sont
+       donc montrés « bientôt », sans bouton actif. On annonce la
+       trajectoire, on ne promet rien qu'on ne sache servir.
+       ════════════════════════════════════════════════════════════ */
+    function MetiersCard() {
+      const mien = (u) => MES_METIERS_DETAIL.find(m => m.universe === u) || null;
+      const dateFr = (d) => new Date(d).toLocaleDateString('fr-FR');
+      if (!MES_METIERS_DETAIL.length) return null;   // avant migration : rien à dire
+
+      return (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Ma loge</div>
+          <h3 className="text-[20px] lg:text-[22px] tracking-tight mt-1" style={SERIF}>Métiers</h3>
+          <p className="text-[12px] lg:text-[13px] text-stone-500 mt-2 leading-relaxed">
+            Vous créez des espaces clients dans les métiers de votre loge. Vous pourrez en
+            ajouter d'autres — et les retirer quand vous voulez, en gardant l'usage jusqu'à
+            la fin de la période déjà réglée.
+          </p>
+
+          <div className="space-y-2.5 mt-4">
+            {METIERS.map((m) => {
+              const a = mien(m.value);
+              const enSursis = a && a.status === 'cancelling' && a.valid_until;
+              return (
+                <div key={m.value} style={a ? neu.pressedSm : {}}
+                  className={`rounded-2xl px-4 py-3.5 flex items-start justify-between gap-3 ${a ? '' : 'opacity-60'}`}>
+                  <div className="min-w-0">
+                    <div className="text-[13.5px] font-semibold">{m.label}</div>
+                    <div className="text-[11.5px] text-stone-500 mt-0.5 leading-snug">{m.hint}</div>
+                    {enSursis && (
+                      <div className="text-[11.5px] text-amber-600 mt-1.5 font-medium">
+                        Résilié — utilisable jusqu'au {dateFr(a.valid_until)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="shrink-0">
+                    {a ? (
+                      <span className="text-[10.5px] uppercase tracking-[0.12em] font-semibold text-stone-500">
+                        {a.source === 'inclus' ? 'Compris' : 'Option'}
+                      </span>
+                    ) : (
+                      <span className="text-[10.5px] uppercase tracking-[0.12em] font-semibold text-stone-400">
+                        Bientôt
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-[11.5px] text-stone-400 mt-4 leading-relaxed">
+            L'ajout de métiers ouvrira prochainement. Écrivez-nous en attendant : nous
+            activons manuellement les studios qui en ont besoin.
+          </p>
+        </div>
+      );
+    }
+
     function SettingsView({ billing, agency, refreshBrand }) {
       return (
         <div className="space-y-5 lg:space-y-6">
           {/* Ma marque (SaaS B.3) — l'agence règle sa propre identité */}
           <BrandCard agency={agency} onSaved={refreshBrand} />
+
+          {/* Métiers de la loge (vente par métier — 25/07/2026) */}
+          <MetiersCard />
 
           {/* Abonnement (SaaS B.3 — Stripe) + Se désabonner */}
           <BillingCard billing={billing} />
@@ -8176,14 +8246,16 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         try {
           const { data: mets } = await sb
             .from('agency_universes')
-            .select('universe, status, valid_until');
+            .select('universe, source, status, valid_until');
           MES_METIERS.length = 0;
+          MES_METIERS_DETAIL.length = 0;
           (mets || []).forEach((m) => {
             const encoreValide = m.status === 'active'
               || (m.status === 'cancelling' && m.valid_until && new Date(m.valid_until) > new Date());
+            MES_METIERS_DETAIL.push(m);
             if (encoreValide) MES_METIERS.push(m.universe);
           });
-        } catch (_) { MES_METIERS.length = 0; }
+        } catch (_) { MES_METIERS.length = 0; MES_METIERS_DETAIL.length = 0; }
         setMyAgency(data || null);
         setFeaturesReady(true);
       };

@@ -253,6 +253,23 @@ Deno.serve(async (req) => {
       return json(500, { error: "Création de l'agence impossible. Réessayez dans un instant." });
     }
 
+    /* 💼 MÉTIER de la loge (25/07/2026) — une loge se vend par métier.
+       Le studio en choisit un à l'inscription ; il pourra en ajouter
+       depuis ses paramètres (option payante).
+       ⚠️ On ne fait PAS confiance au corps de la requête : seuls les
+       métiers réellement OUVERTS sont acceptés ici. Sinon un appel direct
+       à l'API offrirait gratuitement un métier payant. Les autres sont
+       encore « bientôt » — ils passeront par la caisse le moment venu.
+       Best effort : si la table n'existe pas encore (migration non
+       lancée), l'inscription aboutit quand même. */
+    const OUVERTS = ["celebration"];
+    const metier = OUVERTS.includes(String(body.universe || "")) ? String(body.universe) : "celebration";
+    try {
+      await sbAdmin.from("agency_universes").insert({
+        agency_id: agency.id, universe: metier, source: "inclus", status: "active",
+      });
+    } catch (_) { /* la console ne bride rien sans cette ligne */ }
+
     const { error: mErr } = await sbAdmin.from("agency_members").insert({
       agency_id: agency.id, user_id: userId, role: "owner",
     });

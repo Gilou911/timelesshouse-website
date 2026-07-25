@@ -57,6 +57,12 @@
          l'espace client (communication-app). Décoratif UNIQUEMENT : jamais
          en couleur de texte courant (contraste insuffisant sous 18 px). */
       --warm: #b08968;
+      /* Courbes d'easing — les easings CSS natifs sont trop mous pour que
+         le mouvement paraisse intentionnel. Jamais d'ease-in sur de l'UI :
+         il retarde le premier instant, celui que l'œil regarde le plus. */
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+      --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -95,7 +101,7 @@
       min-height: 46px; padding: 0 22px; border: none; border-radius: 999px;
       background: var(--btn-bg); color: var(--btn-text);
       font-family: inherit; font-size: 14px; font-weight: 700; letter-spacing: 0.01em;
-      text-decoration: none; cursor: pointer; transition: transform 0.12s ease;
+      text-decoration: none; cursor: pointer; transition: transform 0.16s var(--ease-out);
       /* Un libellé coupé en trois lignes dans sa pilule : c'était le cas
          de « Créer ma loge » sur iPhone (HIG §14). */
       white-space: nowrap;
@@ -181,8 +187,10 @@
       background: var(--surface); border-radius: 24px; padding: 26px;
       box-shadow: 9px 9px 22px var(--shadow-d), -9px -9px 22px var(--shadow-l);
     }
-    .card { transition: transform 0.28s cubic-bezier(0.2,0.7,0.2,1); }
-    @media (hover: hover) { .card:hover { transform: translateY(-3px); } }
+    .card { transition: transform 0.28s var(--ease-out); }
+    /* `pointer: fine` en plus : sur tactile, un simple appui déclenche le
+       survol et la carte reste soulevée — faux positif classique. */
+    @media (hover: hover) and (pointer: fine) { .card:hover { transform: translateY(-3px); } }
     /* Icônes en trait, posées dans une pastille en creux (langage néomorphique
        maison) — remplace les emojis, qui « font IA » sur une vitrine premium. */
     .card .ico {
@@ -271,6 +279,160 @@
          (haut) et le bouton ▶ (bas). */
       .peek .film { aspect-ratio: 16/9; }
     }
+    /* ══════════════════════════════════════════════════════════
+       APERÇU ANIMÉ — le parcours réel d'un couple (mariage & célébrations)
+       ══════════════════════════════════════════════════════════
+       Animation EXPLICATIVE : sa raison d'être est de montrer le produit
+       à quelqu'un qui ne l'a jamais vu — elle a donc le droit de durer,
+       contrairement à une animation d'UI (< 300 ms). Uniquement transform
+       et opacity (GPU, pas de layout), en CSS (hors thread principal). */
+    .walk { display: grid; gap: 26px; align-items: center; }
+    @media (min-width: 920px) { .walk { grid-template-columns: 1.04fr 0.96fr; gap: 48px; } }
+
+    /* ── L'appareil ── */
+    .wk-device {
+      background: var(--surface); border-radius: 30px; padding: 13px;
+      box-shadow: 16px 16px 38px var(--shadow-d), -16px -16px 38px var(--shadow-l);
+      position: relative; overflow: hidden;
+    }
+    .wk-device::before {
+      content: ""; position: absolute; top: 0; right: 0; width: 300px; height: 300px;
+      border-radius: 50%; pointer-events: none; opacity: 0.10; transform: translate(30%, -30%);
+      background: radial-gradient(circle, var(--warm) 0%, transparent 70%);
+    }
+    .wk-inner { position: relative; background: var(--bg); border-radius: 22px; overflow: hidden; }
+
+    /* Barre de marque : c'est le nom du STUDIO, jamais le nôtre. */
+    .wk-brand { display: flex; align-items: center; justify-content: space-between; padding: 15px 17px 9px; }
+    .wk-brand .nm { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 17px; }
+    .wk-brand .tag { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+
+    /* ── Les écrans, empilés : un seul visible ── */
+    .wk-screens { position: relative; height: 344px; }
+    @media (max-width: 600px) { .wk-screens { height: 328px; } }
+    .wk-screen {
+      position: absolute; inset: 0; padding: 6px 17px 14px;
+      opacity: 0; transform: translateY(12px) scale(0.99);
+      transition: opacity 0.45s var(--ease-out), transform 0.55s var(--ease-out);
+      pointer-events: none;
+      /* Filet : aucun écran ne peut déborder sur la barre de navigation. */
+      overflow: hidden;
+    }
+    .wk-screen.on { opacity: 1; transform: none; pointer-events: auto; }
+    /* Entrée en cascade des éléments de l'écran actif (30-80 ms d'écart) */
+    .wk-screen.on .st { animation: wkIn 0.5s var(--ease-out) both; }
+    .wk-screen.on .st:nth-child(2) { animation-delay: 0.06s; }
+    .wk-screen.on .st:nth-child(3) { animation-delay: 0.12s; }
+    .wk-screen.on .st:nth-child(4) { animation-delay: 0.18s; }
+    @keyframes wkIn { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+
+    /* ── Pièces réutilisées dans les écrans ── */
+    .wk-card {
+      background: var(--surface); border-radius: 17px; padding: 14px 15px;
+      box-shadow: 7px 7px 16px var(--shadow-d), -7px -7px 16px var(--shadow-l);
+    }
+    .wk-lbl { font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+    .wk-h { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 20px; line-height: 1.2; }
+    .wk-p { font-size: 11.5px; color: var(--muted); line-height: 1.55; margin-top: 5px; }
+    .wk-code {
+      display: inline-flex; align-items: center; gap: 7px; margin-top: 11px;
+      background: var(--pressed); border-radius: 999px; padding: 8px 15px;
+      font-size: 13px; font-weight: 700; letter-spacing: 0.14em;
+      box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+    }
+    .wk-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      background: var(--btn-bg); color: var(--btn-text); border-radius: 999px;
+      padding: 9px 17px; font-size: 11.5px; font-weight: 700; margin-top: 12px;
+    }
+    .wk-film {
+      border-radius: 15px; aspect-ratio: 16/8.4; position: relative; overflow: hidden;
+      background: linear-gradient(135deg, #16130f 0%, #2c2317 55%, #6b543a 100%);
+    }
+    .wk-film .ttl { position: absolute; top: 13px; left: 15px; right: 15px; color: #f2ead9;
+      font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 17px; }
+    .wk-play { position: absolute; bottom: 12px; left: 14px; width: 34px; height: 34px; border-radius: 999px;
+      background: rgba(255,255,255,0.93); display: flex; align-items: center; justify-content: center; }
+    .wk-play::after { content: ""; border-style: solid; border-width: 6px 0 6px 10px;
+      border-color: transparent transparent transparent #16130f; margin-left: 3px; }
+    /* Barre de lecture : la seule animation en boucle, elle dit « ça joue ». */
+    .wk-bar { position: absolute; bottom: 14px; left: 58px; right: 14px; height: 3px;
+      border-radius: 3px; background: rgba(255,255,255,0.26); overflow: hidden; }
+    .wk-bar i { display: block; height: 100%; width: 100%; border-radius: 3px; background: #f2ead9;
+      transform-origin: left; transform: scaleX(0); }
+    .wk-screen.on .wk-bar i { animation: wkPlay 4.6s linear forwards; }
+    @keyframes wkPlay { from { transform: scaleX(0.04); } to { transform: scaleX(1); } }
+    .wk-4k { position: absolute; top: 13px; right: 14px; background: rgba(255,255,255,0.16);
+      color: #f2ead9; border-radius: 999px; padding: 4px 9px; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; }
+
+    /* Galerie : vignettes en dégradés (aucun fichier externe — CSP stricte) */
+    /* Hauteur imposée (3 rangées) plutôt qu'un ratio par vignette : sinon la
+       grille grandit avec la largeur et passe sous la barre de navigation. */
+    .wk-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 7px; height: 258px; }
+    @media (max-width: 600px) { .wk-grid { height: 244px; } }
+    .wk-grid i { display: block; height: 100%; border-radius: 10px; }
+    .wk-screen.on .wk-grid i { animation: wkPop 0.45s var(--ease-out) both; }
+    .wk-grid i:nth-child(1) { background: linear-gradient(140deg, #3a2f24, #7b6248); }
+    .wk-grid i:nth-child(2) { background: linear-gradient(140deg, #6b543a, #c2a882); animation-delay: 0.04s; }
+    .wk-grid i:nth-child(3) { background: linear-gradient(140deg, #4a3b2c, #9c8b72); animation-delay: 0.08s; }
+    .wk-grid i:nth-child(4) { background: linear-gradient(140deg, #2c2317, #5f4c37); animation-delay: 0.12s; }
+    .wk-grid i:nth-child(5) { background: linear-gradient(140deg, #8a6f4e, #d8c6a8); animation-delay: 0.16s; }
+    .wk-grid i:nth-child(6) { background: linear-gradient(140deg, #46372a, #8d735a); animation-delay: 0.20s; }
+    .wk-grid i:nth-child(7) { background: linear-gradient(140deg, #6f5a42, #b9a184); animation-delay: 0.24s; }
+    .wk-grid i:nth-child(8) { background: linear-gradient(140deg, #241d16, #4d3f2f); animation-delay: 0.28s; }
+    .wk-grid i:nth-child(9) { background: linear-gradient(140deg, #a0866a, #e0d0b4); animation-delay: 0.32s; }
+    @keyframes wkPop { from { opacity: 0; transform: scale(0.93); } to { opacity: 1; transform: none; } }
+
+    /* ── Barre de navigation de l'app, avec pastille qui glisse ── */
+    .wk-nav { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 9px 12px 12px; }
+    .wk-nav .pill {
+      position: absolute; top: 9px; bottom: 12px; left: 12px;
+      width: calc((100% - 24px - 18px) / 4); background: var(--btn-bg); border-radius: 999px;
+      transform: translateX(calc(var(--i, 0) * (100% + 6px)));
+      transition: transform 0.55s var(--ease-drawer);
+    }
+    .wk-nav .it { position: relative; z-index: 1; text-align: center; font-size: 9.5px; font-weight: 700;
+      color: var(--muted); padding: 7px 2px; transition: color 0.4s var(--ease-out); }
+    .wk-nav .it.on { color: var(--btn-text); }
+
+    /* ── Colonne des étapes (à droite / dessous) ── */
+    .walk-steps { list-style: none; display: grid; gap: 7px; }
+    .walk-steps button {
+      width: 100%; text-align: left; background: transparent; border: none; cursor: pointer;
+      font-family: inherit; color: inherit; display: flex; gap: 13px; align-items: flex-start;
+      padding: 13px 15px; border-radius: 16px; min-height: 44px;
+      transition: background 0.35s var(--ease-out);
+    }
+    .walk-steps li.on button { background: var(--surface);
+      box-shadow: 6px 6px 15px var(--shadow-d), -6px -6px 15px var(--shadow-l); }
+    .walk-steps .n {
+      flex: 0 0 auto; width: 23px; height: 23px; border-radius: 999px; margin-top: 1px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10.5px; font-weight: 800; color: var(--muted); background: var(--pressed);
+      box-shadow: inset 2px 2px 4px var(--shadow-d), inset -2px -2px 4px var(--shadow-l);
+      transition: color 0.35s var(--ease-out);
+    }
+    .walk-steps li.on .n { background: var(--btn-bg); color: var(--btn-text); box-shadow: none; }
+    .walk-steps .tx b { display: block; font-size: 13.5px; letter-spacing: -0.01em; }
+    .walk-steps .tx em { display: block; font-style: normal; font-size: 12px; color: var(--muted);
+      margin-top: 3px; line-height: 1.5; }
+    /* Jauge de progression de l'étape active */
+    .walk-steps .pg { height: 2px; margin-top: 9px; border-radius: 2px; background: var(--pressed); overflow: hidden; display: none; }
+    .walk-steps li.on .pg { display: block; }
+    .walk-steps .pg i { display: block; height: 100%; background: var(--warm); transform-origin: left; transform: scaleX(0); }
+    .walk-steps li.on.run .pg i { animation: wkPlay 4.6s linear forwards; }
+
+    .walk-ctl { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-left: 15px; }
+    .walk-ctl button {
+      display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 17px;
+      border-radius: 999px; border: none; cursor: pointer; font-family: inherit;
+      font-size: 12px; font-weight: 700; color: var(--ink); background: transparent;
+      box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 20%, transparent);
+      transition: transform 0.16s var(--ease-out);
+    }
+    .walk-ctl button:active { transform: scale(0.96); }
+    .walk-note { font-size: 11.5px; color: var(--faint); }
+
     /* ── Apparition au défilement (craft emil-design-eng) ──
        Gardée par html.js (JS actif) ET par « pas de préférence de
        réduction » : sans JS ou en mode « réduire les animations », le
@@ -377,6 +539,139 @@
         <div class="cap">votre-studio.laloge.house — chaque studio a son adresse, ses couleurs, son app.</div>
       </div>
     </div>
+
+    <!-- ══ Aperçu animé : ce que vivent les mariés ══
+         Le visiteur voit le produit AVANT de s'inscrire. L'appareil est
+         décoratif (aria-hidden) : la liste d'étapes porte le même contenu
+         en texte, donc rien n'est perdu au lecteur d'écran. -->
+    <section id="apercu">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <h2 class="serif">Ce que vivent <em>vos mariés</em></h2>
+          <p>De leur code d'accès au film en 4K — le parcours exact, sans inscription pour le voir.</p>
+        </div>
+
+        <div class="walk">
+          <!-- L'appareil -->
+          <div class="wk-device reveal" aria-hidden="true">
+            <div class="wk-inner">
+              <div class="wk-brand">
+                <div class="nm">Votre Studio<span style="color:var(--faint)">.</span></div>
+                <div class="tag">Espace privé</div>
+              </div>
+
+              <div class="wk-screens">
+                <!-- 1 · le code arrive -->
+                <div class="wk-screen" data-s="0">
+                  <div class="wk-card st">
+                    <div class="wk-lbl">Nouveau message</div>
+                    <div class="wk-h" style="margin-top:6px">Votre film est prêt.</div>
+                    <div class="wk-p">Bonjour Emma &amp; Jules, votre film de mariage vous attend dans votre espace privé.</div>
+                    <div class="wk-code">EJ-2026</div>
+                  </div>
+                  <div class="st" style="margin-top:12px">
+                    <div class="wk-btn">Ouvrir mon espace</div>
+                  </div>
+                </div>
+
+                <!-- 2 · la loge du studio -->
+                <div class="wk-screen" data-s="1">
+                  <div class="wk-card st" style="text-align:center;padding:22px 15px">
+                    <div class="wk-h" style="font-size:23px">Votre Studio<span style="color:var(--faint)">.</span></div>
+                    <div class="wk-lbl" style="margin-top:7px">Espace client</div>
+                    <div class="wk-code" style="letter-spacing:0.32em">• • • • • • •</div>
+                    <div class="wk-p" style="margin-top:11px">votre-studio.laloge.house</div>
+                  </div>
+                  <div class="st" style="text-align:center">
+                    <div class="wk-btn">Entrer</div>
+                  </div>
+                </div>
+
+                <!-- 3 · le film -->
+                <div class="wk-screen" data-s="2">
+                  <div class="st">
+                    <div class="wk-film">
+                      <div class="ttl">Emma &amp; Jules — Le Film</div>
+                      <div class="wk-4k">4K</div>
+                      <div class="wk-play"></div>
+                      <div class="wk-bar"><i></i></div>
+                    </div>
+                  </div>
+                  <div class="wk-card st" style="margin-top:11px">
+                    <div class="wk-lbl">Qualité adaptative</div>
+                    <div class="wk-p" style="margin-top:4px">La vidéo s'ajuste à leur connexion — et le master original reste téléchargeable.</div>
+                  </div>
+                </div>
+
+                <!-- 4 · la galerie -->
+                <div class="wk-screen" data-s="3">
+                  <div class="st" style="display:flex;align-items:baseline;justify-content:space-between">
+                    <div class="wk-h" style="font-size:17px">La galerie</div>
+                    <div class="wk-lbl">412 photos</div>
+                  </div>
+                  <div class="wk-grid st" style="margin-top:10px">
+                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  </div>
+                </div>
+
+                <!-- 5 · approbation & commentaires -->
+                <div class="wk-screen" data-s="4">
+                  <div class="wk-card st">
+                    <div class="wk-lbl">Retour des mariés</div>
+                    <div class="wk-p" style="margin-top:6px;color:var(--ink);font-size:12.5px">« La lumière de la cérémonie est parfaite 🤍 »</div>
+                  </div>
+                  <div class="st" style="display:flex;gap:8px;margin-top:11px">
+                    <div class="wk-btn" style="margin-top:0">✓ J'approuve</div>
+                    <div class="wk-btn" style="margin-top:0;background:var(--pressed);color:var(--muted);box-shadow:inset 2px 2px 5px var(--shadow-d),inset -2px -2px 5px var(--shadow-l)">Une retouche</div>
+                  </div>
+                  <div class="wk-card st" style="margin-top:11px">
+                    <div class="wk-p" style="margin:0">Vous êtes notifié aussitôt dans votre console.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="wk-nav">
+                <div class="pill"></div>
+                <div class="it">Accueil</div>
+                <div class="it">Film</div>
+                <div class="it">Galerie</div>
+                <div class="it">Factures</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Les étapes, en texte -->
+          <div class="reveal">
+            <ol class="walk-steps">
+              <li><button type="button" data-go="0">
+                <span class="n">1</span>
+                <span class="tx"><b>Leur code arrive par email</b><em>Un email à votre nom, jamais au nôtre.</em><span class="pg"><i></i></span></span>
+              </button></li>
+              <li><button type="button" data-go="1">
+                <span class="n">2</span>
+                <span class="tx"><b>Ils entrent dans votre loge</b><em>Votre adresse, votre logo, vos couleurs.</em><span class="pg"><i></i></span></span>
+              </button></li>
+              <li><button type="button" data-go="2">
+                <span class="n">3</span>
+                <span class="tx"><b>Le film, en 4K</b><em>Lecture fluide partout, master téléchargeable.</em><span class="pg"><i></i></span></span>
+              </button></li>
+              <li><button type="button" data-go="3">
+                <span class="n">4</span>
+                <span class="tx"><b>Toute la galerie</b><em>Des centaines de photos, sans lien qui expire.</em><span class="pg"><i></i></span></span>
+              </button></li>
+              <li><button type="button" data-go="4">
+                <span class="n">5</span>
+                <span class="tx"><b>Ils approuvent et commentent</b><em>Vous êtes prévenu aussitôt — tout est tracé.</em><span class="pg"><i></i></span></span>
+              </button></li>
+            </ol>
+            <div class="walk-ctl">
+              <button type="button" class="walk-toggle" aria-label="Mettre l'aperçu en pause">Pause</button>
+              <span class="walk-note">Cliquez une étape pour la revoir.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- ── Arguments ── -->
     <section id="produit">
@@ -566,6 +861,96 @@
       // Filet de sécurité : quoi qu'il arrive (IO capricieux, onglet en
       // arrière-plan…), rien ne reste masqué au-delà de 2,6 s.
       setTimeout(showAll, 2600);
+    })();
+
+    /* ── Aperçu animé du parcours des mariés ──
+       Contenu qui défile tout seul : la pause est OBLIGATOIRE (WCAG 2.2.2).
+       Ne tourne que sous les yeux du visiteur, jamais en « animations
+       réduites », et jamais contre une pause demandée explicitement. */
+    (function () {
+      var root = document.getElementById('apercu');
+      if (!root) return;
+      var screens = root.querySelectorAll('.wk-screen');
+      var items   = root.querySelectorAll('.walk-steps li');
+      var btns    = root.querySelectorAll('.walk-steps button');
+      var navs    = root.querySelectorAll('.wk-nav .it');
+      var pill    = root.querySelector('.wk-nav .pill');
+      var toggle  = root.querySelector('.walk-toggle');
+      if (!screens.length) return;
+
+      var NAV = [0, 0, 1, 2, 2];   // l'onglet de l'app actif à chaque étape
+      var HOLD = 4600;             // durée d'une étape (= celle de la jauge)
+      var i = 0, timer = null, playing = false, userPaused = false;
+      var calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+      function label(txt, aria) {
+        if (!toggle) return;
+        toggle.textContent = txt;
+        toggle.setAttribute('aria-label', aria);
+      }
+
+      function show(n) {
+        i = (n + screens.length) % screens.length;
+        for (var a = 0; a < screens.length; a++) screens[a].classList.toggle('on', a === i);
+        for (var b = 0; b < items.length; b++) {
+          items[b].classList.toggle('on', b === i);
+          items[b].classList.remove('run');
+        }
+        for (var c = 0; c < navs.length; c++) navs[c].classList.toggle('on', c === NAV[i]);
+        if (pill) pill.style.setProperty('--i', NAV[i]);
+        if (playing && items[i]) {
+          void items[i].offsetWidth;          // relance la jauge de l'étape
+          items[i].classList.add('run');
+        }
+      }
+
+      function play() {
+        if (playing) return;
+        playing = true;
+        show(i);
+        timer = setInterval(function () { show(i + 1); }, HOLD);
+      }
+      function pause() {
+        if (!playing) return;
+        playing = false;
+        clearInterval(timer); timer = null;
+        for (var a = 0; a < items.length; a++) items[a].classList.remove('run');
+      }
+
+      for (var k = 0; k < btns.length; k++) {
+        (function (idx) {
+          btns[idx].addEventListener('click', function () {
+            show(idx);
+            if (playing) {              // on repart pour un tour complet
+              clearInterval(timer);
+              timer = setInterval(function () { show(i + 1); }, HOLD);
+              void items[idx].offsetWidth;
+              items[idx].classList.add('run');
+            }
+          });
+        })(k);
+      }
+
+      if (toggle) toggle.addEventListener('click', function () {
+        if (playing) { userPaused = true; pause(); label('Lecture', "Reprendre l'aperçu"); }
+        else { userPaused = false; play(); label('Pause', "Mettre l'aperçu en pause"); }
+      });
+
+      show(0);
+
+      if (calm.matches) {
+        // Animations réduites : le visiteur pilote, rien ne bouge tout seul.
+        label('Lecture', "Lancer l'aperçu");
+      } else if ('IntersectionObserver' in window) {
+        new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) { if (!userPaused) play(); }
+            else pause();
+          });
+        }, { threshold: 0.3 }).observe(root);
+      } else {
+        play();
+      }
     })();
   </script>
 </body>

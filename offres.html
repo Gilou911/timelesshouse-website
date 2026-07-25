@@ -22,6 +22,10 @@
       location.replace('https://laloge.app' + location.pathname + location.search);
     }
   </script>
+  <!-- Marque le JS actif AVANT le premier rendu : les styles d'apparition
+       ci-dessous ne s'appliquent que si cette classe est là (sinon contenu
+       visible d'emblée — pas de scintillement, robuste sans JS). -->
+  <script>document.documentElement.className += ' js';</script>
   <link rel="icon" href="/favicon-th.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -142,8 +146,19 @@
       background: var(--surface); border-radius: 24px; padding: 26px;
       box-shadow: 9px 9px 22px var(--shadow-d), -9px -9px 22px var(--shadow-l);
     }
-    .card .ico { font-size: 22px; }
-    .card h3 { font-size: 17px; margin-top: 12px; letter-spacing: -0.01em; }
+    .card { transition: transform 0.28s cubic-bezier(0.2,0.7,0.2,1); }
+    @media (hover: hover) { .card:hover { transform: translateY(-3px); } }
+    /* Icônes en trait, posées dans une pastille en creux (langage néomorphique
+       maison) — remplace les emojis, qui « font IA » sur une vitrine premium. */
+    .card .ico {
+      width: 46px; height: 46px; border-radius: 14px;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--ink); background: var(--surface);
+      box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 6px var(--shadow-l);
+    }
+    .card .ico svg { width: 23px; height: 23px; }
+    .pill svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+    .card h3 { font-size: 17px; margin-top: 14px; letter-spacing: -0.01em; }
     .card p { font-size: 13.5px; color: var(--muted); margin-top: 8px; }
 
     /* ── Offres ── */
@@ -185,6 +200,20 @@
       .hero { padding: 52px 24px 40px; }
       section { padding: 48px 0; }
     }
+    /* ── Apparition au défilement (craft emil-design-eng) ──
+       Gardée par html.js (JS actif) ET par « pas de préférence de
+       réduction » : sans JS ou en mode « réduire les animations », le
+       contenu est visible d'emblée (aucun risque de contenu masqué). */
+    @media (prefers-reduced-motion: no-preference) {
+      html.js .reveal {
+        opacity: 0; transform: translateY(16px);
+        transition: opacity 0.7s cubic-bezier(0.2,0.7,0.2,1),
+                    transform 0.7s cubic-bezier(0.2,0.7,0.2,1);
+        will-change: opacity, transform;
+      }
+      html.js .reveal.in { opacity: 1; transform: none; }
+    }
+
     /* ── Correctifs HIG vague 1 (P0) — audit du 20/07/2026 ── */
     /* §16 : focus clavier toujours visible (des champs posent outline:none) */
     :focus-visible {
@@ -243,21 +272,21 @@
   <main>
     <!-- ── Héros ── -->
     <div class="wrap hero">
-      <div class="kicker">Espaces clients en marque blanche · photographes, vidéastes &amp; agences</div>
-      <h1 class="serif">Tout ce que vous livrez, <em>avec VOTRE marque</em>.</h1>
-      <p class="sub">
+      <div class="kicker reveal">Espaces clients en marque blanche · photographes, vidéastes &amp; agences</div>
+      <h1 class="serif reveal">Tout ce que vous livrez, <em>avec VOTRE marque</em>.</h1>
+      <p class="sub reveal">
         La Loge donne à votre studio un espace client à <strong>votre marque</strong> :
         livraison de films 4K et de galeries photos, validation, factures, analyses —
         jusqu'à l'application installée au nom de votre studio sur le téléphone de vos clients.
       </p>
-      <div class="cta">
+      <div class="cta reveal">
         <a class="btn big" href="/inscription">Créer ma loge — gratuit</a>
         <a class="btn big ghost" href="#offres">Voir les offres</a>
       </div>
-      <div class="note">Dès 0 €/mois · sans engagement · vos fichiers restent les vôtres</div>
+      <div class="note reveal">Dès 0 €/mois · sans engagement · vos fichiers restent les vôtres</div>
 
       <!-- Aperçu stylisé d'un espace client -->
-      <div class="peek" aria-hidden="true">
+      <div class="peek reveal" aria-hidden="true">
         <div class="frame">
           <div class="brandline">
             <div class="name">Votre Studio<span style="color:var(--faint)">.</span></div>
@@ -268,10 +297,10 @@
             <div class="play"></div>
           </div>
           <div class="row">
-            <div class="pill">▶ 4K adaptatif</div>
-            <div class="pill">✓ Approuvé par le client</div>
-            <div class="pill">💬 3 commentaires</div>
-            <div class="pill">⬇ Master original</div>
+            <div class="pill"><svg viewBox="0 0 16 16" fill="none"><path d="M5 3.4l7.2 4.6L5 12.6z" fill="currentColor"/></svg>4K adaptatif</div>
+            <div class="pill"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.2 8.4l3 3 6.4-7"/></svg>Approuvé par le client</div>
+            <div class="pill"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 5.2A2 2 0 0 1 4.6 3.2h6.8a2 2 0 0 1 2 2v3.4a2 2 0 0 1-2 2H7l-3 2.4V10.6a2 2 0 0 1-1.4-1.9z"/></svg>3 commentaires</div>
+            <div class="pill"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.6v6.6M5.2 6.6L8 9.4l2.8-2.8M3.4 12.6h9.2"/></svg>Master original</div>
           </div>
         </div>
         <div class="cap">votre-studio.laloge.house — chaque studio a son adresse, ses couleurs, son app.</div>
@@ -281,38 +310,38 @@
     <!-- ── Arguments ── -->
     <section id="produit">
       <div class="wrap">
-        <div class="sec-head">
+        <div class="sec-head reveal">
           <h2 class="serif">Tout ce qui suit la livraison, <em>enfin au même endroit</em></h2>
           <p>Fini le lien WeTransfer qui expire et le disque dur par la poste. Vos clients entrent dans une loge — pas dans un dossier partagé.</p>
         </div>
         <div class="grid">
-          <div class="card">
-            <div class="ico">🎬</div>
+          <div class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.3l4.6 2.7-4.6 2.7z" fill="currentColor" stroke="none"/></svg></div>
             <h3>Livraison cinéma</h3>
             <p>Films en 4K avec lecture adaptative, galeries photos scénographiées, téléchargement des originaux. Vos masters ne sont <strong>jamais compressés</strong>.</p>
           </div>
-          <div class="card">
-            <div class="ico">🤍</div>
+          <div class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.6V5.4A1.4 1.4 0 0 1 5.4 4h7.2a1.4 1.4 0 0 1 1 .4l6 6a1.4 1.4 0 0 1 0 2l-7.2 7.2a1.4 1.4 0 0 1-2 0l-6-6a1.4 1.4 0 0 1-.4-1z"/><circle cx="8.2" cy="8.2" r="1.3" fill="currentColor" stroke="none"/></svg></div>
             <h3>Votre marque, partout</h3>
             <p>Votre logo, vos couleurs, votre sous-domaine, vos emails — et l'app que vos clients installent porte <strong>votre nom</strong>. La Loge reste en coulisses.</p>
           </div>
-          <div class="card">
-            <div class="ico">✅</div>
+          <div class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.4 12.3l2.4 2.4 4.8-5.2"/></svg></div>
             <h3>Validation &amp; commentaires</h3>
             <p>Vos clients approuvent ou demandent des retouches, commentent chaque média. Vous êtes notifié immédiatement, tout est tracé.</p>
           </div>
-          <div class="card">
-            <div class="ico">🧾</div>
+          <div class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h6.8L18 8.2v11.3a1 1 0 0 1-1 1H6.5a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"/><path d="M13 3.6V8.4h4.6M9 12.5h6M9 15.8h4"/></svg></div>
             <h3>Factures &amp; relances</h3>
             <p>Factures déposées dans l'espace client, relances automatiques avant et après échéance — écrites avec votre marque, jamais la nôtre.</p>
           </div>
-          <div class="card">
-            <div class="ico">📅</div>
+          <div class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2.6"/><path d="M4 9.5h16M8.4 3.5v3.4M15.6 3.5v3.4"/><circle cx="9" cy="14" r="1.15" fill="currentColor" stroke="none"/></svg></div>
             <h3>Tournages &amp; documents</h3>
             <p>Calendrier des shootings avec rappels automatiques, contrats et documents partagés, stratégies de contenu avec lien de partage.</p>
           </div>
-          <div class="card">
-            <div class="ico">📈</div>
+          <div class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.2h16"/><path d="M6.4 15.2l3.7-3.8 3 2.5 4.6-5.6"/><path d="M18.2 8.3H14.6M18.2 8.3v3.6"/></svg></div>
             <h3>Analyses sociales</h3>
             <p>Pour vos clients entreprises : Instagram &amp; TikTok connectés, audience, engagement et synthèses — directement dans leur espace.</p>
           </div>
@@ -323,12 +352,12 @@
     <!-- ── Offres ── -->
     <section id="offres">
       <div class="wrap">
-        <div class="sec-head">
+        <div class="sec-head reveal">
           <h2 class="serif">Des offres à la taille de vos <em>rushes</em></h2>
           <p>Vous payez pour le stockage — pas pour des fonctionnalités bridées. Tout le produit, dans chaque offre. (~30 Go par film 4K livré, master + streaming.)</p>
         </div>
         <div class="plans">
-          <div class="plan">
+          <div class="plan reveal">
             <div class="p-name">Découverte</div>
             <div class="p-price">0 €</div>
             <div class="p-store">3 Go</div>
@@ -340,7 +369,7 @@
             </ul>
             <a class="btn" href="/inscription">Commencer</a>
           </div>
-          <div class="plan">
+          <div class="plan reveal">
             <div class="p-name">Essentiel</div>
             <div class="p-price">29 €<small>/mois</small></div>
             <div class="p-store">100 Go</div>
@@ -351,7 +380,7 @@
             </ul>
             <a class="btn" href="/inscription?plan=essentiel">Choisir ce palier</a>
           </div>
-          <div class="plan star">
+          <div class="plan star reveal">
             <div class="p-name">Studio ★</div>
             <div class="p-price">49 €<small>/mois</small></div>
             <div class="p-store">500 Go</div>
@@ -362,7 +391,7 @@
             </ul>
             <a class="btn" href="/inscription?plan=studio">Choisir ce palier</a>
           </div>
-          <div class="plan">
+          <div class="plan reveal">
             <div class="p-name">Cinéma</div>
             <div class="p-price">89 €<small>/mois</small></div>
             <div class="p-store">2 To</div>
@@ -373,7 +402,7 @@
             </ul>
             <a class="btn" href="/inscription?plan=cinema">Choisir ce palier</a>
           </div>
-          <div class="plan">
+          <div class="plan reveal">
             <div class="p-name">Prestige</div>
             <div class="p-price">149 €<small>/mois</small></div>
             <div class="p-store">5 To</div>
@@ -395,7 +424,7 @@
     <!-- ── FAQ ── -->
     <section id="faq">
       <div class="wrap">
-        <div class="sec-head">
+        <div class="sec-head reveal">
           <h2 class="serif">Questions <em>fréquentes</em></h2>
         </div>
         <div class="faq">
@@ -422,8 +451,8 @@
     <!-- ── CTA final ── -->
     <section style="padding-top: 0;">
       <div class="wrap hero" style="padding: 0 0 30px;">
-        <h2 class="serif" style="font-size: clamp(1.7rem, 4.5vw, 2.4rem);">Vos plus beaux moments méritent mieux qu'un lien qui expire.</h2>
-        <div class="cta">
+        <h2 class="serif reveal" style="font-size: clamp(1.7rem, 4.5vw, 2.4rem);">Vos plus beaux moments méritent mieux qu'un lien qui expire.</h2>
+        <div class="cta reveal">
           <a class="btn big" href="/inscription">Créer ma loge — gratuit</a>
         </div>
       </div>
@@ -439,5 +468,34 @@
       &nbsp;·&nbsp; <a href="/app">Se connecter</a>
     </div>
   </footer>
+
+  <script>
+    /* Apparition au défilement — discrète (craft emil-design-eng).
+       Repli sûr : navigateur sans IntersectionObserver → tout est montré. */
+    (function () {
+      var reveals = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+      function showAll() { reveals.forEach(function (el) { el.classList.add('in'); }); }
+      if (!('IntersectionObserver' in window)) { showAll(); return; }
+      // Léger décalage en cascade DANS chaque groupe (héros, cartes, offres).
+      document.querySelectorAll('.hero, .grid, .plans').forEach(function (group) {
+        var i = 0;
+        Array.prototype.forEach.call(group.children, function (c) {
+          if (c.classList && c.classList.contains('reveal')) {
+            c.style.transitionDelay = (i * 65) + 'ms';
+            i++;
+          }
+        });
+      });
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+      reveals.forEach(function (el) { io.observe(el); });
+      // Filet de sécurité : quoi qu'il arrive (IO capricieux, onglet en
+      // arrière-plan…), rien ne reste masqué au-delà de 2,6 s.
+      setTimeout(showAll, 2600);
+    })();
+  </script>
 </body>
 </html>

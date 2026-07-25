@@ -23,9 +23,13 @@
 
 # ── Sécurité, sur tout le site ──
 /*
-  # Interdit l'intégration du site dans une iframe tierce
-  # (protection contre le détournement de clic).
-  X-Frame-Options: DENY
+  # Interdit l'intégration du site dans une iframe TIERCE (protection
+  # contre le détournement de clic). SAMEORIGIN et non DENY : le
+  # concepteur de galerie affiche la vraie galerie en aperçu, et un
+  # cadre de MÊME ORIGINE n'est pas un vecteur de détournement — il
+  # faudrait déjà contrôler une page de notre domaine, auquel cas le
+  # cadre serait le moindre des soucis. Tout site externe reste refusé.
+  X-Frame-Options: SAMEORIGIN
   # Empêche un navigateur de « deviner » le type d'un fichier.
   X-Content-Type-Options: nosniff
   # Ne divulgue pas l'adresse d'origine vers les sites externes.
@@ -41,37 +45,21 @@
   # ni les scripts ni les styles ni les connexions :
   #   · object-src 'none'     → aucun plugin/embed Flash/PDF exploitable
   #   · base-uri 'self'       → empêche le détournement des URLs relatives
-  #   · frame-ancestors 'none'→ interdit l'embarquement (double X-Frame-Options)
+  #   · frame-ancestors 'self'→ embarquement réservé à NOS pages
   # (un verrouillage complet de script-src demanderait de retirer les CDN
   #  et les scripts inline — chantier séparé.)
-  Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'none'
-
-# ── Exception CIBLÉE : la galerie doit pouvoir s'afficher dans le
-#    concepteur (galerie-studio), qui la montre en aperçu vivant.
-#    `frame-ancestors 'none'` bloquait l'iframe SANS la moindre erreur
-#    visible — l'aperçu restait noir, sans rien dans la console.
-#
-#    On desserre au strict minimum : 'self' autorise NOS pages et elles
-#    seules ; tout site tiers reste refusé, la protection contre le
-#    détournement de clic est donc conservée hors de chez nous. Le
-#    risque résiduel est faible : la galerie n'expose aucune action
-#    destructrice à détourner (lecture, favoris, téléchargement).
-#
-#    ⚠️ Ces règles REMPLACENT celles de /* pour ce chemin (Cloudflare ne
-#    fusionne pas) : les autres en-têtes de sécurité sont donc répétés,
-#    sinon la galerie les perdrait tous.
-/galerie
-  X-Frame-Options: SAMEORIGIN
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
-  Strict-Transport-Security: max-age=31536000; includeSubDomains
-  Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'self'
-
-/galerie.html
-  X-Frame-Options: SAMEORIGIN
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
-  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  #
+  # ⚠️ POURQUOI 'self' ET NON 'none' (25/07/2026) : le concepteur de
+  # galerie affiche la vraie galerie en aperçu dans une iframe de même
+  # origine. Avec 'none', le navigateur la bloquait SANS aucune erreur
+  # visible — écran noir, console vide.
+  # Une exception par chemin a d'abord été tentée : elle NE MARCHE PAS.
+  # Cloudflare n'écrase pas la règle /*, il ajoute un second en-tête, et
+  # le navigateur applique alors l'INTERSECTION — 'none' l'emportait
+  # toujours (constaté en production). Lister à la place les ~25 chemins
+  # à protéger aurait été pire : une page créée demain perdrait sa
+  # protection en silence.
+  # 'self' garde donc la protection là où elle compte — aucun site
+  # externe ne peut nous encadrer, et c'est de là que vient le
+  # détournement de clic.
   Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'self'

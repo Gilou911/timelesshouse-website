@@ -27,9 +27,11 @@
        visible d'emblée — pas de scintillement, robuste sans JS). -->
   <script>document.documentElement.className += ' js';</script>
   <link rel="icon" href="/favicon-th.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Polices AUTO-HÉBERGÉES (RGPD : aucun appel à Google, pas de fuite
+       d'IP visiteur). Définitions : public/fonts/fonts.css. -->
+  <link rel="preload" as="font" type="font/woff2" href="/fonts/manrope-latin.woff2" crossorigin />
+  <link rel="preload" as="font" type="font/woff2" href="/fonts/instrument-serif-latin.woff2" crossorigin />
+  <link rel="stylesheet" href="/fonts/fonts.css" />
   <style>
     :root {
       --bg: #e9e4d9; --surface: #efeae0; --pressed: #e3ddd0;
@@ -115,12 +117,16 @@
     .peek .film {
       margin-top: 18px; border-radius: 18px; aspect-ratio: 16/6.5;
       background: linear-gradient(135deg, #16130f 0%, #2c2317 55%, #6b543a 100%);
-      display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+      /* Titre en haut à gauche, bouton ▶ en bas à gauche : sur écran étroit,
+         le titre centré passait derrière le bouton. Ici ils ne se croisent
+         plus jamais (motif « carte vidéo » éditorial). */
+      display: flex; align-items: flex-start; justify-content: flex-start;
+      padding: 20px 22px; position: relative; overflow: hidden;
     }
     @media (prefers-color-scheme: dark) {
       .peek .film { background: linear-gradient(135deg, #0b0d11 0%, #1b2029 55%, #39536b 100%); }
     }
-    .peek .film .title { color: #f2ead9; font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: clamp(1.3rem, 4vw, 2rem); }
+    .peek .film .title { color: #f2ead9; font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: clamp(1.3rem, 4vw, 2rem); line-height: 1.12; max-width: 78%; }
     .peek .film .play {
       position: absolute; width: 54px; height: 54px; border-radius: 999px;
       background: rgba(255,255,255,0.92); bottom: 18px; left: 22px;
@@ -199,6 +205,9 @@
          l'horizontal à 0). */
       .hero { padding: 52px 24px 40px; }
       section { padding: 48px 0; }
+      /* Maquette un peu plus haute sur mobile : de l'air entre le titre
+         (haut) et le bouton ▶ (bas). */
+      .peek .film { aspect-ratio: 16/9; }
     }
     /* ── Apparition au défilement (craft emil-design-eng) ──
        Gardée par html.js (JS actif) ET par « pas de préférence de

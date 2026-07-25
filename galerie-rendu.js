@@ -94,13 +94,27 @@ function injectStyles() {
   .g-cell.is-fav .g-fav-badge { display: flex; }
 
   /* ── Lightbox ── */
+  /* L'apparition passe par une ANIMATION, pas par une transition armée
+     dans un requestAnimationFrame. La transition ne démarrait que si une
+     frame était rendue entre l'affichage et la pose de la classe : dans
+     un onglet en arrière-plan (ou sur une frame sautée), la classe
+     n'arrivait jamais et la visionneuse restait à opacité 0 — OUVERTE,
+     cliquable, et parfaitement invisible. On voyait alors la grille au
+     travers, et la photo agrandie semblait se superposer aux vignettes
+     de la catégorie précédente (constaté par Gil).
+     Une animation démarre dès que l'élément est affiché, sans dépendre
+     d'aucune frame, et forwards retient l'état final. */
   .g-lb {
     position: fixed; inset: 0; z-index: 200; background: var(--bg-deep, #050505);
-    display: none; flex-direction: column;
-    opacity: 0; transition: opacity 0.25s ease;
+    display: none; flex-direction: column; opacity: 0;
   }
-  .g-lb.open { display: flex; }
-  .g-lb.shown { opacity: 1; }
+  .g-lb.open { display: flex; animation: g-lb-in 0.25s ease forwards; }
+  .g-lb.closing { animation: g-lb-out 0.25s ease forwards; }
+  @keyframes g-lb-in  { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes g-lb-out { from { opacity: 1 } to { opacity: 0 } }
+  @media (prefers-reduced-motion: reduce) {
+    .g-lb.open, .g-lb.closing { animation-duration: 0.01ms; }
+  }
   .g-lb-bar {
     display: flex; align-items: center; justify-content: space-between;
     gap: 12px; padding: max(10px, env(safe-area-inset-top)) 12px 10px;
@@ -126,9 +140,14 @@ function injectStyles() {
   }
   .g-lb-img {
     max-width: 100%; max-height: 100%; object-fit: contain; display: block;
-    opacity: 0; transition: opacity 0.28s ease;
+    opacity: 0; transition: opacity 0.28s ease, filter 0.28s ease;
   }
   .g-lb-img.on { opacity: 1; }
+  /* Vignette affichée le temps que la grande version arrive : un très
+     léger flou dit « ce n'est pas encore la version nette » sans faire
+     croire à une photo ratée. */
+  .g-lb-img.flou { filter: blur(6px); }
+  @media (prefers-reduced-motion: reduce) { .g-lb-img.flou { filter: none; } }
   .g-nav {
     position: absolute; top: 50%; transform: translateY(-50%);
     width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer;
@@ -568,32 +587,53 @@ export function mountPhotos(mount, categories, opts = {}) {
   let lbIdx = 0, lbOpen = false;
   const preCache = []; // cache circulaire, écrasé à chaque navigation
 
+  let tFerme = null;
   function openLb(i) {
     lbIdx = i; lbOpen = true;
+    clearTimeout(tFerme);              // réouverture pendant la fermeture
+    lb.classList.remove('closing');
     lb.classList.add('open');
-    requestAnimationFrame(() => lb.classList.add('shown'));
     lockBody();
     renderLb();
     $('close').focus();
   }
   function closeLb() {
     lbOpen = false;
-    lb.classList.remove('shown');
-    setTimeout(() => lb.classList.remove('open'), 250);
+    lb.classList.add('closing');
+    tFerme = setTimeout(() => lb.classList.remove('open', 'closing'), 250);
     unlockBody();
   }
+  /* Jeton de course : une grande photo peut mettre plusieurs secondes à
+     arriver. Sans lui, une image demandée puis dépassée par deux clics
+     rapides écrasait celle qu'on regarde en arrivant en retard. */
+  let jetonRendu = 0;
+
   function renderLb() {
     const p = FLAT[lbIdx];
     if (!p) return;
-    lbImg.classList.remove('on');
+    const jeton = ++jetonRendu;
+
+    /* La vignette de la grille est DÉJÀ dans le cache du navigateur : on
+       l'affiche immédiatement, légèrement floutée, puis on la remplace
+       par la grande version. Avant, on masquait l'image et on attendait
+       le téléchargement complet — mesuré à plus d'une demi-seconde
+       d'écran vide en local, bien davantage sur un téléphone en 4G.
+       Pendant ce vide on voyait la page au travers. */
     lbImg.style.transform = '';
+    lbImg.src = GRID(p);
+    lbImg.alt = p.category || title;
+    lbImg.classList.add('on', 'flou');
+
     const pic = new Image();
+    pic.decoding = 'async';
     pic.onload = () => {
+      if (jeton !== jetonRendu) return;       // une autre photo a pris la main
       lbImg.src = pic.src;
-      lbImg.alt = p.category || title;
-      requestAnimationFrame(() => lbImg.classList.add('on'));
+      lbImg.classList.remove('flou');
     };
+    pic.onerror = () => { if (jeton === jetonRendu) lbImg.classList.remove('flou'); };
     pic.src = VIEW(p);
+
     $('cap').textContent = p.category || title;
     $('i').textContent = lbIdx + 1;
     $('n').textContent = FLAT.length;
@@ -601,11 +641,21 @@ export function mountPhotos(mount, categories, opts = {}) {
     dl.href = FULL(p);
     dl.setAttribute('download', fileNameOf(p, lbIdx));
     syncLbFav();
-    // Précharge les voisins immédiats (2 slots max)
-    preCache.length = 0;
-    [lbIdx + 1, lbIdx - 1].forEach(j => {
-      if (FLAT[j]) { const im = new Image(); im.src = VIEW(FLAT[j]); preCache.push(im); }
+
+    /* Précharge des voisins. Le tableau était VIDÉ juste avant d'être
+       rempli : les images encore en vol perdaient leur dernière
+       référence et le navigateur pouvait abandonner le téléchargement —
+       le préchargement ne servait donc presque jamais. On garde une
+       courte fenêtre glissante. */
+    [lbIdx + 1, lbIdx - 1, lbIdx + 2].forEach(j => {
+      const v = FLAT[j];
+      if (!v) return;
+      const im = new Image();
+      im.decoding = 'async';
+      im.src = VIEW(v);
+      preCache.push(im);
     });
+    while (preCache.length > 6) preCache.shift();
   }
   function syncLbFav() {
     const p = FLAT[lbIdx];

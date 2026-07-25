@@ -36,6 +36,11 @@
     }
   }
   * { margin:0; padding:0; box-sizing:border-box; }
+  /* Toute règle `display:` d'une classe bat la valeur par défaut du
+     navigateur pour [hidden] — le bouton « Retirer la couverture »
+     restait affiché malgré son attribut. On tranche une fois pour
+     toutes : `hidden` gagne, partout dans cette page. */
+  [hidden] { display:none !important; }
   body {
     background:var(--bg); color:var(--ink); font-family:'Manrope',-apple-system,sans-serif;
     height:100dvh; overflow:hidden;
@@ -136,15 +141,20 @@
     width:100%; height:44px; border:none; border-radius:12px; background:none; cursor:pointer; padding:0;
   }
 
-  /* Couverture : on choisit une VIGNETTE, pas un nom de fichier. */
-  .couvs { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
-  .couvs button {
-    border:none; padding:0; cursor:pointer; aspect-ratio:1; border-radius:10px; overflow:hidden;
-    background:var(--pressed); position:relative; transition: transform .16s var(--ease-out);
+  /* Couverture : un aperçu de CE QUI SERA la couverture, et un dépôt.
+     Plus de grille de vignettes — à 4 000 photos elle était injouable. */
+  .couv-apercu {
+    aspect-ratio:16/10; border-radius:14px; overflow:hidden; background:var(--pressed);
+    box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+    display:flex; align-items:center; justify-content:center;
   }
-  .couvs button:active { transform:scale(.96); }
-  .couvs img { width:100%; height:100%; object-fit:cover; display:block; }
-  .couvs button[aria-pressed="true"] { outline:3px solid var(--ink); outline-offset:-3px; }
+  .couv-apercu img { width:100%; height:100%; object-fit:cover; display:block; }
+  .couv-rien { font-size:0.75rem; color:var(--faint); }
+  .sup-couv {
+    display:block; margin:8px 0 0 auto; border:none; background:none; cursor:pointer;
+    font-family:inherit; font-size:0.71875rem; font-weight:700; color:var(--ko);
+    min-height:44px; padding:0 12px;
+  }
 
   .video-item {
     background:var(--pressed); border-radius:16px; padding:12px; margin-top:8px;
@@ -244,7 +254,7 @@
     .cats button:hover:not([aria-pressed="true"]),
     .choix button:hover:not([aria-pressed="true"]),
     .palettes button:hover:not([aria-pressed="true"]) { color:var(--ink); }
-    .couvs button:hover { transform:translateY(-2px); }
+    .couv-apercu:hover { filter:brightness(1.04); }
     .btn:not([disabled]):hover,
     .depot:not([disabled]):hover,
     .newcat button:hover,
@@ -322,7 +332,13 @@
 
       <div class="bloc" id="bloc-couv" hidden>
         <div class="titre">Photo de couverture</div>
-        <div class="couvs" id="couvs"></div>
+        <div class="couv-apercu" id="couv-apercu"></div>
+        <div class="note" id="couv-legende"></div>
+        <button type="button" class="depot" id="couv-depot">Déposer une photo de couverture</button>
+        <input type="file" id="couv-fichier" accept="image/*" hidden />
+        <div class="jauge" id="couv-jauge" role="progressbar" aria-label="Envoi de la couverture"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+        <button type="button" class="sup-couv" id="couv-retirer" hidden>Retirer la couverture</button>
       </div>
 
       <div class="bloc" id="bloc-video" hidden>
@@ -364,7 +380,7 @@
   import { createClient } from '@supabase/supabase-js';
   import { creerPipelinePhotos, slugifyCategorie, b2SafeName } from './galerie-upload.js';
   const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
-  const { uploadGalleryPhoto, uploadFichier } = creerPipelinePhotos({ sb, supabaseUrl: import.meta.env.VITE_SUPABASE_URL });
+  const { uploadGalleryPhoto, uploadCoverPhoto, uploadFichier } = creerPipelinePhotos({ sb, supabaseUrl: import.meta.env.VITE_SUPABASE_URL });
   const el = (id) => document.getElementById(id);
   const qs = new URLSearchParams(location.search);
 
@@ -589,37 +605,46 @@
      Les vignettes viennent d'une requête AUTHENTIFIÉE (la RPC publique
      ne livre pas url_grid par photo hors catégories) — sans session, le
      bloc reste simplement masqué. */
-  let photosCouv = [];
-  async function chargerCouvertures() {
-    if (!edition) return;
-    const { data } = await sb.from('gallery_photos')
-      .select('id, url_grid').eq('gallery_id', edition.gallery.id)
-      .order('position').limit(24);
-    photosCouv = data || [];
-  }
-  function rendreCouvertures() {
-    const bloc = el('bloc-couv');
-    bloc.hidden = !photosCouv.length;
-    if (!photosCouv.length) return;
+  /* ── Photo de couverture ──────────────────────────────────
+     La couverture se DÉPOSE, elle ne se pioche plus dans une grille de
+     vignettes de la galerie : à 4 000 photos cette grille était
+     inutilisable (et la requête qui l'alimentait n'en chargeait que 24,
+     donc la bonne photo était souvent hors de portée).
+     Sans dépôt, la première photo de la galerie sert de couverture —
+     il y a donc toujours une couverture, sans rien avoir à régler. */
+  function couvertureCourante() {
     const cfg = draft.gallery.config;
-    const hote = el('couvs');
-    hote.innerHTML = '';
-    photosCouv.forEach((p) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      // La galerie retrouve sa couverture par l'IDENTIFIANT de la photo
-      // (flatPhotos.find(p => p.id === cfg.cover)). Une première version
-      // enregistrait ici l'URL de la vignette : le choix ne prenait
-      // jamais, quelle que soit la photo cliquée.
-      b.setAttribute('aria-pressed', String(String(cfg.cover) === String(p.id)));
-      b.setAttribute('aria-label', 'Choisir comme couverture');
-      b.innerHTML = `<img src="${p.url_grid}" alt="" loading="lazy" />`;
-      b.addEventListener('click', () => {
-        cfg.cover = (String(cfg.cover) === String(p.id)) ? '' : p.id;
-        rendre();
-      });
-      hote.appendChild(b);
-    });
+    if (cfg.coverPhoto && (cfg.coverPhoto.url_grid || cfg.coverPhoto.url_view)) {
+      return { url: cfg.coverPhoto.url_grid || cfg.coverPhoto.url_view, origine: 'deposee' };
+    }
+    const plates = (draft.photos || []).flatMap((c) => (c && c.photos) || []);
+    // Ancien mode conservé : une galerie déjà partagée peut désigner une
+    // photo de la livraison par son identifiant.
+    const ancienne = plates.find((p) => String(p.id) === String(cfg.cover));
+    if (ancienne) return { url: ancienne.url_grid || ancienne.url_view, origine: 'choisie' };
+    const premiere = plates[0];
+    if (premiere) return { url: premiere.url_grid || premiere.url_view, origine: 'premiere' };
+    return null;
+  }
+
+  function rendreCouvertures() {
+    el('bloc-couv').hidden = false;
+    const cfg = draft.gallery.config;
+    const cour = couvertureCourante();
+    const apercu = el('couv-apercu');
+    const legende = el('couv-legende');
+
+    apercu.innerHTML = cour
+      ? `<img src="${cour.url}" alt="Aperçu de la couverture" />`
+      : '<span class="couv-rien">Aucune photo pour l\'instant</span>';
+
+    legende.textContent = !cour
+      ? 'Déposez une photo, ou la première photo de la galerie servira de couverture.'
+      : cour.origine === 'deposee' ? 'Photo déposée pour la couverture.'
+      : cour.origine === 'choisie' ? 'Une photo de la galerie sert de couverture.'
+      : 'Par défaut : la première photo de la galerie.';
+
+    el('couv-retirer').hidden = !(cfg.coverPhoto || cfg.cover);
   }
 
   function rendre() {
@@ -769,6 +794,50 @@
     rendreCats();
   });
 
+  /* ── Dépôt de la photo de couverture ─────────────────────
+     Elle ne rejoint PAS la livraison : aucune ligne gallery_photos,
+     donc elle n'apparaît pas dans la grille du client. Le réglage vit
+     dans config.coverPhoto et part au prochain enregistrement. */
+  el('couv-depot').addEventListener('click', () => el('couv-fichier').click());
+  el('couv-fichier').addEventListener('change', async (e) => {
+    const file = (e.target.files || [])[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!edition) { etatUp('Connectez-vous à votre console pour déposer une couverture.', 'ko'); return; }
+
+    const bouton = el('couv-depot');
+    const jauge = el('couv-jauge');
+    bouton.disabled = true;
+    jauge.classList.add('on');
+    etatUp('Envoi de la couverture…');
+    try {
+      const photo = await uploadCoverPhoto({
+        client: edition.client, file, onProgress: (p) => avance(jauge, p),
+      });
+      const cfg = draft.gallery.config;
+      cfg.coverPhoto = photo;
+      // L'ancien réglage désignait une photo de la livraison : il n'a
+      // plus lieu d'être dès qu'une couverture est déposée, et le laisser
+      // ferait deux sources de vérité pour la même image.
+      delete cfg.cover;
+      etatUp('Couverture en place — pensez à enregistrer.', 'ok');
+      rendre();
+    } catch (err) {
+      etatUp(`✗ ${err.message || "L'envoi a échoué — la couverture n'a pas changé."}`, 'ko');
+    }
+    jauge.classList.remove('on');
+    avance(jauge, 0);
+    bouton.disabled = false;
+  });
+
+  el('couv-retirer').addEventListener('click', () => {
+    const cfg = draft.gallery.config;
+    delete cfg.coverPhoto;
+    delete cfg.cover;
+    etatUp('Couverture retirée — la première photo sera utilisée.');
+    rendre();
+  });
+
   el('depot').addEventListener('click', () => el('fichiers').click());
   el('fichiers').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith('image/'));
@@ -816,14 +885,12 @@
     const code = (qs.get('c') || '').trim().toLowerCase();
     const { data } = await sb.rpc('get_gallery_by_code', { p_code: code });
     if (data && data.gallery) {
+      /* La couverture se lit désormais dans `draft.photos` — la même
+         charge que l'aperçu. Une requête authentifiée séparée existait
+         pour obtenir url_grid photo par photo ; vérification faite, la
+         RPC publique le livre déjà. Elle ne servait donc à rien, et
+         c'est elle qui plafonnait le choix à 24 photos. */
       draft.photos = data.photos || [];
-      /* Les vignettes de couverture viennent d'une AUTRE requête que
-         l'aperçu (authentifiée, pour obtenir url_grid photo par photo).
-         Sans ce rechargement, elles restaient celles du chargement de la
-         page : sur une galerie neuve, on venait de déposer sa première
-         photo et « Photo de couverture » restait désespérément vide
-         jusqu'à un rechargement complet. */
-      await chargerCouvertures();
       rendre();
     }
   }
@@ -940,7 +1007,6 @@
         }
       }
     } catch (_) { edition = null; }
-    await chargerCouvertures();
 
     // L'enfant annonce qu'il écoute ; alors seulement on peint.
     window.addEventListener('message', (e) => {

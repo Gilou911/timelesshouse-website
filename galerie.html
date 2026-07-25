@@ -751,7 +751,18 @@
         : (cfg.style === 'cinematic' ? 'fill' : null);
       const hasPhotos = vueKind === 'photos';
       const flatPhotos = (data.photos || []).flatMap(c => (c && c.photos) || []);
-      const cover = flatPhotos.find(p => String(p.id) === String(cfg.cover)) || flatPhotos[0];
+      /* Couverture, par ordre de préséance :
+           1. config.coverPhoto — une image DÉPOSÉE exprès pour la
+              couverture, qui ne fait pas partie de la livraison ;
+           2. config.cover — l'ancien mode : l'identifiant d'une photo de
+              la galerie. Conservé, car des galeries déjà partagées avec
+              des clients l'utilisent ; les casser serait inacceptable ;
+           3. à défaut, la première photo. */
+      const coverUp = cfg.coverPhoto && (cfg.coverPhoto.url_view || cfg.coverPhoto.url_grid)
+        ? cfg.coverPhoto : null;
+      const cover = coverUp
+        || flatPhotos.find(p => String(p.id) === String(cfg.cover))
+        || flatPhotos[0];
       if (coverMode && hasPhotos && cover) {
         el('coverMark').innerHTML = el('vMark').innerHTML;
         el('coverKicker').textContent = T.kicker;

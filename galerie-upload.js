@@ -168,6 +168,34 @@ export function creerPipelinePhotos({ sb, supabaseUrl, uploadFile }) {
     if (error) throw new Error(error.message);
   }
 
+  /* Photo de COUVERTURE — un envoi à part, qui n'entre pas dans la galerie.
+     Auparavant la couverture se choisissait dans une grille de vignettes
+     de la galerie : intenable dès que le mariage compte quelques milliers
+     de photos, et de toute façon la bonne image de couverture n'est pas
+     toujours dans la livraison.
+     Deux différences avec une photo de galerie :
+       · aucune ligne `gallery_photos` — elle ne doit pas s'afficher dans
+         la grille du client, seulement en couverture ;
+       · pas d'original conservé. La couverture n'est jamais téléchargée
+         par le client, stocker un RAW de 40 Mo pour ça se paierait sur
+         le quota de l'agence sans rien apporter.
+     Le résultat se range dans config.coverPhoto de la galerie. */
+  async function uploadCoverPhoto({ client, file, onProgress }) {
+    const src = await decodeGalleryImage(file);
+    const width  = src.width  || src.naturalWidth  || null;
+    const height = src.height || src.naturalHeight || null;
+    const [viewBlob, gridBlob] = await Promise.all([
+      galleryVariant(src, 2000, 0.82),   // plein écran
+      galleryVariant(src, 1000, 0.80),   // aperçu et montée progressive
+    ]);
+    if (src.close) src.close();
+
+    const dir = `weddings/${client.code}/couverture/${crypto.randomUUID()}`;
+    const url_view = await envoyer(viewBlob, `${dir}/view.jpg`, (p) => onProgress?.(p * 0.75));
+    const url_grid = await envoyer(gridBlob, `${dir}/grid.jpg`, (p) => onProgress?.(0.75 + p * 0.25));
+    return { url_view, url_grid, width, height };
+  }
+
   /* Envoi d'un fichier QUELCONQUE (film, master…) — c'est la même
      mécanique que les photos, sans les variantes ni la ligne en base.
      Exposé pour le concepteur : chez un locataire, une vidéo s'UPLOADE,
@@ -176,7 +204,7 @@ export function creerPipelinePhotos({ sb, supabaseUrl, uploadFile }) {
     return await envoyer(file, key, onProgress);
   }
 
-  return { uploadGalleryPhoto, uploadFichier };
+  return { uploadGalleryPhoto, uploadCoverPhoto, uploadFichier };
 }
 
 /** Nom de fichier sûr pour une clé B2 (accents, espaces, caractères exotiques). */

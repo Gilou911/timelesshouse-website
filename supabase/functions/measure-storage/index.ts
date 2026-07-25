@@ -24,6 +24,14 @@ import { S3Client, ListObjectsV2Command } from "npm:@aws-sdk/client-s3@3.600.0";
 const SB_URL         = Deno.env.get("SUPABASE_URL")!;
 const SB_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CRON_SECRET    = Deno.env.get("CRON_SECRET") || "";
+// ── Réconciliation espacée (delta, 24/07/2026) ──────────────
+// Avant : le cron scannait TOUT le bucket CHAQUE nuit. Coûteux et inutile
+// la plupart du temps. Désormais le scan complet ne tourne que si le
+// dernier remonte à plus de RECON_INTERVAL_DAYS jours ; les autres nuits,
+// le cron passe sans lister le bucket. Réglable sans redéploiement via
+// `supabase secrets set RECON_INTERVAL_DAYS=…` (0 = toujours scanner,
+// comportement d'avant). Un recalcul manuel (fondateur) force toujours.
+const RECON_INTERVAL_DAYS = Number(Deno.env.get("RECON_INTERVAL_DAYS") ?? "3");
 const B2_ENDPOINT    = Deno.env.get("B2_ENDPOINT")!;
 const B2_REGION      = Deno.env.get("B2_REGION")!;
 const B2_BUCKET      = Deno.env.get("B2_BUCKET")!;
@@ -94,32 +102,62 @@ const cors = {
 const json = (s: number, b: unknown) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
-async function allowed(req: Request): Promise<boolean> {
-  if (CRON_SECRET && req.headers.get("x-cron-key") === CRON_SECRET) return true;
+// Renvoie qui appelle : "cron" (planificateur nocturne, soumis à
+// l'intervalle) ou "owner" (fondateur → recalcul manuel, toujours complet).
+type AuthMode = "cron" | "owner" | null;
+async function authMode(req: Request): Promise<AuthMode> {
+  if (CRON_SECRET && req.headers.get("x-cron-key") === CRON_SECRET) return "cron";
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!token) return false;
+  if (!token) return null;
   const { data } = await sb.auth.getUser(token);
-  if (!data?.user) return false;
+  if (!data?.user) return null;
   const { data: rows } = await sb
     .from("agency_members")
     .select("role, agencies!inner(slug)")
     .eq("user_id", data.user.id).eq("role", "owner").eq("agencies.slug", "timelesshouse");
-  return !!rows && rows.length > 0;
+  return (rows && rows.length > 0) ? "owner" : null;
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json(405, { error: "POST attendu" });
-  if (!(await allowed(req))) return json(401, { error: "Non autorisé" });
+  const mode = await authMode(req);
+  if (!mode) return json(401, { error: "Non autorisé" });
+
+  // Recalcul TOUJOURS complet si : fondateur (bouton « recalculer »),
+  // corps { force:true }, ou ?force=1. Le cron, lui, respecte l'intervalle.
+  let force = mode === "owner";
+  try { const b = await req.json(); if (b && b.force === true) force = true; } catch { /* pas de corps */ }
+  try { if (new URL(req.url).searchParams.get("force") === "1") force = true; } catch { /* ignore */ }
 
   try {
     // ── Cartes de classification (tables petites : quelques centaines de lignes)
     const [{ data: agencies }, { data: medias }, { data: clients }] = await Promise.all([
-      sb.from("agencies").select("id, slug, name, contact_email, plan, storage_used_bytes"),
+      sb.from("agencies").select("id, slug, name, contact_email, plan, storage_used_bytes, storage_measured_at"),
       sb.from("media").select("id, agency_id"),
       sb.from("clients").select("id, code, agency_id"),
     ]);
     if (!agencies?.length) return json(500, { error: "Aucune agence" });
+
+    // ── Passe rapide : rien à re-scanner si la dernière mesure est récente.
+    // storage_measured_at (déjà stocké) sert d'horodatage du dernier scan
+    // complet. Entre deux, le compteur optimiste de b2-sign continue de
+    // « gater » les uploads en direct — comportement identique à avant.
+    if (!force && RECON_INTERVAL_DAYS > 0) {
+      const stamps = agencies
+        .map((a) => a.storage_measured_at)
+        .filter(Boolean)
+        .map((s) => new Date(s as string).getTime());
+      const lastFull = stamps.length ? Math.max(...stamps) : 0;
+      const ageDays = lastFull ? (Date.now() - lastFull) / 86_400_000 : Infinity;
+      if (ageDays < RECON_INTERVAL_DAYS) {
+        return json(200, {
+          ok: true, skipped: true,
+          reason: `dernier scan complet il y a ${ageDays.toFixed(1)} j (< ${RECON_INTERVAL_DAYS} j)`,
+          next_full_in_days: +(RECON_INTERVAL_DAYS - ageDays).toFixed(1),
+        });
+      }
+    }
     const th = agencies.find((a) => a.slug === "timelesshouse")?.id ?? agencies[0].id;
     const byMediaId  = new Map((medias  || []).map((m) => [m.id, m.agency_id]));
     const byCode     = new Map((clients || []).map((c) => [c.code, c.agency_id]));

@@ -11,6 +11,15 @@
   <meta name="description" content="La Loge donne aux photographes, vidéastes et agences un espace client à leur marque : livraison de films 4K, galeries photos, validation, factures — jusqu'à l'app installée au nom de votre studio. Dès 0 €/mois." />
   <meta property="og:title" content="La Loge — Tout ce que vous livrez, avec VOTRE marque" />
   <meta property="og:description" content="Espaces clients en marque blanche pour photographes, vidéastes et agences : livraison 4K, validation, factures, analyses — à VOTRE marque." />
+  <!-- Aperçus de partage (audit : un lien partagé s'affichait sans visuel) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://laloge.app/offres" />
+  <meta property="og:image" content="https://laloge.app/og-laloge.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://laloge.app/og-laloge.png" />
+  <link rel="canonical" href="https://laloge.app/offres" />
   <meta name="theme-color" content="#e9e4d9" />
   <script>
     /* Cette page appartient à la vitrine La Loge. Le Worker la garde
@@ -26,7 +35,10 @@
        ci-dessous ne s'appliquent que si cette classe est là (sinon contenu
        visible d'emblée — pas de scintillement, robuste sans JS). -->
   <script>document.documentElement.className += ' js';</script>
-  <link rel="icon" href="/favicon-th.png" />
+  <!-- Icône La Loge (l'audit relevait le favicon TimelessHouse sur une
+       vitrine en marque blanche) : « L. » crème sur graphite, point terracotta. -->
+  <link rel="icon" href="/favicon-laloge.png" />
+  <link rel="apple-touch-icon" href="/favicon-laloge.png" />
   <!-- Polices AUTO-HÉBERGÉES (RGPD : aucun appel à Google, pas de fuite
        d'IP visiteur). Définitions : public/fonts/fonts.css. -->
   <link rel="preload" as="font" type="font/woff2" href="/fonts/manrope-latin.woff2" crossorigin />
@@ -38,7 +50,9 @@
       /* HIG §6 : 4.5:1 mini sous 18 px — #7c756a valait 3.6:1 et #a49b8d 2.2:1 */
       --ink: #2a2620; --muted: #635c50; --faint: #6b6357;
       --shadow-d: rgba(168,156,134,0.32); --shadow-l: rgba(255,253,247,0.92);
-      --btn-bg: #2a2620; --btn-text: #f5f1e6; --ok: #3f7d54;
+      /* --ok : #3f7d54 valait 4.10:1 sur la surface — assez pour un
+         symbole (règle non-texte 3:1), remonté à 4.5:1+ par confort. */
+      --btn-bg: #2a2620; --btn-text: #f5f1e6; --ok: #3a7350;
       /* Accent chaud maison — le même #b08968 que le halo des cartes de
          l'espace client (communication-app). Décoratif UNIQUEMENT : jamais
          en couleur de texte courant (contraste insuffisant sous 18 px). */
@@ -184,6 +198,13 @@
 
     /* ── Offres ── */
     .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; align-items: stretch; }
+    /* À pleine largeur, l'auto-fit rangeait 4 offres + Prestige ORPHELINE
+       sur une 2ᵉ ligne (audit : le rythme casse au moment du choix).
+       Une seule rangée de 5 dès que la place le permet. */
+    @media (min-width: 1080px) {
+      .plans { grid-template-columns: repeat(5, 1fr); gap: 14px; }
+      .plan { padding: 22px 18px; }
+    }
     .plan {
       background: var(--surface); border-radius: 24px; padding: 24px 22px;
       box-shadow: 9px 9px 22px var(--shadow-d), -9px -9px 22px var(--shadow-l);
@@ -202,7 +223,7 @@
     }
     .plan.star > * { position: relative; }
     .plan.star .star-mark { color: var(--warm); }
-    .plan .p-name { font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+    .plan .p-name { font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0; }
     .plan .p-price { font-family: 'Instrument Serif', Georgia, serif; font-size: 34px; line-height: 1; margin-top: 6px; }
     .plan .p-price small { font-size: 14px; font-family: 'Manrope', sans-serif; color: var(--muted); }
     .plan .p-store { font-size: 14px; font-weight: 700; margin-top: 2px; }
@@ -218,7 +239,21 @@
       background: var(--surface); border-radius: 18px; padding: 18px 22px;
       box-shadow: 6px 6px 16px var(--shadow-d), -6px -6px 16px var(--shadow-l);
     }
-    summary { cursor: pointer; font-weight: 700; font-size: 14.5px; min-height: 28px; }
+    /* Cible tactile ≥ 44 px (HIG P0 — l'audit mesurait 28 px sur les
+       questions courtes). Le passage en flex fait disparaître le marqueur
+       natif : on le recrée en chevron, avec rotation à l'ouverture. */
+    summary {
+      cursor: pointer; font-weight: 700; font-size: 14.5px;
+      min-height: 44px; display: flex; align-items: center; gap: 10px;
+      list-style: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::before {
+      content: ""; flex: 0 0 auto; width: 8px; height: 8px;
+      border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+      transform: rotate(-45deg); transition: transform 0.2s ease;
+    }
+    details[open] summary::before { transform: rotate(45deg); }
     details p { color: var(--muted); font-size: 13.5px; margin-top: 10px; }
 
     /* ── Pied ── */
@@ -247,7 +282,7 @@
                     transform 0.7s cubic-bezier(0.2,0.7,0.2,1);
         will-change: opacity, transform;
       }
-      html.js .reveal.in { opacity: 1; transform: none; }
+      html.js .reveal.in { opacity: 1; transform: none; will-change: auto; }
     }
 
     /* ── Correctifs HIG vague 1 (P0) — audit du 20/07/2026 ── */
@@ -352,32 +387,32 @@
         </div>
         <div class="grid">
           <div class="card reveal">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.3l4.6 2.7-4.6 2.7z" fill="currentColor" stroke="none"/></svg></div>
+            <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.3l4.6 2.7-4.6 2.7z" fill="currentColor" stroke="none"/></svg></div>
             <h3>Livraison cinéma</h3>
             <p>Films en 4K avec lecture adaptative, galeries photos scénographiées, téléchargement des originaux. Vos masters ne sont <strong>jamais compressés</strong>.</p>
           </div>
           <div class="card reveal">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.6V5.4A1.4 1.4 0 0 1 5.4 4h7.2a1.4 1.4 0 0 1 1 .4l6 6a1.4 1.4 0 0 1 0 2l-7.2 7.2a1.4 1.4 0 0 1-2 0l-6-6a1.4 1.4 0 0 1-.4-1z"/><circle cx="8.2" cy="8.2" r="1.3" fill="currentColor" stroke="none"/></svg></div>
+            <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.6V5.4A1.4 1.4 0 0 1 5.4 4h7.2a1.4 1.4 0 0 1 1 .4l6 6a1.4 1.4 0 0 1 0 2l-7.2 7.2a1.4 1.4 0 0 1-2 0l-6-6a1.4 1.4 0 0 1-.4-1z"/><circle cx="8.2" cy="8.2" r="1.3" fill="currentColor" stroke="none"/></svg></div>
             <h3>Votre marque, partout</h3>
             <p>Votre logo, vos couleurs, votre sous-domaine, vos emails — et l'app que vos clients installent porte <strong>votre nom</strong>. La Loge reste en coulisses.</p>
           </div>
           <div class="card reveal">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.4 12.3l2.4 2.4 4.8-5.2"/></svg></div>
+            <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.4 12.3l2.4 2.4 4.8-5.2"/></svg></div>
             <h3>Validation &amp; commentaires</h3>
             <p>Vos clients approuvent ou demandent des retouches, commentent chaque média. Vous êtes notifié immédiatement, tout est tracé.</p>
           </div>
           <div class="card reveal">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h6.8L18 8.2v11.3a1 1 0 0 1-1 1H6.5a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"/><path d="M13 3.6V8.4h4.6M9 12.5h6M9 15.8h4"/></svg></div>
+            <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h6.8L18 8.2v11.3a1 1 0 0 1-1 1H6.5a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"/><path d="M13 3.6V8.4h4.6M9 12.5h6M9 15.8h4"/></svg></div>
             <h3>Factures &amp; relances</h3>
             <p>Factures déposées dans l'espace client, relances automatiques avant et après échéance — écrites avec votre marque, jamais la nôtre.</p>
           </div>
           <div class="card reveal">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2.6"/><path d="M4 9.5h16M8.4 3.5v3.4M15.6 3.5v3.4"/><circle cx="9" cy="14" r="1.15" fill="currentColor" stroke="none"/></svg></div>
+            <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2.6"/><path d="M4 9.5h16M8.4 3.5v3.4M15.6 3.5v3.4"/><circle cx="9" cy="14" r="1.15" fill="currentColor" stroke="none"/></svg></div>
             <h3>Tournages &amp; documents</h3>
             <p>Calendrier des shootings avec rappels automatiques, contrats et documents partagés, stratégies de contenu avec lien de partage.</p>
           </div>
           <div class="card reveal">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.2h16"/><path d="M6.4 15.2l3.7-3.8 3 2.5 4.6-5.6"/><path d="M18.2 8.3H14.6M18.2 8.3v3.6"/></svg></div>
+            <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.2h16"/><path d="M6.4 15.2l3.7-3.8 3 2.5 4.6-5.6"/><path d="M18.2 8.3H14.6M18.2 8.3v3.6"/></svg></div>
             <h3>Analyses sociales</h3>
             <p>Pour vos clients entreprises : Instagram &amp; TikTok connectés, audience, engagement et synthèses — directement dans leur espace.</p>
           </div>
@@ -394,7 +429,7 @@
         </div>
         <div class="plans">
           <div class="plan reveal">
-            <div class="p-name">Découverte</div>
+            <h3 class="p-name">Découverte</h3>
             <div class="p-price">0 €</div>
             <div class="p-store">3 Go</div>
             <ul>
@@ -406,7 +441,7 @@
             <a class="btn" href="/inscription">Commencer</a>
           </div>
           <div class="plan reveal">
-            <div class="p-name">Essentiel</div>
+            <h3 class="p-name">Essentiel</h3>
             <div class="p-price">29 €<small>/mois</small></div>
             <div class="p-store">100 Go</div>
             <ul>
@@ -417,7 +452,7 @@
             <a class="btn" href="/inscription?plan=essentiel">Choisir ce palier</a>
           </div>
           <div class="plan star reveal">
-            <div class="p-name">Studio <span class="star-mark">★</span></div>
+            <h3 class="p-name">Studio <span class="star-mark" aria-hidden="true">★</span></h3>
             <div class="p-price">49 €<small>/mois</small></div>
             <div class="p-store">500 Go</div>
             <ul>
@@ -428,7 +463,7 @@
             <a class="btn" href="/inscription?plan=studio">Choisir ce palier</a>
           </div>
           <div class="plan reveal">
-            <div class="p-name">Cinéma</div>
+            <h3 class="p-name">Cinéma</h3>
             <div class="p-price">89 €<small>/mois</small></div>
             <div class="p-store">2 To</div>
             <ul>
@@ -439,7 +474,7 @@
             <a class="btn" href="/inscription?plan=cinema">Choisir ce palier</a>
           </div>
           <div class="plan reveal">
-            <div class="p-name">Prestige</div>
+            <h3 class="p-name">Prestige</h3>
             <div class="p-price">149 €<small>/mois</small></div>
             <div class="p-store">5 To</div>
             <ul>

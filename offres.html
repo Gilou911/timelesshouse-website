@@ -39,6 +39,10 @@
       --ink: #2a2620; --muted: #635c50; --faint: #6b6357;
       --shadow-d: rgba(168,156,134,0.32); --shadow-l: rgba(255,253,247,0.92);
       --btn-bg: #2a2620; --btn-text: #f5f1e6; --ok: #3f7d54;
+      /* Accent chaud maison — le même #b08968 que le halo des cartes de
+         l'espace client (communication-app). Décoratif UNIQUEMENT : jamais
+         en couleur de texte courant (contraste insuffisant sous 18 px). */
+      --warm: #b08968;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -110,7 +114,18 @@
       background: var(--surface); border-radius: 28px; padding: 26px;
       box-shadow: 14px 14px 34px var(--shadow-d), -14px -14px 34px var(--shadow-l);
       text-align: left;
+      position: relative; overflow: hidden;
     }
+    /* Halo terracotta en haut à droite — le motif exact des cartes de
+       l'espace client : la maquette montre le produit, elle en porte la
+       signature. Les enfants passent en relative pour rester au-dessus. */
+    .peek .frame::before {
+      content: ""; position: absolute; top: 0; right: 0;
+      width: 280px; height: 280px; border-radius: 50%; pointer-events: none;
+      background: radial-gradient(circle, var(--warm) 0%, transparent 70%);
+      opacity: 0.10; transform: translate(30%, -30%);
+    }
+    .peek .frame > * { position: relative; }
     .peek .brandline { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .peek .brandline .name { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 21px; }
     .peek .chip { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
@@ -174,7 +189,19 @@
       box-shadow: 9px 9px 22px var(--shadow-d), -9px -9px 22px var(--shadow-l);
       display: flex; flex-direction: column; gap: 6px;
     }
-    .plan.star { outline: 2px solid var(--ink); outline-offset: -2px; }
+    .plan.star { outline: 2px solid var(--ink); outline-offset: -2px; position: relative; overflow: hidden; }
+    /* L'offre vedette porte le même halo chaud que la maquette (un peu plus
+       présent), et son étoile passe en terracotta. Le libellé « Studio »
+       reste en encre : le halo + l'étoile + le liseré suffisent, et un texte
+       de 12 px en terracotta ne tiendrait pas le contraste 4.5:1. */
+    .plan.star::before {
+      content: ""; position: absolute; top: 0; right: 0;
+      width: 220px; height: 220px; border-radius: 50%; pointer-events: none;
+      background: radial-gradient(circle, var(--warm) 0%, transparent 70%);
+      opacity: 0.12; transform: translate(30%, -30%);
+    }
+    .plan.star > * { position: relative; }
+    .plan.star .star-mark { color: var(--warm); }
     .plan .p-name { font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
     .plan .p-price { font-family: 'Instrument Serif', Georgia, serif; font-size: 34px; line-height: 1; margin-top: 6px; }
     .plan .p-price small { font-size: 14px; font-family: 'Manrope', sans-serif; color: var(--muted); }
@@ -390,7 +417,7 @@
             <a class="btn" href="/inscription?plan=essentiel">Choisir ce palier</a>
           </div>
           <div class="plan star reveal">
-            <div class="p-name">Studio ★</div>
+            <div class="p-name">Studio <span class="star-mark">★</span></div>
             <div class="p-price">49 €<small>/mois</small></div>
             <div class="p-store">500 Go</div>
             <ul>

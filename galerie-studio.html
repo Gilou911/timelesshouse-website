@@ -210,6 +210,9 @@
       <div class="bloc" id="bloc-photos" hidden>
         <div class="titre">Disposition de la couverture</div>
         <div class="choix" id="couverture"></div>
+        <div class="metier-hint" style="margin-top:8px;font-size:11.5px;color:var(--faint)">
+          Couverture vide → la 1ʳᵉ photo de la galerie est utilisée automatiquement.
+        </div>
       </div>
 
       <div class="bloc" id="bloc-mode" hidden>
@@ -291,13 +294,21 @@
     { id:'sauge', l:'Sauge', bg:'#e8ebe4', ac:'#6e7d63' },
     { id:'brume', l:'Brume', bg:'#e9ebee', ac:'#6b7785' },
   ];
+  /* Les CINQ dispositions que sait rendre galerie.html (MODES, l. 669) —
+     mêmes libellés que la fenêtre de création de la console. Une première
+     version n'en montrait que deux : un locataire qui avait choisi
+     « Split » ou « Éditorial » à la création ne retrouvait plus son
+     réglage ici (relevé par Gil sur capture). */
   const COUVERTURES = [
-    { id:'fill', l:'Plein cadre', d:'La photo occupe tout l\'écran' },
-    { id:'fit',  l:'Entière',     d:'La photo est visible en entier' },
+    { id:'fill',      l:'Plein écran', d:'Photo recadrée + zoom lent' },
+    { id:'fit',       l:'Cadrée',      d:'Ratio naturel sur fond palette' },
+    { id:'split',     l:'Split',       d:'Photo encadrée à gauche, titre à droite' },
+    { id:'editorial', l:'Éditorial',   d:'Grande typo à gauche, photo à droite' },
+    { id:'portrait',  l:'Portrait',    d:'Photo arquée centrée, titre dessous' },
   ];
   const MODES = [
-    { id:'categorized', l:'Par catégories', d:'Préparatifs, cérémonie…' },
-    { id:'flat',        l:'Tout mélangé',   d:'Une seule suite de photos' },
+    { id:'categorized', l:'Catégories',     d:'Sections par thème' },
+    { id:'flat',        l:'Galerie unique', d:'Tout mélangé' },
   ];
   const KINDS = [
     { id:'photos', l:'Photos' }, { id:'video', l:'Film' }, { id:'mixte', l:'Photos + film' },

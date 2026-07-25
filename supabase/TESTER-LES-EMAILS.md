@@ -24,7 +24,7 @@ select id, name, client_email from clients order by created_at desc limit 5;
 projet — ne la recopie pas à la main :
 
 ```bash
-cd ~/Desktop/timelesshouse-website && source .env.local && export K="$VITE_SUPABASE_ANON_KEY"
+cd ~/timelesshouse-website && source .env.local && export K="$VITE_SUPABASE_ANON_KEY"
 ```
 
 > Cette clé est **publique par nature** (elle est dans le JavaScript du
@@ -100,7 +100,7 @@ téléverse un MP4 dans une galerie, attends la fin de l'encodage
 (quelques minutes). L'email part tout seul. Suis l'opération :
 
 ```bash
-tail -f ~/Desktop/timelesshouse-website/workers/encoder/worker.log
+tail -f ~/timelesshouse-website/workers/encoder/worker.log
 ```
 
 Tu dois voir `✉ client prévenu — « votre film est prêt »`.

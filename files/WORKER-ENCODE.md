@@ -64,7 +64,7 @@ coupe net).
 
 Le service `org.timelesshouse.worker-encode` tourne en permanence sur le
 Mac de Gil : démarrage au login, relance automatique, priorité basse.
-Il travaille depuis `~/Desktop/timelesshouse-website`.
+Il travaille depuis `~/timelesshouse-website`.
 
 ```bash
 # état
@@ -91,7 +91,7 @@ ne correspond pas au code qu'on vient d'écrire.
 ⚠️ **Si la modification a été poussée depuis une branche ou un
 worktree** (cas des sessions Claude), un `git pull` ne suffit pas
 forcément : le service lit le fichier du checkout PRINCIPAL
-(`~/Desktop/timelesshouse-website`). Le réflexe sûr, depuis le
+(`~/timelesshouse-website`). Le réflexe sûr, depuis le
 principal :
 
 ```bash

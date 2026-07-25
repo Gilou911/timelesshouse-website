@@ -25,7 +25,7 @@
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/gil/Desktop/timelesshouse-website</string>
+    <string>/Users/gil/timelesshouse-website</string>
 
     <!-- ffmpeg et ffprobe vivent dans /opt/homebrew/bin : launchd ne
          charge pas le PATH du shell, il faut le lui donner. -->
@@ -50,9 +50,9 @@
     <integer>60</integer>
 
     <key>StandardOutPath</key>
-    <string>/Users/gil/Desktop/timelesshouse-website/workers/encoder/launchd.out.log</string>
+    <string>/Users/gil/timelesshouse-website/workers/encoder/launchd.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/gil/Desktop/timelesshouse-website/workers/encoder/launchd.err.log</string>
+    <string>/Users/gil/timelesshouse-website/workers/encoder/launchd.err.log</string>
 
     <!-- Encodage vidéo : on laisse la priorité à l'interface pour ne
          pas ralentir le Mac pendant le montage. -->

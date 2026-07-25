@@ -89,6 +89,42 @@
   .pastille i { position:absolute; inset:0 0 0 50%; }
   .palettes .nom { font-size:10.5px; font-weight:700; }
 
+  /* ── Photos & catégories ── */
+  .cats { display:flex; flex-wrap:wrap; gap:8px; }
+  .cats button {
+    border:none; cursor:pointer; font-family:inherit;
+    padding:9px 14px; border-radius:999px; min-height:40px;
+    background:var(--pressed); color:var(--ink); font-size:12px; font-weight:600;
+    box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+    transition: transform .16s var(--ease-out);
+  }
+  .cats button:active { transform:scale(.97); }
+  .cats button[aria-pressed="true"] { background:var(--btn-bg); color:var(--btn-text); box-shadow:none; }
+  .cats .n { opacity:.65; font-weight:500; margin-left:5px; }
+  .newcat { display:flex; gap:8px; margin-top:10px; }
+  .newcat input {
+    flex:1; min-width:0; min-height:44px; padding:0 16px; border:none; border-radius:999px;
+    background:var(--pressed); color:var(--ink); font-size:16px; font-family:inherit; outline:none;
+    box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+  }
+  .newcat button {
+    flex:0 0 auto; border:none; cursor:pointer; font-family:inherit; min-height:44px;
+    padding:0 16px; border-radius:999px; background:var(--btn-bg); color:var(--btn-text);
+    font-size:12.5px; font-weight:700; transition: transform .16s var(--ease-out);
+  }
+  .newcat button:active { transform:scale(.97); }
+  .depot {
+    width:100%; margin-top:12px; min-height:48px; border:none; border-radius:999px;
+    cursor:pointer; font-family:inherit; font-size:13.5px; font-weight:700;
+    background:var(--btn-bg); color:var(--btn-text);
+    transition: transform .16s var(--ease-out);
+  }
+  .depot:active { transform:scale(.97); }
+  .depot[disabled] { opacity:.5; cursor:default; }
+  .jauge { height:4px; border-radius:4px; background:var(--pressed); overflow:hidden; margin-top:10px; display:none; }
+  .jauge.on { display:block; }
+  .jauge i { display:block; height:100%; width:0; background:#b08968; transition: width .3s var(--ease-out); }
+
   .barre {
     position:sticky; bottom:0; margin:26px -20px -40px; padding:14px 20px 20px;
     background:var(--surface); box-shadow:0 -8px 22px var(--shadow-d);
@@ -142,6 +178,19 @@
         <div class="choix" id="video"></div>
       </div>
 
+      <div class="bloc" id="bloc-upload" hidden>
+        <div class="titre">Photos par catégorie</div>
+        <div class="cats" id="cats"></div>
+        <div class="newcat">
+          <input id="newcat" placeholder="Nouvelle catégorie (Préparatifs…)" maxlength="60" />
+          <button type="button" id="addcat">Ajouter</button>
+        </div>
+        <button type="button" class="depot" id="depot">Déposer des photos ici</button>
+        <input type="file" id="fichiers" accept="image/*" multiple hidden />
+        <div class="jauge" id="jauge"><i></i></div>
+        <div class="etat" id="etat-upload"></div>
+      </div>
+
       <div class="etat" id="etat"></div>
 
       <div class="barre">
@@ -157,7 +206,9 @@
 
 <script type="module">
   import { createClient } from '@supabase/supabase-js';
+  import { creerPipelinePhotos } from './galerie-upload.js';
   const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+  const { uploadGalleryPhoto } = creerPipelinePhotos({ sb, supabaseUrl: import.meta.env.VITE_SUPABASE_URL });
   const el = (id) => document.getElementById(id);
   const qs = new URLSearchParams(location.search);
 
@@ -198,6 +249,14 @@
   let base = null;      // charge renvoyée par la RPC (forme exacte de la vraie page)
   let draft = null;     // la configuration en cours d'édition
   let pretApercu = false;
+  /* Édition authentifiée (enregistrer, déposer) : la RPC publique ne
+     livre — à raison — ni client.id ni client.code. On les lit par une
+     requête AUTHENTIFIÉE : la RLS ne les donne qu'à un membre de
+     l'agence. Sans session (lien ouvert hors console), l'aperçu et les
+     réglages marchent, mais le dépôt reste fermé. */
+  let edition = null;   // { client:{id,code}, gallery:{id} } si connecté
+  let catChoisie = null;
+  let catsEnAttente = [];  // catégories créées ici, encore vides
 
   const etat = (msg, cls) => { const e = el('etat'); e.textContent = msg || ''; e.className = 'etat' + (cls ? ' ' + cls : ''); };
 
@@ -262,7 +321,104 @@
         rendre();
       });
     }
+
+    el('bloc-upload').hidden = !aPhotos;
+    if (aPhotos) rendreCats();
     pousser();
+  }
+
+  /* ── Photos par catégorie ─────────────────────────────────── */
+  const etatUp = (msg, cls) => { const e = el('etat-upload'); e.textContent = msg || ''; e.className = 'etat' + (cls ? ' ' + cls : ''); };
+
+  function listeCats() {
+    const noms = (draft.photos || []).map((c) => ({ nom: c.category || 'Galerie', n: (c.photos || []).length }));
+    catsEnAttente.forEach((nom) => {
+      if (!noms.some((c) => c.nom === nom)) noms.push({ nom, n: 0 });
+    });
+    if (!noms.length) noms.push({ nom: 'Galerie', n: 0 });
+    return noms;
+  }
+
+  function rendreCats() {
+    const cats = listeCats();
+    if (!catChoisie || !cats.some((c) => c.nom === catChoisie)) catChoisie = cats[0].nom;
+    const hote = el('cats');
+    hote.innerHTML = '';
+    cats.forEach((c) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(c.nom === catChoisie));
+      b.innerHTML = `${c.nom}<span class="n">${c.n}</span>`;
+      b.addEventListener('click', () => { catChoisie = c.nom; rendreCats(); });
+      hote.appendChild(b);
+    });
+    if (!edition) {
+      el('depot').disabled = true;
+      etatUp('Ouvrez ce concepteur depuis votre console (connecté) pour déposer des photos.');
+    }
+  }
+
+  el('addcat').addEventListener('click', () => {
+    const nom = el('newcat').value.trim();
+    if (!nom) return;
+    if (listeCats().some((c) => c.nom === nom)) { etatUp('Cette catégorie existe déjà.', 'ko'); return; }
+    catsEnAttente.push(nom);
+    catChoisie = nom;
+    el('newcat').value = '';
+    etatUp('');
+    rendreCats();
+  });
+
+  el('depot').addEventListener('click', () => el('fichiers').click());
+  el('fichiers').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith('image/'));
+    e.target.value = '';
+    if (!files.length || !edition) return;
+
+    // Position d'insertion : à la suite de la catégorie (même règle que la console).
+    let position = 0;
+    try {
+      const { data: dern } = await sb.from('gallery_photos')
+        .select('position').eq('gallery_id', edition.gallery.id).eq('category', catChoisie)
+        .order('position', { ascending: false }).limit(1);
+      if (dern && dern.length) position = (dern[0].position ?? 0) + 1;
+    } catch (_) {}
+
+    el('depot').disabled = true;
+    el('jauge').classList.add('on');
+    const jauge = el('jauge').firstElementChild;
+    try {
+      for (let i = 0; i < files.length; i++) {
+        etatUp(`Photo ${i + 1}/${files.length}…`);
+        await uploadGalleryPhoto({
+          client: edition.client, gallery: edition.gallery,
+          category: catChoisie, position: position + i, file: files[i],
+          onProgress: (p) => { jauge.style.width = `${Math.round(((i + p) / files.length) * 100)}%`; },
+        });
+      }
+      etatUp(`${files.length} photo${files.length > 1 ? 's' : ''} en ligne.`, 'ok');
+      catsEnAttente = catsEnAttente.filter((n) => n !== catChoisie);
+      await rafraichirPhotos();
+    } catch (err) {
+      // Les messages de b2-sign (quota plein, fichier trop gros…) arrivent
+      // tels quels : ils sont déjà écrits pour être lus par un humain.
+      etatUp(`✗ ${err.message}`, 'ko');
+    }
+    el('jauge').classList.remove('on');
+    jauge.style.width = '0';
+    el('depot').disabled = false;
+  });
+
+  /* Après un dépôt : on redemande la charge à la MÊME RPC que la vraie
+     page, en gardant les réglages en cours d'édition — l'aperçu montre
+     les nouvelles photos sans perdre le travail non enregistré. */
+  async function rafraichirPhotos() {
+    const code = (qs.get('c') || '').trim().toLowerCase();
+    const { data } = await sb.rpc('get_gallery_by_code', { p_code: code });
+    if (data && data.gallery) {
+      draft.photos = data.photos || [];
+      rendre();
+    }
   }
 
   el('save').addEventListener('click', async () => {
@@ -293,6 +449,22 @@
     const k = draft.gallery.kind || 'photos';
     el('sous').textContent = k === 'video' ? 'Galerie vidéo'
       : k === 'mixte' ? 'Photos + film' : 'Galerie photos';
+
+    // Édition : gallery.id + client (id, code) par requêtes authentifiées.
+    // Sans session ou hors RLS, `edition` reste nul → dépôt fermé,
+    // aperçu et réglages intacts.
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        const { data: gRow } = await sb.from('galleries')
+          .select('id, client_id').eq('id', draft.gallery.id).maybeSingle();
+        if (gRow?.client_id) {
+          const { data: cRow } = await sb.from('clients')
+            .select('id, code').eq('id', gRow.client_id).maybeSingle();
+          if (cRow?.code) edition = { client: cRow, gallery: { id: gRow.id } };
+        }
+      }
+    } catch (_) { edition = null; }
 
     // L'enfant annonce qu'il écoute ; alors seulement on peint.
     window.addEventListener('message', (e) => {

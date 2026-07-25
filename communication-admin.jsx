@@ -27,6 +27,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       videoPageFor, GALLERY_TEMPLATES, GALLERY_KINDS, templateLabel, kindLabel,
       METIERS, metierOf, isDelivery, metiersDisponibles,
     } from './univers.js';
+    import { creerPipelinePhotos } from './galerie-upload.js';
 
     // — Config Supabase injectée par Vite depuis .env (variables VITE_*)
     const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -236,70 +237,18 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     }
 
     /* ════════════════════════════════════════════════════════════
-       📸 GALERIE B2 — variantes générées DANS LE NAVIGATEUR
-       (SaaS B.3, brique 11 — pipeline photos des locataires)
-       Chaque photo part sur B2 en 3 fichiers sous
-       weddings/<code>/galerie/<slug-catégorie>/<uuid>/ :
-         · original.jpg — le fichier intact (téléchargement client)
-         · view.jpg     — ≤ 2000 px de large, JPEG q0.82 (lightbox)
-         · grid.jpg     — ≤ 1000 px de large, JPEG q0.80 (grille)
-       La ligne gallery_photos porte les URLs publiques ; l'espace
-       client les lit via la RPC scellée get_client_gallery.
+       📸 GALERIE B2 — pipeline photo PARTAGÉ (galerie-upload.js)
+       (SaaS B.3, brique 11 — et concepteur de galerie)
+       Décodage EXIF, variantes navigateur (view 2000 px / grid 1000 px),
+       clés weddings/<code>/galerie/…, ligne gallery_photos : tout vit
+       dans le module, importé aussi par galerie-studio.html — une seule
+       source de vérité, aucune divergence possible entre les deux.
+       La console injecte SON transport (b2UploadFile) : multipart et
+       reprises inchangés — comportement strictement identique à avant.
        ════════════════════════════════════════════════════════════ */
-
-    // Décode une image (EXIF respecté) — createImageBitmap, sinon <img>.
-    async function decodeGalleryImage(file) {
-      try {
-        return await createImageBitmap(file, { imageOrientation: 'from-image' });
-      } catch (e) {
-        return await new Promise((resolve, reject) => {
-          const im = new Image();
-          im.onload = () => resolve(im);
-          im.onerror = () => reject(new Error(`Image illisible : ${file.name || 'fichier'}`));
-          im.src = URL.createObjectURL(file);
-        });
-      }
-    }
-
-    // Variante JPEG ≤ maxW px de large (jamais agrandie).
-    function galleryVariant(source, maxW, quality) {
-      const w = source.width || source.naturalWidth, h = source.height || source.naturalHeight;
-      const r = Math.min(1, maxW / w);
-      const cw = Math.max(1, Math.round(w * r)), ch = Math.max(1, Math.round(h * r));
-      const canvas = document.createElement('canvas');
-      canvas.width = cw; canvas.height = ch;
-      canvas.getContext('2d').drawImage(source, 0, 0, cw, ch);
-      return new Promise((resolve, reject) => canvas.toBlob(
-        (b) => b ? resolve(b) : reject(new Error('Génération de variante échouée')),
-        'image/jpeg', quality));
-    }
-
-    // Uploade UNE photo (original + 2 variantes) et insère sa ligne.
-    // onProgress(0..1) — l'original pèse le plus lourd : 70/20/10.
-    // `gallery` (brique 14) : la photo est rattachée à UNE galerie
-    // précise. `client_id` reste rempli — get_client_gallery (brique 11)
-    // et event-photos.html continuent de fonctionner à l'identique.
-    async function uploadGalleryPhoto({ client, gallery, category, position, file, onProgress }) {
-      const src = await decodeGalleryImage(file);
-      const width  = src.width  || src.naturalWidth  || null;
-      const height = src.height || src.naturalHeight || null;
-      const [viewBlob, gridBlob] = await Promise.all([
-        galleryVariant(src, 2000, 0.82),
-        galleryVariant(src, 1000, 0.80),
-      ]);
-      if (src.close) src.close();
-
-      const dir = `weddings/${client.code}/galerie/${slugify(category) || 'galerie'}/${crypto.randomUUID()}`;
-      const url_original = await b2UploadFile(file,     `${dir}/original.jpg`, (p) => onProgress?.(p * 0.7));
-      const url_view     = await b2UploadFile(viewBlob, `${dir}/view.jpg`,     (p) => onProgress?.(0.7 + p * 0.2));
-      const url_grid     = await b2UploadFile(gridBlob, `${dir}/grid.jpg`,     (p) => onProgress?.(0.9 + p * 0.1));
-
-      const { error } = await sb.from('gallery_photos').insert({
-        client_id: client.id, gallery_id: gallery?.id || null, category, position,
-        width, height, url_original, url_view, url_grid,
-      });
-      if (error) throw new Error(error.message);
-    }
+    const { uploadGalleryPhoto } = creerPipelinePhotos({
+      sb, supabaseUrl: SUPABASE_URL, uploadFile: b2UploadFile,
+    });
 
     /* ════════════════════════════════════════════════════════════
        📸 UPLOAD PHOTOS → CLOUDINARY (galeries) via Edge Function cloudinary-sign

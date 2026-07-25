@@ -25,6 +25,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     import {
       universeOptions, universeLabel, isCelebration, allowsAnalytics, hasDeliveryTab,
       videoPageFor, GALLERY_TEMPLATES, GALLERY_KINDS, templateLabel, kindLabel,
+      METIERS, metierOf, isDelivery, metiersDisponibles,
     } from './univers.js';
 
     // — Config Supabase injectée par Vite depuis .env (variables VITE_*)
@@ -58,6 +59,23 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        plateforme) depuis n'importe quel composant, sans faire descendre
        l'agence par les props sur toute la profondeur de l'arbre. */
     const AGENCY = { id: null, slug: null, name: null, plan: null, maxClients: null, betaChat: false };
+
+    /* 💼 MÉTIERS de l'agence connectée (25/07/2026).
+       Une loge se vend par métier : l'agence ne peut créer des espaces
+       QUE dans les métiers qu'elle a pris. Rempli par loadFeatures depuis
+       `agency_universes` ; un métier résilié reste utilisable jusqu'à son
+       échéance (valid_until) — la règle vit dans la requête ci-dessous.
+       Tableau VIDE = on ne bride rien (agence d'avant la migration) : on
+       ne casse jamais une console existante sur une donnée manquante. */
+    const MES_METIERS = [];
+
+    /* 💼 Métiers de CHAQUE agence — vue fondateur uniquement (la police
+       d'accès `agency_universes_read_platform` n'ouvre cette lecture qu'à
+       TimelessHouse). Rempli par loadAgencies juste avant setAgencies, donc
+       lu à jour au rendu suivant. Objet simple plutôt qu'un état React :
+       il n'est consommé qu'en affichage, et évite de faire descendre une
+       prop de plus sur toute la grille. */
+    const METIERS_PAR_AGENCE = {};
 
     /* ════════════════════════════════════════════════════════════
        ☁️ UPLOAD DIRECT VERS BACKBLAZE B2 (via Edge Function b2-sign)
@@ -1815,7 +1833,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         // UX vague 3 : Mariage pré-sélectionné pour un locataire (son cas
         // le plus courant) — et une célébration démarre en livraison
         // épurée, modules éteints (même logique qu'au changement d'univers).
-        universe:          existing?.universe          || (FEATURES.allUniverses ? 'communication' : 'celebration'),
+        // Par défaut : le métier de l'agence (le sien, pas un choix arbitraire).
+        universe:          existing?.universe          || (FEATURES.allUniverses ? 'communication' : (MES_METIERS[0] || 'celebration')),
         redirect_url:      existing?.redirect_url      || '',
         active:            existing?.active ?? true,
         analytics_enabled: existing?.analytics_enabled ?? false,
@@ -1838,11 +1857,20 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // complète pour la plateforme. Si le client édité porte un univers
       // hérité absent de la liste (locataire reprenant un ancien espace),
       // on l'ajoute pour ne jamais le réécrire à son insu.
+      // 💼 Une loge se vend par MÉTIER : on ne propose que ceux que
+      // l'agence a pris (métier résilié = encore là jusqu'à échéance).
+      // Deux filets, parce qu'aucune donnée manquante ne doit bloquer une
+      // console : MES_METIERS vide → rien n'est bridé ; et l'univers du
+      // client en cours d'édition reste toujours dans la liste, pour ne
+      // jamais le réécrire à son insu (espaces créés avant, valeurs héritées).
       const options = useMemo(() => {
-        const list = universeOptions(FEATURES.allUniverses);
+        const list = MES_METIERS.length
+          ? metiersDisponibles(MES_METIERS, FEATURES.allUniverses)
+              .map(m => ({ value: m.value, label: m.label, hint: m.hint }))
+          : universeOptions(FEATURES.allUniverses);
         return list.some(o => o.value === form.universe)
           ? list
-          : [...list, { value: form.universe, label: `${form.universe} (univers actuel)` }];
+          : [...list, { value: form.universe, label: `${universeLabel(form.universe)} (univers actuel)` }];
       }, [form.universe]);
 
       const isCouple = isCelebration(form.universe);
@@ -2161,7 +2189,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // d'être ici : deux endroits pour déposer une photo, c'était une hésitation
       // de trop. La création éteignait déjà media_enabled pour cet univers ; on
       // rend la règle absolue, y compris pour les espaces créés avant.
-      const mediaOn    = !isCelebration(client.universe) && client.media_enabled !== false;
+      // `isDelivery` et non `isCelebration` : un Filmmaker livre aussi par
+      // galeries — la règle vaut pour TOUT espace de livraison, pas seulement
+      // pour les couples.
+      const mediaOn    = !isDelivery(client.universe) && client.media_enabled !== false;
       const invoicesOn = client.invoices_enabled !== false;
       const shootsOn   = client.shoots_enabled   !== false;
       const documentsOn = client.documents_enabled !== false;
@@ -7479,6 +7510,29 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   </span>
                 </div>
                 <div className="text-[12px] text-stone-500 mt-2 truncate">{(a.owners || []).join(', ') || '— pas de propriétaire —'}</div>
+                {/* 💼 Métiers de la loge : ce que cette agence a le droit de
+                    créer. Un métier résilié reste affiché avec sa date de fin
+                    tant qu'il est utilisable — c'est justement ce qu'on veut
+                    voir d'un coup d'œil depuis la console fondateur. */}
+                {(METIERS_PAR_AGENCE[a.id] || []).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2.5">
+                    {(METIERS_PAR_AGENCE[a.id] || []).map((m) => {
+                      const finit = m.status === 'cancelling' && m.valid_until;
+                      return (
+                        <span key={m.universe}
+                          title={finit
+                            ? `Résilié — utilisable jusqu'au ${new Date(m.valid_until).toLocaleDateString('fr-FR')}`
+                            : (m.source === 'option' ? 'Métier ajouté en option' : "Métier compris dans l'offre")}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-semibold ${
+                            finit ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'}`}>
+                          {(metierOf(m.universe) || {}).label || m.universe}
+                          {m.source === 'option' && !finit && <span className="opacity-60">+</span>}
+                          {finit && <span className="opacity-80">· jusqu'au {new Date(m.valid_until).toLocaleDateString('fr-FR')}</span>}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
                 <StorageGauge compact storage={{ used_bytes: a.storage_used_bytes, quota_bytes: a.storage_quota_bytes }} />
                 <div className="text-[11px] text-stone-400 mt-2">Créée le {new Date(a.created_at).toLocaleDateString('fr-FR')}</div>
                 {a.slug !== 'timelesshouse' && (
@@ -8069,6 +8123,17 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // owner de l'agence plateforme → la section reste simplement masquée.
       const loadAgencies = async () => {
         const { data, error } = await sb.rpc('platform_list_agencies');
+        // Métiers de chaque agence : requête à part (la table n'existe pas
+        // tant que la migration n'est pas lancée — au pire, pas de label).
+        try {
+          const { data: mets } = await sb
+            .from('agency_universes')
+            .select('agency_id, universe, source, status, valid_until');
+          Object.keys(METIERS_PAR_AGENCE).forEach(k => delete METIERS_PAR_AGENCE[k]);
+          (mets || []).forEach((m) => {
+            (METIERS_PAR_AGENCE[m.agency_id] = METIERS_PAR_AGENCE[m.agency_id] || []).push(m);
+          });
+        } catch (_) { /* pas de label, rien de cassé */ }
         setAgencies(error ? null : (data || []));
       };
 
@@ -8102,6 +8167,23 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           const { data: lim } = await sb.rpc('plan_limits', { p_plan: data?.plan || '' });
           AGENCY.maxClients = lim?.max_clients ?? null;
         } catch (_) { AGENCY.maxClients = null; }
+        /* 💼 Métiers de l'agence — requête SÉPARÉE, exprès : la table
+           `agency_universes` n'existe pas tant que la migration n'est pas
+           lancée. Dans le select principal, elle ferait tomber TOUTE la
+           console (plus de marque, plus de plan) chez tous les locataires.
+           Ici, au pire, on ne bride rien — le comportement d'avant.
+           Un métier résilié reste utilisable jusqu'à son échéance. */
+        try {
+          const { data: mets } = await sb
+            .from('agency_universes')
+            .select('universe, status, valid_until');
+          MES_METIERS.length = 0;
+          (mets || []).forEach((m) => {
+            const encoreValide = m.status === 'active'
+              || (m.status === 'cancelling' && m.valid_until && new Date(m.valid_until) > new Date());
+            if (encoreValide) MES_METIERS.push(m.universe);
+          });
+        } catch (_) { MES_METIERS.length = 0; }
         setMyAgency(data || null);
         setFeaturesReady(true);
       };

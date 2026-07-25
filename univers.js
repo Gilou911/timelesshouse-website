@@ -22,7 +22,86 @@
    `universe === 'communication'` ailleurs.
    ════════════════════════════════════════════════════════════ */
 
-/** Les 3 univers proposés à une agence locataire. */
+/* ════════════════════════════════════════════════════════════
+   💼 MÉTIERS — ce qu'une agence ACHÈTE (25/07/2026)
+   ════════════════════════════════════════════════════════════
+   Une loge se vend désormais PAR MÉTIER. Un métier est plus fin que
+   la « forme » d'espace : Mariage et Filmmaker livrent tous deux des
+   galeries, mais l'un s'adresse à un couple et l'autre à une marque.
+
+   D'où la séparation, qui est le cœur de ce fichier :
+     · FORME   = comment l'espace se comporte (livraison / tableau de bord)
+     · MÉTIER  = à qui l'on parle (vocabulaire, gabarits, emails)
+
+   ⚠️ `isCelebration()` mélangeait les deux : il servait à la fois à
+   dire « espace de livraison » ET « c'est un couple » (champs Prénom 1 /
+   Prénom 2). Un Filmmaker casserait ce raccourci. On garde donc
+   `isCelebration` pour le sens COUPLE (son usage historique, inchangé)
+   et on ajoute `isDelivery` pour la FORME.
+
+   Ajouter un métier = ajouter une entrée ici. Rien d'autre à toucher.
+   ════════════════════════════════════════════════════════════ */
+
+/** @typedef {'livraison'|'dashboard'} Forme */
+
+export const METIERS = [
+  {
+    value: 'celebration', label: 'Mariage & célébrations', forme: 'livraison',
+    couple: true, analytics: false,
+    hint: 'Galeries photos et films pour des couples et des familles.',
+    templates: ['mariage', 'fiancailles', 'anniversaire', 'evenement'],
+  },
+  {
+    value: 'filmmaker', label: 'Filmmaker', forme: 'livraison',
+    couple: false, analytics: false,
+    hint: 'Films de marque, clips, documentaires — livrés à des entreprises.',
+    templates: ['corporate', 'evenement', 'mannequinat'],
+  },
+  {
+    value: 'communication', label: 'Communication & Marketing', forme: 'dashboard',
+    couple: false, analytics: true,
+    hint: 'Tableau de bord complet, avec option Analyses réseaux sociaux.',
+    templates: ['corporate', 'evenement'],
+  },
+  {
+    value: 'neutre', label: 'Espace neutre', forme: 'dashboard',
+    couple: false, analytics: false,
+    hint: 'Tableau de bord complet et livraisons, sans Analyses.',
+    templates: ['evenement', 'corporate', 'immobilier', 'mannequinat'],
+  },
+];
+
+/** Le métier d'un univers donné (null si valeur héritée ou inconnue). */
+export function metierOf(universe) {
+  return METIERS.find(m => m.value === universe) || null;
+}
+
+/**
+ * FORME de l'espace : livraison (galeries) ou tableau de bord ?
+ * Les valeurs HÉRITÉES gardent exactement leur comportement d'avant —
+ * c'est `isCelebration` qui les classait, on ne change rien pour elles.
+ */
+export function isDelivery(universe) {
+  const m = metierOf(universe);
+  if (m) return m.forme === 'livraison';
+  return isCelebration(universe);       // héritage : mariage, fiancailles…
+}
+
+/**
+ * Les univers qu'une agence a le droit d'utiliser.
+ * `owned` = valeurs actives lues dans `agency_universes` (voir la
+ * migration 20260725000000). Une agence plateforme (allUniverses) n'est
+ * jamais bridée ; une agence sans ligne du tout retombe sur `celebration`
+ * pour ne JAMAIS bloquer une console existante (aucune régression).
+ */
+export function metiersDisponibles(owned, allUniverses) {
+  if (allUniverses) return METIERS.slice();
+  const list = (owned || []).filter(Boolean);
+  if (!list.length) return METIERS.filter(m => m.value === 'celebration');
+  return METIERS.filter(m => list.includes(m.value));
+}
+
+/** Les 3 univers proposés à une agence locataire (compat — voir METIERS). */
 export const UNIVERSES_TENANT = [
   { value: 'celebration',   label: '💍 Mariage & célébrations',
     hint: 'Espace de livraison : galeries photos et films.' },

@@ -180,7 +180,12 @@ export function creerPipelinePhotos({ sb, supabaseUrl, uploadFile }) {
          par le client, stocker un RAW de 40 Mo pour ça se paierait sur
          le quota de l'agence sans rien apporter.
      Le résultat se range dans config.coverPhoto de la galerie. */
-  async function uploadCoverPhoto({ client, file, onProgress }) {
+  /* `dossier` sépare les usages sous le préfixe du client :
+       · couverture/ — la couverture de la galerie
+       · vignettes/  — l'image d'attente d'un film
+     Deux images qui ne servent pas à la même chose, et qu'on doit
+     pouvoir retrouver et purger séparément. */
+  async function uploadCoverPhoto({ client, file, onProgress, dossier = 'couverture' }) {
     const src = await decodeGalleryImage(file);
     const width  = src.width  || src.naturalWidth  || null;
     const height = src.height || src.naturalHeight || null;
@@ -190,7 +195,7 @@ export function creerPipelinePhotos({ sb, supabaseUrl, uploadFile }) {
     ]);
     if (src.close) src.close();
 
-    const dir = `weddings/${client.code}/couverture/${crypto.randomUUID()}`;
+    const dir = `weddings/${client.code}/${dossier}/${crypto.randomUUID()}`;
     const url_view = await envoyer(viewBlob, `${dir}/view.jpg`, (p) => onProgress?.(p * 0.75));
     const url_grid = await envoyer(gridBlob, `${dir}/grid.jpg`, (p) => onProgress?.(0.75 + p * 0.25));
     return { url_view, url_grid, width, height };

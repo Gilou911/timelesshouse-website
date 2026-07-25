@@ -216,6 +216,14 @@ function injectStyles() {
      défilement sauterait pendant le parcours. */
   .g-row { content-visibility: auto; contain-intrinsic-size: auto var(--rh, 240px); }
 
+  /* Film pas encore prêt, mais vignette posée : on la montre, assombrie
+     pour que le message reste lisible par-dessus. */
+  .g-slide-vignette { background-size: cover; background-position: center; position: relative; }
+  .g-slide-vignette::before {
+    content: ''; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55);
+  }
+  .g-slide-vignette .g-soon { position: relative; z-index: 1; }
+
   .g-vide { padding: clamp(40px, 9vw, 90px) 20px; text-align: center; }
   .g-vide-t { font-size: 1.0625rem; color: var(--ink); margin-bottom: 10px; }
   .g-vide-s { font-size: 0.875rem; color: var(--muted); line-height: 1.7;
@@ -995,6 +1003,10 @@ export function normalizeVideos(c) {
         hls: v.hls || '',
         urls: v.urls || {},
         downloadUrl: v.downloadUrl || '',
+        // Vignette d'attente : l'image que le client voit AVANT de lancer
+        // la lecture. Sans elle, le lecteur affiche un rectangle noir —
+        // ou, selon le navigateur, une image tirée au hasard du film.
+        poster: v.poster || '',
         chapitres: Array.isArray(v.chapitres) ? v.chapitres : [],
         // Drapeau d'attente d'encodage : sans ce report, la vidéo
         // s'afficherait malgré tout (l'objet est reconstruit ici).
@@ -1096,6 +1108,13 @@ export async function mountVideos(mount, videos, opts = {}) {
     // encore (le client verrait le master brut, lourd et parfois saccadé).
     // Le worker lève ce drapeau dès qu'une qualité est prête.
     if ((v.awaitingEncode && !hasHls) || (!has1080 && !has4K && !hasHls)) {
+      /* La vignette sert AUSSI ici, et c'est même là qu'elle compte le
+         plus : plutôt qu'un rectangle noir avec une phrase, le client
+         voit déjà une image de son film pendant sa préparation. */
+      if (v.poster) {
+        slide.classList.add('g-slide-vignette');
+        slide.style.backgroundImage = `url("${String(v.poster).replace(/"/g, '%22')}")`;
+      }
       const soon = document.createElement('div');
       soon.className = 'g-soon';
       soon.textContent = v.awaitingEncode
@@ -1109,6 +1128,10 @@ export async function mountVideos(mount, videos, opts = {}) {
     video.setAttribute('controls', '');
     video.setAttribute('playsinline', '');
     video.preload = 'metadata';
+    // Vignette d'attente. `preload=metadata` suffit alors : le navigateur
+    // n'a plus besoin de télécharger une image du film pour avoir quelque
+    // chose à montrer, et l'affichage est immédiat.
+    if (v.poster) video.setAttribute('poster', v.poster);
     slide.appendChild(video);
 
     // Sélecteur de qualité en OVERLAY (haut-droit de la vidéo)

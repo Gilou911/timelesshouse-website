@@ -530,6 +530,7 @@
   <script type="module">
     import { createClient } from '@supabase/supabase-js';
     import { mountPhotos, mountVideos, normalizeVideos } from './galerie-rendu.js';
+    import { typeDeNoces } from './univers.js';
 
     const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
     const el = (id) => document.getElementById(id);
@@ -687,7 +688,19 @@
 
       const heading = vueKind === 'video' ? T.video : T.photos;
       document.title = `${g.title} — ${(data.agency && data.agency.name) || 'La Loge'}`;
-      el('vKicker').textContent = T.kicker;
+
+      /* Anniversaire de mariage : le sur-titre annonce les années ET le
+         type de noces, calculé depuis la table partagée. C'est le fait
+         marquant de ce genre de galerie — « Votre anniversaire » ne dit
+         rien que le client ne sache déjà.
+         Le libellé est recalculé ICI et non lu dans la configuration :
+         seules les années y sont enregistrées, donc une correction de la
+         table profite aussi aux galeries déjà livrées. */
+      const noces = g.template === 'anniversaire' ? typeDeNoces(cfg.annees) : '';
+      const kicker = noces
+        ? `${cfg.annees} ans · ${noces}`
+        : T.kicker;
+      el('vKicker').textContent = kicker;
       el('vTitle').textContent = g.title || heading;
       const who = (data.client && data.client.name) || '';
       const bits = [who, cfg.date || '', cfg.lieu || ''].filter(Boolean);
@@ -765,7 +778,7 @@
         || flatPhotos[0];
       if (coverMode && hasPhotos && cover) {
         el('coverMark').innerHTML = el('vMark').innerHTML;
-        el('coverKicker').textContent = T.kicker;
+        el('coverKicker').textContent = kicker;   // même annonce que l'en-tête
         el('coverTitle').textContent = g.title || heading;
         const sub = el('coverSub');
         sub.innerHTML = '';

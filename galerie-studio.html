@@ -374,6 +374,15 @@
         <div class="choix" id="perso-mode" style="margin-top:8px"></div>
       </div>
 
+      <!-- N'apparaît que pour un anniversaire de mariage : ailleurs, un
+           nombre d'années n'aurait aucun sens. -->
+      <div class="bloc" id="bloc-noces" hidden>
+        <div class="titre">Années de mariage</div>
+        <input class="champ" id="noces-ans" type="number" min="1" max="100" step="1"
+               inputmode="numeric" placeholder="25" />
+        <div class="note" id="noces-libelle"></div>
+      </div>
+
       <div class="bloc" id="bloc-couv" hidden>
         <div class="titre">Photo de couverture</div>
         <div class="couv-apercu" id="couv-apercu"></div>
@@ -423,6 +432,7 @@
 <script type="module">
   import { createClient } from '@supabase/supabase-js';
   import { creerPipelinePhotos, slugifyCategorie, b2SafeName } from './galerie-upload.js';
+  import { typeDeNoces } from './univers.js';
   const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
   const { uploadGalleryPhoto, uploadCoverPhoto, uploadFichier } = creerPipelinePhotos({ sb, supabaseUrl: import.meta.env.VITE_SUPABASE_URL });
   const el = (id) => document.getElementById(id);
@@ -808,6 +818,24 @@
     el('bloc-mode').hidden   = !voirPhotos;
     el('bloc-video').hidden  = !voirVideo;
 
+    /* Anniversaire de mariage : on demande les ANNÉES, et le type de
+       noces s'en déduit — personne ne connaît par cœur la table de la
+       tradition française, et la faire saisir à la main garantissait
+       des « Noces de Cristal » pour 16 ans.
+       On n'écrit QUE le nombre d'années dans la configuration : le
+       libellé se recalcule à l'affichage, donc corriger la table
+       corrigera aussi les galeries déjà enregistrées. */
+    const anniv = g.template === 'anniversaire';
+    el('bloc-noces').hidden = !anniv;
+    if (anniv) {
+      const champ = el('noces-ans');
+      if (document.activeElement !== champ) champ.value = cfg.annees ?? '';
+      const nom = typeDeNoces(cfg.annees);
+      el('noces-libelle').textContent = nom
+        ? `${nom} — c'est ce que verra votre client.`
+        : 'Indiquez le nombre d\'années : le type de noces se calcule tout seul.';
+    }
+
     if (aPhotos) {
       boutons(el('couverture'), COUVERTURES, cfg.coverMode || 'fill', (v) => { cfg.coverMode = v; rendre(); });
       boutons(el('mode'), MODES, cfg.galleryMode || 'categorized', (v) => { cfg.galleryMode = v; rendre(); });
@@ -926,6 +954,20 @@
      Elle ne rejoint PAS la livraison : aucune ligne gallery_photos,
      donc elle n'apparaît pas dans la grille du client. Le réglage vit
      dans config.coverPhoto et part au prochain enregistrement. */
+  /* Saisie des années : on ne re-rend PAS le panneau à chaque frappe
+     (le champ perdrait le focus). On met à jour le seul libellé, et
+     l'aperçu suit. */
+  el('noces-ans').addEventListener('input', (e) => {
+    const brut = e.target.value.trim();
+    const cfg = draft.gallery.config;
+    if (brut === '') delete cfg.annees; else cfg.annees = parseInt(brut, 10) || 0;
+    const nom = typeDeNoces(cfg.annees);
+    el('noces-libelle').textContent = nom
+      ? `${nom} — c'est ce que verra votre client.`
+      : 'Indiquez le nombre d\'années : le type de noces se calcule tout seul.';
+    pousser();
+  });
+
   el('couv-depot').addEventListener('click', () => el('couv-fichier').click());
   el('couv-fichier').addEventListener('change', async (e) => {
     const file = (e.target.files || [])[0];

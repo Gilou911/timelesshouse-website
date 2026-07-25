@@ -293,3 +293,43 @@ export function templateLabel(value) {
 export function kindLabel(value) {
   return (GALLERY_KINDS.find(k => k.value === value) || GALLERY_KINDS[0]).label;
 }
+
+/* ════════════════════════════════════════════════════════════
+   💍 NOCES — table de la tradition française
+   ════════════════════════════════════════════════════════════
+   Reprise TELLE QUELLE de event-anniversary.html, qui en garde une
+   copie en ligne : son script n'est pas un module, et le convertir
+   pour un simple import ferait courir un risque à une page qui
+   fonctionne. Les deux tables doivent donc bouger ensemble — c'est le
+   prix assumé pour ne pas toucher à cette page.
+   Ici elle sert au concepteur (calcul en direct pendant la saisie) et
+   à la galerie (affichage au client). */
+export const NOCES = {
+  1: "Noces de Coton", 2: "Noces de Cuir", 3: "Noces de Froment",
+  4: "Noces de Cire", 5: "Noces de Bois", 6: "Noces de Chypre",
+  7: "Noces de Laine", 8: "Noces de Coquelicot", 9: "Noces de Faïence",
+  10: "Noces d'Étain", 11: "Noces de Corail", 12: "Noces de Soie",
+  13: "Noces de Muguet", 14: "Noces de Plomb", 15: "Noces de Cristal",
+  16: "Noces de Saphir", 17: "Noces de Rose", 18: "Noces de Turquoise",
+  19: "Noces de Cretonne", 20: "Noces de Porcelaine", 21: "Noces d'Opale",
+  22: "Noces de Bronze", 23: "Noces de Béryl", 24: "Noces de Satin",
+  25: "Noces d'Argent", 30: "Noces de Perle", 35: "Noces de Rubis",
+  40: "Noces d'Émeraude", 45: "Noces de Vermeil", 50: "Noces d'Or",
+  55: "Noces d'Orchidée", 60: "Noces de Diamant", 65: "Noces de Palissandre",
+  70: "Noces de Platine", 75: "Noces d'Albâtre", 80: "Noces de Chêne",
+};
+
+/** Type de noces pour un nombre d'années. Même règle qu'event-anniversary :
+ *  au-delà des paliers listés, on annonce le dernier palier franchi.
+ *  Renvoie '' si l'entrée n'est pas un nombre d'années exploitable —
+ *  le concepteur n'affiche alors rien plutôt qu'un libellé faux. */
+export function typeDeNoces(annees, override) {
+  if (override && String(override).trim()) return String(override).trim();
+  const n = parseInt(annees, 10);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  if (NOCES[n]) return NOCES[n];
+  const palier = Object.keys(NOCES).map(Number)
+    .filter((k) => k <= n)
+    .sort((a, b) => b - a)[0];
+  return palier ? `Au-delà des ${NOCES[palier]}` : '';
+}

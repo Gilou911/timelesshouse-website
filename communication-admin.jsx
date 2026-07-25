@@ -1899,7 +1899,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         initials:          existing?.initials          || '',
         sector:            existing?.sector            || '',
         client_email:      existing?.client_email      || '',
-        agency_name:       existing?.agency_name       || 'TimelessHouse',
+        // Marque blanche : le nom du studio connecté. Un nouvel espace créé
+        // par un locataire portait « TimelessHouse » comme nom d'agence.
+        agency_name:       existing?.agency_name       || AGENCY.name || 'TimelessHouse',
         // UX vague 3 : Mariage pré-sélectionné pour un locataire (son cas
         // le plus courant) — et une célébration démarre en livraison
         // épurée, modules éteints (même logique qu'au changement d'univers).
@@ -2111,7 +2113,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             <FormSection title="Modules">
             <Field label="Modules visibles dans l'espace client">
               <div className="space-y-2">
-                {/* Médias */}
+                {/* Médias — masqué dans les univers de LIVRAISON (mariage,
+                    célébrations, filmmaker) : tout y passe par les galeries.
+                    L'interrupteur restait proposé alors que l'onglet, lui,
+                    n'existe plus — on offrait une case qui ne menait nulle part. */}
+                {!isDelivery(form.universe) && (
                 <button type="button" onClick={() => setForm({...form, media_enabled: !form.media_enabled})}
                   style={form.media_enabled ? neu.dark : neu.pressedSm}
                   className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between transition ${form.media_enabled ? 'text-white' : 'text-stone-700'}`}>
@@ -2126,6 +2132,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${form.media_enabled ? 'translate-x-4' : ''}`} />
                   </div>
                 </button>
+                )}
 
                 {/* Factures */}
                 <button type="button" onClick={() => setForm({...form, invoices_enabled: !form.invoices_enabled})}
@@ -8257,6 +8264,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           });
         } catch (_) { MES_METIERS.length = 0; MES_METIERS_DETAIL.length = 0; }
         setMyAgency(data || null);
+        // Titre de l'onglet : le studio, pas nous. L'onglet du navigateur
+        // affichait « TimelessHouse — Admin » chez tous les locataires.
+        if (data?.name) document.title = `${data.name} — Admin`;
         setFeaturesReady(true);
       };
 
@@ -8311,8 +8321,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               borderBottom: isDark ? '0.5px solid rgba(255,255,255,0.06)' : '0.5px solid rgba(0,0,0,0.06)',
             }}>
             <div className="min-w-0">
+              {/* Même règle qu'en barre latérale : l'en-tête mobile porte le
+                  nom du studio connecté, jamais le nôtre. */}
               <div className="text-[19px] tracking-tight leading-none truncate" style={{ ...SERIF, fontStyle: 'italic' }}>
-                TimelessHouse<span className="text-stone-400">.</span>
+                {myAgency?.name || 'Ma loge'}<span className="text-stone-400">.</span>
               </div>
               <div className="text-[10px] uppercase tracking-[0.16em] text-stone-400 mt-1 font-medium">Admin</div>
             </div>
@@ -8341,8 +8353,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             {/* Sidebar — desktop uniquement */}
             <aside style={neu.raised} className="hidden lg:flex w-[230px] h-[calc(100vh-40px)] sticky top-5 flex-col rounded-[32px] p-5 shrink-0">
               <div className="px-2 pt-2 pb-6">
+                {/* MARQUE BLANCHE : le nom du STUDIO connecté, jamais le nôtre.
+                    Un locataire lisait « TimelessHouse » dans sa propre console
+                    — la fuite exacte qu'on traque partout ailleurs. */}
                 <div className="text-[26px] tracking-tight leading-none" style={{ ...SERIF, fontStyle: 'italic' }}>
-                  TimelessHouse<span className="text-stone-400">.</span>
+                  {myAgency?.name || 'Ma loge'}<span className="text-stone-400">.</span>
                 </div>
                 <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 mt-1.5 font-medium">Espace agence</div>
               </div>

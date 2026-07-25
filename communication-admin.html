@@ -6,7 +6,11 @@
   <meta name="color-scheme" content="light dark" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <style>/* HIG : contenu hors de l'encoche en paysage iPhone */body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);}</style>
-  <title>TimelessHouse — Admin</title>
+  <!-- Titre NEUTRE : il s'affiche avant le chargement et sur l'écran de
+       connexion, quand on ne sait pas encore quel studio se connecte. Le
+       JS le remplace par « <Studio> — Admin » dès l'agence connue. Y
+       laisser « TimelessHouse » le montrait à tous les locataires. -->
+  <title>Espace agence — Admin</title>
 
   <!-- PWA : app installable -->
   <link rel="manifest" href="/manifest-admin.webmanifest" />

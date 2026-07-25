@@ -89,21 +89,55 @@ export function creerPipelinePhotos({ sb, supabaseUrl, uploadFile }) {
     });
   }
 
-  async function defaultUpload(file, key, onProgress) {
-    // Une « photo » de plus de 100 Mo n'en est pas une — et le PUT unique
-    // n'a pas de reprise par morceaux : on refuse clairement plutôt que
-    // d'échouer à 98 %.
-    if (file.size > 100 * 1024 * 1024) {
-      throw new Error('Photo trop lourde (plus de 100 Mo) — vérifiez le fichier.');
-    }
-    const contentType = file.type || 'image/jpeg';
-    const { url, publicUrl, disposition } = await b2Sign({ action: 'sign-put', key, contentType, size: file.size });
+  async function b2PutRetry(url, body, contentType, onProgress, disposition, tries = 3) {
     let lastErr;
-    for (let i = 1; i <= 3; i++) {
-      try { await b2Put(url, file, contentType, onProgress, disposition); return publicUrl; }
-      catch (e) { lastErr = e; if (i < 3) await new Promise(r => setTimeout(r, 1500 * i)); }
+    for (let i = 1; i <= tries; i++) {
+      try { return await b2Put(url, body, contentType, onProgress, disposition); }
+      catch (e) { lastErr = e; if (i < tries) await new Promise(r => setTimeout(r, 1500 * i)); }
     }
     throw lastErr;
+  }
+
+  // Seuil volontairement bas : un PUT unique de plusieurs Go n'a AUCUNE
+  // reprise possible (une micro-coupure et tout est perdu), alors qu'un
+  // morceau raté se réessaie seul. Indispensable pour un film de mariage.
+  const MPU_SEUIL = 100 * 1024 * 1024;
+  const MPU_PART  = 100 * 1024 * 1024;
+
+  async function defaultUpload(file, key, onProgress) {
+    const contentType = file.type || 'application/octet-stream';
+
+    if (file.size <= MPU_SEUIL) {
+      const { url, publicUrl, disposition } = await b2Sign({ action: 'sign-put', key, contentType, size: file.size });
+      await b2PutRetry(url, file, contentType, onProgress, disposition);
+      return publicUrl;
+    }
+
+    // Multipart — l'ETag de chaque morceau est exigé à la finalisation.
+    const { uploadId } = await b2Sign({ action: 'mpu-create', key, contentType, size: file.size });
+    try {
+      const total = Math.ceil(file.size / MPU_PART);
+      const parts = [];
+      let envoyes = 0;
+      for (let debut = 1; debut <= total; debut += 100) {
+        const lot = [];
+        for (let n = debut; n <= Math.min(debut + 99, total); n++) lot.push(n);
+        const { urls } = await b2Sign({ action: 'mpu-sign-parts', key, uploadId, partNumbers: lot });
+        for (const n of lot) {
+          const bloc = file.slice((n - 1) * MPU_PART, Math.min(n * MPU_PART, file.size));
+          const xhr = await b2PutRetry(urls[n], bloc, null, (p) => {
+            if (onProgress) onProgress((envoyes + p * bloc.size) / file.size);
+          });
+          envoyes += bloc.size;
+          parts.push({ PartNumber: n, ETag: (xhr.getResponseHeader('ETag') || '').replace(/"/g, '') });
+        }
+      }
+      const { publicUrl } = await b2Sign({ action: 'mpu-complete', key, uploadId, parts, size: file.size });
+      return publicUrl;
+    } catch (err) {
+      await b2Sign({ action: 'mpu-abort', key, uploadId }).catch(() => {});
+      throw err;
+    }
   }
 
   const envoyer = uploadFile || defaultUpload;
@@ -134,5 +168,22 @@ export function creerPipelinePhotos({ sb, supabaseUrl, uploadFile }) {
     if (error) throw new Error(error.message);
   }
 
-  return { uploadGalleryPhoto };
+  /* Envoi d'un fichier QUELCONQUE (film, master…) — c'est la même
+     mécanique que les photos, sans les variantes ni la ligne en base.
+     Exposé pour le concepteur : chez un locataire, une vidéo s'UPLOADE,
+     on ne colle jamais un lien (règle de Gil). */
+  async function uploadFichier(file, key, onProgress) {
+    return await envoyer(file, key, onProgress);
+  }
+
+  return { uploadGalleryPhoto, uploadFichier };
+}
+
+/** Nom de fichier sûr pour une clé B2 (accents, espaces, caractères exotiques). */
+export function b2SafeName(nom) {
+  return (nom || 'fichier')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_+/g, '_')
+    .slice(-80) || 'fichier';
 }

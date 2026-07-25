@@ -171,13 +171,16 @@ export async function uploadHlsDir({ s3, bucket, workDir, hlsPrefix, onProgress 
   const files = readdirSync(workDir).filter((f) => /\.(m3u8|ts|jpg|mp4)$/.test(f));
   const queue = [...files];
   let done = 0;
+  let bytes = 0;                                // octets réellement envoyés (compteur delta)
   const worker = async () => {
     while (queue.length > 0) {
       const file = queue.shift();
+      const body = readFileSync(join(workDir, file));
+      bytes += body.length;                    // lecture sync → pas de course entre les 6 workers
       await s3.send(new PutObjectCommand({
         Bucket: bucket,
         Key: `${hlsPrefix}/${file}`,
-        Body: readFileSync(join(workDir, file)),
+        Body: body,
         ContentType: CONTENT_TYPES[file.split(".").pop()],
         CacheControl: "public, max-age=31536000, immutable",
       }));
@@ -186,7 +189,7 @@ export async function uploadHlsDir({ s3, bucket, workDir, hlsPrefix, onProgress 
     }
   };
   await Promise.all(Array.from({ length: 6 }, worker));
-  return files.length;
+  return { count: files.length, bytes };
 }
 
 /* ─── Upload de l'original (multipart au-delà de 100 Mo) ──── */
@@ -223,13 +226,17 @@ export async function purgeStaleHls({ s3, bucket, basePrefix, keepPrefix }) {
   // plus de 1000 objets hls-* ; sans le jeton de continuation, on en
   // laisserait derrière soi (quota grignoté par des orphelins).
   const stale = [];
+  let bytes = 0;                               // octets libérés (compteur delta)
   let token;
   do {
     const page = await s3.send(new ListObjectsV2Command({
       Bucket: bucket, Prefix: `${basePrefix}/hls-`, ContinuationToken: token,
     }));
     for (const o of page.Contents ?? []) {
-      if (o.Key && !o.Key.startsWith(`${keepPrefix}/`)) stale.push(o.Key);
+      if (o.Key && !o.Key.startsWith(`${keepPrefix}/`)) {
+        stale.push(o.Key);
+        bytes += Number(o.Size) || 0;
+      }
     }
     token = page.IsTruncated ? page.NextContinuationToken : undefined;
   } while (token);
@@ -239,7 +246,7 @@ export async function purgeStaleHls({ s3, bucket, basePrefix, keepPrefix }) {
       Delete: { Objects: stale.slice(i, i + 1000).map((Key) => ({ Key })) },
     }));
   }
-  return stale.length;
+  return { count: stale.length, bytes };
 }
 
 /* ─── Helpers de format (mêmes règles que l'app client) ───── */

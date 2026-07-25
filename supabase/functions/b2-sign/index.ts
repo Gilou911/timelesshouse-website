@@ -246,19 +246,25 @@ async function checkQuota(agencyId: string, size: unknown): Promise<
   return { ok: true, used, quota };
 }
 
-// Incrément OPTIMISTE du compteur (après une signature/finalisation) : les
-// uploads successifs d'une même session sont ainsi correctement gated sans
-// attendre la mesure nocturne, qui reste la source de vérité (elle réécrit
-// la valeur absolue chaque nuit et corrige toute dérive — échecs, purges).
+// Incrément du compteur après signature/finalisation, de façon ATOMIQUE
+// (RPC bump_storage : un seul UPDATE SQL — aucune perte entre deux uploads
+// simultanés de la même agence). Le worker d'encodage tient aussi le
+// compteur à jour pour le HLS qu'il écrit. Le scan complet (mesure espacée)
+// ne sert plus que de contrôle périodique qui corrige toute dérive résiduelle.
 async function bumpUsage(agencyId: string, delta: unknown): Promise<void> {
-  const d = Math.max(0, Number(delta) || 0);
+  const d = Math.round(Number(delta) || 0);
   if (!d) return;
   try {
+    const { error } = await sbAdmin.rpc("bump_storage", { p_agency: agencyId, p_delta: d });
+    if (!error) return;
+    // Repli tant que la migration bump_storage n'est pas lancée : lecture-
+    // écriture, comme avant (best effort — le scan rattrape). Aucun ordre de
+    // déploiement imposé entre le code et la migration.
     const { data } = await sbAdmin.from("agencies")
       .select("storage_used_bytes").eq("id", agencyId).single();
     const cur = data?.storage_used_bytes || 0;
-    await sbAdmin.from("agencies").update({ storage_used_bytes: cur + d }).eq("id", agencyId);
-  } catch (_) { /* best effort — la mesure nocturne rattrape */ }
+    await sbAdmin.from("agencies").update({ storage_used_bytes: Math.max(0, cur + d) }).eq("id", agencyId);
+  } catch (_) { /* best effort — la mesure espacée rattrape */ }
 }
 
 // ─── Handler ────────────────────────────────────────────────

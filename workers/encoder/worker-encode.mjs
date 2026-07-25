@@ -215,6 +215,46 @@ async function applyToGalleryVideo(job, { masterUrl }) {
 }
 
 /* ════════════════════════════════════════════════════════════
+   Compteur de stockage de l'agence (delta, phase 2)
+   ════════════════════════════════════════════════════════════ */
+// Le worker écrit le HLS DIRECTEMENT sur B2 (il ne passe pas par b2-sign) :
+// sans ceci, ces octets échappaient au compteur d'usage jusqu'au prochain
+// scan complet. On tient donc le compteur à jour à la source.
+
+/** Agence propriétaire du job (média ou galerie). */
+async function agencyForJob(job) {
+  if (job.kind === "media") {
+    const { data } = await sb.from("media").select("agency_id").eq("id", job.media_id).maybeSingle();
+    return data?.agency_id || null;
+  }
+  const { data } = await sb.from("galleries").select("agency_id").eq("id", job.gallery_id).maybeSingle();
+  return data?.agency_id || null;
+}
+
+/** Ajuste storage_used_bytes de l'agence du delta indiqué (peut être
+ *  négatif si la purge dépasse l'ajout). Atomique via la RPC bump_storage
+ *  — pas de course entre encodages simultanés ; repli lecture-écriture tant
+ *  que la RPC n'est pas installée. TOUJOURS best-effort : une erreur ici ne
+ *  doit jamais faire échouer un encodage réussi (le scan complet rattrape). */
+async function bumpAgencyStorage(job, deltaBytes) {
+  try {
+    const delta = Math.round(Number(deltaBytes) || 0);
+    if (!delta) return;
+    const agencyId = await agencyForJob(job);
+    if (!agencyId) return;
+    const { error } = await sb.rpc("bump_storage", { p_agency: agencyId, p_delta: delta });
+    if (error) {
+      const { data } = await sb.from("agencies").select("storage_used_bytes").eq("id", agencyId).maybeSingle();
+      const cur = data?.storage_used_bytes || 0;
+      await sb.from("agencies").update({ storage_used_bytes: Math.max(0, cur + delta) }).eq("id", agencyId);
+    }
+    log(`  ⚖ stockage agence ${delta >= 0 ? "+" : "−"}${fmtSize(Math.abs(delta))}`);
+  } catch (e) {
+    log(`  ⚖ compteur stockage non mis à jour (${e.message}) — corrigé au prochain scan`);
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
    Traitement d'un job
    ════════════════════════════════════════════════════════════ */
 async function processJob(job) {
@@ -244,8 +284,8 @@ async function processJob(job) {
     // média, weddings/<code>/galerie/videos/<uuid>/hls-… pour une galerie.
     const basePrefix = key.replace(/\/[^/]+$/, "");
     const hlsPrefix = stampedPrefix(basePrefix);
-    const count = await uploadHlsDir({ s3, bucket: BUCKET, workDir: outDir, hlsPrefix });
-    log(`  ↑ ${count} fichiers HLS envoyés (${hlsPrefix}/)`);
+    const up = await uploadHlsDir({ s3, bucket: BUCKET, workDir: outDir, hlsPrefix });
+    log(`  ↑ ${up.count} fichiers HLS envoyés (${hlsPrefix}/)`);
 
     const urls = {
       masterUrl: publicUrl(`${hlsPrefix}/master.m3u8`),
@@ -259,7 +299,11 @@ async function processJob(job) {
     // Le résultat est en base : les encodages précédents de CETTE
     // vidéo sont orphelins (ré-encodage après remplacement du fichier).
     const purged = await purgeStaleHls({ s3, bucket: BUCKET, basePrefix, keepPrefix: hlsPrefix });
-    if (purged) log(`  ⌫ ${purged} anciens fichiers HLS supprimés`);
+    if (purged.count) log(`  ⌫ ${purged.count} anciens fichiers HLS supprimés (${fmtSize(purged.bytes)})`);
+
+    // Compteur de stockage : net réellement ajouté sur B2 par CE job
+    // (nouveaux segments − anciens purgés). Best-effort, jamais bloquant.
+    await bumpAgencyStorage(job, up.bytes - purged.bytes);
 
     await sb.from("encode_jobs")
       .update({ status: "done", done_at: new Date().toISOString(), error: null })

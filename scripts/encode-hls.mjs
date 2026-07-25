@@ -154,7 +154,7 @@ const uploaded = await uploadHlsDir({
   s3, bucket: BUCKET, workDir, hlsPrefix,
   onProgress: (done, total) => process.stdout.write(`\r   ${done}/${total}`),
 });
-console.log(`\n   ${uploaded} fichiers envoyés`);
+console.log(`\n   ${uploaded.count} fichiers envoyés`);
 
 // Original (téléchargement) — multipart automatique via lib-storage
 let originalKey = null;
@@ -194,7 +194,7 @@ if (mediaId) {
   }
 
   const purged = await purgeStaleHls({ s3, bucket: BUCKET, basePrefix, keepPrefix: hlsPrefix });
-  if (purged) console.log(`→ ${purged} anciens fichiers HLS supprimés`);
+  if (purged.count) console.log(`→ ${purged.count} anciens fichiers HLS supprimés`);
 
   console.log(`\n✓ Lecture adaptative active pour « ${existingMedia.title} »`);
   console.log(`  Qualités : ${rungs.map((r) => r.name).join(" / ")} (auto selon la connexion)`);

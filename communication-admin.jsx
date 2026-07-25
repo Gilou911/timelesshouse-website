@@ -3049,6 +3049,72 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setBusy(false);
       };
 
+      /* ── « Nouvelle galerie » → le concepteur ─────────────────
+         Le concepteur charge une galerie par son lien de partage : elle
+         doit donc EXISTER avant qu'il s'ouvre. On la crée avec des
+         réglages neutres, puis on ouvre l'atelier dessus — le titre est
+         le premier champ, il se change là-bas.
+         Le titre par défaut porte le nom du client : il sert de base au
+         lien de partage, et « nouvelle-galerie-3 » ferait une piètre
+         adresse à envoyer à des mariés. */
+      const creerEtConcevoir = async () => {
+        if (busy) return;
+        // L'onglet s'ouvre DANS le geste de clic. Ouvert après
+        // l'aller-retour réseau, le navigateur le bloquerait comme une
+        // fenêtre publicitaire.
+        const onglet = window.open('', '_blank');
+        setBusy(true); setErr('');
+        try {
+          const { data: siblings } = await sb.from('galleries')
+            .select('position').eq('client_id', client.id);
+          const next = (siblings || []).reduce((m, s) => Math.max(m, (s.position ?? 0) + 1), 0);
+          const metier = METIERS[metierOf(client.universe)];
+
+          const { data, error } = await sb.from('galleries').insert({
+            client_id: client.id,
+            position: next,
+            title: `Galerie — ${client.name}`,
+            kind: 'photos',
+            template: metier?.templates?.[0] || 'mariage',
+            config: { palette: 'noir', coverMode: 'fill', galleryMode: 'categorized' },
+          }).select().single();
+          if (error) throw new Error(error.message);
+
+          // Même filet qu'à l'enregistrement : sans lien de partage, le
+          // concepteur ne saurait pas quelle galerie ouvrir.
+          let code = data.access_code;
+          if (!code) {
+            const { data: suggere } = await sb.rpc('gallery_code_suggest', {
+              p_agency: data.agency_id, p_base: data.title,
+            });
+            if (suggere) {
+              await sb.from('galleries').update({ access_code: suggere }).eq('id', data.id);
+              code = suggere;
+            }
+          }
+          if (!code) throw new Error(
+            "La galerie est créée mais n'a pas de lien de partage : ouvrez-la avec « Générer le lien »."
+          );
+
+          const url = `/galerie-studio?c=${encodeURIComponent(code)}`;
+          await load();                      // la galerie apparaît dans la liste
+          if (onglet) {
+            onglet.location.replace(url);
+          } else {
+            /* Onglet refusé (bloqueur de fenêtres). On ne retente PAS un
+               window.open ici : hors du geste de clic, certains
+               navigateurs intégrés naviguent l'onglet COURANT à la
+               place — la console disparaîtrait sous les pieds. La
+               galerie est créée et visible : on dit quoi faire. */
+            setErr("Galerie créée. Votre navigateur a bloqué l'ouverture de l'atelier — cliquez sur « Concevoir » ci-dessous.");
+          }
+        } catch (e) {
+          if (onglet) onglet.close();        // pas d'onglet blanc orphelin
+          setErr(humaniseErreur(e.message));
+        }
+        setBusy(false);
+      };
+
       return (
         <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
           <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -3056,7 +3122,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Livraisons</div>
               <h3 className="text-[20px] lg:text-[22px] tracking-tight mt-1" style={SERIF}>Galeries</h3>
             </div>
-            <Btn kind="dark" icon={Plus} onClick={() => setEditing({})}>Nouvelle galerie</Btn>
+            <Btn kind="dark" icon={Plus} onClick={creerEtConcevoir} disabled={busy}>Nouvelle galerie</Btn>
           </div>
           <p className="text-[12px] lg:text-[13px] text-stone-500 mt-2 leading-relaxed">
             Chaque galerie a son propre lien de partage : le client (ou ses invités) y accède
@@ -3071,7 +3137,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           ) : galleries.length === 0 ? (
             <EmptyState icon={ImageIcon}
               texte="C'est ici que vous livrez photos et films : chaque galerie a son lien de partage, prêt à envoyer."
-              bouton="Créer ma première galerie" onAction={() => setEditing({})} />
+              bouton="Créer ma première galerie" onAction={creerEtConcevoir} />
           ) : (
             <div className="space-y-3 mt-4">
               {galleries.map((g, idx) => (

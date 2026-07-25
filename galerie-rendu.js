@@ -164,6 +164,23 @@ function injectStyles() {
     padding: 0 0 max(12px, env(safe-area-inset-bottom)); letter-spacing: 0.08em;
   }
   body.g-locked { position: fixed; width: 100%; overflow: hidden; }
+  /* La gouttière réservée en permanence évite que la page change de
+     largeur quand le verrou retire la barre de défilement — sans elle,
+     ouvrir la visionneuse élargissait la page de ~15 px sur ordinateur
+     et forçait un recalcul complet de la grille. */
+  html { scrollbar-gutter: stable; }
+
+  /* Le navigateur saute le rendu des rangées hors écran. Sur une galerie
+     de plusieurs milliers de photos, c'est la différence entre une page
+     qui s'affiche tout de suite et une qui rame. La hauteur exacte de
+     chaque rangée est donnée en variable : sans elle la barre de
+     défilement sauterait pendant le parcours. */
+  .g-row { content-visibility: auto; contain-intrinsic-size: auto var(--rh, 240px); }
+
+  .g-vide { padding: clamp(40px, 9vw, 90px) 20px; text-align: center; }
+  .g-vide-t { font-size: 1.0625rem; color: var(--ink); margin-bottom: 10px; }
+  .g-vide-s { font-size: 0.875rem; color: var(--muted); line-height: 1.7;
+              max-width: 46ch; margin: 0 auto; }
 
   /* ── Lecteur vidéo — mécanique event-video.html ──
      Une SCÈNE unique (cadre cinéma) où les vidéos se fondent l'une dans
@@ -416,7 +433,18 @@ export function mountPhotos(mount, categories, opts = {}) {
   injectStyles();
   const title = opts.title || 'Galerie';
   const cats = (categories || []).filter(c => c && Array.isArray(c.photos) && c.photos.length);
-  if (!cats.length) return null;
+  /* Galerie encore vide : on le DIT. Auparavant la fonction sortait en
+     silence et le client voyait une page qui semblait cassée — sans
+     savoir s'il devait attendre, recharger, ou rappeler son photographe. */
+  if (!cats.length) {
+    mount.innerHTML =
+      `<div class="g-vide">` +
+        `<p class="g-vide-t">Les photos arrivent bientôt.</p>` +
+        `<p class="g-vide-s">Votre galerie est ouverte, elle sera remplie sous peu. ` +
+        `Le lien reste le même : gardez-le, rien d'autre à faire.</p>` +
+      `</div>`;
+    return null;
+  }
 
   /* Favoris — persistés localement, silencieux en navigation privée */
   const FAV_KEY = 'laloge_fav_' + (opts.favKey || 'x');
@@ -426,7 +454,13 @@ export function mountPhotos(mount, categories, opts = {}) {
 
   /* Liste à plat : l'ordre d'affichage EST l'ordre de la lightbox */
   const FLAT = [];
-  cats.forEach(c => c.photos.forEach(p => FLAT.push({ ...p, category: c.category })));
+  /* Chaque photo garde son rang DANS SA CATÉGORIE. Le compteur de la
+     visionneuse annonçait « 3 / 7 » sur l'ensemble des catégories : en
+     ouvrant la 1re photo de « test » on lisait 3, et l'on croyait avoir
+     changé de galerie. On compte donc là où le client compte. */
+  cats.forEach(c => c.photos.forEach((p, i) => FLAT.push({
+    ...p, category: c.category, rangCat: i + 1, totalCat: c.photos.length,
+  })));
   const fileNameOf = (p, i) => {
     const base = (p.category || 'photo').toLowerCase()
       .normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -479,7 +513,21 @@ export function mountPhotos(mount, categories, opts = {}) {
     flatIdx += c.photos.length;
   });
 
-  function layoutAll() {
+  /* Largeur du dernier calcul. La mise en page justifiée ne dépend QUE
+     de la largeur : recalculer parce que la HAUTEUR a changé détruit et
+     reconstruit toutes les cellules pour un résultat identique.
+     Sur téléphone c'était visible et permanent : faire défiler masque la
+     barre d'URL, ce qui change la hauteur de la fenêtre, déclenche
+     `resize`, et 220 ms plus tard toutes les photos disparaissaient puis
+     réapparaissaient en fondu (vidéo de Gil, 25/07/2026). */
+  let largeurPosee = -1;
+
+  function layoutAll(force) {
+    const largeur = Math.floor(mount.getBoundingClientRect().width);
+    if (!force && largeur === largeurPosee) return;
+    largeurPosee = largeur;
+    let poseesTotal = 0;
+
     sections.forEach(({ rowsWrap, photos, from }) => {
       rowsWrap.innerHTML = '';
       // Mesure après vidage : largeur sous-pixel exacte. -1 px absorbe
@@ -502,6 +550,9 @@ export function mountPhotos(mount, categories, opts = {}) {
       justify(photos, containerW, targetH, gap).forEach(r => {
         const rowEl = document.createElement('div');
         rowEl.className = 'g-row';
+        // Hauteur réelle de la rangée, pour que le saut de rendu
+        // hors écran ne fausse pas la barre de défilement.
+        if (r[0]) rowEl.style.setProperty('--rh', Math.round(r[0].h) + 'px');
         r.forEach(({ p, w, h }) => {
           const gi = from + photos.indexOf(p);
           const cell = document.createElement('div');
@@ -513,8 +564,14 @@ export function mountPhotos(mount, categories, opts = {}) {
           cell.tabIndex = 0;
           cell.setAttribute('role', 'button');
           cell.setAttribute('aria-label', 'Ouvrir la photo en grand');
+          /* Les toutes premières vignettes ne sont pas différées : ce
+             sont elles que le client voit en arrivant, et « lazy » leur
+             faisait attendre un tour de mise en page pour rien. */
+          const pressee = poseesTotal++ < 4;
           cell.innerHTML =
-            `<img src="${escAttr(GRID(p))}" alt="${escAttr(p.category || title)}" loading="lazy" decoding="async" />` +
+            `<img src="${escAttr(GRID(p))}" alt="${escAttr(p.category || title)}"` +
+            (pressee ? ` fetchpriority="high"` : ` loading="lazy"`) +
+            ` decoding="async" />` +
             `<div class="g-fav-badge">${ICON.heartFull}</div>` +
             `<div class="g-tools">` +
               `<button class="g-tool${favs.has(p.id) ? ' fav' : ''}" data-act="fav" aria-label="Ajouter aux favoris"><span>${ICON.heart}</span></button>` +
@@ -602,6 +659,21 @@ export function mountPhotos(mount, categories, opts = {}) {
     lb.classList.add('closing');
     tFerme = setTimeout(() => lb.classList.remove('open', 'closing'), 250);
     unlockBody();
+    /* Retour à la photo qu'on vient de regarder. Sans ça, après avoir
+       parcouru quarante photos on retombait à l'endroit d'où l'on était
+       parti et il fallait tout re-chercher (checklist Galerie du guide :
+       « position restaurée à la fermeture »). unlockBody() vient de
+       replacer le défilement : on ne corrige qu'ensuite, et seulement si
+       la photo n'est pas déjà à l'écran. */
+    const p = FLAT[lbIdx];
+    if (!p) return;
+    const sel = window.CSS && CSS.escape ? CSS.escape(String(p.id)) : String(p.id);
+    const cible = mount.querySelector(`.g-cell[data-id="${sel}"]`);
+    if (!cible) return;
+    const r = cible.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > window.innerHeight) {
+      cible.scrollIntoView({ block: 'center', behavior: 'auto' });
+    }
   }
   /* Jeton de course : une grande photo peut mettre plusieurs secondes à
      arriver. Sans lui, une image demandée puis dépassée par deux clics
@@ -635,8 +707,8 @@ export function mountPhotos(mount, categories, opts = {}) {
     pic.src = VIEW(p);
 
     $('cap').textContent = p.category || title;
-    $('i').textContent = lbIdx + 1;
-    $('n').textContent = FLAT.length;
+    $('i').textContent = p.rangCat || (lbIdx + 1);
+    $('n').textContent = p.totalCat || FLAT.length;
     const dl = $('dl');
     dl.href = FULL(p);
     dl.setAttribute('download', fileNameOf(p, lbIdx));
@@ -689,7 +761,10 @@ export function mountPhotos(mount, categories, opts = {}) {
   /* Swipe mobile : l'image suit le doigt, flick OU drag > 20 % = photo
      suivante. Sortie stricte — un geste vertical ne ferme PAS. */
   const SW_LOCK = 8, SW_RATIO = 0.20, SW_VEL = 0.5;
-  let sx = 0, sy = 0, st = 0, sdx = 0, swDir = null;
+  // Fermeture au glissé : 22 % de la hauteur, franchement plus qu'un
+  // frôlement — on ne ferme pas la photo de son mariage par accident.
+  const SW_FERME = 0.22;
+  let sx = 0, sy = 0, st = 0, sdx = 0, sdy = 0, swDir = null;
   lbStage.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) return;
     sx = e.touches[0].clientX; sy = e.touches[0].clientY;
@@ -703,17 +778,40 @@ export function mountPhotos(mount, categories, opts = {}) {
       if (Math.abs(dx) < SW_LOCK && Math.abs(dy) < SW_LOCK) return;
       swDir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
     }
-    if (swDir !== 'h') return;
-    sdx = dx;
-    lbImg.style.transform = `translateX(${dx}px)`;
+    if (swDir === 'h') {
+      sdx = dx;
+      lbImg.style.transform = `translateX(${dx}px)`;
+      return;
+    }
+    /* Glisser vers le BAS pour fermer : le geste attendu par tout le
+       monde sur un téléphone, et le seul à portée du pouce — la croix
+       est en haut de l'écran. Vers le haut, rien : on ne ferme pas une
+       photo par un geste qu'on fait pour faire défiler.
+       L'image suit le doigt et pâlit, pour que le geste s'annule sans
+       surprise si on le relâche à mi-chemin. */
+    if (dy > 0) {
+      sdy = dy;
+      lbImg.style.transform = `translateY(${dy}px)`;
+      lb.style.opacity = String(Math.max(0.35, 1 - dy / (window.innerHeight * 0.6)));
+    }
   }, { passive: true });
   lbStage.addEventListener('touchend', () => {
     lbImg.style.transition = '';
-    if (swDir !== 'h') return;
-    const vel = Math.abs(sdx) / Math.max(Date.now() - st, 1);
-    if (Math.abs(sdx) > window.innerWidth * SW_RATIO || vel > SW_VEL) step(sdx < 0 ? 1 : -1);
-    else lbImg.style.transform = '';
-    sdx = 0; swDir = null;
+    if (swDir === 'h') {
+      const vel = Math.abs(sdx) / Math.max(Date.now() - st, 1);
+      if (Math.abs(sdx) > window.innerWidth * SW_RATIO || vel > SW_VEL) step(sdx < 0 ? 1 : -1);
+      else lbImg.style.transform = '';
+    } else if (swDir === 'v' && sdy > 0) {
+      const vel = sdy / Math.max(Date.now() - st, 1);
+      if (sdy > window.innerHeight * SW_FERME || vel > SW_VEL) {
+        lb.style.opacity = '';
+        closeLb();
+      } else {
+        lbImg.style.transform = '';
+        lb.style.opacity = '';
+      }
+    }
+    sdx = 0; sdy = 0; swDir = null;
   });
 
   layoutAll();

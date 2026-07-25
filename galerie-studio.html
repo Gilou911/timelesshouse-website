@@ -817,6 +817,13 @@
     const { data } = await sb.rpc('get_gallery_by_code', { p_code: code });
     if (data && data.gallery) {
       draft.photos = data.photos || [];
+      /* Les vignettes de couverture viennent d'une AUTRE requête que
+         l'aperçu (authentifiée, pour obtenir url_grid photo par photo).
+         Sans ce rechargement, elles restaient celles du chargement de la
+         page : sur une galerie neuve, on venait de déposer sa première
+         photo et « Photo de couverture » restait désespérément vide
+         jusqu'à un rechargement complet. */
+      await chargerCouvertures();
       rendre();
     }
   }

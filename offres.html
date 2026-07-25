@@ -263,6 +263,14 @@
     .univ-rail button[disabled] { opacity: 0.55; cursor: default; }
     .univ-rail button small { font-weight: 600; opacity: 0.75; margin-left: 6px; font-size: 11px; }
 
+    /* Une maquette sans légende, c'est une devinette : cette ligne dit
+       ce qu'on regarde (VOTRE poste de travail) avant de le montrer. */
+    .walk-intro {
+      text-align: center; max-width: 54ch; margin: 26px auto 0;
+      font-size: 14px; line-height: 1.6; color: var(--muted);
+    }
+    .walk-intro strong { color: var(--ink); font-weight: 700; }
+
     /* text-align explicite : le héros est centré, l'aperçu ne doit pas l'être. */
     .walk { display: grid; gap: 26px; align-items: center; text-align: left; }
     @media (min-width: 920px) { .walk { grid-template-columns: 1.04fr 0.96fr; gap: 48px; } }
@@ -541,6 +549,11 @@
           <button type="button" role="tab" aria-selected="false" data-univ="communication" disabled>Communication &amp; marketing<small>bientôt</small></button>
         </div>
       </div>
+
+      <p class="walk-intro reveal" data-t="intro">
+        <strong>Votre côté.</strong> La console de votre studio, en cinq gestes —
+        de la création de l'espace du couple à la facture réglée.
+      </p>
 
       <!-- ══ Aperçu animé nº1 : VOTRE côté — la console du studio ══
            Le visiteur EST le photographe / vidéaste / filmmaker : on lui
@@ -989,6 +1002,7 @@
       var METIERS = {
         celebration: base,
         filmmaker: {
+          intro: "<strong>Votre côté.</strong> La console de votre studio, en cinq gestes — de la création de l'espace du client à la facture réglée.",
           h1t: "Vous créez l'espace du client",
           h1s: "Le nom de la marque, un email — son code est prêt.",
           h2t: 'Vous déposez films et images',

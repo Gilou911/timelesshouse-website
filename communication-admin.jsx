@@ -2154,7 +2154,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [sendingWelcome, setSendingWelcome] = useState(false);
 
       // Par défaut, les modules sont activés (pour les clients pré-migration v8 qui ont NULL)
-      const mediaOn    = client.media_enabled    !== false;
+      // MARIAGE & CÉLÉBRATIONS (choix de Gil, 25/07/2026) : la livraison passe
+      // ENTIÈREMENT par les galeries — photos et films, chacune avec son propre
+      // lien de partage et son habillage (cinématique, film, demande, anniversaire).
+      // L'onglet « Médias », hérité de l'univers Communication, n'a plus lieu
+      // d'être ici : deux endroits pour déposer une photo, c'était une hésitation
+      // de trop. La création éteignait déjà media_enabled pour cet univers ; on
+      // rend la règle absolue, y compris pour les espaces créés avant.
+      const mediaOn    = !isCelebration(client.universe) && client.media_enabled !== false;
       const invoicesOn = client.invoices_enabled !== false;
       const shootsOn   = client.shoots_enabled   !== false;
       const documentsOn = client.documents_enabled !== false;

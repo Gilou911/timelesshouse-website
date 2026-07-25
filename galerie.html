@@ -504,6 +504,7 @@
     const TEMPLATES = {
       mariage:      { kicker: 'Votre mariage',       video: 'Votre film de mariage',     photos: 'Votre galerie de mariage' },
       fiancailles:  { kicker: 'Vos fiançailles',     video: 'Votre film de fiançailles', photos: 'Vos fiançailles' },
+      prewedding:   { kicker: 'Votre pré-wedding',   video: 'Votre film pré-wedding',    photos: 'Votre pré-wedding' },
       anniversaire: { kicker: 'Votre anniversaire',  video: 'Votre film anniversaire',   photos: 'Votre anniversaire' },
       evenement:    { kicker: 'Votre événement',     video: 'Votre film',                photos: 'Votre galerie' },
       mannequinat:  { kicker: 'Votre shooting',      video: 'Votre film',                photos: 'Votre shooting' },
@@ -601,6 +602,27 @@
        cours d'édition. L'aperçu du concepteur est ainsi la VRAIE page,
        pas un rendu jumeau qu'il faudrait maintenir en double. */
     async function paint(data, code) {
+      /* REMISE À ZÉRO — indispensable depuis que le concepteur rejoue
+         paint() à chaque réglage. Sans elle :
+           · les classes de disposition s'EMPILENT (mode-split ajouté
+             par-dessus mode-editorial : les deux se neutralisent, la
+             couverture semblait figée tant qu'on ne rechargeait pas) ;
+           · mountPhotos/mountVideos AJOUTENT à leur hôte sans le vider,
+             donc changer le contenu empilait grilles et lecteurs.
+         Sur un premier rendu, tout ceci est sans effet. */
+      const cov = el('cover');
+      if (cov) {
+        cov.className = cov.className
+          .split(/\s+/)
+          .filter((c) => c && !/^(mode-|is-landscape$|is-portrait$|is-square$)/.test(c))
+          .join(' ');
+      }
+      const cbg = el('coverBg'); if (cbg) cbg.style.backgroundImage = '';
+      const cph = el('coverPhoto');
+      if (cph) { cph.classList.remove('on'); cph.removeAttribute('src'); }
+      const hPh = el('photos'); if (hPh) hPh.innerHTML = '';
+      const hVi = el('videos'); if (hVi) hVi.innerHTML = '';
+
       const g = data.gallery, cfg = g.config || {}, T = tpl(g.template);
       applyBrand(data.agency);
 

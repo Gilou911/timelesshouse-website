@@ -89,6 +89,21 @@
   .pastille i { position:absolute; inset:0 0 0 50%; }
   .palettes .nom { font-size:10.5px; font-weight:700; }
 
+  /* Rail en creux + pastille sombre active : la convention maison pour
+     toute barre d'onglets (règle « halo »). */
+  .rail {
+    display:flex; gap:6px; padding:5px; border-radius:999px; background:var(--pressed);
+    box-shadow: inset 3px 3px 7px var(--shadow-d), inset -3px -3px 7px var(--shadow-l);
+  }
+  .rail button {
+    flex:1; border:none; cursor:pointer; font-family:inherit; min-height:40px;
+    border-radius:999px; background:transparent; color:var(--muted);
+    font-size:12.5px; font-weight:700;
+    transition: color .3s var(--ease-out), transform .16s var(--ease-out);
+  }
+  .rail button:active { transform:scale(.97); }
+  .rail button[aria-selected="true"] { background:var(--btn-bg); color:var(--btn-text); }
+
   /* Champs texte — 16 px minimum, sinon iOS zoome à la mise au point. */
   .champ {
     width:100%; min-height:48px; padding:0 18px; border:none; border-radius:999px;
@@ -202,6 +217,15 @@
         <div class="choix" id="types"></div>
       </div>
 
+      <!-- Séparation photos / vidéo : n'apparaît que sur une galerie qui
+           contient les deux — ailleurs il n'y aurait rien à séparer. -->
+      <div class="bloc" id="bloc-volet" hidden>
+        <div class="rail" role="tablist" aria-label="Partie à régler">
+          <button type="button" role="tab" data-volet="photos" aria-selected="true">Photos</button>
+          <button type="button" role="tab" data-volet="video" aria-selected="false">Vidéo</button>
+        </div>
+      </div>
+
       <div class="bloc">
         <div class="titre">Palette de couleurs</div>
         <div class="palettes" id="palettes"></div>
@@ -274,11 +298,17 @@
   const el = (id) => document.getElementById(id);
   const qs = new URLSearchParams(location.search);
 
+  /* Les cinq prestations que Gil vend (25/07/2026). `mannequinat` rend
+     déjà « Votre shooting » côté galerie ; `prewedding` a été ajouté au
+     moteur pour l'occasion. Un gabarit hérité absent de cette liste (un
+     immobilier créé avant, par exemple) est réinjecté à la volée par
+     `rendre()` : on ne réécrit jamais le choix d'un locataire à son insu. */
   const TYPES = [
-    { id:'mariage', l:'Mariage' }, { id:'fiancailles', l:'Fiançailles' },
-    { id:'anniversaire', l:'Anniversaire' }, { id:'evenement', l:'Événement' },
-    { id:'mannequinat', l:'Mannequinat' }, { id:'immobilier', l:'Immobilier' },
-    { id:'corporate', l:'Corporate' },
+    { id:'mariage',      l:'Mariage' },
+    { id:'anniversaire', l:'Anniversaire de mariage' },
+    { id:'fiancailles',  l:'Fiançailles' },
+    { id:'prewedding',   l:'Pré-wedding' },
+    { id:'mannequinat',  l:'Shooting' },
   ];
   const PALETTES = [
     { id:'noir', l:'Noir', bg:'#0a0a0a', ac:'#b08968' },
@@ -328,6 +358,7 @@
   let edition = null;   // { client:{id,code}, gallery:{id} } si connecté
   let catChoisie = null;
   let catsEnAttente = [];  // catégories créées ici, encore vides
+  let volet = 'photos';    // partie réglée sur une galerie « photos + film »
 
   const etat = (msg, cls) => { const e = el('etat'); e.textContent = msg || ''; e.className = 'etat' + (cls ? ' ' + cls : ''); };
 
@@ -430,11 +461,15 @@
     photosCouv.forEach((p) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.setAttribute('aria-pressed', String(cfg.cover === p.url_grid));
+      // La galerie retrouve sa couverture par l'IDENTIFIANT de la photo
+      // (flatPhotos.find(p => p.id === cfg.cover)). Une première version
+      // enregistrait ici l'URL de la vignette : le choix ne prenait
+      // jamais, quelle que soit la photo cliquée.
+      b.setAttribute('aria-pressed', String(String(cfg.cover) === String(p.id)));
       b.setAttribute('aria-label', 'Choisir comme couverture');
       b.innerHTML = `<img src="${p.url_grid}" alt="" loading="lazy" />`;
       b.addEventListener('click', () => {
-        cfg.cover = (cfg.cover === p.url_grid) ? '' : p.url_grid;
+        cfg.cover = (String(cfg.cover) === String(p.id)) ? '' : p.id;
         rendre();
       });
       hote.appendChild(b);
@@ -445,20 +480,35 @@
     const g = draft.gallery, cfg = g.config;
     const aPhotos = g.kind === 'photos' || g.kind === 'mixte';
     const aVideo  = g.kind === 'video'  || g.kind === 'mixte';
+    const deux    = aPhotos && aVideo;
+
+    // Volet actif : forcé sur la seule partie disponible hors galerie mixte.
+    if (!deux) volet = aVideo ? 'video' : 'photos';
+    el('bloc-volet').hidden = !deux;
+    el('bloc-volet').querySelectorAll('button[data-volet]').forEach((b) => {
+      b.setAttribute('aria-selected', String(b.getAttribute('data-volet') === volet));
+    });
+    const voirPhotos = aPhotos && (!deux || volet === 'photos');
+    const voirVideo  = aVideo  && (!deux || volet === 'video');
 
     boutons(el('kinds'), KINDS, g.kind || 'photos', (v) => { draft.gallery.kind = v; rendre(); });
-    boutons(el('types'), TYPES, g.template, (v) => { draft.gallery.template = v; rendre(); });
+    // Gabarit hérité (immobilier, corporate…) : on le réinjecte dans la
+    // liste plutôt que de l'écraser en silence au premier clic.
+    const types = TYPES.some((t) => t.id === g.template)
+      ? TYPES
+      : [...TYPES, { id: g.template, l: `${templateNom(g.template)} (actuel)` }];
+    boutons(el('types'), types, g.template, (v) => { draft.gallery.template = v; rendre(); });
     palettes(cfg.palette || 'noir');
 
-    el('bloc-photos').hidden = !aPhotos;
-    el('bloc-mode').hidden   = !aPhotos;
-    el('bloc-video').hidden  = !aVideo;
+    el('bloc-photos').hidden = !voirPhotos;
+    el('bloc-mode').hidden   = !voirPhotos;
+    el('bloc-video').hidden  = !voirVideo;
 
     if (aPhotos) {
       boutons(el('couverture'), COUVERTURES, cfg.coverMode || 'fill', (v) => { cfg.coverMode = v; rendre(); });
       boutons(el('mode'), MODES, cfg.galleryMode || 'categorized', (v) => { cfg.galleryMode = v; rendre(); });
     }
-    if (aVideo) rendreVideos();
+    if (voirVideo) rendreVideos();
 
     // Couleurs sur mesure : seulement quand la palette l'est.
     const perso = cfg.palette === 'custom';
@@ -469,11 +519,22 @@
       boutons(el('perso-mode'), PERSO_MODES, cfg.customMode || 'dark', (v) => { cfg.customMode = v; rendre(); });
     }
 
-    el('bloc-upload').hidden = !aPhotos;
-    if (aPhotos) { rendreCats(); rendreCouvertures(); }
+    el('bloc-upload').hidden = !voirPhotos;
+    if (voirPhotos) { rendreCats(); rendreCouvertures(); }
     else el('bloc-couv').hidden = true;
     pousser();
   }
+
+  // Nom lisible d'un gabarit hérité, pour ne pas afficher sa valeur brute.
+  const NOMS = { evenement:'Événement', immobilier:'Immobilier', corporate:'Corporate', mannequinat:'Shooting' };
+  function templateNom(v) { return NOMS[v] || (v ? v.charAt(0).toUpperCase() + v.slice(1) : 'Autre'); }
+
+  el('bloc-volet').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-volet]');
+    if (!b) return;
+    volet = b.getAttribute('data-volet');
+    rendre();
+  });
 
   ['perso-bg', 'perso-ac'].forEach((id) => {
     el(id).addEventListener('input', () => {

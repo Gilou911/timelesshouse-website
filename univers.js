@@ -267,6 +267,10 @@ export function homeUrlFor(universe, agencySlug) {
 export const GALLERY_TEMPLATES = [
   { value: 'mariage',      label: '💍 Mariage' },
   { value: 'fiancailles',  label: '💎 Fiançailles' },
+  // Pré-wedding : gabarit ajouté le 25/07/2026 (demande de Gil). Le
+  // moteur le connaît aussi (TEMPLATES dans galerie.html) — sans quoi
+  // il retomberait silencieusement sur « Votre événement ».
+  { value: 'prewedding',   label: '💐 Pré-wedding' },
   { value: 'anniversaire', label: '🎂 Anniversaire' },
   { value: 'evenement',    label: '🎉 Événement' },
   { value: 'mannequinat',  label: '📸 Mannequinat' },

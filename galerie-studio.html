@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Concevoir la galerie</title>
+<meta name="robots" content="noindex" />
+<link rel="icon" href="/favicon-laloge.png" />
+<link rel="stylesheet" href="/fonts/fonts.css" />
+<style>
+  /* ════════════════════════════════════════════════════════════
+     🎨 CONCEPTEUR DE GALERIE — 30 % réglages · 70 % aperçu VIVANT
+     ════════════════════════════════════════════════════════════
+     L'aperçu n'est pas une imitation : c'est galerie.html elle-même,
+     en mode aperçu, pilotée par messages. Ce qu'on voit ici est très
+     exactement ce que verra le client — il n'y a pas deux moteurs de
+     rendu à garder d'accord. */
+  :root {
+    --bg:#e9e4d9; --surface:#efeae0; --pressed:#e3ddd0; --ink:#2a2620;
+    --muted:#635c50; --faint:#6b6357;
+    --shadow-d:rgba(168,156,134,0.32); --shadow-l:rgba(255,253,247,0.92);
+    --btn-bg:#2a2620; --btn-text:#f5f1e6;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#181b20; --surface:#22262d; --pressed:#14171c; --ink:#e8e4dc;
+      --muted:#9aa0ab; --faint:#8b93a1;
+      --shadow-d:rgba(0,0,0,0.55); --shadow-l:rgba(54,60,72,0.28);
+      --btn-bg:#e8e4dc; --btn-text:#181b20;
+    }
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:var(--bg); color:var(--ink); font-family:'Manrope',-apple-system,sans-serif;
+    height:100dvh; overflow:hidden;
+  }
+  .serif { font-family:'Instrument Serif',Georgia,serif; }
+
+  .studio { display:flex; height:100dvh; }
+  /* 30 / 70 — réglages à gauche, aperçu à droite. */
+  .panneau {
+    width:30%; min-width:320px; max-width:460px; height:100dvh; overflow-y:auto;
+    padding:22px 20px 40px; background:var(--surface);
+    box-shadow: 8px 0 26px var(--shadow-d);
+  }
+  .scene { flex:1; min-width:0; height:100dvh; padding:14px; }
+  .scene iframe { width:100%; height:100%; border:none; border-radius:20px; background:#000;
+    box-shadow: 10px 10px 28px var(--shadow-d), -10px -10px 28px var(--shadow-l); }
+
+  /* Sur écran étroit : l'aperçu passe dessous, à hauteur lisible. */
+  @media (max-width: 900px) {
+    body { overflow:auto; }
+    .studio { flex-direction:column; height:auto; }
+    .panneau { width:100%; max-width:none; height:auto; box-shadow:none; }
+    .scene { height:70dvh; padding:0 14px 14px; }
+  }
+
+  .kicker { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+  h1 { font-size:24px; font-weight:400; letter-spacing:-.01em; margin-top:4px; }
+  .sous { font-size:12.5px; color:var(--muted); margin-top:6px; line-height:1.6; }
+
+  .bloc { margin-top:22px; }
+  .bloc > .titre { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:10px; }
+
+  .choix { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  .choix button {
+    border:none; cursor:pointer; font-family:inherit; text-align:left;
+    padding:11px 13px; border-radius:14px; min-height:44px;
+    background:var(--pressed); color:var(--ink); font-size:12.5px; font-weight:600;
+    box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+    transition: transform .16s var(--ease-out);
+  }
+  .choix button:active { transform:scale(.97); }
+  .choix button[aria-pressed="true"] { background:var(--btn-bg); color:var(--btn-text); box-shadow:none; }
+
+  /* Palettes : la pastille MONTRE la couleur, le mot seul ne suffit pas. */
+  .palettes { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .palettes button {
+    border:none; cursor:pointer; font-family:inherit; padding:9px; border-radius:14px;
+    background:var(--pressed); color:var(--ink); min-height:44px;
+    box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    transition: transform .16s var(--ease-out);
+  }
+  .palettes button:active { transform:scale(.97); }
+  .palettes button[aria-pressed="true"] { background:var(--btn-bg); color:var(--btn-text); box-shadow:none; }
+  .pastille { width:26px; height:26px; border-radius:999px; border:1px solid rgba(0,0,0,.12); position:relative; overflow:hidden; }
+  .pastille i { position:absolute; inset:0 0 0 50%; }
+  .palettes .nom { font-size:10.5px; font-weight:700; }
+
+  .barre {
+    position:sticky; bottom:0; margin:26px -20px -40px; padding:14px 20px 20px;
+    background:var(--surface); box-shadow:0 -8px 22px var(--shadow-d);
+    display:flex; gap:10px; align-items:center;
+  }
+  .btn {
+    flex:1; min-height:48px; border:none; border-radius:999px; cursor:pointer;
+    font-family:inherit; font-size:14px; font-weight:700;
+    background:var(--btn-bg); color:var(--btn-text);
+    transition: transform .16s var(--ease-out);
+  }
+  .btn:active { transform:scale(.97); }
+  .btn.ghost { flex:0 0 auto; padding:0 18px; background:transparent; color:var(--ink);
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 20%, transparent); }
+  .etat { font-size:12px; color:var(--muted); margin-top:10px; min-height:18px; }
+  .etat.ok { color:#3a7350; }
+  .etat.ko { color:#b3261e; }
+  :focus-visible { outline:2px solid currentColor; outline-offset:3px; border-radius:8px; }
+  @media (prefers-reduced-motion: reduce) { * { transition-duration:.01ms !important; } }
+</style>
+</head>
+<body>
+  <div class="studio">
+    <aside class="panneau">
+      <div class="kicker">Concepteur</div>
+      <h1 class="serif" id="titre">Votre galerie</h1>
+      <div class="sous" id="sous">Chargement…</div>
+
+      <div class="bloc" id="bloc-type">
+        <div class="titre">Type d'événement</div>
+        <div class="choix" id="types"></div>
+      </div>
+
+      <div class="bloc">
+        <div class="titre">Palette de couleurs</div>
+        <div class="palettes" id="palettes"></div>
+      </div>
+
+      <div class="bloc" id="bloc-photos" hidden>
+        <div class="titre">Disposition de la couverture</div>
+        <div class="choix" id="couverture"></div>
+      </div>
+
+      <div class="bloc" id="bloc-mode" hidden>
+        <div class="titre">Organisation des photos</div>
+        <div class="choix" id="mode"></div>
+      </div>
+
+      <div class="bloc" id="bloc-video" hidden>
+        <div class="titre">Lecteur vidéo</div>
+        <div class="choix" id="video"></div>
+      </div>
+
+      <div class="etat" id="etat"></div>
+
+      <div class="barre">
+        <button class="btn" id="save" type="button">Enregistrer</button>
+        <button class="btn ghost" id="fermer" type="button">Fermer</button>
+      </div>
+    </aside>
+
+    <main class="scene">
+      <iframe id="apercu" title="Aperçu de la galerie"></iframe>
+    </main>
+  </div>
+
+<script type="module">
+  import { createClient } from '@supabase/supabase-js';
+  const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+  const el = (id) => document.getElementById(id);
+  const qs = new URLSearchParams(location.search);
+
+  const TYPES = [
+    { id:'mariage', l:'Mariage' }, { id:'fiancailles', l:'Fiançailles' },
+    { id:'anniversaire', l:'Anniversaire' }, { id:'evenement', l:'Événement' },
+    { id:'mannequinat', l:'Mannequinat' }, { id:'immobilier', l:'Immobilier' },
+    { id:'corporate', l:'Corporate' },
+  ];
+  const PALETTES = [
+    { id:'noir', l:'Noir', bg:'#0a0a0a', ac:'#b08968' },
+    { id:'fumee', l:'Fumée', bg:'#1a1714', ac:'#b1916f' },
+    { id:'encre', l:'Encre', bg:'#0d0f14', ac:'#8a93a6' },
+    { id:'sapin', l:'Sapin', bg:'#0c0f0d', ac:'#8a9c84' },
+    { id:'ardoise', l:'Ardoise', bg:'#13161c', ac:'#7fa0bd' },
+    { id:'bordeaux', l:'Bordeaux', bg:'#45100f', ac:'#d2b48c' },
+    { id:'acajou', l:'Acajou', bg:'#2a1812', ac:'#c98a5e' },
+    { id:'foret', l:'Forêt', bg:'#0e2118', ac:'#c2a878' },
+    { id:'creme', l:'Crème', bg:'#f3eee7', ac:'#8b6a48' },
+    { id:'lin', l:'Lin', bg:'#f1ece3', ac:'#8a7458' },
+    { id:'sauge', l:'Sauge', bg:'#e8ebe4', ac:'#6e7d63' },
+    { id:'brume', l:'Brume', bg:'#e9ebee', ac:'#6b7785' },
+  ];
+  const COUVERTURES = [
+    { id:'fill', l:'Plein cadre', d:'La photo occupe tout l\'écran' },
+    { id:'fit',  l:'Entière',     d:'La photo est visible en entier' },
+  ];
+  const MODES = [
+    { id:'categorized', l:'Par catégories', d:'Préparatifs, cérémonie…' },
+    { id:'flat',        l:'Tout mélangé',   d:'Une seule suite de photos' },
+  ];
+  const VIDEOS = [
+    { id:'film',   l:'Film seul' },
+    { id:'teaser', l:'Teaser seul' },
+    { id:'deux',   l:'Film + teaser' },
+  ];
+
+  let base = null;      // charge renvoyée par la RPC (forme exacte de la vraie page)
+  let draft = null;     // la configuration en cours d'édition
+  let pretApercu = false;
+
+  const etat = (msg, cls) => { const e = el('etat'); e.textContent = msg || ''; e.className = 'etat' + (cls ? ' ' + cls : ''); };
+
+  /* L'aperçu ne se peint que lorsque la page enfant a signalé qu'elle
+     écoutait — sinon le premier envoi tomberait dans le vide. */
+  function pousser() {
+    if (!pretApercu || !draft) return;
+    el('apercu').contentWindow.postMessage(
+      { type:'laloge-preview', payload: draft }, location.origin);
+  }
+
+  function boutons(hote, liste, actif, onPick) {
+    hote.innerHTML = '';
+    liste.forEach((o) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(o.id === actif));
+      b.innerHTML = o.d
+        ? `${o.l}<span style="display:block;font-weight:500;font-size:11px;opacity:.7;margin-top:2px">${o.d}</span>`
+        : o.l;
+      b.addEventListener('click', () => onPick(o.id));
+      hote.appendChild(b);
+    });
+  }
+
+  function palettes(actif) {
+    const hote = el('palettes');
+    hote.innerHTML = '';
+    PALETTES.forEach((p) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(p.id === actif));
+      b.setAttribute('aria-label', p.l);
+      b.innerHTML = `<span class="pastille" style="background:${p.bg}"><i style="background:${p.ac}"></i></span><span class="nom">${p.l}</span>`;
+      b.addEventListener('click', () => { draft.gallery.config.palette = p.id; rendre(); });
+      hote.appendChild(b);
+    });
+  }
+
+  function rendre() {
+    const g = draft.gallery, cfg = g.config;
+    const aPhotos = g.kind === 'photos' || g.kind === 'mixte';
+    const aVideo  = g.kind === 'video'  || g.kind === 'mixte';
+
+    boutons(el('types'), TYPES, g.template, (v) => { draft.gallery.template = v; rendre(); });
+    palettes(cfg.palette || 'noir');
+
+    el('bloc-photos').hidden = !aPhotos;
+    el('bloc-mode').hidden   = !aPhotos;
+    el('bloc-video').hidden  = !aVideo;
+
+    if (aPhotos) {
+      boutons(el('couverture'), COUVERTURES, cfg.coverMode || 'fill', (v) => { cfg.coverMode = v; rendre(); });
+      boutons(el('mode'), MODES, cfg.galleryMode || 'categorized', (v) => { cfg.galleryMode = v; rendre(); });
+    }
+    if (aVideo) {
+      const actif = (cfg.afficherFilm !== false && cfg.afficherTeaser === true) ? 'deux'
+                  : (cfg.afficherTeaser === true ? 'teaser' : 'film');
+      boutons(el('video'), VIDEOS, actif, (v) => {
+        cfg.afficherFilm   = (v !== 'teaser');
+        cfg.afficherTeaser = (v === 'teaser' || v === 'deux');
+        rendre();
+      });
+    }
+    pousser();
+  }
+
+  el('save').addEventListener('click', async () => {
+    etat('Enregistrement…');
+    const { error } = await sb.from('galleries')
+      .update({ template: draft.gallery.template, config: draft.gallery.config })
+      .eq('id', draft.gallery.id);
+    etat(error ? `Échec : ${error.message}` : 'Galerie enregistrée.', error ? 'ko' : 'ok');
+  });
+  el('fermer').addEventListener('click', () => window.close());
+
+  /* ── Démarrage ─────────────────────────────────────────────
+     On repasse par la MÊME RPC que la vraie galerie : la charge a donc
+     exactement la forme attendue par le moteur de rendu, sans rien
+     redériver à la main (et sans risque de divergence). */
+  (async () => {
+    const code = (qs.get('c') || '').trim().toLowerCase();
+    if (!code) { etat("Aucune galerie indiquée.", 'ko'); return; }
+
+    const { data, error } = await sb.rpc('get_gallery_by_code', { p_code: code });
+    if (error || !data || !data.gallery) { etat("Galerie introuvable.", 'ko'); return; }
+
+    base  = data;
+    draft = JSON.parse(JSON.stringify(data));
+    draft.gallery.config = draft.gallery.config || {};
+
+    el('titre').textContent = draft.gallery.title || 'Votre galerie';
+    const k = draft.gallery.kind || 'photos';
+    el('sous').textContent = k === 'video' ? 'Galerie vidéo'
+      : k === 'mixte' ? 'Photos + film' : 'Galerie photos';
+
+    // L'enfant annonce qu'il écoute ; alors seulement on peint.
+    window.addEventListener('message', (e) => {
+      if (e.origin !== location.origin) return;
+      if (e.data && e.data.type === 'laloge-preview-ready') { pretApercu = true; pousser(); }
+    });
+    el('apercu').src = '/galerie.html?preview=1';
+
+    rendre();
+  })();
+</script>
+</body>
+</html>

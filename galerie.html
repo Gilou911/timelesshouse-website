@@ -592,6 +592,15 @@
       if (AGENCY_SLUG && data.agency && data.agency.slug &&
           data.agency.slug !== AGENCY_SLUG) return null;
 
+      return paint(data, code);
+    }
+
+    /* ── Peinture d'une galerie ───────────────────────────────
+       Séparée de la RÉCUPÉRATION (open) pour que le concepteur de
+       galerie puisse la piloter en direct avec une configuration en
+       cours d'édition. L'aperçu du concepteur est ainsi la VRAIE page,
+       pas un rendu jumeau qu'il faudrait maintenir en double. */
+    async function paint(data, code) {
       const g = data.gallery, cfg = g.config || {}, T = tpl(g.template);
       applyBrand(data.agency);
 
@@ -736,6 +745,26 @@
           if (data) applyBrand(data);
         } catch (_) {}
       }
+      /* ── Mode APERÇU (concepteur de galerie) ────────────────
+         Aucune donnée n'est lue en base : la page attend qu'on lui
+         envoie une galerie à peindre. Elle affiche donc EXACTEMENT ce
+         que verra le client — même page, même moteur.
+         Restreint à la MÊME ORIGINE : une page tierce ne pilote rien. */
+      if (qs.get('preview') === '1') {
+        window.addEventListener('message', async (e) => {
+          if (e.origin !== location.origin) return;
+          const m = e.data;
+          if (!m || m.type !== 'laloge-preview' || !m.payload) return;
+          try {
+            if (m.payload.agency) applyBrand(m.payload.agency);
+            await paint(m.payload, 'apercu');
+          } catch (err) { console.warn('[aperçu]', err); }
+        });
+        // Le concepteur attend ce signal pour envoyer sa première version.
+        try { parent.postMessage({ type: 'laloge-preview-ready' }, location.origin); } catch (_) {}
+        return;
+      }
+
       const code = (qs.get('c') || '').trim().toLowerCase();
       if (!code) return showGate();
       const ok = await open(code);

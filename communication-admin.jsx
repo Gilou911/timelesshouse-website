@@ -3294,6 +3294,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 </Btn>
               )}
               <Btn icon={Edit3} onClick={onEdit}>Modifier</Btn>
+              {/* Concepteur : réglages à gauche, VRAIE galerie en aperçu à
+                  droite, repeinte à chaque changement. Nouvel onglet — on
+                  ne perd pas la console, et l'aperçu a toute la largeur. */}
+              {g.access_code && (
+                <Btn icon={Eye} onClick={() => window.open(`/galerie-studio.html?c=${encodeURIComponent(g.access_code)}`, '_blank', 'noopener')}>
+                  Concevoir
+                </Btn>
+              )}
               <Btn icon={Trash2} onClick={onRemove} className="text-rose-600">Supprimer</Btn>
             </div>
           </div>

@@ -56,6 +56,8 @@ export default defineConfig({
 
         // — Galerie autonome (code et lien propres, SaaS B.3 brique 13) —
         galerie:                resolve(__dirname, 'galerie.html'),
+        // Concepteur de galerie : 30 % réglages, 70 % aperçu vivant.
+        galerieStudio:          resolve(__dirname, 'galerie-studio.html'),
 
         // — Pages événement (galerie publique) —
         eventEngagement:        resolve(__dirname, 'event-engagement.html'),

@@ -134,20 +134,59 @@ function injectStyles() {
   .g-ic.fav { color: var(--accent); }
   .g-ic.fav svg { fill: var(--accent); }
 
+  /* Corps du plein écran : la scène, et la frise des autres photos —
+     COLONNE quand l'écran est en paysage, FRISE quand il est en
+     portrait (demande de Gil, référence Mathijs Hanenkamp). On garde
+     ainsi le reste de la série sous les yeux au lieu de naviguer à
+     l'aveugle entre deux flèches. */
+  .g-lb-body { flex: 1; display: flex; min-height: 0; gap: 10px; padding: 0 8px 8px; }
+
   .g-lb-stage {
-    flex: 1; position: relative; display: flex; align-items: center;
-    justify-content: center; min-height: 0; padding: 0 8px 8px;
+    flex: 1; position: relative; min-width: 0; min-height: 0; overflow: hidden;
   }
-  .g-lb-img {
+  /* Trois emplacements qui défilent ensemble : précédente, courante,
+     suivante. Un vrai glissement, pas un fondu — et le doigt tient le
+     rail pendant tout le geste. */
+  .g-lb-track { display: flex; height: 100%; will-change: transform; }
+  .g-lb-track.anim { transition: transform 0.52s cubic-bezier(0.32, 0.72, 0, 1); }
+  .g-slot {
+    flex: 0 0 100%; height: 100%; display: flex;
+    align-items: center; justify-content: center; padding: 0 6px;
+  }
+  .g-slot img {
     max-width: 100%; max-height: 100%; object-fit: contain; display: block;
-    opacity: 0; transition: opacity 0.28s ease, filter 0.28s ease;
+    transition: filter 0.28s ease;
   }
-  .g-lb-img.on { opacity: 1; }
   /* Vignette affichée le temps que la grande version arrive : un très
      léger flou dit « ce n'est pas encore la version nette » sans faire
      croire à une photo ratée. */
-  .g-lb-img.flou { filter: blur(6px); }
-  @media (prefers-reduced-motion: reduce) { .g-lb-img.flou { filter: none; } }
+  .g-slot img.flou { filter: blur(6px); }
+  @media (prefers-reduced-motion: reduce) {
+    .g-slot img.flou { filter: none; }
+    .g-lb-track.anim { transition-duration: 0.01ms; }
+  }
+
+  .g-strip { display: flex; gap: 8px; flex: 0 0 auto; scrollbar-width: thin; }
+  .g-th {
+    flex: 0 0 auto; border: none; padding: 0; background: none; cursor: pointer;
+    border-radius: 6px; overflow: hidden; opacity: 0.42;
+    outline: 2px solid transparent; outline-offset: -2px;
+    transition: opacity 0.25s ease, outline-color 0.25s ease;
+  }
+  .g-th img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .g-th.on { opacity: 1; outline-color: var(--ink); }
+  @media (hover: hover) and (pointer: fine) { .g-th:hover { opacity: 0.8; } }
+
+  @media (orientation: landscape) {
+    .g-strip { flex-direction: column; width: 88px; overflow-y: auto; overflow-x: hidden; }
+    .g-th { width: 84px; height: 60px; }
+  }
+  @media (orientation: portrait) {
+    .g-lb-body { flex-direction: column; }
+    .g-strip { flex-direction: row; height: 64px; overflow-x: auto; overflow-y: hidden;
+               padding-bottom: 2px; }
+    .g-th { width: 58px; height: 60px; }
+  }
   .g-nav {
     position: absolute; top: 50%; transform: translateY(-50%);
     width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer;
@@ -632,17 +671,34 @@ export function mountPhotos(mount, categories, opts = {}) {
          <button class="g-ic" data-el="close" aria-label="Fermer">${ICON.close}</button>
        </div>
      </div>
-     <div class="g-lb-stage" data-el="stage">
-       <button class="g-nav prev" data-el="prev" aria-label="Photo précédente">${ICON.prev}</button>
-       <img class="g-lb-img" data-el="img" alt="" />
-       <button class="g-nav next" data-el="next" aria-label="Photo suivante">${ICON.next}</button>
+     <div class="g-lb-body">
+       <div class="g-lb-stage" data-el="stage">
+         <button class="g-nav prev" data-el="prev" aria-label="Photo précédente">${ICON.prev}</button>
+         <div class="g-lb-track" data-el="track">
+           <div class="g-slot"><img alt="" /></div>
+           <div class="g-slot"><img alt="" /></div>
+           <div class="g-slot"><img alt="" /></div>
+         </div>
+         <button class="g-nav next" data-el="next" aria-label="Photo suivante">${ICON.next}</button>
+       </div>
+       <div class="g-strip" data-el="strip" role="tablist" aria-label="Autres photos"></div>
      </div>
      <div class="g-lb-count"><span data-el="i">1</span> / <span data-el="n">1</span></div>`;
   document.body.appendChild(lb);
   const $ = (n) => lb.querySelector(`[data-el="${n}"]`);
-  const lbImg = $('img'), lbStage = $('stage');
+  const lbStage = $('stage'), lbTrack = $('track'), lbStrip = $('strip');
+  const slots = [...lbTrack.querySelectorAll('.g-slot img')];   // [préc, courante, suiv]
   let lbIdx = 0, lbOpen = false;
-  const preCache = []; // cache circulaire, écrasé à chaque navigation
+  const preCache = [];
+
+  const modulo = (i) => (i % FLAT.length + FLAT.length) % FLAT.length;
+  // Le rail montre trois photos et reste centré sur celle du milieu :
+  // toute navigation est un glissement, puis un recentrage instantané.
+  const CENTRE = -100;
+  const poserRail = (pct, anime) => {
+    lbTrack.classList.toggle('anim', !!anime);
+    lbTrack.style.transform = `translate3d(${pct}%, 0, 0)`;
+  };
 
   let tFerme = null;
   function openLb(i) {
@@ -651,6 +707,7 @@ export function mountPhotos(mount, categories, opts = {}) {
     lb.classList.remove('closing');
     lb.classList.add('open');
     lockBody();
+    batirFrise();
     renderLb();
     $('close').focus();
   }
@@ -680,31 +737,35 @@ export function mountPhotos(mount, categories, opts = {}) {
      rapides écrasait celle qu'on regarde en arrivant en retard. */
   let jetonRendu = 0;
 
-  function renderLb() {
-    const p = FLAT[lbIdx];
-    if (!p) return;
+  /* Remplit UN emplacement du rail. La vignette de la grille est déjà
+     dans le cache du navigateur : elle s'affiche immédiatement, un peu
+     floutée, puis cède la place à la grande version. */
+  function poserSlot(img, p) {
+    if (!p) { img.removeAttribute('src'); return; }
     const jeton = ++jetonRendu;
-
-    /* La vignette de la grille est DÉJÀ dans le cache du navigateur : on
-       l'affiche immédiatement, légèrement floutée, puis on la remplace
-       par la grande version. Avant, on masquait l'image et on attendait
-       le téléchargement complet — mesuré à plus d'une demi-seconde
-       d'écran vide en local, bien davantage sur un téléphone en 4G.
-       Pendant ce vide on voyait la page au travers. */
-    lbImg.style.transform = '';
-    lbImg.src = GRID(p);
-    lbImg.alt = p.category || title;
-    lbImg.classList.add('on', 'flou');
-
+    img.dataset.jeton = String(jeton);
+    img.src = GRID(p);
+    img.alt = p.category || title;
+    img.classList.add('flou');
     const pic = new Image();
     pic.decoding = 'async';
     pic.onload = () => {
-      if (jeton !== jetonRendu) return;       // une autre photo a pris la main
-      lbImg.src = pic.src;
-      lbImg.classList.remove('flou');
+      if (img.dataset.jeton !== String(jeton)) return;   // emplacement réaffecté
+      img.src = pic.src;
+      img.classList.remove('flou');
     };
-    pic.onerror = () => { if (jeton === jetonRendu) lbImg.classList.remove('flou'); };
+    pic.onerror = () => { if (img.dataset.jeton === String(jeton)) img.classList.remove('flou'); };
     pic.src = VIEW(p);
+  }
+
+  function renderLb() {
+    const p = FLAT[lbIdx];
+    if (!p) return;
+
+    poserSlot(slots[0], FLAT[modulo(lbIdx - 1)]);
+    poserSlot(slots[1], p);
+    poserSlot(slots[2], FLAT[modulo(lbIdx + 1)]);
+    poserRail(CENTRE, false);
 
     $('cap').textContent = p.category || title;
     $('i').textContent = p.rangCat || (lbIdx + 1);
@@ -713,14 +774,14 @@ export function mountPhotos(mount, categories, opts = {}) {
     dl.href = FULL(p);
     dl.setAttribute('download', fileNameOf(p, lbIdx));
     syncLbFav();
+    marquerFrise();
 
-    /* Précharge des voisins. Le tableau était VIDÉ juste avant d'être
-       rempli : les images encore en vol perdaient leur dernière
-       référence et le navigateur pouvait abandonner le téléchargement —
-       le préchargement ne servait donc presque jamais. On garde une
-       courte fenêtre glissante. */
-    [lbIdx + 1, lbIdx - 1, lbIdx + 2].forEach(j => {
-      const v = FLAT[j];
+    /* Précharge un peu plus loin que les voisins immédiats, déjà tenus
+       par le rail. Le tableau était auparavant VIDÉ juste avant d'être
+       rempli : les images en vol perdaient leur dernière référence et le
+       navigateur pouvait abandonner le téléchargement. */
+    [lbIdx + 2, lbIdx - 2].forEach(j => {
+      const v = FLAT[modulo(j)];
       if (!v) return;
       const im = new Image();
       im.decoding = 'async';
@@ -729,13 +790,84 @@ export function mountPhotos(mount, categories, opts = {}) {
     });
     while (preCache.length > 6) preCache.shift();
   }
+
   function syncLbFav() {
     const p = FLAT[lbIdx];
     $('fav').classList.toggle('fav', !!p && favs.has(p.id));
   }
-  function step(d) {
-    lbIdx = (lbIdx + d + FLAT.length) % FLAT.length;
+
+  /* ── Frise des autres photos ──────────────────────────────
+     Construite au PREMIER plein écran seulement : sur une galerie de
+     plusieurs milliers de photos, la bâtir au chargement de la page
+     retarderait l'affichage de la grille pour un panneau que personne
+     n'a encore ouvert. */
+  let friseFaite = false;
+  function batirFrise() {
+    if (friseFaite) return;
+    friseFaite = true;
+    const frag = document.createDocumentFragment();
+    FLAT.forEach((p, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'g-th';
+      b.dataset.i = String(i);
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-label', `Photo ${i + 1}`);
+      b.innerHTML = `<img src="${escAttr(GRID(p))}" alt="" loading="lazy" decoding="async" />`;
+      b.addEventListener('click', () => allerA(i));
+      frag.appendChild(b);
+    });
+    lbStrip.appendChild(frag);
+  }
+  function marquerFrise() {
+    const actif = lbStrip.querySelector('.g-th.on');
+    if (actif) { actif.classList.remove('on'); actif.setAttribute('aria-selected', 'false'); }
+    const b = lbStrip.children[lbIdx];
+    if (!b) return;
+    b.classList.add('on');
+    b.setAttribute('aria-selected', 'true');
+    // La vignette courante doit rester sous les yeux quand on avance.
+    b.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }
+
+  /* Saut direct depuis la frise : pas de glissement (on peut sauter de
+     la 2e à la 400e), on repose le rail sur la nouvelle photo. */
+  function allerA(i) {
+    lbIdx = modulo(i);
     renderLb();
+  }
+
+  /* Glissement d'une photo : le rail va jusqu'au voisin, PUIS on
+     recentre sans animation en réaffectant les trois emplacements.
+     C'est ce recentrage invisible qui permet d'enchaîner indéfiniment. */
+  let enCoursDeGlisse = false;
+  /* Clics pressés mis en attente. Sans cela, cinq appuis rapides sur la
+     flèche n'avançaient que d'UNE photo : tous ceux tombés pendant le
+     glissement étaient perdus, et la visionneuse paraissait sourde.
+     Plafonné à 3 : au-delà, une rafale ferait défiler la galerie sans
+     qu'on voie rien passer. */
+  let enAttente = 0;
+  function step(d) {
+    if (!d) return;
+    if (enCoursDeGlisse) {
+      if (Math.abs(enAttente + d) <= 3) enAttente += d;
+      return;
+    }
+    enCoursDeGlisse = true;
+    poserRail(CENTRE - d * 100, true);
+    const fin = () => {
+      lbTrack.removeEventListener('transitionend', fin);
+      clearTimeout(secours);
+      lbIdx = modulo(lbIdx + d);
+      enCoursDeGlisse = false;
+      renderLb();
+      if (enAttente) { const suite = Math.sign(enAttente); enAttente -= suite; step(suite); }
+    };
+    // Filet : transitionend ne se déclenche pas si l'onglet passe à
+    // l'arrière-plan pendant l'animation — la visionneuse resterait
+    // bloquée entre deux photos.
+    const secours = setTimeout(fin, 700);
+    lbTrack.addEventListener('transitionend', fin);
   }
 
   $('close').addEventListener('click', closeLb);
@@ -767,9 +899,10 @@ export function mountPhotos(mount, categories, opts = {}) {
   let sx = 0, sy = 0, st = 0, sdx = 0, sdy = 0, swDir = null;
   lbStage.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) return;
+    if (enCoursDeGlisse) return;
     sx = e.touches[0].clientX; sy = e.touches[0].clientY;
-    st = Date.now(); sdx = 0; swDir = null;
-    lbImg.style.transition = 'none';
+    st = Date.now(); sdx = 0; sdy = 0; swDir = null;
+    lbTrack.classList.remove('anim');       // le doigt tient le rail
   }, { passive: true });
   lbStage.addEventListener('touchmove', (e) => {
     if (e.touches.length !== 1) return;
@@ -780,7 +913,9 @@ export function mountPhotos(mount, categories, opts = {}) {
     }
     if (swDir === 'h') {
       sdx = dx;
-      lbImg.style.transform = `translateX(${dx}px)`;
+      // Le rail suit le doigt au pixel : la photo voisine entre déjà
+      // dans le champ, comme sur un téléphone.
+      lbTrack.style.transform = `translate3d(calc(${CENTRE}% + ${dx}px), 0, 0)`;
       return;
     }
     /* Glisser vers le BAS pour fermer : le geste attendu par tout le
@@ -791,23 +926,25 @@ export function mountPhotos(mount, categories, opts = {}) {
        surprise si on le relâche à mi-chemin. */
     if (dy > 0) {
       sdy = dy;
-      lbImg.style.transform = `translateY(${dy}px)`;
+      lbTrack.style.transform = `translate3d(${CENTRE}%, ${dy}px, 0)`;
       lb.style.opacity = String(Math.max(0.35, 1 - dy / (window.innerHeight * 0.6)));
     }
   }, { passive: true });
   lbStage.addEventListener('touchend', () => {
-    lbImg.style.transition = '';
     if (swDir === 'h') {
       const vel = Math.abs(sdx) / Math.max(Date.now() - st, 1);
-      if (Math.abs(sdx) > window.innerWidth * SW_RATIO || vel > SW_VEL) step(sdx < 0 ? 1 : -1);
-      else lbImg.style.transform = '';
+      if (Math.abs(sdx) > lbStage.clientWidth * SW_RATIO || vel > SW_VEL) {
+        step(sdx < 0 ? 1 : -1);
+      } else {
+        poserRail(CENTRE, true);      // retour en place, en douceur
+      }
     } else if (swDir === 'v' && sdy > 0) {
       const vel = sdy / Math.max(Date.now() - st, 1);
       if (sdy > window.innerHeight * SW_FERME || vel > SW_VEL) {
         lb.style.opacity = '';
         closeLb();
       } else {
-        lbImg.style.transform = '';
+        poserRail(CENTRE, true);
         lb.style.opacity = '';
       }
     }

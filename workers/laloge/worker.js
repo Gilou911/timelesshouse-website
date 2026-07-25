@@ -48,6 +48,9 @@ const DEFAULT_ICONS = [
  *  d'un autre studio (trouvé par Gil, 22/07/2026). */
 const PAGES_LOGE = new Set([
   "app", "galerie",
+  // Concepteur de galerie : outil de la console, ouvert dans un onglet
+  // depuis le bouton « Concevoir » d'une galerie.
+  "galerie-studio",
   "communication-dashboard", "communication-admin",
   "event-photos", "event-photos-cinematic", "event-video",
   "event-engagement", "event-anniversary",

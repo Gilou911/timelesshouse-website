@@ -140,6 +140,17 @@ for (const p of pagesDuDepot) {
     soucis.push(`${p}.html est construite avec le produit mais classée « studio » dans worker.js — elle serait servie puis redirigée.`);
   } else if (dansStudio && cotéProduit.has(p)) {
     soucis.push(`${p}.html est construite avec le studio mais classée « La Loge » dans worker.js.`);
+  } else if (dansProduit && !cotéProduit.has(p)) {
+    // ANGLE MORT COMBLÉ (25/07/2026) : le test exigeait qu'une page soit
+    // dans un build et qu'elle ne soit pas MAL classée — jamais qu'elle
+    // soit classée TOUT COURT. Une page neuve du produit absente des
+    // listes du portier était donc servie… puis redirigée vers l'accueil,
+    // sans que rien ne signale la cause. C'est arrivé à galerie-studio :
+    // exactement la crainte notée plus haut dans worker.js.
+    soucis.push(`${p}.html est construite avec le produit mais n'est dans AUCUNE liste de worker.js — elle serait servie puis redirigée vers l'accueil.` +
+      `\n        → ajoutez-la à PAGES_LOGE, PAGES_VITRINE ou PAGES_PARTOUT`);
+  } else if (dansStudio && !portee.PAGES_TIMELESSHOUSE.has(p)) {
+    soucis.push(`${p}.html est construite avec le studio mais absente de PAGES_TIMELESSHOUSE — le rangement n'est plus exhaustif.`);
   }
 }
 

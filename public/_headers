@@ -45,3 +45,33 @@
   # (un verrouillage complet de script-src demanderait de retirer les CDN
   #  et les scripts inline — chantier séparé.)
   Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+
+# ── Exception CIBLÉE : la galerie doit pouvoir s'afficher dans le
+#    concepteur (galerie-studio), qui la montre en aperçu vivant.
+#    `frame-ancestors 'none'` bloquait l'iframe SANS la moindre erreur
+#    visible — l'aperçu restait noir, sans rien dans la console.
+#
+#    On desserre au strict minimum : 'self' autorise NOS pages et elles
+#    seules ; tout site tiers reste refusé, la protection contre le
+#    détournement de clic est donc conservée hors de chez nous. Le
+#    risque résiduel est faible : la galerie n'expose aucune action
+#    destructrice à détourner (lecture, favoris, téléchargement).
+#
+#    ⚠️ Ces règles REMPLACENT celles de /* pour ce chemin (Cloudflare ne
+#    fusionne pas) : les autres en-têtes de sécurité sont donc répétés,
+#    sinon la galerie les perdrait tous.
+/galerie
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'self'
+
+/galerie.html
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'self'

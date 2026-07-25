@@ -471,7 +471,9 @@
       if (e.origin !== location.origin) return;
       if (e.data && e.data.type === 'laloge-preview-ready') { pretApercu = true; pousser(); }
     });
-    el('apercu').src = '/galerie.html?preview=1';
+    // Sans extension : /galerie.html répond 308 vers /galerie — autant
+    // charger la bonne adresse du premier coup.
+    el('apercu').src = '/galerie?preview=1';
 
     rendre();
   })();

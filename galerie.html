@@ -158,6 +158,38 @@
     }
     .btn:active { transform: scale(0.96); }
     .btn[disabled] { opacity: 0.5; }
+    /* ── Bascule entre les deux pages d'une galerie « photos + film » ──
+       Modèle TimelessHouse : la galerie et le film sont deux PAGES, et
+       chacune porte un bouton vers l'autre (masqué quand l'autre
+       n'existe pas). Ici la pastille est TOUJOURS visible, et non
+       révélée au défilement comme sur timelesshouse.org : c'est le seul
+       chemin vers l'autre page, un client ne doit pas avoir à deviner
+       qu'il faut faire défiler pour la trouver.
+       Chiffres alignés sur l'audit HIG : cible 44 px, libellé 12 px. */
+    .pagebar {
+      position: fixed; z-index: 60;
+      top: max(14px, env(safe-area-inset-top));
+      right: max(14px, env(safe-area-inset-right));
+    }
+    .pgbtn {
+      display: inline-flex; align-items: center; gap: 9px;
+      min-height: 44px; padding: 0 18px; border-radius: 999px;
+      text-decoration: none; white-space: nowrap;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--ink);
+      background: color-mix(in srgb, var(--bg) 72%, transparent);
+      border: 1px solid var(--line);
+      -webkit-backdrop-filter: saturate(180%) blur(18px);
+      backdrop-filter: saturate(180%) blur(18px);
+      transition: transform 0.16s ease, background 0.3s ease, border-color 0.3s ease;
+    }
+    .pgbtn svg { width: 16px; height: 16px; stroke-width: 1.7; flex: none; }
+    .pgbtn:active { transform: scale(0.96); }
+    @media (hover: hover) and (pointer: fine) {
+      .pgbtn:hover { background: var(--bg); border-color: var(--accent); }
+    }
+    @media (prefers-reduced-motion: reduce) { .pgbtn { transition: none; } }
+
     .err { display: none; font-size: 13px; color: #e0736f; margin-top: 14px; line-height: 1.5; }
     .err.on { display: block; }
     .gate footer { font-size: 12.5px; color: var(--faint); text-align: center; line-height: 1.9; }
@@ -460,6 +492,11 @@
 
   <!-- ── Galerie ── -->
   <div class="view" id="view">
+    <!-- Bascule galerie ↔ film : n'apparaît que sur une galerie qui
+         contient les deux (voir .pagebar dans la feuille de style). -->
+    <nav class="pagebar" id="pagebar" hidden>
+      <a class="pgbtn" id="pgSwitch" href="#"><span id="pgIcon"></span><span id="pgLabel"></span></a>
+    </nav>
     <!-- Couverture — 5 dispositions (remplie selon config.coverMode) -->
     <section class="cover" id="cover" hidden>
       <div class="cover-bg" id="coverBg" aria-hidden="true"></div>
@@ -622,12 +659,33 @@
       if (cph) { cph.classList.remove('on'); cph.removeAttribute('src'); }
       const hPh = el('photos'); if (hPh) hPh.innerHTML = '';
       const hVi = el('videos'); if (hVi) hVi.innerHTML = '';
+      el('pagebar').hidden = true;
+      el('cover').hidden = true;
+      /* L'en-tête est masqué quand une couverture prend sa place. Sans ce
+         retour à l'état neutre, passer de la galerie (couverture) au film
+         laissait la page du film SANS titre. */
+      el('view').querySelector('.head').style.display = '';
 
       const g = data.gallery, cfg = g.config || {}, T = tpl(g.template);
       applyBrand(data.agency);
+      derniereCharge = { data, code };   // pour le bouton Retour
 
       const kind = g.kind || 'photos';
-      const heading = kind === 'video' ? T.video : T.photos;
+
+      /* ── Deux pages, pas une page qui défile ─────────────────
+         Une galerie « photos + film » est servie comme sur
+         timelesshouse.org : la galerie et le film sont deux PAGES
+         distinctes, reliées par un bouton. `vueKind` est le contenu de
+         la page COURANTE — en dessous, plus personne n'a à connaître
+         « mixte », chaque page se rend comme une galerie simple.
+         La vue vient de l'URL (donc partageable, rechargeable, et le
+         bouton Retour du navigateur fonctionne) ; en aperçu, elle vient
+         du concepteur. */
+      const deux = kind === 'mixte';
+      const vue = deux ? (vueDemandee(data) === 'film' ? 'film' : 'photos') : null;
+      const vueKind = deux ? (vue === 'film' ? 'video' : 'photos') : kind;
+
+      const heading = vueKind === 'video' ? T.video : T.photos;
       document.title = `${g.title} — ${(data.agency && data.agency.name) || 'La Loge'}`;
       el('vKicker').textContent = T.kicker;
       el('vTitle').textContent = g.title || heading;
@@ -691,7 +749,7 @@
       const MODES = ['fill', 'fit', 'split', 'editorial', 'portrait'];
       const coverMode = MODES.includes(cfg.coverMode) ? cfg.coverMode
         : (cfg.style === 'cinematic' ? 'fill' : null);
-      const hasPhotos = kind === 'photos' || kind === 'mixte';
+      const hasPhotos = vueKind === 'photos';
       const flatPhotos = (data.photos || []).flatMap(c => (c && c.photos) || []);
       const cover = flatPhotos.find(p => String(p.id) === String(cfg.cover)) || flatPhotos[0];
       if (coverMode && hasPhotos && cover) {
@@ -740,15 +798,15 @@
       el('view').classList.add('on');
       document.body.classList.add('ready');
 
-      // Vidéos — 'video' et 'mixte'
-      if (kind === 'video' || kind === 'mixte') {
+      // Vidéos — page « film »
+      if (vueKind === 'video') {
         const vids = normalizeVideos(cfg);
-        if (vids.length) await mountVideos(el('videos'), vids, { forceTitles: kind === 'mixte' });
+        if (vids.length) await mountVideos(el('videos'), vids, { forceTitles: deux });
       }
-      // Photos — 'photos' et 'mixte'.
+      // Photos — page « galerie ».
       // Mode galerie : 'flat' fusionne toutes les catégories en une seule
       // (tout mélangé, sans têtes de section) ; 'categorized' les garde.
-      if (kind === 'photos' || kind === 'mixte') {
+      if (vueKind === 'photos') {
         let cats = data.photos || [];
         if ((cfg.galleryMode || 'categorized') === 'flat' && cats.length > 1) {
           cats = [{ category: '', photos: flatPhotos }];
@@ -756,24 +814,67 @@
         mountPhotos(el('photos'), cats, { favKey: code, title: g.title });
       }
 
-      /* Le concepteur commande AUSSI la vue : basculer sur « Vidéo » doit
-         montrer les films, pas laisser l'aperçu en haut de la galerie
-         photos (le sélecteur paraissait inerte).
-         Le positionnement se fait ICI, à la FIN de la peinture, et non sur
-         un message séparé : les sections viennent d'être reconstruites,
-         viser avant relançait une course perdue d'avance.
-         Saut IMMÉDIAT : dans une iframe (et sous « animations réduites »),
-         le défilement fluide ne se produit pas du tout — mesuré. */
-      if (data.voir) {
-        const cible = data.voir === 'video' ? el('videos') : el('photos');
-        if (cible && cible.getBoundingClientRect().height > 0) {
-          cible.scrollIntoView({ behavior: 'auto', block: 'start' });
-        } else {
-          window.scrollTo(0, 0);   // section vide : on ne saute pas dans le vide
-        }
+      /* ── Le bouton vers l'AUTRE page ──────────────────────────
+         Il n'existe que si l'autre page existe : sur une galerie
+         seulement photos ou seulement film, il n'y a nulle part où
+         aller et la pastille reste absente (même règle que les pages
+         event-* de timelesshouse.org). */
+      if (deux) {
+        const versFilm = vue === 'photos';
+        el('pgIcon').innerHTML = versFilm
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
+        /* Libellés COURTS et fixes, pas les titres de gabarit : « Votre
+           galerie de mariage » ferait une pastille de ~260 px, soit les
+           deux tiers d'un écran de téléphone. TimelessHouse dit « Le
+           Film » / « Voir la Galerie Photos » — même esprit, et deux
+           mots qu'un enfant comprend. */
+        el('pgLabel').textContent = versFilm ? 'Le film' : 'Les photos';
+        const lien = el('pgSwitch');
+        // Une vraie URL : partageable, ouvrable dans un nouvel onglet,
+        // et le bouton Retour du navigateur ramène à l'autre page.
+        lien.href = code && code !== 'apercu'
+          ? `?c=${encodeURIComponent(code)}${versFilm ? '&vue=film' : ''}`
+          : '#';
+        lien.onclick = (e) => {
+          e.preventDefault();
+          allerA(versFilm ? 'film' : 'photos', data, code);
+        };
+        el('pagebar').hidden = false;
       }
+
+      /* Changement de page = on repart du haut. Uniquement quand la vue
+         CHANGE : le concepteur rejoue paint() à chaque réglage, et
+         remonter à chaque frappe rendrait l'aperçu inutilisable. */
+      if (vue !== vuePeinte) { window.scrollTo(0, 0); vuePeinte = vue; }
       return true;
     }
+
+    /* Vue courante : l'URL fait foi pour un vrai client ; en aperçu,
+       c'est le concepteur qui la porte dans sa charge utile. */
+    let vuePeinte = null;
+    function vueDemandee(data) {
+      if (data && data.vue) return data.vue;
+      return (new URLSearchParams(location.search).get('vue') || 'photos');
+    }
+
+    /* Bascule d'une page à l'autre. On ne recharge rien : les données
+       sont déjà là, on repeint. L'URL suit, donc le Retour du
+       navigateur fonctionne (une URL par vue). */
+    let derniereCharge = null;
+    function allerA(vue, data, code) {
+      if (code && code !== 'apercu') {
+        const url = `?c=${encodeURIComponent(code)}${vue === 'film' ? '&vue=film' : ''}`;
+        history.pushState({ vue }, '', url);
+      }
+      paint({ ...data, vue }, code);
+    }
+
+    window.addEventListener('popstate', () => {
+      if (!derniereCharge) return;
+      const vue = new URLSearchParams(location.search).get('vue') || 'photos';
+      paint({ ...derniereCharge.data, vue }, derniereCharge.code);
+    });
 
     /* ── Démarrage ───────────────────────────────────────────── */
     (async () => {

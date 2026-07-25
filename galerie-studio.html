@@ -456,10 +456,11 @@
      écoutait — sinon le premier envoi tomberait dans le vide. */
   function pousser() {
     if (!pretApercu || !draft) return;
-    // `voir` voyage AVEC la galerie : l'aperçu se positionne à la fin de
-    // sa peinture, quand les sections existent. Un message de défilement
-    // séparé arrivait pendant la reconstruction — course perdue.
-    const charge = { ...draft, voir: volet };
+    /* `vue` voyage AVEC la galerie. Depuis que la galerie et le film
+       sont deux PAGES, le rail ne fait plus défiler l'aperçu : il
+       change la page affichée. Le concepteur montre donc exactement
+       ce que verra le client en cliquant sur la pastille. */
+    const charge = { ...draft, vue: volet === 'video' ? 'film' : 'photos' };
     el('apercu').contentWindow.postMessage(
       { type:'laloge-preview', payload: charge }, location.origin);
   }

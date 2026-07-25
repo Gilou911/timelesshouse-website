@@ -89,6 +89,40 @@
   .pastille i { position:absolute; inset:0 0 0 50%; }
   .palettes .nom { font-size:10.5px; font-weight:700; }
 
+  /* Champs texte — 16 px minimum, sinon iOS zoome à la mise au point. */
+  .champ {
+    width:100%; min-height:48px; padding:0 18px; border:none; border-radius:999px;
+    background:var(--pressed); color:var(--ink); font-size:16px; font-family:inherit; outline:none;
+    box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+  }
+  .champ.petit { min-height:42px; font-size:14px; padding:0 15px; }
+
+  .perso { display:flex; gap:10px; }
+  .perso label { flex:1; font-size:11.5px; color:var(--muted); font-weight:600; display:flex; flex-direction:column; gap:6px; }
+  .perso input[type="color"] {
+    width:100%; height:42px; border:none; border-radius:12px; background:none; cursor:pointer; padding:0;
+  }
+
+  /* Couverture : on choisit une VIGNETTE, pas un nom de fichier. */
+  .couvs { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
+  .couvs button {
+    border:none; padding:0; cursor:pointer; aspect-ratio:1; border-radius:10px; overflow:hidden;
+    background:var(--pressed); position:relative; transition: transform .16s var(--ease-out);
+  }
+  .couvs button:active { transform:scale(.96); }
+  .couvs img { width:100%; height:100%; object-fit:cover; display:block; }
+  .couvs button[aria-pressed="true"] { outline:3px solid var(--ink); outline-offset:-3px; }
+
+  .video-item {
+    background:var(--pressed); border-radius:16px; padding:12px; margin-top:8px;
+    box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+    display:grid; gap:7px;
+  }
+  .video-item .sup {
+    justify-self:end; border:none; background:none; cursor:pointer; font-family:inherit;
+    font-size:11.5px; font-weight:700; color:#b3261e; min-height:36px; padding:0 6px;
+  }
+
   /* ── Photos & catégories ── */
   .cats { display:flex; flex-wrap:wrap; gap:8px; }
   .cats button {
@@ -153,6 +187,16 @@
       <h1 class="serif" id="titre">Votre galerie</h1>
       <div class="sous" id="sous">Chargement…</div>
 
+      <div class="bloc">
+        <div class="titre">Titre de la galerie</div>
+        <input id="titre-champ" class="champ" maxlength="120" placeholder="Galerie — Emma &amp; Jules" />
+      </div>
+
+      <div class="bloc">
+        <div class="titre">Contenu</div>
+        <div class="choix" id="kinds"></div>
+      </div>
+
       <div class="bloc" id="bloc-type">
         <div class="titre">Type d'événement</div>
         <div class="choix" id="types"></div>
@@ -173,9 +217,24 @@
         <div class="choix" id="mode"></div>
       </div>
 
+      <div class="bloc" id="bloc-perso" hidden>
+        <div class="titre">Couleurs sur mesure</div>
+        <div class="perso">
+          <label>Fond<input type="color" id="perso-bg" /></label>
+          <label>Accent<input type="color" id="perso-ac" /></label>
+        </div>
+        <div class="choix" id="perso-mode" style="margin-top:8px"></div>
+      </div>
+
+      <div class="bloc" id="bloc-couv" hidden>
+        <div class="titre">Photo de couverture</div>
+        <div class="couvs" id="couvs"></div>
+      </div>
+
       <div class="bloc" id="bloc-video" hidden>
-        <div class="titre">Lecteur vidéo</div>
-        <div class="choix" id="video"></div>
+        <div class="titre">Vidéos</div>
+        <div id="videos"></div>
+        <button type="button" class="depot" id="addvideo" style="margin-top:10px">Ajouter une vidéo</button>
       </div>
 
       <div class="bloc" id="bloc-upload" hidden>
@@ -240,10 +299,11 @@
     { id:'categorized', l:'Par catégories', d:'Préparatifs, cérémonie…' },
     { id:'flat',        l:'Tout mélangé',   d:'Une seule suite de photos' },
   ];
-  const VIDEOS = [
-    { id:'film',   l:'Film seul' },
-    { id:'teaser', l:'Teaser seul' },
-    { id:'deux',   l:'Film + teaser' },
+  const KINDS = [
+    { id:'photos', l:'Photos' }, { id:'video', l:'Film' }, { id:'mixte', l:'Photos + film' },
+  ];
+  const PERSO_MODES = [
+    { id:'dark', l:'Fond sombre' }, { id:'light', l:'Fond clair' },
   ];
 
   let base = null;      // charge renvoyée par la RPC (forme exacte de la vraie page)
@@ -285,7 +345,9 @@
   function palettes(actif) {
     const hote = el('palettes');
     hote.innerHTML = '';
-    PALETTES.forEach((p) => {
+    // « Sur mesure » en plus des 12 préréglages — l'éditeur qu'on remplace
+    // le proposait, on ne perd rien au passage.
+    [...PALETTES, { id:'custom', l:'Sur mesure', bg:'#1a1714', ac:'#b08968' }].forEach((p) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.setAttribute('aria-pressed', String(p.id === actif));
@@ -296,11 +358,84 @@
     });
   }
 
+  /* ── Vidéos ───────────────────────────────────────────────
+     Modèle `config.videos[]` — le SEUL que lit la galerie
+     (normalizeVideos le prend en priorité). Une première version de cet
+     écran proposait un choix « film / teaser » : il écrivait des clés
+     héritées que la galerie ignore dès qu'une liste existe. Corrigé. */
+  function rendreVideos() {
+    const hote = el('videos');
+    const list = draft.gallery.config.videos || [];
+    hote.innerHTML = '';
+    list.forEach((v, i) => {
+      const d = document.createElement('div');
+      d.className = 'video-item';
+      d.innerHTML = `
+        <input class="champ petit" data-k="title" placeholder="Titre (Le Film…)" value="${(v.title || '').replace(/"/g, '&quot;')}" />
+        <input class="champ petit" data-k="url" placeholder="Lien de la vidéo (mp4)" value="${((v.urls && (v.urls['1080p'] || v.urls['4K'])) || '').replace(/"/g, '&quot;')}" />
+        <input class="champ petit" data-k="downloadUrl" placeholder="Lien de téléchargement (facultatif)" value="${(v.downloadUrl || '').replace(/"/g, '&quot;')}" />
+        <button type="button" class="sup">Retirer</button>`;
+      d.querySelectorAll('input').forEach((inp) => {
+        inp.addEventListener('input', () => {
+          const k = inp.getAttribute('data-k');
+          if (k === 'url') v.urls = { ...(v.urls || {}), '1080p': inp.value.trim() };
+          else v[k] = inp.value;
+          pousser();               // l'aperçu suit la frappe, sans re-rendre le panneau
+        });
+      });
+      d.querySelector('.sup').addEventListener('click', () => {
+        draft.gallery.config.videos = list.filter((_, j) => j !== i);
+        rendre();
+      });
+      hote.appendChild(d);
+    });
+  }
+
+  el('addvideo').addEventListener('click', () => {
+    const cfg = draft.gallery.config;
+    cfg.videos = [...(cfg.videos || []), { key: `v${(cfg.videos || []).length + 1}`, title: '', urls: {}, downloadUrl: '' }];
+    rendre();
+  });
+
+  /* ── Couverture ───────────────────────────────────────────
+     Les vignettes viennent d'une requête AUTHENTIFIÉE (la RPC publique
+     ne livre pas url_grid par photo hors catégories) — sans session, le
+     bloc reste simplement masqué. */
+  let photosCouv = [];
+  async function chargerCouvertures() {
+    if (!edition) return;
+    const { data } = await sb.from('gallery_photos')
+      .select('id, url_grid').eq('gallery_id', edition.gallery.id)
+      .order('position').limit(24);
+    photosCouv = data || [];
+  }
+  function rendreCouvertures() {
+    const bloc = el('bloc-couv');
+    bloc.hidden = !photosCouv.length;
+    if (!photosCouv.length) return;
+    const cfg = draft.gallery.config;
+    const hote = el('couvs');
+    hote.innerHTML = '';
+    photosCouv.forEach((p) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(cfg.cover === p.url_grid));
+      b.setAttribute('aria-label', 'Choisir comme couverture');
+      b.innerHTML = `<img src="${p.url_grid}" alt="" loading="lazy" />`;
+      b.addEventListener('click', () => {
+        cfg.cover = (cfg.cover === p.url_grid) ? '' : p.url_grid;
+        rendre();
+      });
+      hote.appendChild(b);
+    });
+  }
+
   function rendre() {
     const g = draft.gallery, cfg = g.config;
     const aPhotos = g.kind === 'photos' || g.kind === 'mixte';
     const aVideo  = g.kind === 'video'  || g.kind === 'mixte';
 
+    boutons(el('kinds'), KINDS, g.kind || 'photos', (v) => { draft.gallery.kind = v; rendre(); });
     boutons(el('types'), TYPES, g.template, (v) => { draft.gallery.template = v; rendre(); });
     palettes(cfg.palette || 'noir');
 
@@ -312,20 +447,36 @@
       boutons(el('couverture'), COUVERTURES, cfg.coverMode || 'fill', (v) => { cfg.coverMode = v; rendre(); });
       boutons(el('mode'), MODES, cfg.galleryMode || 'categorized', (v) => { cfg.galleryMode = v; rendre(); });
     }
-    if (aVideo) {
-      const actif = (cfg.afficherFilm !== false && cfg.afficherTeaser === true) ? 'deux'
-                  : (cfg.afficherTeaser === true ? 'teaser' : 'film');
-      boutons(el('video'), VIDEOS, actif, (v) => {
-        cfg.afficherFilm   = (v !== 'teaser');
-        cfg.afficherTeaser = (v === 'teaser' || v === 'deux');
-        rendre();
-      });
+    if (aVideo) rendreVideos();
+
+    // Couleurs sur mesure : seulement quand la palette l'est.
+    const perso = cfg.palette === 'custom';
+    el('bloc-perso').hidden = !perso;
+    if (perso) {
+      el('perso-bg').value = cfg.customBg || '#1a1714';
+      el('perso-ac').value = cfg.customAccent || '#b08968';
+      boutons(el('perso-mode'), PERSO_MODES, cfg.customMode || 'dark', (v) => { cfg.customMode = v; rendre(); });
     }
 
     el('bloc-upload').hidden = !aPhotos;
-    if (aPhotos) rendreCats();
+    if (aPhotos) { rendreCats(); rendreCouvertures(); }
+    else el('bloc-couv').hidden = true;
     pousser();
   }
+
+  ['perso-bg', 'perso-ac'].forEach((id) => {
+    el(id).addEventListener('input', () => {
+      const cfg = draft.gallery.config;
+      cfg.customBg     = el('perso-bg').value;
+      cfg.customAccent = el('perso-ac').value;
+      pousser();                 // suit le curseur sans re-rendre le panneau
+    });
+  });
+
+  el('titre-champ').addEventListener('input', () => {
+    draft.gallery.title = el('titre-champ').value;
+    pousser();
+  });
 
   /* ── Photos par catégorie ─────────────────────────────────── */
   const etatUp = (msg, cls) => { const e = el('etat-upload'); e.textContent = msg || ''; e.className = 'etat' + (cls ? ' ' + cls : ''); };
@@ -422,9 +573,17 @@
   }
 
   el('save').addEventListener('click', async () => {
+    if (!edition) { etat('Connectez-vous à votre console pour enregistrer.', 'ko'); return; }
     etat('Enregistrement…');
+    // Le titre et le contenu font partie de la galerie, pas de sa config :
+    // cet écran remplace l'ancienne fenêtre d'édition, il enregistre donc tout.
     const { error } = await sb.from('galleries')
-      .update({ template: draft.gallery.template, config: draft.gallery.config })
+      .update({
+        title: (draft.gallery.title || '').trim() || 'Galerie',
+        kind: draft.gallery.kind,
+        template: draft.gallery.template,
+        config: draft.gallery.config,
+      })
       .eq('id', draft.gallery.id);
     etat(error ? `Échec : ${error.message}` : 'Galerie enregistrée.', error ? 'ko' : 'ok');
   });
@@ -446,9 +605,8 @@
     draft.gallery.config = draft.gallery.config || {};
 
     el('titre').textContent = draft.gallery.title || 'Votre galerie';
-    const k = draft.gallery.kind || 'photos';
-    el('sous').textContent = k === 'video' ? 'Galerie vidéo'
-      : k === 'mixte' ? 'Photos + film' : 'Galerie photos';
+    el('titre-champ').value = draft.gallery.title || '';
+    el('sous').textContent = (draft.client && draft.client.name) ? draft.client.name : 'Galerie';
 
     // Édition : gallery.id + client (id, code) par requêtes authentifiées.
     // Sans session ou hors RLS, `edition` reste nul → dépôt fermé,
@@ -465,6 +623,7 @@
         }
       }
     } catch (_) { edition = null; }
+    await chargerCouvertures();
 
     // L'enfant annonce qu'il écoute ; alors seulement on peint.
     window.addEventListener('message', (e) => {

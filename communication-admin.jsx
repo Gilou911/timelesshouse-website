@@ -3242,14 +3242,18 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   {open ? 'Replier' : 'Photos'}
                 </Btn>
               )}
-              <Btn icon={Edit3} onClick={onEdit}>Modifier</Btn>
-              {/* Concepteur : réglages à gauche, VRAIE galerie en aperçu à
-                  droite, repeinte à chaque changement. Nouvel onglet — on
-                  ne perd pas la console, et l'aperçu a toute la largeur. */}
-              {g.access_code && (
-                <Btn icon={Eye} onClick={() => window.open(`/galerie-studio.html?c=${encodeURIComponent(g.access_code)}`, '_blank', 'noopener')}>
+              {/* Le concepteur REMPLACE l'ancienne fenêtre d'édition (choix de
+                  Gil, 25/07/2026) : mêmes réglages, plus l'aperçu vivant et le
+                  dépôt des photos — au lieu de régler à l'aveugle dans une
+                  modale. Nouvel onglet : la console reste ouverte derrière.
+                  Repli sur l'ancienne fenêtre si la galerie n'a pas encore de
+                  code de partage (le concepteur s'ouvre par ce code). */}
+              {g.access_code ? (
+                <Btn icon={Edit3} onClick={() => window.open(`/galerie-studio?c=${encodeURIComponent(g.access_code)}`, '_blank', 'noopener')}>
                   Concevoir
                 </Btn>
+              ) : (
+                <Btn icon={Edit3} onClick={onEdit}>Modifier</Btn>
               )}
               <Btn icon={Trash2} onClick={onRemove} className="text-rose-600">Supprimer</Btn>
             </div>

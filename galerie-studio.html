@@ -133,6 +133,12 @@
     box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
     display:grid; gap:7px;
   }
+  .vide-film {
+    background:var(--pressed); border-radius:16px; padding:14px;
+    box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+    font-size:12px; color:var(--muted); line-height:1.6;
+  }
+  .vide-film strong { display:block; color:var(--ink); font-size:13px; margin-bottom:4px; }
   .video-item .v-etat { font-size:11.5px; }
   .video-item .v-ok { color:#3a7350; font-weight:700; }
   .video-item .v-attente { color:var(--muted); }
@@ -377,8 +383,12 @@
      écoutait — sinon le premier envoi tomberait dans le vide. */
   function pousser() {
     if (!pretApercu || !draft) return;
+    // `voir` voyage AVEC la galerie : l'aperçu se positionne à la fin de
+    // sa peinture, quand les sections existent. Un message de défilement
+    // séparé arrivait pendant la reconstruction — course perdue.
+    const charge = { ...draft, voir: volet };
     el('apercu').contentWindow.postMessage(
-      { type:'laloge-preview', payload: draft }, location.origin);
+      { type:'laloge-preview', payload: charge }, location.origin);
   }
 
   function boutons(hote, liste, actif, onPick) {
@@ -427,9 +437,14 @@
     hote.innerHTML = '';
 
     if (!list.length) {
+      // État vide EXPLICITE : l'aperçu est fidèle — sans film, la galerie
+      // n'affiche rien — mais il ne l'explique pas. Le dire ici évite de
+      // croire que l'aperçu est cassé (retour de Gil).
       const vide = document.createElement('div');
-      vide.className = 'metier-hint';
-      vide.textContent = "Aucun film pour l'instant.";
+      vide.className = 'vide-film';
+      vide.innerHTML = `<strong>Aucun film dans cette galerie.</strong>
+        L'aperçu reste donc vide — c'est exactement ce que verrait votre client.
+        Ajoutez une vidéo, puis déposez le fichier.`;
       hote.appendChild(vide);
     }
 
@@ -592,7 +607,7 @@
     const b = e.target.closest('button[data-volet]');
     if (!b) return;
     volet = b.getAttribute('data-volet');
-    rendre();
+    rendre();          // `pousser()` embarque `voir` : l'aperçu se place seul
   });
 
   ['perso-bg', 'perso-ac'].forEach((id) => {

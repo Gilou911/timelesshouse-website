@@ -755,6 +755,23 @@
         }
         mountPhotos(el('photos'), cats, { favKey: code, title: g.title });
       }
+
+      /* Le concepteur commande AUSSI la vue : basculer sur « Vidéo » doit
+         montrer les films, pas laisser l'aperçu en haut de la galerie
+         photos (le sélecteur paraissait inerte).
+         Le positionnement se fait ICI, à la FIN de la peinture, et non sur
+         un message séparé : les sections viennent d'être reconstruites,
+         viser avant relançait une course perdue d'avance.
+         Saut IMMÉDIAT : dans une iframe (et sous « animations réduites »),
+         le défilement fluide ne se produit pas du tout — mesuré. */
+      if (data.voir) {
+        const cible = data.voir === 'video' ? el('videos') : el('photos');
+        if (cible && cible.getBoundingClientRect().height > 0) {
+          cible.scrollIntoView({ behavior: 'auto', block: 'start' });
+        } else {
+          window.scrollTo(0, 0);   // section vide : on ne saute pas dans le vide
+        }
+      }
       return true;
     }
 
@@ -776,7 +793,13 @@
         window.addEventListener('message', async (e) => {
           if (e.origin !== location.origin) return;
           const m = e.data;
-          if (!m || m.type !== 'laloge-preview' || !m.payload) return;
+          if (!m) return;
+
+          /* Le concepteur commande AUSSI la vue : quand on bascule sur
+             « Vidéo », l'aperçu doit montrer les films, pas rester en
+             haut de la galerie photos. Sans ça, le sélecteur semblait
+             ne rien faire (relevé par Gil). */
+          if (m.type !== 'laloge-preview' || !m.payload) return;
           try {
             if (m.payload.agency) applyBrand(m.payload.agency);
             await paint(m.payload, 'apercu');

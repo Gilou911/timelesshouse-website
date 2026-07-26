@@ -293,6 +293,86 @@ function injectStyles() {
   @media (prefers-reduced-motion: reduce) {
     .g-haut { transform: none; transition: opacity .2s ease; }
   }
+
+  /* ── Tiroir des scènes (motif d'Ezla & Davy) ────────────────
+     Son bouton vit DANS la même barre que la pastille film, à sa
+     gauche : sur la référence, le hamburger et la lecture cohabitent
+     en haut à droite — demande de Gil. */
+  .g-scenes-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; border-radius: 999px; cursor: pointer;
+    color: var(--ink); background: color-mix(in srgb, var(--bg) 72%, transparent);
+    border: 1px solid var(--line);
+    -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px);
+    transition: transform .16s ease, background .3s ease;
+  }
+  .g-scenes-btn:active { transform: scale(.96); }
+  .g-scenes-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor;
+                      stroke-width: 1.7; stroke-linecap: round; }
+
+  .g-drawer {
+    position: fixed; inset: 0; z-index: 210; display: flex; flex-direction: column;
+    padding: clamp(20px, 5vw, 60px);
+    padding-top: max(clamp(20px, 5vw, 60px), env(safe-area-inset-top));
+    padding-bottom: max(clamp(20px, 5vw, 60px), env(safe-area-inset-bottom));
+    overflow-y: auto; overscroll-behavior: contain;
+    background: color-mix(in srgb, var(--bg-deep, var(--bg)) 94%, transparent);
+    -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
+    opacity: 0; visibility: hidden;
+    transition: opacity .34s cubic-bezier(0.16, 1, 0.3, 1), visibility .34s;
+  }
+  .g-drawer.open { opacity: 1; visibility: visible; }
+  .g-drawer-top { display: flex; align-items: center; justify-content: space-between;
+                  margin-bottom: clamp(26px, 5vw, 52px); }
+  .g-drawer-title {
+    font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+    font-size: clamp(1.4rem, 4vw, 2.2rem); color: var(--ink);
+  }
+  .g-drawer-close {
+    width: 46px; height: 46px; border-radius: 50%; cursor: pointer;
+    background: none; border: 1px solid var(--line); color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .g-drawer-close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+  .g-scene-list {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: clamp(12px, 2.2vw, 26px); align-content: start;
+  }
+  .g-scene-card {
+    position: relative; cursor: pointer; overflow: hidden; border-radius: 3px;
+    aspect-ratio: 4 / 3; border: 1px solid var(--line-soft, var(--line));
+    background: var(--bg-elev, var(--surface)); padding: 0;
+  }
+  .g-scene-card img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    filter: brightness(0.5) saturate(1.05);
+    transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1), filter .5s ease;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .g-scene-card:hover img { transform: scale(1.05); filter: brightness(0.62) saturate(1.1); }
+  }
+  .g-scene-card-cap {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px; padding: 14px;
+    text-align: center; pointer-events: none;
+  }
+  .g-scene-card-no {
+    font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+    font-size: 11px; letter-spacing: 0.42em; text-transform: uppercase; color: var(--accent);
+  }
+  .g-scene-card-name {
+    font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+    font-size: clamp(1.2rem, 2.6vw, 1.8rem); color: #fff; line-height: 1.1;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.55);
+  }
+  .g-scene-card-count {
+    font-size: 9.5px; letter-spacing: 0.28em; text-transform: uppercase;
+    color: rgba(255,255,255,0.66); text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .g-drawer { transition: opacity .2s ease, visibility .2s; }
+    .g-scene-card img { transition: none; }
+  }
   body.g-locked { position: fixed; width: 100%; overflow: hidden; }
   /* La gouttière réservée en permanence évite que la page change de
      largeur quand le verrou retire la barre de défilement — sans elle,
@@ -701,6 +781,78 @@ export function mountPhotos(mount, categories, opts = {}) {
     }, 1500);
   } else {
     toutesLesScenes().forEach(allumer);
+  }
+
+  /* ── Tiroir des scènes ──────────────────────────────────────
+     Sur une galerie de plusieurs centaines de photos réparties en
+     scènes, sauter directement à « First Look » vaut mieux que faire
+     défiler à l'aveugle. Chaque scène est représentée par sa première
+     photo, comme sur la référence.
+     N'existe qu'à partir de DEUX scènes : avec une seule, le tiroir
+     n'offrirait qu'un seul choix — celui où l'on est déjà. */
+  document.querySelector('.g-drawer')?.remove();
+  document.querySelector('.g-scenes-btn')?.remove();
+  if (multi) {
+    const tiroir = document.createElement('div');
+    tiroir.className = 'g-drawer';
+    tiroir.setAttribute('role', 'dialog');
+    tiroir.setAttribute('aria-modal', 'true');
+    tiroir.setAttribute('aria-label', 'Les scènes de la galerie');
+    tiroir.innerHTML =
+      `<div class="g-drawer-top">
+         <div class="g-drawer-title">Les scènes</div>
+         <button type="button" class="g-drawer-close" aria-label="Fermer">
+           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+         </button>
+       </div>
+       <div class="g-scene-list"></div>`;
+    const liste = tiroir.querySelector('.g-scene-list');
+    cats.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'g-scene-card';
+      const p0 = c.photos[0];
+      b.innerHTML =
+        `<img src="${escAttr(GRID(p0))}" alt="" loading="lazy" decoding="async" />` +
+        `<span class="g-scene-card-cap">` +
+          `<span class="g-scene-card-no">Scène ${String(i + 1).padStart(2, '0')}</span>` +
+          `<span class="g-scene-card-name"></span>` +
+          `<span class="g-scene-card-count">${c.photos.length} photo${c.photos.length > 1 ? 's' : ''}</span>` +
+        `</span>`;
+      b.querySelector('.g-scene-card-name').textContent = c.category || `Scène ${i + 1}`;
+      b.addEventListener('click', () => {
+        fermerTiroir();
+        // On ferme AVANT de viser : le verrou de défilement doit être
+        // levé, sinon le saut n'irait nulle part.
+        const cible = mount.querySelectorAll('.g-cat')[i];
+        if (cible) cible.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      liste.appendChild(b);
+    });
+    document.body.appendChild(tiroir);
+
+    const ouvrirTiroir = () => { tiroir.classList.add('open'); lockBody(); tiroir.querySelector('.g-drawer-close').focus(); };
+    function fermerTiroir() { if (!tiroir.classList.contains('open')) return; tiroir.classList.remove('open'); unlockBody(); }
+    tiroir.querySelector('.g-drawer-close').addEventListener('click', fermerTiroir);
+    tiroir.addEventListener('click', (e) => { if (e.target === tiroir) fermerTiroir(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerTiroir(); });
+
+    /* Le bouton se glisse DANS la barre de la galerie, à gauche de la
+       pastille film — les deux cohabitent comme sur la référence. Si la
+       barre n'existe pas (autre page hôte), il se pose seul en haut à
+       droite plutôt que de disparaître. */
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'g-scenes-btn';
+    btn.setAttribute('aria-label', 'Voir les scènes');
+    btn.innerHTML = '<svg viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>';
+    btn.addEventListener('click', ouvrirTiroir);
+    const barre = document.getElementById('pagebar');
+    if (barre) barre.prepend(btn);
+    else {
+      btn.style.cssText = 'position:fixed;z-index:60;top:max(14px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right));';
+      document.body.appendChild(btn);
+    }
   }
 
   /* Bouton de retour en haut — un seul par page, même si la galerie

@@ -494,8 +494,12 @@
   <div class="view" id="view">
     <!-- Bascule galerie ↔ film : n'apparaît que sur une galerie qui
          contient les deux (voir .pagebar dans la feuille de style). -->
-    <nav class="pagebar" id="pagebar" hidden>
-      <a class="pgbtn" id="pgSwitch" href="#"><span id="pgIcon"></span><span id="pgLabel"></span></a>
+    <!-- Conteneur TOUJOURS présent : la galerie y dépose aussi son bouton
+         « scènes ». C'est la pastille film qui se masque toute seule quand
+         il n'y a pas de second volet — sinon le bouton scènes disparaîtrait
+         avec elle sur une galerie sans film. -->
+    <nav class="pagebar" id="pagebar">
+      <a class="pgbtn" id="pgSwitch" href="#" hidden><span id="pgIcon"></span><span id="pgLabel"></span></a>
     </nav>
     <!-- Couverture — 5 dispositions (remplie selon config.coverMode) -->
     <section class="cover" id="cover" hidden>
@@ -660,7 +664,7 @@
       if (cph) { cph.classList.remove('on'); cph.removeAttribute('src'); }
       const hPh = el('photos'); if (hPh) hPh.innerHTML = '';
       const hVi = el('videos'); if (hVi) hVi.innerHTML = '';
-      el('pagebar').hidden = true;
+      el('pgSwitch').hidden = true;
       el('cover').hidden = true;
       /* L'en-tête est masqué quand une couverture prend sa place. Sans ce
          retour à l'état neutre, passer de la galerie (couverture) au film
@@ -864,7 +868,7 @@
           e.preventDefault();
           allerA(versFilm ? 'film' : 'photos', data, code);
         };
-        el('pagebar').hidden = false;
+        el('pgSwitch').hidden = false;
       }
 
       /* Changement de page = on repart du haut. Uniquement quand la vue

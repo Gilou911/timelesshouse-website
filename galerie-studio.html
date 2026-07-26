@@ -262,14 +262,20 @@
        est écrite plus bas dans la feuille et l'emporterait à
        spécificité égale — la poignée restait invisible. */
     .panneau .poignee { display:block; }
-    /* Trois bandes épinglées, donc trois hauteurs à empiler — sinon elles
-       se superposent. C'était le cas : la poignée et la rangée d'actions
-       étaient toutes deux à `top:0`, et la poignée, au-dessus dans
-       l'empilement, recouvrait 91 % du bouton « Masquer » dès qu'on
-       défilait. Sur ordinateur la poignée n'existe pas et les valeurs de
-       base (0 et 66 px) restent justes. */
-    .panneau-actions { padding-top:4px; top:44px; }   /* sous la poignée (44) */
-    #bloc-sections   { top:102px; }                   /* sous les actions (58) */
+    /* « Comparer » et « Masquer » retirés de la feuille (demande de Gil,
+       26/07/2026) : 58 px de bandeau permanent, et sur sa capture les
+       deux pastilles chevauchaient le titre de la galerie.
+       Rien n'est perdu, les deux fonctions existent déjà ailleurs :
+         · Masquer  → la poignée referme la feuille de TROIS façons
+                      (tap, Entrée/Espace, glissement vers le bas) ;
+         · Comparer → la barre flottante qui apparaît une fois la feuille
+                      refermée. C'est d'ailleurs sa vraie place : comparer
+                      derrière un panneau qui couvre 64 % de l'écran ne
+                      montrait presque rien.
+       Sur ORDINATEUR elles restent : il n'y a pas de poignée là-bas, et
+       sans « Masquer » plus rien n'effacerait le panneau. */
+    .panneau-actions { display:none; }
+    #bloc-sections   { top:44px; }                    /* sous la poignée */
   }
 
   .poignee {
@@ -1393,9 +1399,17 @@
     // l'événement ne coûte rien et couvre les mises en page qui
     // dépendraient de la place réellement libre.
     setTimeout(() => window.dispatchEvent(new Event('resize')), 460);
-    // Le focus suit ce qui vient d'apparaître : sans ça, un utilisateur
-    // au clavier se retrouve à naviguer dans un panneau invisible.
-    (visibles ? el('masquer') : el('rouvrir')).focus();
+    /* Le focus suit ce qui vient d'apparaître : sans ça, un utilisateur
+       au clavier se retrouve à naviguer dans un panneau invisible.
+       À la RÉOUVERTURE, la cible dépend du format : « Masquer » n'existe
+       plus sur téléphone, où c'est la poignée qui referme. Viser un
+       élément en display:none ne lève aucune erreur — le focus serait
+       simplement retombé sur <body>, en silence. */
+    const rendu = (e) => e && e.offsetParent !== null;
+    const cible = visibles
+      ? [el('masquer'), el('poignee')].find(rendu)
+      : el('rouvrir');
+    cible?.focus();
   }
   el('masquer').addEventListener('click', () => reglages(false));
   el('rouvrir').addEventListener('click', () => reglages(true));

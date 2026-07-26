@@ -24,10 +24,6 @@
        (audit HIG : le vert valait 4.14:1 en clair, et le rouge 2.32:1 en
        sombre — un échec d'upload y aurait été illisible). */
     --ok:#33654a; --ko:#b3261e;
-    /* Hauteur de l'aperçu épinglé sur téléphone. Assez grand pour juger
-       un réglage, assez petit pour laisser voir les commandes dessous —
-       et repris tel quel comme décalage du sélecteur de volet, pour
-       qu'aucun des deux ne recouvre l'autre. */
     /* ── Épaisseur du verre, par THÈME ──────────────────────────
        §8 : « l'épaisseur du matériau = son opacité ». Elle ne peut pas
        être la même dans les deux thèmes, parce que ce qu'il y a
@@ -216,8 +212,8 @@
     @keyframes bloc-fond { from { opacity:0 } to { opacity:1 } }
   }
 
-  /* Le sélecteur Photos/Vidéo reste sous les yeux : épinglé juste sous
-     la rangée d'actions, on n'a plus à remonter pour changer de volet. */
+  /* Le rail de sections reste sous les yeux : épinglé juste sous la
+     rangée d'actions, on change de section sans jamais remonter. */
   /* ── Bandes épinglées : du VERRE, pas des dalles ────────────
      Elles étaient à 94 % d'opacité, donc pleines : la bande tranchait
      net les boutons qui passaient dessous (capture de Gil). Elles
@@ -227,25 +223,25 @@
      repose sur ces bandes : le rail Photos/Vidéo, les pastilles et les
      boutons d'enregistrement portent chacun leur propre fond. Le calcul
      de contraste ne concerne donc que ces fonds-là, inchangés. */
-  #bloc-volet:not([hidden]), .panneau-actions, .poignee {
+  #bloc-sections, .panneau-actions, .poignee {
     background:color-mix(in srgb, var(--surface) var(--verre-bande), transparent);
     -webkit-backdrop-filter:saturate(180%) blur(22px);
     backdrop-filter:saturate(180%) blur(22px);
   }
-  #bloc-volet:not([hidden]) {
+  #bloc-sections {
     position:sticky; top:66px; z-index:5;
     margin:0 -18px 4px; padding:10px 18px;
   }
   /* Bord de scroll : le contenu se DISSOUT sous la bande au lieu d'être
      coupé au couteau (§8 : préférer un dégradé progressif à une bordure
      dure). C'est ce trait net qui donnait l'effet « dalle ». */
-  #bloc-volet:not([hidden])::after, .panneau-actions::after {
+  #bloc-sections::after, .panneau-actions::after {
     content:''; position:absolute; left:0; right:0; top:100%; height:18px;
     pointer-events:none;
     background:linear-gradient(to bottom,
       color-mix(in srgb, var(--surface) var(--verre-bande), transparent), transparent);
   }
-  #bloc-volet:not([hidden]), .panneau-actions { position:sticky; }
+  #bloc-sections, .panneau-actions { position:sticky; }
 
   /* ── Téléphone : le panneau devient une feuille par le bas ──
      C'est le geste attendu sur mobile, et la feuille laisse voir le
@@ -266,7 +262,14 @@
        est écrite plus bas dans la feuille et l'emporterait à
        spécificité égale — la poignée restait invisible. */
     .panneau .poignee { display:block; }
-    .panneau-actions { padding-top:4px; }
+    /* Trois bandes épinglées, donc trois hauteurs à empiler — sinon elles
+       se superposent. C'était le cas : la poignée et la rangée d'actions
+       étaient toutes deux à `top:0`, et la poignée, au-dessus dans
+       l'empilement, recouvrait 91 % du bouton « Masquer » dès qu'on
+       défilait. Sur ordinateur la poignée n'existe pas et les valeurs de
+       base (0 et 66 px) restent justes. */
+    .panneau-actions { padding-top:4px; top:44px; }   /* sous la poignée (44) */
+    #bloc-sections   { top:102px; }                   /* sous les actions (58) */
   }
 
   .poignee {
@@ -290,11 +293,11 @@
      travers en clair et les libellés devenaient illisibles. */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .panneau, .panneau-actions, .poignee, .barre,
-    #bloc-volet:not([hidden]), .rappel .pilule { background:var(--surface); }
+    #bloc-sections, .rappel .pilule { background:var(--surface); }
   }
   @media (prefers-reduced-transparency: reduce) {
     .panneau, .panneau-actions, .poignee, .barre,
-    #bloc-volet:not([hidden]), .rappel .pilule {
+    #bloc-sections, .rappel .pilule {
       background:var(--surface);
       -webkit-backdrop-filter:none; backdrop-filter:none;
     }
@@ -356,11 +359,17 @@
     box-shadow: inset 3px 3px 7px var(--shadow-d), inset -3px -3px 7px var(--shadow-l);
   }
   .rail button {
-    flex:1; border:none; cursor:pointer; font-family:inherit; min-height:44px;
+    /* min-width:0 : sans lui un onglet refuse de descendre sous la largeur
+       de son mot et le rail déborde du panneau dès qu'il y en a quatre. */
+    flex:1; min-width:0; padding:0 4px; white-space:nowrap;
+    border:none; cursor:pointer; font-family:inherit; min-height:44px;
     border-radius:999px; background:transparent; color:var(--muted);
     font-size:0.78125rem; font-weight:700;
     transition: color .3s var(--ease-out), transform .16s var(--ease-out);
   }
+  /* Quatre sections (galerie photos + film) : on resserre d'un demi-point
+     plutôt que de laisser le texte se faire couper. */
+  .rail[data-n="4"] button { font-size:0.75rem; }
   .rail button:active { transform:scale(.97); }
   .rail button[aria-selected="true"] { background:var(--btn-bg); color:var(--btn-text); }
 
@@ -573,39 +582,70 @@
       <h1 class="serif" id="titre">Votre galerie</h1>
       <div class="sous" id="sous">Chargement…</div>
 
-      <div class="bloc">
-        <div class="titre">Titre de la galerie</div>
-        <input id="titre-champ" class="champ" maxlength="120" placeholder="Galerie — Emma &amp; Jules" />
+      <!-- ── Rail de sections ──────────────────────────────────────
+           Les douze réglages étaient à la file. Conséquence : le dépôt
+           de photos — le geste le plus fréquent d'un photographe, répété
+           sur des jours — était tout en bas, après onze réglages, tandis
+           que le titre et le type d'événement, choisis UNE fois à la
+           création, occupaient le haut à demeure.
+           Ils sont maintenant rangés par tâche : ce qu'on dépose, l'allure,
+           la fiche. Le rail REMPLACE l'ancien sélecteur Photos/Vidéo au
+           lieu de s'y ajouter — une seule barre de navigation, jamais deux
+           empilées. Il est construit en JS parce qu'il s'adapte : une
+           galerie sans film n'a pas d'onglet Vidéo.
+           aria-controls est posé là aussi par le JS : chaque onglet montre
+           plusieurs blocs, et la liste dépend du contenu de la galerie. -->
+      <div class="bloc" id="bloc-sections">
+        <div class="rail" id="sections" role="tablist" aria-label="Partie à régler"></div>
       </div>
 
-      <div class="bloc">
-        <div class="titre">Contenu</div>
-        <div class="choix" id="kinds"></div>
-      </div>
-
-      <div class="bloc" id="bloc-type">
-        <div class="titre">Type d'événement</div>
-        <div class="choix" id="types"></div>
-      </div>
-
-      <!-- Séparation photos / vidéo : n'apparaît que sur une galerie qui
-           contient les deux — ailleurs il n'y aurait rien à séparer. -->
-      <div class="bloc" id="bloc-volet" hidden>
-        <!-- aria-controls dit CE QUE l'onglet montre. Un onglet en pilote
-             ici plusieurs (la liste d'ID est valide en ARIA) : les réglages
-             photo sont répartis en plusieurs blocs, séparés par la palette
-             qui, elle, est commune aux deux volets. -->
-        <div class="rail" role="tablist" aria-label="Partie à régler">
-          <button type="button" role="tab" data-volet="photos" aria-selected="true"
-                  aria-controls="bloc-photos bloc-mode bloc-couv bloc-upload">Photos</button>
-          <button type="button" role="tab" data-volet="video" aria-selected="false"
-                  aria-controls="bloc-video" tabindex="-1">Vidéo</button>
+      <!-- ══ PHOTOS — ce qu'on dépose ═══════════════════════════════ -->
+      <div class="bloc" id="bloc-upload" hidden>
+        <div class="titre">Photos par catégorie</div>
+        <div class="cats" id="cats"></div>
+        <div class="newcat">
+          <input id="newcat" placeholder="Nouvelle catégorie (Préparatifs…)" maxlength="60" />
+          <button type="button" id="addcat">Ajouter</button>
         </div>
+        <button type="button" class="depot" id="depot">Déposer des photos ici</button>
+        <input type="file" id="fichiers" accept="image/*" multiple hidden />
+        <div class="jauge" id="jauge" role="progressbar" aria-label="Envoi des photos"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+        <!-- aria-live : un lecteur d'écran doit ENTENDRE la progression et
+             les erreurs — sans ça, l'envoi est un silence total. -->
+        <div class="etat" id="etat-upload" role="status" aria-live="polite"></div>
       </div>
 
-      <div class="bloc">
+      <!-- ══ VIDÉO ═════════════════════════════════════════════════ -->
+      <div class="bloc" id="bloc-video" hidden>
+        <div class="titre">Vidéos</div>
+        <div id="videos"></div>
+        <button type="button" class="depot" id="addvideo" style="margin-top:10px">Ajouter une vidéo</button>
+        <!-- Zone d'état PROPRE à la section Vidéo. Les envois de film et de
+             vignette écrivaient dans celle des photos, masquée dès qu'on
+             est sur Vidéo : progression, succès et surtout ERREURS étaient
+             donc invisibles. L'envoi semblait « ne rien faire » alors qu'il
+             rapportait sa panne dans le vide. -->
+        <div class="etat" id="etat-video" role="status" aria-live="polite"></div>
+      </div>
+
+      <!-- ══ STYLE — l'allure, tout ce qui se juge sur l'aperçu ═════
+           La palette d'abord : c'est le réglage qui change le plus de
+           choses à l'écran. Puis la couverture, dont la DISPOSITION et la
+           PHOTO sont enfin voisines — elles étaient séparées par deux
+           réglages sans rapport, alors qu'on les choisit ensemble. -->
+      <div class="bloc" id="bloc-palette" hidden>
         <div class="titre">Palette de couleurs</div>
         <div class="palettes" id="palettes"></div>
+      </div>
+
+      <div class="bloc" id="bloc-perso" hidden>
+        <div class="titre">Couleurs sur mesure</div>
+        <div class="perso">
+          <label>Fond<input type="color" id="perso-bg" /></label>
+          <label>Accent<input type="color" id="perso-ac" /></label>
+        </div>
+        <div class="choix" id="perso-mode" style="margin-top:8px"></div>
       </div>
 
       <div class="bloc" id="bloc-photos" hidden>
@@ -624,29 +664,6 @@
         </div>
       </div>
 
-      <div class="bloc" id="bloc-mode" hidden>
-        <div class="titre">Organisation des photos</div>
-        <div class="choix" id="mode"></div>
-      </div>
-
-      <div class="bloc" id="bloc-perso" hidden>
-        <div class="titre">Couleurs sur mesure</div>
-        <div class="perso">
-          <label>Fond<input type="color" id="perso-bg" /></label>
-          <label>Accent<input type="color" id="perso-ac" /></label>
-        </div>
-        <div class="choix" id="perso-mode" style="margin-top:8px"></div>
-      </div>
-
-      <!-- N'apparaît que pour un anniversaire de mariage : ailleurs, un
-           nombre d'années n'aurait aucun sens. -->
-      <div class="bloc" id="bloc-noces" hidden>
-        <div class="titre">Années de mariage</div>
-        <input class="champ" id="noces-ans" type="number" min="1" max="100" step="1"
-               inputmode="numeric" placeholder="25" />
-        <div class="note" id="noces-libelle"></div>
-      </div>
-
       <div class="bloc" id="bloc-couv" hidden>
         <div class="titre">Photo de couverture</div>
         <div class="couv-apercu" id="couv-apercu"></div>
@@ -658,32 +675,34 @@
         <button type="button" class="sup-couv" id="couv-retirer" hidden>Retirer la couverture</button>
       </div>
 
-      <div class="bloc" id="bloc-video" hidden>
-        <div class="titre">Vidéos</div>
-        <div id="videos"></div>
-        <button type="button" class="depot" id="addvideo" style="margin-top:10px">Ajouter une vidéo</button>
-        <!-- Zone d'état PROPRE au volet Vidéo. Les envois de film et de
-             vignette écrivaient dans celle du bloc Photos, qui est masqué
-             dès qu'on est sur Vidéo : progression, succès et surtout
-             ERREURS étaient donc invisibles. L'envoi semblait « ne rien
-             faire » alors qu'il rapportait sa panne dans le vide. -->
-        <div class="etat" id="etat-video" role="status" aria-live="polite"></div>
+      <div class="bloc" id="bloc-mode" hidden>
+        <div class="titre">Organisation des photos</div>
+        <div class="choix" id="mode"></div>
       </div>
 
-      <div class="bloc" id="bloc-upload" hidden>
-        <div class="titre">Photos par catégorie</div>
-        <div class="cats" id="cats"></div>
-        <div class="newcat">
-          <input id="newcat" placeholder="Nouvelle catégorie (Préparatifs…)" maxlength="60" />
-          <button type="button" id="addcat">Ajouter</button>
-        </div>
-        <button type="button" class="depot" id="depot">Déposer des photos ici</button>
-        <input type="file" id="fichiers" accept="image/*" multiple hidden />
-        <div class="jauge" id="jauge" role="progressbar" aria-label="Envoi des photos"
-             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
-        <!-- aria-live : un lecteur d'écran doit ENTENDRE la progression et
-             les erreurs — sans ça, l'envoi est un silence total. -->
-        <div class="etat" id="etat-upload" role="status" aria-live="polite"></div>
+      <!-- ══ INFOS — la fiche, réglée une fois ══════════════════════ -->
+      <div class="bloc" id="bloc-titre" hidden>
+        <div class="titre">Titre de la galerie</div>
+        <input id="titre-champ" class="champ" maxlength="120" placeholder="Galerie — Emma &amp; Jules" />
+      </div>
+
+      <div class="bloc" id="bloc-contenu" hidden>
+        <div class="titre">Contenu</div>
+        <div class="choix" id="kinds"></div>
+      </div>
+
+      <div class="bloc" id="bloc-type" hidden>
+        <div class="titre">Type d'événement</div>
+        <div class="choix" id="types"></div>
+      </div>
+
+      <!-- N'apparaît que pour un anniversaire de mariage : ailleurs, un
+           nombre d'années n'aurait aucun sens. -->
+      <div class="bloc" id="bloc-noces" hidden>
+        <div class="titre">Années de mariage</div>
+        <input class="champ" id="noces-ans" type="number" min="1" max="100" step="1"
+               inputmode="numeric" placeholder="25" />
+        <div class="note" id="noces-libelle"></div>
       </div>
 
       <div class="etat" id="etat" role="status" aria-live="polite"></div>
@@ -779,11 +798,29 @@
   let edition = null;   // { client:{id,code}, gallery:{id} } si connecté
   let catChoisie = null;
   let catsEnAttente = [];  // catégories créées ici, encore vides
-  let volet = 'photos';    // partie réglée sur une galerie « photos + film »
+  /* Section ouverte dans le panneau : photos | video | style | infos.
+     On démarre sur le TRAVAIL (déposer des photos), pas sur la fiche :
+     le titre et le type d'événement se règlent une fois, les photos
+     s'ajoutent pendant des jours. */
+  let section = 'photos';
+  /* Page montrée par l'aperçu : photos | video. Distincte de la section,
+     parce que Style et Infos ne désignent aucune page — l'aperçu doit
+     alors RESTER sur celle qu'on regardait, et non sauter aux photos. */
+  let vueApercu = 'photos';
+
+  /* Une section par tâche. `blocs` sert à deux choses : masquer ce qui
+     n'est pas de la section, et renseigner aria-controls — un lecteur
+     d'écran doit savoir ce que l'onglet commande. */
+  const SECTIONS = [
+    { id:'photos', nom:'Photos', blocs:['bloc-upload'] },
+    { id:'video',  nom:'Vidéo',  blocs:['bloc-video'] },
+    { id:'style',  nom:'Style',  blocs:['bloc-palette','bloc-perso','bloc-photos','bloc-couv','bloc-mode'] },
+    { id:'infos',  nom:'Infos',  blocs:['bloc-titre','bloc-contenu','bloc-type','bloc-noces'] },
+  ];
 
   /* Garde anti-perte (HIG P0 : jamais de perte de données sans
      avertissement). Un INSTANTANÉ de ce qui est enregistré, comparé au
-     brouillon à la fermeture — pas un drapeau : basculer un volet ou
+     brouillon à la fermeture — pas un drapeau : changer de section ou
      re-rendre sans rien changer ne crie pas au loup. */
   let instantaneSauve = '';
   const instantane = () => draft ? JSON.stringify({
@@ -817,7 +854,7 @@
        change la page affichée. Le concepteur montre donc exactement
        ce que verra le client en cliquant sur la pastille. */
     const source = compare && base ? base : draft;
-    const charge = { ...source, vue: volet === 'video' ? 'film' : 'photos' };
+    const charge = { ...source, vue: vueApercu === 'video' ? 'film' : 'photos' };
     el('apercu').contentWindow.postMessage(
       { type:'laloge-preview', payload: charge }, location.origin);
     majComparer();     // « Comparer » n'a de sens qu'une fois quelque chose modifié
@@ -1061,7 +1098,9 @@
   }
 
   function rendreCouvertures() {
-    el('bloc-couv').hidden = false;
+    /* Ne décide plus de sa propre visibilité : c'est la section ouverte
+       qui commande. Ce `hidden = false` rouvrait le bloc « Photo de
+       couverture » quelle que soit la section affichée. */
     const cfg = draft.gallery.config;
     const cour = couvertureCourante();
     const apercu = el('couv-apercu');
@@ -1086,19 +1125,46 @@
     const aVideo  = g.kind === 'video'  || g.kind === 'mixte';
     const deux    = aPhotos && aVideo;
 
-    // Volet actif : forcé sur la seule partie disponible hors galerie mixte.
-    if (!deux) volet = aVideo ? 'video' : 'photos';
-    el('bloc-volet').hidden = !deux;
-    el('bloc-volet').querySelectorAll('button[data-volet]').forEach((b) => {
-      const actif = b.getAttribute('data-volet') === volet;
+    /* Sections réellement offertes : une galerie sans film n'a pas
+       d'onglet Vidéo, et une galerie sans photos pas d'onglet Photos. */
+    const offertes = SECTIONS.filter((s) =>
+      s.id === 'photos' ? aPhotos : s.id === 'video' ? aVideo : true);
+    // Le contenu a pu changer sous nos pieds (bascule « photos+film » →
+    // « film seul ») : la section ouverte peut avoir cessé d'exister.
+    if (!offertes.some((s) => s.id === section)) section = offertes[0].id;
+
+    /* L'aperçu suit la section quand celle-ci désigne une page, et reste
+       où il est sinon. Il est aussi ramené de force sur une page qui
+       existe : rester sur « film » après avoir retiré le film montrerait
+       une page vide. */
+    if (section === 'photos' || section === 'video') vueApercu = section;
+    if (!aVideo)  vueApercu = 'photos';
+    if (!aPhotos) vueApercu = 'video';
+
+    const rail = el('sections');
+    rail.dataset.n = String(offertes.length);
+    // Reconstruit seulement si la LISTE change : réécrire le rail à chaque
+    // frappe dans le titre effacerait le focus clavier posé sur un onglet.
+    const signature = offertes.map((s) => s.id).join('|');
+    if (rail.dataset.sig !== signature) {
+      rail.dataset.sig = signature;
+      rail.innerHTML = offertes.map((s) =>
+        `<button type="button" role="tab" data-section="${s.id}"` +
+        ` aria-controls="${s.blocs.join(' ')}">${s.nom}</button>`).join('');
+    }
+    rail.querySelectorAll('button[data-section]').forEach((b) => {
+      const actif = b.dataset.section === section;
       b.setAttribute('aria-selected', String(actif));
       // Tabindex glissant : dans une barre d'onglets, Tab entre puis SORT
       // du groupe — ce sont les flèches qui circulent dedans. Sans ça, un
       // clavier devait traverser chaque onglet pour atteindre la suite.
       b.tabIndex = actif ? 0 : -1;
     });
-    const voirPhotos = aPhotos && (!deux || volet === 'photos');
-    const voirVideo  = aVideo  && (!deux || volet === 'video');
+
+    const voirPhotos = aPhotos && section === 'photos';
+    const voirVideo  = aVideo  && section === 'video';
+    const voirStyle  = section === 'style';
+    const voirInfos  = section === 'infos';
 
     boutons(el('kinds'), KINDS, g.kind || 'photos', (v) => { draft.gallery.kind = v; rendre(); });
     // Gabarit hérité (immobilier, corporate…) : on le réinjecte dans la
@@ -1109,9 +1175,18 @@
     boutons(el('types'), types, g.template, (v) => { draft.gallery.template = v; rendre(); });
     palettes(cfg.palette || 'noir');
 
-    el('bloc-photos').hidden = !voirPhotos;
-    el('bloc-mode').hidden   = !voirPhotos;
-    el('bloc-video').hidden  = !voirVideo;
+    /* Visibilité : la SECTION décide, le contenu de la galerie filtre.
+       Les blocs de couverture et d'organisation ne concernent que les
+       galeries à photos — sur un film seul, Style se réduit aux couleurs. */
+    el('bloc-upload').hidden  = !voirPhotos;
+    el('bloc-video').hidden   = !voirVideo;
+    el('bloc-palette').hidden = !voirStyle;
+    el('bloc-photos').hidden  = !(voirStyle && aPhotos);
+    el('bloc-couv').hidden    = !(voirStyle && aPhotos);
+    el('bloc-mode').hidden    = !(voirStyle && aPhotos);
+    el('bloc-titre').hidden   = !voirInfos;
+    el('bloc-contenu').hidden = !voirInfos;
+    el('bloc-type').hidden    = !voirInfos;
 
     /* Anniversaire de mariage : on demande les ANNÉES, et le type de
        noces s'en déduit — personne ne connaît par cœur la table de la
@@ -1121,7 +1196,7 @@
        libellé se recalcule à l'affichage, donc corriger la table
        corrigera aussi les galeries déjà enregistrées. */
     const anniv = g.template === 'anniversaire';
-    el('bloc-noces').hidden = !anniv;
+    el('bloc-noces').hidden = !(voirInfos && anniv);
     if (anniv) {
       const champ = el('noces-ans');
       if (document.activeElement !== champ) champ.value = cfg.annees ?? '';
@@ -1142,16 +1217,15 @@
 
     // Couleurs sur mesure : seulement quand la palette l'est.
     const perso = cfg.palette === 'custom';
-    el('bloc-perso').hidden = !perso;
+    el('bloc-perso').hidden = !(voirStyle && perso);
     if (perso) {
       el('perso-bg').value = cfg.customBg || '#1a1714';
       el('perso-ac').value = cfg.customAccent || '#b08968';
       boutons(el('perso-mode'), PERSO_MODES, cfg.customMode || 'dark', (v) => { cfg.customMode = v; rendre(); });
     }
 
-    el('bloc-upload').hidden = !voirPhotos;
-    if (voirPhotos) { rendreCats(); rendreCouvertures(); }
-    else el('bloc-couv').hidden = true;
+    if (voirPhotos) rendreCats();
+    if (voirStyle && aPhotos) rendreCouvertures();
     pousser();
   }
 
@@ -1159,31 +1233,38 @@
   const NOMS = { evenement:'Événement', immobilier:'Immobilier', corporate:'Corporate', mannequinat:'Shooting' };
   function templateNom(v) { return NOMS[v] || (v ? v.charAt(0).toUpperCase() + v.slice(1) : 'Autre'); }
 
-  el('bloc-volet').addEventListener('click', (e) => {
-    const b = e.target.closest('button[data-volet]');
+  el('sections').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-section]');
     if (!b) return;
-    volet = b.getAttribute('data-volet');
-    rendre();          // `pousser()` embarque `voir` : l'aperçu se place seul
+    section = b.dataset.section;
+    /* On revient EN HAUT de la section : sans ça, en arrivant d'une
+       section longue on atterrit au milieu de la suivante, parfois
+       au-delà de sa fin — on croit l'onglet vide. */
+    el('panneau').scrollTop = 0;
+    rendre();          // `pousser()` embarque `vue` : l'aperçu se place seul
   });
 
   /* Flèches / Origine / Fin — le contrat clavier attendu d'une barre
-     d'onglets. Le volet change en suivant le focus : les deux panneaux
+     d'onglets. La section change en suivant le focus : tous les blocs
      sont déjà là, il n'y a rien à charger, donc rien qui justifie
      d'exiger un Entrée de plus. */
-  el('bloc-volet').addEventListener('keydown', (e) => {
+  el('sections').addEventListener('keydown', (e) => {
     const TOUCHES = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
     if (!TOUCHES.includes(e.key)) return;
-    const onglets = [...el('bloc-volet').querySelectorAll('button[data-volet]')];
-    const i = onglets.indexOf(e.target.closest('button[data-volet]'));
+    const onglets = [...el('sections').querySelectorAll('button[data-section]')];
+    const i = onglets.indexOf(e.target.closest('button[data-section]'));
     if (i < 0) return;
     e.preventDefault();
     const j = e.key === 'Home'  ? 0
             : e.key === 'End'   ? onglets.length - 1
             : e.key === 'ArrowLeft' ? (i - 1 + onglets.length) % onglets.length
             : (i + 1) % onglets.length;
-    volet = onglets[j].getAttribute('data-volet');
+    section = onglets[j].dataset.section;
+    el('panneau').scrollTop = 0;
     rendre();
-    onglets[j].focus();   // rendre() a remis les tabindex : le focus suit
+    /* rendre() a remis les tabindex ; le rail n'est reconstruit que si la
+       LISTE change, donc le bouton visé est toujours le même nœud. */
+    el('sections').querySelector(`button[data-section="${section}"]`)?.focus();
   });
 
   ['perso-bg', 'perso-ac'].forEach((id) => {
@@ -1568,18 +1649,6 @@
     draft.gallery.config = draft.gallery.config || {};
     instantaneSauve = instantane();     // référence « rien à perdre »
 
-    /* Entrée en cascade, UNE SEULE FOIS : les blocs se posent du haut
-       vers le bas et l'œil suit. La classe est retirée dès la fin, pour
-       que « Masquer / Réglages » — geste fréquent — n'ait pas à rejouer
-       cette cérémonie à chaque fois. */
-    const pan = el('panneau');
-    [...pan.children].forEach((e, i) => e.style.setProperty('--rang', String(i)));
-    pan.classList.add('entree');
-    setTimeout(() => {
-      pan.classList.remove('entree');
-      [...pan.children].forEach((e) => e.style.removeProperty('--rang'));
-    }, 420 + pan.children.length * 45);
-
     el('titre').textContent = draft.gallery.title || 'Votre galerie';
     el('titre-champ').value = draft.gallery.title || '';
     el('sous').textContent = (draft.client && draft.client.name) ? draft.client.name : 'Galerie';
@@ -1610,6 +1679,23 @@
     el('apercu').src = '/galerie?preview=1';
 
     rendre();
+
+    /* Entrée en cascade, UNE SEULE FOIS : les blocs se posent du haut
+       vers le bas et l'œil suit. La classe est retirée dès la fin, pour
+       que « Masquer / Réglages » — geste fréquent — n'ait pas à rejouer
+       cette cérémonie à chaque fois.
+       APRÈS rendre() et sur les blocs VISIBLES seulement : maintenant que
+       chaque section masque ceux des autres, numéroter tous les enfants
+       donnait aux quelques blocs affichés des rangs troués — ils
+       entraient en ordre dispersé, avec des trous dans la cascade. */
+    const pan = el('panneau');
+    const vus = [...pan.children].filter((e) => !e.hidden);
+    vus.forEach((e, i) => e.style.setProperty('--rang', String(i)));
+    pan.classList.add('entree');
+    setTimeout(() => {
+      pan.classList.remove('entree');
+      vus.forEach((e) => e.style.removeProperty('--rang'));
+    }, 420 + vus.length * 45);
   })();
 </script>
 </body>

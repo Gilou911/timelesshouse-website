@@ -595,6 +595,14 @@
       <div class="bloc" id="bloc-photos" hidden>
         <div class="titre">Disposition de la couverture</div>
         <div class="choix" id="couverture"></div>
+        <!-- N'apparaît que pour les deux dispositions à deux colonnes :
+             leur description parle de gauche et de droite, ce qui est faux
+             sur un téléphone. Sans ce mot, on croit à un défaut (question
+             de Gil, 26/07/2026). -->
+        <div class="note" id="note-colonnes" hidden>
+          Sur téléphone, cette disposition s'empile : photo en haut, texte dessous.
+          Deux colonnes sur 390 px seraient illisibles. L'écriture du gabarit, elle, ne change pas.
+        </div>
         <div class="note">
           Couverture vide → la 1ʳᵉ photo de la galerie est utilisée automatiquement.
         </div>
@@ -1109,6 +1117,9 @@
 
     if (aPhotos) {
       boutons(el('couverture'), COUVERTURES, cfg.coverMode || 'fill', (v) => { cfg.coverMode = v; rendre(); });
+      // Split et Éditorial sont les deux dispositions en deux colonnes :
+      // ce sont les seules dont la description ne tient pas sur un téléphone.
+      el('note-colonnes').hidden = !['split', 'editorial'].includes(cfg.coverMode);
       boutons(el('mode'), MODES, cfg.galleryMode || 'categorized', (v) => { cfg.galleryMode = v; rendre(); });
     }
     if (voirVideo) rendreVideos();

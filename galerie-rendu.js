@@ -853,7 +853,7 @@ export function mountPhotos(mount, categories, opts = {}) {
     btn.className = 'g-scenes-btn';
     btn.setAttribute('aria-label', 'Voir les scènes');
     btn.title = 'Voir les scènes';   // même repère au survol que la pastille film
-    btn.innerHTML = '<svg viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>';
+    btn.innerHTML = '<svg viewBox="0 0 24 24"><line x1="4.5" y1="7" x2="19.5" y2="7"/><line x1="4.5" y1="12" x2="19.5" y2="12"/><line x1="4.5" y1="17" x2="19.5" y2="17"/></svg>';
     btn.addEventListener('click', ouvrirTiroir);
     const barre = document.getElementById('pagebar');
     if (barre) barre.prepend(btn);

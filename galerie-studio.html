@@ -93,7 +93,11 @@
     backdrop-filter:saturate(180%) blur(28px);
     border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
     box-shadow:0 30px 80px -24px rgba(0,0,0,.5);
-    transition:transform .42s var(--ease-tiroir), opacity .26s ease;
+    /* Durées et courbes du guide (§9) : 250-400 ms pour une transition
+       de vue, sortante à l'apparition. La disparition prend une courbe
+       ENTRANTE et un temps plus court — on s'attarde sur ce qui arrive,
+       pas sur ce qui s'en va. */
+    transition:transform .36s var(--ease-tiroir), opacity .24s ease-out;
     /* ENCRES SECONDAIRES RENFORCÉES, valables SEULEMENT dans le panneau.
        Le verre laisse passer 12 % de la photo : calculé sur les pires
        fonds possibles (photo noire en thème clair, photo blanche en
@@ -117,7 +121,10 @@
   @media (prefers-color-scheme: dark) {
     .panneau { --muted:#a8aeb7; --faint:#aab0ba; }
   }
-  .panneau.masque { transform:translateX(calc(-100% - 30px)); opacity:0; pointer-events:none; }
+  .panneau.masque {
+    transform:translateX(calc(-100% - 30px)); opacity:0; pointer-events:none;
+    transition:transform .26s cubic-bezier(0.4, 0, 1, 1), opacity .18s ease-in;
+  }
 
   /* Rangée d'actions épinglée en HAUT du panneau : « Masquer » doit
      rester atteignable même après avoir descendu vingt réglages. */
@@ -165,10 +172,33 @@
      gauche, la galerie le coin droit. */
   .scene-badge {
     position:fixed; z-index:40;
-    top:max(16px, env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
+    top:max(16px, env(safe-area-inset-top)); left:50%;
     padding:9px 14px; border-radius:999px;
     font-size:0.71875rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
     color:#14171c; background:#e7c98f; white-space:nowrap;
+    /* Il DESCEND du haut : le mouvement dit d'où vient l'information,
+       au lieu d'apparaître d'un coup au milieu de nulle part. */
+    transform:translate(-50%, -140%); opacity:0; pointer-events:none;
+    transition:transform .28s var(--ease-tiroir), opacity .2s ease-out;
+  }
+  .scene-badge.on { transform:translate(-50%, 0); opacity:1; }
+
+  /* Entrée du panneau au PREMIER affichage : les blocs se posent l'un
+     après l'autre pour guider l'œil du haut vers le bas. Uniquement au
+     chargement — rejouer ce décalage à chaque « Masquer / Réglages »
+     deviendrait une cérémonie pénible sur une action fréquente (§9 :
+     jamais de mouvement gratuit sur les interactions courantes). */
+  .panneau.entree > * {
+    animation:bloc-entre .42s var(--ease-tiroir) backwards;
+    animation-delay:calc(var(--rang, 0) * 45ms);
+  }
+  @keyframes bloc-entre {
+    from { opacity:0; transform:translateY(10px); }
+    to   { opacity:1; transform:none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .panneau.entree > * { animation:bloc-fond .3s ease backwards; }
+    @keyframes bloc-fond { from { opacity:0 } to { opacity:1 } }
   }
 
   /* Le sélecteur Photos/Vidéo reste sous les yeux : épinglé juste sous
@@ -189,11 +219,58 @@
       top:auto; bottom:max(10px, env(safe-area-inset-bottom));
       height:min(64dvh, 560px);
       border-radius:26px;
+      padding-top:0;
     }
     .panneau.masque { transform:translateY(calc(100% + 30px)); }
+    /* Poignée : elle DIT que la feuille se tire vers le bas. Sans ce
+       repère, le geste existe mais personne ne le devine (§12 : sortir
+       d'une feuille par un glissement doit être visible).
+       Sélecteur DESCENDANT volontaire : la règle de base `.poignee`
+       est écrite plus bas dans la feuille et l'emporterait à
+       spécificité égale — la poignée restait invisible. */
+    .panneau .poignee { display:block; }
+    .panneau-actions { padding-top:4px; }
   }
+
+  .poignee {
+    display:none; position:sticky; top:0; z-index:7;
+    /* Le trait ne fait que 5 px, mais la zone qu'on peut saisir en fait
+       44 : la cible tactile a le droit de dépasser le visuel (§4). */
+    padding:19px 0 20px; margin:0 -18px; cursor:grab;
+    background:color-mix(in srgb, var(--surface) 94%, transparent);
+    -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
+    touch-action:none;                 /* le glissement nous appartient */
+  }
+  .poignee::before {
+    content:''; display:block; width:42px; height:5px; margin:0 auto;
+    border-radius:999px; background:color-mix(in srgb, var(--ink) 22%, transparent);
+  }
+  .panneau.tire { transition:none; }   /* pendant le glissement, le doigt commande */
+
+  /* ── Repli quand le verre n'existe pas, et quand l'utilisateur
+     demande MOINS de transparence (§8 et §16) ──────────────────
+     Sans ce repli, un navigateur sans backdrop-filter affichait un
+     panneau à 88 % d'opacité SANS flou : les photos passaient au
+     travers en clair et les libellés devenaient illisibles. */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .panneau, .panneau-actions, .poignee, .barre,
+    #bloc-volet:not([hidden]), .rappel .pilule { background:var(--surface); }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .panneau, .panneau-actions, .poignee, .barre,
+    #bloc-volet:not([hidden]), .rappel .pilule {
+      background:var(--surface);
+      -webkit-backdrop-filter:none; backdrop-filter:none;
+    }
+  }
+
+  /* Mouvement réduit : on REMPLACE le déplacement par un fondu, on ne
+     se contente pas de l'accélérer (§9). */
   @media (prefers-reduced-motion: reduce) {
-    .panneau, .rappel { transition-duration:.01ms; }
+    .panneau, .rappel, .scene-badge { transition:opacity .2s ease; }
+    .panneau.masque { transform:none; }
+    .rappel { transform:none; }
+    .scene-badge { transform:translateX(-50%); }
   }
 
   /* 11 px : plancher absolu du guide pour du texte utile. */
@@ -444,6 +521,10 @@
 <body>
   <div class="studio">
     <aside class="panneau" id="panneau">
+      <!-- Poignée (téléphone) : elle annonce que la feuille se tire
+           vers le bas pour la refermer. -->
+      <div class="poignee" id="poignee" role="button" tabindex="0"
+           aria-label="Refermer les réglages"></div>
       <!-- Épinglée en haut du panneau : « Masquer » doit rester
            atteignable même après avoir descendu vingt réglages. -->
       <div class="panneau-actions">
@@ -572,7 +653,7 @@
     </main>
 
     <!-- Repère de comparaison : au-dessus de tout, au centre. -->
-    <div class="scene-badge" id="scene-badge" hidden>Version enregistrée</div>
+    <div class="scene-badge" id="scene-badge" role="status">Version enregistrée</div>
 
     <!-- Rappel du panneau une fois qu'il est effacé. Les deux actions
          utiles quand on regarde la galerie : la comparer, ou revenir
@@ -1159,7 +1240,8 @@
         ? 'Afficher la version enregistrée, pour voir ce que vos réglages changent'
         : 'Rien à comparer : aucun réglage modifié depuis le dernier enregistrement';
     });
-    el('scene-badge').hidden = !compare;
+    // Classe et non `hidden` : `display:none` ne s'anime pas.
+    el('scene-badge').classList.toggle('on', compare);
   }
   bComparer.forEach((b) => b.addEventListener('click', () => {
     compare = !compare;
@@ -1187,10 +1269,45 @@
   }
   el('masquer').addEventListener('click', () => reglages(false));
   el('rouvrir').addEventListener('click', () => reglages(true));
+  el('poignee').addEventListener('click', () => reglages(false));
+  el('poignee').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); reglages(false); }
+  });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     reglages(el('panneau').classList.contains('masque'));
   });
+
+  /* ── Glisser la feuille vers le bas pour la refermer ─────────
+     « Le mouvement suit le geste » : une feuille arrivée par le bas
+     s'en va par le bas. Le doigt tient la feuille au pixel ; sous un
+     tiers de sa hauteur, elle revient en place. */
+  (() => {
+    const p = el('panneau'), poignee = el('poignee');
+    let y0 = 0, dy = 0, t0 = 0, tire = false;
+    poignee.addEventListener('pointerdown', (e) => {
+      if (window.matchMedia('(min-width: 901px)').matches) return;
+      tire = true; y0 = e.clientY; dy = 0; t0 = Date.now();
+      p.classList.add('tire');
+      poignee.setPointerCapture(e.pointerId);
+    });
+    poignee.addEventListener('pointermove', (e) => {
+      if (!tire) return;
+      dy = Math.max(0, e.clientY - y0);          // vers le bas seulement
+      p.style.transform = `translateY(${dy}px)`;
+    });
+    const fin = () => {
+      if (!tire) return;
+      tire = false;
+      p.classList.remove('tire');
+      p.style.transform = '';
+      const vitesse = dy / Math.max(Date.now() - t0, 1);
+      if (dy > p.getBoundingClientRect().height * 0.33 || vitesse > 0.5) reglages(false);
+      dy = 0;
+    };
+    poignee.addEventListener('pointerup', fin);
+    poignee.addEventListener('pointercancel', fin);
+  })();
 
   el('couv-depot').addEventListener('click', () => el('couv-fichier').click());
   el('couv-fichier').addEventListener('change', async (e) => {
@@ -1401,6 +1518,18 @@
     draft = JSON.parse(JSON.stringify(data));
     draft.gallery.config = draft.gallery.config || {};
     instantaneSauve = instantane();     // référence « rien à perdre »
+
+    /* Entrée en cascade, UNE SEULE FOIS : les blocs se posent du haut
+       vers le bas et l'œil suit. La classe est retirée dès la fin, pour
+       que « Masquer / Réglages » — geste fréquent — n'ait pas à rejouer
+       cette cérémonie à chaque fois. */
+    const pan = el('panneau');
+    [...pan.children].forEach((e, i) => e.style.setProperty('--rang', String(i)));
+    pan.classList.add('entree');
+    setTimeout(() => {
+      pan.classList.remove('entree');
+      [...pan.children].forEach((e) => e.style.removeProperty('--rang'));
+    }, 420 + pan.children.length * 45);
 
     el('titre').textContent = draft.gallery.title || 'Votre galerie';
     el('titre-champ').value = draft.gallery.title || '';

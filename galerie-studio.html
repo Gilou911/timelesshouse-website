@@ -24,6 +24,11 @@
        (audit HIG : le vert valait 4.14:1 en clair, et le rouge 2.32:1 en
        sombre — un échec d'upload y aurait été illisible). */
     --ok:#33654a; --ko:#b3261e;
+    /* Hauteur de l'aperçu épinglé sur téléphone. Assez grand pour juger
+       un réglage, assez petit pour laisser voir les commandes dessous —
+       et repris tel quel comme décalage du sélecteur de volet, pour
+       qu'aucun des deux ne recouvre l'autre. */
+    --h-apercu: 40dvh;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   }
   @media (prefers-color-scheme: dark) {
@@ -62,12 +67,50 @@
   .scene iframe { width:100%; height:100%; border:none; border-radius:20px; background:#000;
     box-shadow: 10px 10px 28px var(--shadow-d), -10px -10px 28px var(--shadow-l); }
 
-  /* Sur écran étroit : l'aperçu passe dessous, à hauteur lisible. */
+  /* ── Écran étroit : l'aperçu MONTE et reste ─────────────────
+     Avant, le panneau occupait le haut et l'aperçu suivait dessous :
+     il fallait redescendre après CHAQUE réglage pour voir le résultat,
+     puis remonter pour le réglage suivant. Et sur une galerie
+     « photos + film », le sélecteur Photos/Vidéo étant tout en haut, il
+     fallait remonter jusqu'à lui rien que pour passer d'un volet à
+     l'autre (deux gênes signalées par Gil).
+     L'aperçu passe donc EN PREMIER et s'épingle en haut de l'écran ; le
+     sélecteur s'épingle juste dessous. Les réglages défilent sous eux :
+     on voit le résultat pendant qu'on règle, et on change de volet sans
+     jamais remonter. */
   @media (max-width: 900px) {
     body { overflow:auto; }
     .studio { flex-direction:column; height:auto; }
-    .panneau { width:100%; max-width:none; height:auto; box-shadow:none; }
-    .scene { height:70dvh; padding:0 14px calc(14px + env(safe-area-inset-bottom)); }
+    /* `overflow:visible` est INDISPENSABLE : hérité du bureau, le
+       `overflow-y:auto` du panneau en fait un conteneur de défilement,
+       et un enfant `sticky` s'y colle alors par rapport à LUI — donc
+       plus du tout par rapport à l'écran. Le sélecteur de volet
+       disparaissait comme avant (mesuré). */
+    .panneau {
+      width:100%; max-width:none; height:auto; box-shadow:none;
+      padding-top:14px; overflow:visible;
+    }
+
+    .scene {
+      order:-1;                     /* l'aperçu avant les réglages */
+      /* `flex:none` sinon le `flex:1` du bureau l'emporte sur la hauteur
+         demandée : l'aperçu tombait à 173 px au lieu de 40 % de
+         l'écran (mesuré). */
+      flex:none;
+      position:sticky; top:0; z-index:20;
+      height:var(--h-apercu);
+      padding:10px 12px 8px;
+      background:var(--bg);
+    }
+    /* Le sélecteur de volet reste à portée, collé sous l'aperçu.
+       Les marges négatives lui font occuper toute la largeur du panneau
+       pour qu'aucun réglage ne transparaisse sur ses côtés en défilant. */
+    #bloc-volet:not([hidden]) {
+      position:sticky; top:var(--h-apercu); z-index:15;
+      margin:0 -20px 4px; padding:10px 20px;
+      background:var(--surface);
+      box-shadow:0 8px 18px -12px var(--shadow-d);
+    }
   }
 
   /* 11 px : plancher absolu du guide pour du texte utile. */

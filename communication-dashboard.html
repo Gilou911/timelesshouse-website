@@ -278,6 +278,40 @@
       width: 44px; height: 44px;
     }
 
+    /* ═══════════════════════════════════════════════════════════
+       MOUVEMENT — mêmes gestes que la console (HIG §9)
+       ═══════════════════════════════════════════════════════════
+       Trois seulement, réutilisés partout : une vue qui entre, une
+       liste qui se pose, une modale qui arrive. Durées dans les bornes
+       du guide, courbe SORTANTE à l'apparition, et uniquement
+       `transform` / `opacity` — donc composité à 60 fps. */
+    @keyframes th-entre { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes th-fond  { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes th-boite { from { opacity: 0; transform: translateY(18px) scale(0.985); } to { opacity: 1; transform: none; } }
+    @keyframes th-feuille { from { transform: translateY(100%); } to { transform: none; } }
+
+    .th-vue { animation: th-entre 0.3s cubic-bezier(0.23, 1, 0.32, 1) backwards; }
+
+    .th-liste > * { animation: th-entre 0.32s cubic-bezier(0.23, 1, 0.32, 1) backwards; }
+    .th-liste > *:nth-child(1) { animation-delay: 0ms; }
+    .th-liste > *:nth-child(2) { animation-delay: 35ms; }
+    .th-liste > *:nth-child(3) { animation-delay: 70ms; }
+    .th-liste > *:nth-child(4) { animation-delay: 105ms; }
+    .th-liste > *:nth-child(5) { animation-delay: 140ms; }
+    .th-liste > *:nth-child(6) { animation-delay: 175ms; }
+    .th-liste > *:nth-child(7) { animation-delay: 210ms; }
+    .th-liste > *:nth-child(8) { animation-delay: 245ms; }
+    .th-liste > *:nth-child(n+9) { animation-delay: 280ms; }
+
+    .th-modal-fond  { animation: th-fond 0.22s ease-out backwards; }
+    .th-modal-boite { animation: th-boite 0.32s cubic-bezier(0.32, 0.72, 0, 1) backwards; }
+    @media (max-width: 639px) {
+      .th-modal-boite { animation: th-feuille 0.34s cubic-bezier(0.32, 0.72, 0, 1) backwards; }
+    }
+
+    .th-press { transition: transform 0.16s cubic-bezier(0.23, 1, 0.32, 1); }
+    .th-press:active { transform: scale(0.985); }
+
     /* §16 — Respecter « réduire les animations ». */
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {

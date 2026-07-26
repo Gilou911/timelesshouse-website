@@ -2590,10 +2590,16 @@ const Analytics = () => {
         })}
       </div>
 
-      {tab === 'overview'  && <OverviewTab  kpis={kpis} posts={posts} insights={insights} accounts={accounts} />}
-      {tab === 'posts'     && <PostsTab     posts={posts} />}
-      {tab === 'campaigns' && <CampaignsTab campaigns={campaigns} posts={posts} />}
-      {tab === 'audience'  && <AudienceTab  accounts={accounts} posts={posts} />}
+      {/* `key` sur l'onglet : la vue est REMONTÉE à chaque changement,
+          donc l'animation d'entrée se rejoue. Sans elle, passer d'un
+          onglet à l'autre était muet — rien ne disait que l'écran avait
+          changé, seul le contenu sautait. */}
+      <div key={tab} className="th-vue">
+        {tab === 'overview'  && <OverviewTab  kpis={kpis} posts={posts} insights={insights} accounts={accounts} />}
+        {tab === 'posts'     && <PostsTab     posts={posts} />}
+        {tab === 'campaigns' && <CampaignsTab campaigns={campaigns} posts={posts} />}
+        {tab === 'audience'  && <AudienceTab  accounts={accounts} posts={posts} />}
+      </div>
     </div>
   );
 };

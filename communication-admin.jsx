@@ -680,7 +680,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       }, [onClose]);
 
       return (
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6 bg-stone-900/40 backdrop-blur-sm" onClick={onClose}
+      <div className="th-modal-fond fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6 bg-stone-900/40 backdrop-blur-sm" onClick={onClose}
            role="dialog" aria-modal="true" aria-label={title}>
         {/* dvh (pas vh) : tient compte de la barre d'URL iOS — sinon le bas de
             la modale (boutons Enregistrer) passe sous la barre.
@@ -689,7 +689,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           ref={boxRef}
           tabIndex={-1}
           style={neu.raised}
-          className={`rounded-t-[28px] sm:rounded-[32px] p-5 sm:p-7 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-7 max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto overscroll-contain w-full ${size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
+          className={`th-modal-boite rounded-t-[28px] sm:rounded-[32px] p-5 sm:p-7 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-7 max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto overscroll-contain w-full ${size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
           onClick={e => e.stopPropagation()}
         >
           {/* Drag handle mobile */}
@@ -1786,8 +1786,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             )}
           </div>
 
-          {/* Grille clients */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
+          {/* Grille clients — `th-liste` fait entrer les cartes l'une
+              après l'autre, du haut vers le bas. */}
+          <div className="th-liste grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
             {filtered.map(c => (
               <button key={c.id} onClick={() => onSelect(c)} style={neu.raised} className="rounded-[22px] lg:rounded-[24px] p-5 lg:p-6 text-left group active:scale-[0.99] transition-transform">
                 <div className="flex items-start justify-between gap-3">
@@ -3139,7 +3140,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               texte="C'est ici que vous livrez photos et films : chaque galerie a son lien de partage, prêt à envoyer."
               bouton="Créer ma première galerie" onAction={creerEtConcevoir} />
           ) : (
-            <div className="space-y-3 mt-4">
+            <div className="th-liste space-y-3 mt-4">
               {galleries.map((g, idx) => (
                 <GalleryCard
                   key={g.id}
@@ -8438,7 +8439,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </aside>
 
             {/* Main */}
-            <main className="flex-1 min-w-0">
+            {/* `key` : changer de section REMONTE la vue, ce qui rejoue
+                l'animation d'entrée. Sans elle, React réutiliserait le
+                nœud et le passage d'un écran à l'autre resterait muet —
+                on ne saurait pas qu'il s'est passé quelque chose. */}
+            <main key={`${section}:${selectedClient?.id || ''}`} className="th-vue flex-1 min-w-0">
               {!selectedClient && (
                 <div className="mb-6 lg:mb-8 pt-4 lg:pt-0">
                   <h1 className="text-[28px] lg:text-[34px] tracking-tight leading-[1.05]" style={SERIF}>{titles[section].t}</h1>

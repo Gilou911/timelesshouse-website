@@ -1469,6 +1469,21 @@
   (() => {
     const p = el('panneau'), poignee = el('poignee');
     const tel = () => window.matchMedia('(max-width: 900px)').matches;
+    /* Deux questions DIFFÉRENTES, longtemps confondues sous la seule
+       largeur d'écran :
+         · la FORME  — feuille par le bas, ou colonne latérale ? c'est
+           bien une affaire de place, donc de largeur ;
+         · le GESTE  — a-t-on un pointeur précis ? c'est une affaire de
+           matériel, et la largeur n'en dit rien.
+       Décider le glissement latéral à la largeur donnait le déplacement
+       à la souris sur tout écran tactile de plus de 900 px : iPad en
+       paysage, iPad Pro, iPhone Max couché. Tirer un panneau de côté au
+       doigt n'a pas de sens et entre en conflit avec les gestes de bord
+       du système. La forme reste réglée par la largeur, le geste par le
+       pointeur. */
+    const colonne = () => !tel();
+    const souris  = () => window.matchMedia('(pointer: fine)').matches;
+    const lateral = () => colonne() && souris();
     const MEMOIRE = 'laloge.studio.panneau';
     const MARGE = 8;               // respiration minimale contre un bord
     const H_MINI = 220;            // sous ça, il ne reste plus rien d'utile
@@ -1501,7 +1516,7 @@
         p.style.setProperty('--pan-h', `${borne(garde.h, H_MINI, hMax())}px`);
         p.classList.add('dimensionne');
       }
-      if (garde.x != null && !tel()) {
+      if (garde.x != null && colonne()) {
         const l = borne(garde.x, MARGE, Math.max(MARGE, innerWidth - p.offsetWidth - MARGE));
         p.style.setProperty('--pan-x', `${l}px`);
         p.classList.add('deplace');
@@ -1526,7 +1541,7 @@
          panneau saute d'un cran au premier pixel de glissement. */
       p.style.setProperty('--pan-h', `${h0}px`);
       p.classList.add('dimensionne', 'tire');
-      if (!tel()) { p.style.setProperty('--pan-x', `${l0}px`); p.classList.add('deplace'); }
+      if (lateral()) { p.style.setProperty('--pan-x', `${l0}px`); p.classList.add('deplace'); }
       poignee.setPointerCapture(e.pointerId);
     });
 
@@ -1551,7 +1566,7 @@
         p.style.setProperty('--pan-h', `${H_MINI}px`);
         p.style.transform = `translateY(${dyBas}px)`;
       }
-      if (!tel()) {
+      if (lateral()) {
         p.style.setProperty('--pan-x',
           `${borne(l0 + dx, MARGE, innerWidth - p.offsetWidth - MARGE)}px`);
       }
@@ -1572,7 +1587,7 @@
       }
       if (bouge) {
         const r = p.getBoundingClientRect();
-        garde = { h: r.height, ...(tel() ? {} : { x: r.left }) };
+        garde = { h: r.height, ...(lateral() ? { x: r.left } : {}) };
         const tout = lire();
         tout[tel() ? 'tel' : 'bureau'] = garde;
         ecrire(tout);
@@ -1590,6 +1605,44 @@
       if (bouge) { e.stopImmediatePropagation(); e.preventDefault(); bouge = false; }
     }, true);
 
+    /* ── Le même réglage au clavier ────────────────────────────
+       Régler la taille du panneau n'existait qu'au doigt ou à la souris.
+       Une fonction qui n'a AUCUN équivalent clavier est fermée à qui
+       n'utilise pas de pointeur (§16). Les flèches, sur la poignée déjà
+       focalisable, suffisent : haut/bas la hauteur, gauche/droite la
+       position quand le panneau est une colonne. */
+    const PAS = 40;
+    function ajuster(dh, dx) {
+      const r = p.getBoundingClientRect();
+      garde = {
+        h: borne((garde?.h ?? r.height) + dh, H_MINI, hMax()),
+        ...(colonne() ? { x: (garde?.x ?? r.left) + dx } : {}),
+      };
+      poser();
+      const tout = lire();
+      tout[tel() ? 'tel' : 'bureau'] = garde;
+      ecrire(tout);
+    }
+    poignee.addEventListener('keydown', (e) => {
+      const pas = { ArrowUp:[PAS,0], ArrowDown:[-PAS,0], ArrowLeft:[0,-PAS], ArrowRight:[0,PAS] }[e.key];
+      if (!pas) return;
+      if (pas[1] && !colonne()) return;   // pas de latéral sur une feuille pleine largeur
+      e.preventDefault();
+      ajuster(pas[0], pas[1]);
+    });
+
+    /* Ce que la poignée fait DÉPEND du format : le dire, plutôt que de
+       laisser « Refermer les réglages » décrire à lui seul un élément qui
+       redimensionne et déplace aussi. Le nom accessible reste celui de
+       l'ACTIVATION (taper/Entrée referme) ; la description porte le reste,
+       et sert de bulle d'aide au survol. */
+    function decrire() {
+      poignee.title = colonne()
+        ? 'Tirer pour déplacer ou redimensionner · taper pour refermer · flèches au clavier'
+        : 'Tirer pour changer la hauteur · taper pour refermer · flèches au clavier';
+    }
+    decrire();
+
     /* Pas de « remise à zéro » par double-clic : le PREMIER clic referme
        déjà le panneau, et la poignée porte assez de gestes comme ça
        (tirer, glisser, taper pour refermer). On s'en passe sans risque
@@ -1606,7 +1659,7 @@
        ResizeObserver sur la racine, lui, suit la taille réelle.
        `poser()` est idempotent et ne touche qu'un élément en
        position:fixed : il ne peut pas se rappeler lui-même. */
-    const reborner = () => { if (garde) poser(); };
+    const reborner = () => { decrire(); if (garde) poser(); };
     addEventListener('resize', reborner);
     new ResizeObserver(reborner).observe(document.documentElement);
   })();

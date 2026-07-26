@@ -29,6 +29,9 @@
        et repris tel quel comme décalage du sélecteur de volet, pour
        qu'aucun des deux ne recouvre l'autre. */
     --h-apercu: 40dvh;
+    /* Marge autour de l'aperçu, reprise par ses outils pour qu'ils
+       restent alignés sur le cadre quelle que soit la taille d'écran. */
+    --marge-scene: 14px;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   }
   @media (prefers-color-scheme: dark) {
@@ -63,9 +66,57 @@
     padding:22px 20px 40px; background:var(--surface);
     box-shadow: 8px 0 26px var(--shadow-d);
   }
-  .scene { flex:1; min-width:0; height:100dvh; padding:14px; }
+  /* `position:relative` : les outils de l'aperçu se placent PAR RAPPORT
+     à la scène. Sans elle ils se seraient accrochés au coin de la page. */
+  .scene {
+    flex:1; min-width:0; height:100dvh; padding:var(--marge-scene);
+    display:flex; flex-direction:column;
+  }
+  .scene iframe { flex:1; min-height:0; }
   .scene iframe { width:100%; height:100%; border:none; border-radius:20px; background:#000;
     box-shadow: 10px 10px 28px var(--shadow-d), -10px -10px 28px var(--shadow-l); }
+
+  /* ── Barre d'outils de l'aperçu ─────────────────────────────
+     « Agrandir » ouvre la galerie en grand SANS quitter la page ;
+     « Comparer » y remet la version enregistrée, pour voir d'un coup
+     d'œil ce que les réglages en cours ont changé (demande de Gil).
+     Cette barre est HORS du cadre, pas posée dessus : en surimpression
+     elle recouvrait la pastille « LE FILM » de la galerie — c'est-à-dire
+     précisément un des éléments qu'on vient juger. */
+  .scene-barre {
+    flex:none; display:flex; align-items:center; justify-content:space-between;
+    gap:8px; margin-bottom:8px; min-height:44px;
+  }
+  .scene-outils { display:flex; gap:8px; margin-left:auto; }
+  .scene-outils button {
+    min-height:44px; padding:0 16px; border-radius:999px; cursor:pointer;
+    font-family:inherit; font-size:0.75rem; font-weight:700;
+    color:var(--ink); background:var(--surface); border:1px solid transparent;
+    box-shadow: 3px 3px 8px var(--shadow-d), -3px -3px 8px var(--shadow-l);
+    transition: transform .16s var(--ease-out), background .2s var(--ease-out);
+  }
+  .scene-outils button:active { transform:scale(.96); }
+  .scene-outils button[disabled] { opacity:.45; cursor:default; box-shadow:none; }
+  .scene-outils button[aria-pressed="true"] { background:var(--btn-bg); color:var(--btn-text); box-shadow:none; }
+  @media (hover:hover) and (pointer:fine) {
+    .scene-outils button:not([disabled]):hover { transform:translateY(-1px); }
+  }
+  /* Dire CE QU'ON REGARDE : sans ce repère, on croit que ses réglages
+     ont été perdus. */
+  .scene-badge {
+    padding:9px 14px; border-radius:999px;
+    font-size:0.71875rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    color:#14171c; background:#e7c98f;
+  }
+
+  /* Plein écran : l'aperçu couvre la fenêtre, la page reste dessous. */
+  .scene.plein {
+    position:fixed; inset:0; z-index:200; height:100dvh; width:100vw;
+    max-width:none; padding:14px;
+    padding-top:max(14px, env(safe-area-inset-top));
+    padding-bottom:max(14px, env(safe-area-inset-bottom));
+    background:var(--bg);
+  }
 
   /* ── Écran étroit : l'aperçu MONTE et reste ─────────────────
      Avant, le panneau occupait le haut et l'aperçu suivait dessous :
@@ -99,9 +150,13 @@
       flex:none;
       position:sticky; top:0; z-index:20;
       height:var(--h-apercu);
+      --marge-scene:10px;
       padding:10px 12px 8px;
       background:var(--bg);
     }
+    /* En plein écran, la scène quitte le flux : elle ne doit plus être
+       ni épinglée ni bornée à 40 % de l'écran. */
+    .scene.plein { position:fixed; height:100dvh; --marge-scene:12px; }
     /* Le sélecteur de volet reste à portée, collé sous l'aperçu.
        Les marges négatives lui font occuper toute la largeur du panneau
        pour qu'aucun réglage ne transparaisse sur ses côtés en défilant. */
@@ -473,7 +528,16 @@
       </div>
     </aside>
 
-    <main class="scene">
+    <main class="scene" id="scene">
+      <!-- Outils posés SUR l'aperçu : ils suivent donc l'agrandissement
+           et restent à portée en plein écran. -->
+      <div class="scene-barre">
+        <div class="scene-badge" id="scene-badge" hidden>Version enregistrée</div>
+        <div class="scene-outils">
+          <button type="button" id="comparer" aria-pressed="false">Comparer</button>
+          <button type="button" id="agrandir" aria-pressed="false">Agrandir</button>
+        </div>
+      </div>
       <iframe id="apercu" title="Aperçu de la galerie"></iframe>
     </main>
   </div>
@@ -573,15 +637,22 @@
 
   /* L'aperçu ne se peint que lorsque la page enfant a signalé qu'elle
      écoutait — sinon le premier envoi tomberait dans le vide. */
+  /* Mode comparaison : l'aperçu montre la version ENREGISTRÉE au lieu du
+     brouillon. Rien n'est modifié ni perdu — on change seulement ce
+     qu'on envoie à l'aperçu, et un simple clic revient au brouillon. */
+  let compare = false;
+
   function pousser() {
     if (!pretApercu || !draft) return;
     /* `vue` voyage AVEC la galerie. Depuis que la galerie et le film
        sont deux PAGES, le rail ne fait plus défiler l'aperçu : il
        change la page affichée. Le concepteur montre donc exactement
        ce que verra le client en cliquant sur la pastille. */
-    const charge = { ...draft, vue: volet === 'video' ? 'film' : 'photos' };
+    const source = compare && base ? base : draft;
+    const charge = { ...source, vue: volet === 'video' ? 'film' : 'photos' };
     el('apercu').contentWindow.postMessage(
       { type:'laloge-preview', payload: charge }, location.origin);
+    majComparer();     // « Comparer » n'a de sens qu'une fois quelque chose modifié
   }
 
   function boutons(hote, liste, actif, onPick) {
@@ -1029,6 +1100,41 @@
     pousser();
   });
 
+  /* ── Comparer : brouillon ↔ version enregistrée ────────────
+     Le bouton est désactivé tant que rien n'a changé — comparer deux
+     états identiques ne montrerait rien et ferait douter de l'outil. */
+  const bComparer = el('comparer');
+  function majComparer() {
+    const possible = !!base && nonEnregistre();
+    bComparer.disabled = !possible && !compare;
+    bComparer.title = possible || compare
+      ? 'Afficher la version enregistrée, pour voir ce que vos réglages changent'
+      : 'Rien à comparer : aucun réglage modifié depuis le dernier enregistrement';
+  }
+  bComparer.addEventListener('click', () => {
+    compare = !compare;
+    bComparer.setAttribute('aria-pressed', String(compare));
+    bComparer.textContent = compare ? 'Mes réglages' : 'Comparer';
+    el('scene-badge').hidden = !compare;
+    pousser();
+  });
+
+  /* ── Agrandir : la galerie occupe la fenêtre, SANS quitter la page ──
+     Le panneau reste derrière, on y revient d'un clic ou par Échap. */
+  const bAgrandir = el('agrandir');
+  function plein(oui) {
+    el('scene').classList.toggle('plein', oui);
+    bAgrandir.setAttribute('aria-pressed', String(oui));
+    bAgrandir.textContent = oui ? 'Réduire' : 'Agrandir';
+    // L'aperçu change de taille : la grille justifiée doit se recalculer.
+    // Elle n'écoute que `resize`, qu'un changement de classe ne déclenche pas.
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
+  }
+  bAgrandir.addEventListener('click', () => plein(!el('scene').classList.contains('plein')));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && el('scene').classList.contains('plein')) plein(false);
+  });
+
   el('couv-depot').addEventListener('click', () => el('couv-fichier').click());
   el('couv-fichier').addEventListener('change', async (e) => {
     const file = (e.target.files || [])[0];
@@ -1198,6 +1304,12 @@
         ? `Galerie enregistrée · ${enfiles} film(s) en préparation.`
         : 'Galerie enregistrée.', 'ok');
       instantaneSauve = instantane();     // plus rien à perdre
+      /* La version enregistrée devient celle qu'on vient d'écrire :
+         sans ça, « Comparer » aurait continué à montrer l'état d'AVANT
+         l'enregistrement, ce qui n'a plus aucun sens. */
+      base = JSON.parse(JSON.stringify(draft));
+      if (compare) el('comparer').click();   // on sort du mode comparaison
+      majComparer();
     } catch (err) {
       // Une coupure réseau ne doit pas laisser le bouton mort et muet.
       etat(`Échec : ${err.message || "l'enregistrement n'a pas abouti."}`, 'ko');

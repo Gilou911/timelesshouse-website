@@ -51,7 +51,14 @@ function galleryVariant(source, maxW, quality) {
   canvas.width = cw; canvas.height = ch;
   canvas.getContext('2d').drawImage(source, 0, 0, cw, ch);
   return new Promise((resolve, reject) => canvas.toBlob(
-    (b) => b ? resolve(b) : reject(new Error('Génération de variante échouée')),
+    (b) => b ? resolve(b)
+             // Message actionnable : ce cas arrive surtout sur téléphone,
+             // quand l'image dépasse ce que le navigateur sait tenir en
+             // mémoire. « Génération de variante échouée » n'aidait
+             // personne à comprendre quoi faire.
+             : reject(new Error(
+                 `Cette image n'a pas pu être préparée (${w}×${h}). ` +
+                 `Elle est peut-être trop lourde pour ce navigateur — réessayez depuis un ordinateur.`)),
     'image/jpeg', quality));
 }
 

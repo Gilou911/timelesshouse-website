@@ -2582,7 +2582,7 @@ const Analytics = () => {
               key={t.id}
               onClick={() => setTab(t.id)}
               style={tab === t.id ? neu.dark : {}}
-              className={`px-4 py-2.5 rounded-full text-[12.5px] font-medium tracking-tight transition-all flex items-center gap-2 whitespace-nowrap ${tab === t.id ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`}
+              className={`th-onglet px-4 py-2.5 rounded-full text-[12.5px] font-medium tracking-tight flex items-center gap-2 whitespace-nowrap ${tab === t.id ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`}
             >
               <IconComp size={13} /> {t.label}
             </button>

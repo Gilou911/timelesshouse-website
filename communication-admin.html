@@ -143,17 +143,38 @@
        Durées dans les bornes du guide : 220-340 ms pour une transition
        de vue, courbe SORTANTE à l'apparition. Uniquement `transform` et
        `opacity`, donc composité à 60 fps. */
+    /* Courbe DOUCE : une exponentielle sortante. Elle démarre vite puis
+       se pose très progressivement — c'est ce qui donne l'impression de
+       « glisser » plutôt que de s'arrêter net. Réservée à ce qui doit
+       paraître calme : le surlignage d'onglet et l'entrée des vues. */
+    :root { --ease-doux: cubic-bezier(0.16, 1, 0.3, 1); }
+
+    /* Surlignage d'onglet. Tailwind pose `transition` à 150 ms sur une
+       courbe symétrique : le relief de l'onglet actif apparaissait d'un
+       coup. On étire et on adoucit — le déplacement du surlignage se
+       suit à l'œil au lieu de sauter (demande de Gil). */
+    .th-onglet {
+      transition: box-shadow 0.34s var(--ease-doux),
+                  background-color 0.34s var(--ease-doux),
+                  color 0.26s var(--ease-doux),
+                  transform 0.16s var(--ease-doux);
+    }
+
     @keyframes th-entre { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
     @keyframes th-fond  { from { opacity: 0; } to { opacity: 1; } }
     @keyframes th-boite { from { opacity: 0; transform: translateY(18px) scale(0.985); } to { opacity: 1; transform: none; } }
     @keyframes th-feuille { from { transform: translateY(100%); } to { transform: none; } }
 
-    .th-vue { animation: th-entre 0.3s cubic-bezier(0.23, 1, 0.32, 1) backwards; }
+    /* Entrée de vue adoucie : un peu plus longue, sur la courbe douce,
+       et un déplacement plus court (6 px au lieu de 8) — le contenu se
+       pose au lieu de monter. */
+    .th-vue { animation: th-entre-doux 0.4s var(--ease-doux) backwards; }
+    @keyframes th-entre-doux { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
     /* Cascade d'une liste : 35 ms d'écart, plafonnés à 10 éléments.
        Au-delà, tout arrive ensemble — sur une liste de cent clients, un
        décalage cumulé ferait attendre trois secondes pour rien. */
-    .th-liste > * { animation: th-entre 0.32s cubic-bezier(0.23, 1, 0.32, 1) backwards; }
+    .th-liste > * { animation: th-entre-doux 0.42s var(--ease-doux) backwards; }
     .th-liste > *:nth-child(1) { animation-delay: 0ms; }
     .th-liste > *:nth-child(2) { animation-delay: 35ms; }
     .th-liste > *:nth-child(3) { animation-delay: 70ms; }

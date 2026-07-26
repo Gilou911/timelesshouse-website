@@ -8402,7 +8402,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     key={n.id}
                     onClick={() => { setSection(n.id); setSelectedClient(null); }}
                     style={section === n.id && !selectedClient ? neu.pressedSm : {}}
-                    className={`w-full flex items-center gap-3.5 px-4 py-3.5 min-h-[48px] rounded-2xl text-left transition ${section === n.id && !selectedClient ? 'text-stone-900' : 'text-stone-500 hover:text-stone-800'}`}>
+                    className={`th-onglet w-full flex items-center gap-3.5 px-4 py-3.5 min-h-[48px] rounded-2xl text-left ${section === n.id && !selectedClient ? 'text-stone-900' : 'text-stone-500 hover:text-stone-800'}`}>
                     <n.icon size={18} /> <span className="text-[14px] font-medium tracking-tight">{n.label}</span>
                   </button>
                 ))}
@@ -8509,7 +8509,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   onClick={() => { setSection(n.id); setSelectedClient(null); }}
                   style={active ? neu.darkSm : {}}
                   aria-current={active ? 'page' : undefined}
-                  className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[52px] py-2 px-1 rounded-2xl transition active:scale-95 ${active ? 'text-white' : 'text-stone-500'}`}>
+                  className={`th-onglet flex-1 flex flex-col items-center justify-center gap-1 min-h-[52px] py-2 px-1 rounded-2xl active:scale-95 ${active ? 'text-white' : 'text-stone-500'}`}>
                   <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
                   <span className="text-[10px] font-semibold tracking-tight leading-none">{n.label}</span>
                 </button>

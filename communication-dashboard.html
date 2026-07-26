@@ -285,14 +285,24 @@
        liste qui se pose, une modale qui arrive. Durées dans les bornes
        du guide, courbe SORTANTE à l'apparition, et uniquement
        `transform` / `opacity` — donc composité à 60 fps. */
+    /* Courbe DOUCE : exponentielle sortante — démarre vite, se pose
+       très progressivement. Même valeur que la console. */
+    :root { --ease-doux: cubic-bezier(0.16, 1, 0.3, 1); }
+    .th-onglet {
+      transition: box-shadow 0.34s var(--ease-doux),
+                  background-color 0.34s var(--ease-doux),
+                  color 0.26s var(--ease-doux),
+                  transform 0.16s var(--ease-doux);
+    }
     @keyframes th-entre { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes th-entre-doux { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
     @keyframes th-fond  { from { opacity: 0; } to { opacity: 1; } }
     @keyframes th-boite { from { opacity: 0; transform: translateY(18px) scale(0.985); } to { opacity: 1; transform: none; } }
     @keyframes th-feuille { from { transform: translateY(100%); } to { transform: none; } }
 
-    .th-vue { animation: th-entre 0.3s cubic-bezier(0.23, 1, 0.32, 1) backwards; }
+    .th-vue { animation: th-entre-doux 0.4s var(--ease-doux) backwards; }
 
-    .th-liste > * { animation: th-entre 0.32s cubic-bezier(0.23, 1, 0.32, 1) backwards; }
+    .th-liste > * { animation: th-entre-doux 0.42s var(--ease-doux) backwards; }
     .th-liste > *:nth-child(1) { animation-delay: 0ms; }
     .th-liste > *:nth-child(2) { animation-delay: 35ms; }
     .th-liste > *:nth-child(3) { animation-delay: 70ms; }

@@ -25,13 +25,18 @@
   <link rel="stylesheet" href="/style.css" />
 
 
-  <!-- Apply theme BEFORE rendering to avoid flash -->
+  <!-- Thème posé AVANT le rendu, pour éviter le flash blanc.
+       Il suit le réglage de l'appareil : plus de préférence enregistrée,
+       plus de bascule dans l'interface. Le choix se fait une fois dans
+       le téléphone et vaut pour toutes les applications. -->
   <script>
     (function(){
       try {
-        if (localStorage.getItem('th-dark-mode') === 'dark') {
-          document.documentElement.setAttribute('data-theme', 'dark');
-        }
+        var sombre = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', sombre ? 'dark' : 'light');
+        // Ménage : la préférence enregistrée par l'ancienne bascule
+        // n'a plus d'effet, autant ne pas la laisser traîner.
+        localStorage.removeItem('th-dark-mode');
       } catch(e) {}
     })();
   </script>

@@ -337,89 +337,36 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     // Mutable pointer — reassigned by App on theme change
     let neu = NEU_LIGHT;
 
-    // ---------- useDarkMode hook ----------
+    /* ---------- Thème : PILOTÉ PAR L'APPAREIL ----------
+       Plus de bascule manuelle : le thème suit le réglage du système
+       (clair / sombre / automatique au coucher du soleil). L'utilisateur
+       le règle une fois pour toutes dans son téléphone, et toutes ses
+       applications suivent — c'est ce qu'il attend, et ça retire deux
+       commandes de l'interface.
+       L'écoute reste active : basculer le téléphone en sombre pendant
+       qu'une page est ouverte la fait changer sans rechargement. */
     const useDarkMode = () => {
-      const [isDark, setIsDark] = useState(() => {
-        try { return localStorage.getItem('th-dark-mode') === 'dark'; }
-        catch (e) { return false; }
-      });
+      const mq = typeof window !== 'undefined' && window.matchMedia
+        ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+      const [isDark, setIsDark] = useState(() => !!(mq && mq.matches));
       useEffect(() => {
         document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-        try { localStorage.setItem('th-dark-mode', isDark ? 'dark' : 'light'); } catch (e) {}
       }, [isDark]);
-      const toggleDark = useCallback(() => setIsDark(d => !d), []);
-      return [isDark, toggleDark];
-    };
-
-    /* Toggle dark mode — fin + arc SVG qui voyage (version raffinée). */
-    const C_STEP = 50;
-    const C_INITIAL = -9.8;
-
-    const DarkToggle = ({ isDark, onToggle }) => {
-      const [offset, setOffset] = useState(() => {
-        try {
-          const saved = parseFloat(localStorage.getItem('th-c-offset'));
-          return isNaN(saved) ? (isDark ? C_INITIAL + C_STEP : C_INITIAL) : saved;
-        } catch (e) { return C_INITIAL; }
-      });
-      const prevIsDark = useRef(isDark);
-
       useEffect(() => {
-        if (prevIsDark.current !== isDark) {
-          setOffset(o => {
-            const next = o + C_STEP;
-            try { localStorage.setItem('th-c-offset', next); } catch (e) {}
-            return next;
-          });
-          prevIsDark.current = isDark;
-        }
-      }, [isDark]);
-
-      return (
-        <button
-          onClick={onToggle}
-          role="switch"
-          aria-checked={isDark}
-          aria-label={isDark ? 'Passer en mode jour' : 'Passer en mode nuit'}
-          title={isDark ? 'Mode jour' : 'Mode nuit'}
-          // HIG §4 : l'interrupteur garde son dessin fin (42×22) mais sa
-          // ZONE TACTILE fait 44×44 — la cible peut dépasser le visuel.
-          className="th-hit-44"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flex: '0 0 auto',
-            alignSelf: 'center',
-            width: 42, height: 22,
-            minWidth: 42, minHeight: 22,
-            maxWidth: 42, maxHeight: 22,
-            boxSizing: 'border-box',
-            borderRadius: 11,
-            background: 'linear-gradient(145deg, #28282c, #323236)',
-            border: 'none', cursor: 'pointer', padding: 0,
-            boxShadow: 'inset 0 1.5px 4px rgba(0,0,0,0.6), inset 0 -1px 1px rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.25)',
-            WebkitTapHighlightColor: 'transparent',
-            outline: 'none',
-            overflow: 'visible',
-            transition: 'box-shadow 0.4s ease',
-            position: 'relative',
-          }}>
-          {/* HIG : étend la zone tactile à ~64×44 sans toucher au visuel 42×22 */}
-          <span aria-hidden="true" style={{ position: 'absolute', inset: -11 }} />
-          <svg width="42" height="22" viewBox="0 0 42 22" preserveAspectRatio="none"
-               style={{ display: 'block', width: 42, height: 22, flex: '0 0 auto', overflow: 'visible', pointerEvents: 'none' }}>
-            <rect x="1.2" y="1.2" width="39.6" height="19.6" rx="9.8" ry="9.8" pathLength="100"
-                  fill="none"
-                  stroke={isDark ? 'rgba(255,255,255,0.92)' : 'rgba(135,135,140,0.75)'}
-                  strokeWidth="2.4"
-                  strokeDasharray="50 50"
-                  strokeDashoffset={offset}
-                  style={{ transition: 'stroke-dashoffset 0.7s cubic-bezier(0.65,0.05,0.35,1), stroke 0.7s cubic-bezier(0.65,0.05,0.35,1)' }} />
-          </svg>
-        </button>
-      );
+        if (!mq) return;
+        const suivre = (e) => setIsDark(e.matches);
+        // addEventListener sur un MediaQueryList : Safari < 14 ne connaît
+        // que addListener, d'où le repli.
+        if (mq.addEventListener) { mq.addEventListener('change', suivre); return () => mq.removeEventListener('change', suivre); }
+        mq.addListener(suivre); return () => mq.removeListener(suivre);
+      }, [mq]);
+      return [isDark, () => {}];   // la bascule ne fait plus rien
     };
+
+    /* Le sélecteur de thème a été retiré : le thème suit désormais le
+       réglage de l'appareil (voir useDarkMode plus haut). Son composant
+       et ses constantes d'arc SVG partent avec lui — du code mort qui
+       aurait laissé croire que la bascule existe encore. */
 
     const SERIF = { fontFamily: 'Instrument Serif, serif', fontWeight: 400 };
 
@@ -8169,7 +8116,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     }
 
     function App() {
-      const [isDark, toggleDark] = useDarkMode();
+      const [isDark] = useDarkMode();
       // Reassign the module-level mutable neu pointer
       neu = isDark ? NEU_DARK : NEU_LIGHT;
 
@@ -8383,9 +8330,6 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <div className="text-[10px] uppercase tracking-[0.16em] text-stone-400 mt-1 font-medium">Admin</div>
             </div>
             <div className="flex gap-2 items-center shrink-0">
-              <div style={neu.raisedXs} className="h-11 px-3 rounded-full flex items-center justify-center">
-                <DarkToggle isDark={isDark} onToggle={toggleDark} />
-              </div>
               <button onClick={() => { setSection('settings'); setSelectedClient(null); }} aria-label="Paramètres" title="Paramètres" style={neu.raisedXs} className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
                 <Settings size={16} />
               </button>
@@ -8440,10 +8384,6 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </div>
 
               <div className="mt-auto pt-4 space-y-1">
-                <div className="flex items-center justify-between px-4 py-2.5">
-                  <span className="text-[11px] uppercase tracking-[0.14em] text-stone-500 font-semibold">Thème</span>
-                  <DarkToggle isDark={isDark} onToggle={toggleDark} />
-                </div>
                 <button
                   onClick={() => { setSection('settings'); setSelectedClient(null); }}
                   style={section === 'settings' && !selectedClient ? neu.pressedSm : {}}

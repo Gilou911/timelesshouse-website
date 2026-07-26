@@ -280,6 +280,13 @@ function injectStyles() {
   }
   .g-slide.active { opacity: 1; visibility: visible; }
   .g-slide video { width: 100%; height: 100%; display: block; background: #000; }
+  /* La VIGNETTE remplit toute la fenêtre de lecture, quel que soit son
+     cadrage (demande de Gil) : sans ça, une image qui n'est pas en 16/9
+     s'affichait contenue, avec des bandes noires autour.
+     Le recadrage ne dure QUE jusqu'à la première image du film : au-delà
+     on repasse en « contenu », sinon un film vertical ou en 4/3 serait
+     rogné à la lecture. */
+  .g-slide video.g-vignette-pleine { object-fit: cover; }
   .g-slide .g-soon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
 
   /* Qualité en overlay (haut-droit) : fond noir vitré, actif = accent. */
@@ -1131,7 +1138,16 @@ export async function mountVideos(mount, videos, opts = {}) {
     // Vignette d'attente. `preload=metadata` suffit alors : le navigateur
     // n'a plus besoin de télécharger une image du film pour avoir quelque
     // chose à montrer, et l'affichage est immédiat.
-    if (v.poster) video.setAttribute('poster', v.poster);
+    if (v.poster) {
+      video.setAttribute('poster', v.poster);
+      video.classList.add('g-vignette-pleine');
+      // `playing` et non `play` : on attend la PREMIÈRE IMAGE rendue,
+      // sinon le retour au cadrage normal se voit comme un sursaut
+      // pendant que la vidéo se met en route.
+      video.addEventListener('playing', () => {
+        video.classList.remove('g-vignette-pleine');
+      }, { once: true });
+    }
     slide.appendChild(video);
 
     // Sélecteur de qualité en OVERLAY (haut-droit de la vidéo)

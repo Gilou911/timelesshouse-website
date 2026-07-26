@@ -289,9 +289,9 @@
        très progressivement. Même valeur que la console. */
     :root { --ease-doux: cubic-bezier(0.16, 1, 0.3, 1); }
     .th-onglet {
-      transition: box-shadow 0.34s var(--ease-doux),
-                  background-color 0.34s var(--ease-doux),
-                  color 0.26s var(--ease-doux),
+      transition: box-shadow 0.44s var(--ease-doux),
+                  background-color 0.44s var(--ease-doux),
+                  color 0.34s var(--ease-doux),
                   transform 0.16s var(--ease-doux);
     }
     @keyframes th-entre { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -300,18 +300,18 @@
     @keyframes th-boite { from { opacity: 0; transform: translateY(18px) scale(0.985); } to { opacity: 1; transform: none; } }
     @keyframes th-feuille { from { transform: translateY(100%); } to { transform: none; } }
 
-    .th-vue { animation: th-entre-doux 0.4s var(--ease-doux) backwards; }
+    .th-vue { animation: th-entre-doux 0.52s var(--ease-doux) backwards; }
 
-    .th-liste > * { animation: th-entre-doux 0.42s var(--ease-doux) backwards; }
+    .th-liste > * { animation: th-entre-doux 0.58s var(--ease-doux) backwards; }
     .th-liste > *:nth-child(1) { animation-delay: 0ms; }
-    .th-liste > *:nth-child(2) { animation-delay: 35ms; }
-    .th-liste > *:nth-child(3) { animation-delay: 70ms; }
-    .th-liste > *:nth-child(4) { animation-delay: 105ms; }
-    .th-liste > *:nth-child(5) { animation-delay: 140ms; }
-    .th-liste > *:nth-child(6) { animation-delay: 175ms; }
-    .th-liste > *:nth-child(7) { animation-delay: 210ms; }
-    .th-liste > *:nth-child(8) { animation-delay: 245ms; }
-    .th-liste > *:nth-child(n+9) { animation-delay: 280ms; }
+    .th-liste > *:nth-child(2) { animation-delay: 48ms; }
+    .th-liste > *:nth-child(3) { animation-delay: 96ms; }
+    .th-liste > *:nth-child(4) { animation-delay: 144ms; }
+    .th-liste > *:nth-child(5) { animation-delay: 192ms; }
+    .th-liste > *:nth-child(6) { animation-delay: 240ms; }
+    .th-liste > *:nth-child(7) { animation-delay: 288ms; }
+    .th-liste > *:nth-child(8) { animation-delay: 336ms; }
+    .th-liste > *:nth-child(n+9) { animation-delay: 384ms; }
 
     .th-modal-fond  { animation: th-fond 0.22s ease-out backwards; }
     .th-modal-boite { animation: th-boite 0.32s cubic-bezier(0.32, 0.72, 0, 1) backwards; }

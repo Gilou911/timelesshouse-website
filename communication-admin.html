@@ -154,9 +154,9 @@
        coup. On étire et on adoucit — le déplacement du surlignage se
        suit à l'œil au lieu de sauter (demande de Gil). */
     .th-onglet {
-      transition: box-shadow 0.34s var(--ease-doux),
-                  background-color 0.34s var(--ease-doux),
-                  color 0.26s var(--ease-doux),
+      transition: box-shadow 0.44s var(--ease-doux),
+                  background-color 0.44s var(--ease-doux),
+                  color 0.34s var(--ease-doux),
                   transform 0.16s var(--ease-doux);
     }
 
@@ -168,23 +168,23 @@
     /* Entrée de vue adoucie : un peu plus longue, sur la courbe douce,
        et un déplacement plus court (6 px au lieu de 8) — le contenu se
        pose au lieu de monter. */
-    .th-vue { animation: th-entre-doux 0.4s var(--ease-doux) backwards; }
+    .th-vue { animation: th-entre-doux 0.52s var(--ease-doux) backwards; }
     @keyframes th-entre-doux { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
     /* Cascade d'une liste : 35 ms d'écart, plafonnés à 10 éléments.
        Au-delà, tout arrive ensemble — sur une liste de cent clients, un
        décalage cumulé ferait attendre trois secondes pour rien. */
-    .th-liste > * { animation: th-entre-doux 0.42s var(--ease-doux) backwards; }
+    .th-liste > * { animation: th-entre-doux 0.58s var(--ease-doux) backwards; }
     .th-liste > *:nth-child(1) { animation-delay: 0ms; }
-    .th-liste > *:nth-child(2) { animation-delay: 35ms; }
-    .th-liste > *:nth-child(3) { animation-delay: 70ms; }
-    .th-liste > *:nth-child(4) { animation-delay: 105ms; }
-    .th-liste > *:nth-child(5) { animation-delay: 140ms; }
-    .th-liste > *:nth-child(6) { animation-delay: 175ms; }
-    .th-liste > *:nth-child(7) { animation-delay: 210ms; }
-    .th-liste > *:nth-child(8) { animation-delay: 245ms; }
-    .th-liste > *:nth-child(9) { animation-delay: 280ms; }
-    .th-liste > *:nth-child(n+10) { animation-delay: 315ms; }
+    .th-liste > *:nth-child(2) { animation-delay: 48ms; }
+    .th-liste > *:nth-child(3) { animation-delay: 96ms; }
+    .th-liste > *:nth-child(4) { animation-delay: 144ms; }
+    .th-liste > *:nth-child(5) { animation-delay: 192ms; }
+    .th-liste > *:nth-child(6) { animation-delay: 240ms; }
+    .th-liste > *:nth-child(7) { animation-delay: 288ms; }
+    .th-liste > *:nth-child(8) { animation-delay: 336ms; }
+    .th-liste > *:nth-child(9) { animation-delay: 384ms; }
+    .th-liste > *:nth-child(n+10) { animation-delay: 432ms; }
 
     /* Modale : le voile se fond, la boîte monte. Sur téléphone elle
        arrive du BAS, puisque c'est une feuille — le mouvement suit le

@@ -1555,7 +1555,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const alerteTaux = tauxVerifiesEn != null && tauxVerifiesEn < _now.getFullYear();
 
       return (
-        <div className="space-y-5 lg:space-y-6">
+        /* th-liste : les blocs entrent l'un après l'autre AU MOMENT où
+           les chiffres arrivent. Sans ça l'écran restait vide sous une
+           roue, puis tout apparaissait d'un bloc — c'est ce saut qui
+           paraissait sec, pas la courbe (vidéo de Gil). La branche de
+           chargement rend un autre arbre : React remonte celui-ci, donc
+           l'animation se joue à chaque arrivée de données. */
+        <div className="th-liste space-y-5 lg:space-y-6">
           {err && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]"><AlertCircle size={14} /> {err}</div>}
 
           {/* Alerte de nouvelle année : les taux changent au 1er janvier */}

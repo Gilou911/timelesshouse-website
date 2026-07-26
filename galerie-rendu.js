@@ -60,6 +60,35 @@ function injectStyles() {
   .g-cell img.on { opacity: 1; }
   .g-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
+  /* ── Attente d'une photo ────────────────────────────────────
+     Un reflet passe lentement sur la case tant que l'image n'est pas
+     arrivée. But précis : dire « ça travaille » sur une galerie de
+     plusieurs centaines de photos, où le lazy-loading laissait des
+     rectangles vides et immobiles pendant le défilement.
+     Le reflet est un pseudo-élément déplacé en transform — donc
+     composité, à 60 fps, sans repeindre la case (§9 : jamais de
+     background-position ni de left animés en continu). */
+  .g-cell.attente::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(100deg,
+      transparent 20%,
+      color-mix(in srgb, var(--ink) 7%, transparent) 50%,
+      transparent 80%);
+    transform: translateX(-100%);
+    animation: g-attente 1.4s ease-in-out infinite;
+  }
+  @keyframes g-attente { to { transform: translateX(100%); } }
+
+  /* Mouvement réduit : pas de balayage — un simple battement de teinte,
+     lent et sans déplacement (§9). */
+  @media (prefers-reduced-motion: reduce) {
+    .g-cell.attente::after {
+      animation: g-attente-calme 2s ease-in-out infinite;
+      transform: none; background: color-mix(in srgb, var(--ink) 6%, transparent);
+    }
+    @keyframes g-attente-calme { 0%,100% { opacity: .35 } 50% { opacity: .9 } }
+  }
+
   /* Outils au survol (desktop) / toujours visibles au doigt (tactile) */
   .g-tools {
     position: absolute; right: 8px; bottom: 8px; display: flex; gap: 8px;
@@ -539,8 +568,13 @@ export function mountPhotos(mount, categories, opts = {}) {
   const fadeIn = (cell) => {
     const img = cell.querySelector('img');
     if (!img) return;
-    if (img.complete && img.naturalWidth > 0) { img.classList.add('on'); return; }
-    img.addEventListener('load', () => img.classList.add('on'), { once: true });
+    /* `attente` allume le voile d'attente sur la cellule. Il s'éteint
+       à l'arrivée de l'image — ou à son échec, sinon une photo cassée
+       laisserait un scintillement perpétuel. */
+    const pret = () => { cell.classList.remove('attente'); img.classList.add('on'); };
+    if (img.complete && img.naturalWidth > 0) { pret(); return; }
+    cell.classList.add('attente');
+    img.addEventListener('load', pret, { once: true });
     img.addEventListener('error', () => { cell.style.display = 'none'; }, { once: true });
   };
 

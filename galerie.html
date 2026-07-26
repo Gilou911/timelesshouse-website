@@ -171,19 +171,27 @@
       top: max(14px, env(safe-area-inset-top));
       right: max(14px, env(safe-area-inset-right));
     }
+    /* ICÔNE SEULE, au même gabarit que le bouton des scènes : une
+       pastille large à côté d'un rond de 44 px déséquilibrait le coin
+       (retour de Gil). Deux ronds identiques se lisent comme une paire.
+       Le libellé n'est pas supprimé mais rendu invisible à l'œil : il
+       reste le nom accessible du lien, et il alimente l'infobulle. */
     .pgbtn {
-      display: inline-flex; align-items: center; gap: 9px;
-      min-height: 44px; padding: 0 18px; border-radius: 999px;
-      text-decoration: none; white-space: nowrap;
-      font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-      color: var(--ink);
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 44px; height: 44px; border-radius: 999px;
+      text-decoration: none; color: var(--ink);
       background: color-mix(in srgb, var(--bg) 72%, transparent);
       border: 1px solid var(--line);
       -webkit-backdrop-filter: saturate(180%) blur(18px);
       backdrop-filter: saturate(180%) blur(18px);
       transition: transform 0.16s ease, background 0.3s ease, border-color 0.3s ease;
     }
-    .pgbtn svg { width: 16px; height: 16px; stroke-width: 1.7; flex: none; }
+    .pgbtn svg { width: 18px; height: 18px; stroke-width: 1.7; flex: none; }
+    /* Invisible à l'œil, toujours lu par les lecteurs d'écran. */
+    .pgbtn .lbl {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+    }
     .pgbtn:active { transform: scale(0.96); }
     @media (hover: hover) and (pointer: fine) {
       .pgbtn:hover { background: var(--bg); border-color: var(--accent); }
@@ -442,7 +450,12 @@
       .cover.mode-editorial .cover-inner {
         justify-content: center; padding: 26px 22px 70px;
       }
-      .cover.mode-split .cover-mk { bottom: auto; top: 16px; right: 20px; }
+      /* La marque du studio passe à GAUCHE sur écran étroit. Épinglée à
+         droite, elle tombait pile sous les boutons « scènes » et
+         « film » — et c'est le nom du studio, l'élément qu'il faut le
+         moins recouvrir (mesuré : chevauchement de 60×20 px).
+         Éditorial et Portrait la placent déjà à gauche : Split s'aligne. */
+      .cover.mode-split .cover-mk { bottom: auto; top: 16px; right: auto; left: 20px; }
     }
     /* ── HIG §16 : focus clavier toujours visible ──
        Le champ de code pose outline:none pour son style « pressé » ;
@@ -499,7 +512,7 @@
          il n'y a pas de second volet — sinon le bouton scènes disparaîtrait
          avec elle sur une galerie sans film. -->
     <nav class="pagebar" id="pagebar">
-      <a class="pgbtn" id="pgSwitch" href="#" hidden><span id="pgIcon"></span><span id="pgLabel"></span></a>
+      <a class="pgbtn" id="pgSwitch" href="#" hidden><span id="pgIcon"></span><span class="lbl" id="pgLabel"></span></a>
     </nav>
     <!-- Couverture — 5 dispositions (remplie selon config.coverMode) -->
     <section class="cover" id="cover" hidden>
@@ -852,13 +865,16 @@
         el('pgIcon').innerHTML = versFilm
           ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>'
           : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
-        /* Libellés COURTS et fixes, pas les titres de gabarit : « Votre
-           galerie de mariage » ferait une pastille de ~260 px, soit les
-           deux tiers d'un écran de téléphone. TimelessHouse dit « Le
-           Film » / « Voir la Galerie Photos » — même esprit, et deux
-           mots qu'un enfant comprend. */
-        el('pgLabel').textContent = versFilm ? 'Le film' : 'Les photos';
         const lien = el('pgSwitch');
+        /* Le bouton n'affiche plus que son icône, mais il garde un NOM :
+           écrit dans un libellé invisible à l'œil, repris en nom
+           accessible et en infobulle. Une icône nue sans nom serait un
+           bouton muet pour un lecteur d'écran, et une devinette au
+           survol. Deux mots courts, qu'un enfant comprend. */
+        const nom = versFilm ? 'Le film' : 'Les photos';
+        el('pgLabel').textContent = nom;
+        lien.setAttribute('aria-label', nom);
+        lien.title = nom;
         // Une vraie URL : partageable, ouvrable dans un nouvel onglet,
         // et le bouton Retour du navigateur ramène à l'autre page.
         lien.href = code && code !== 'apercu'

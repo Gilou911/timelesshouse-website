@@ -132,8 +132,7 @@
     position:sticky; top:0; z-index:6;
     display:flex; gap:8px; justify-content:flex-end;
     margin:0 -18px 2px; padding:12px 18px 10px;
-    background:color-mix(in srgb, var(--surface) 94%, transparent);
-    -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
+    /* fond et flou : voir la règle groupée « bandes épinglées » */
   }
   .pilule {
     min-height:44px; padding:0 16px; border-radius:999px; cursor:pointer;
@@ -203,12 +202,34 @@
 
   /* Le sélecteur Photos/Vidéo reste sous les yeux : épinglé juste sous
      la rangée d'actions, on n'a plus à remonter pour changer de volet. */
+  /* ── Bandes épinglées : du VERRE, pas des dalles ────────────
+     Elles étaient à 94 % d'opacité, donc pleines : la bande tranchait
+     net les boutons qui passaient dessous (capture de Gil). Elles
+     descendent à 55 % avec un vrai flou — on devine le contenu qui
+     défile, comme les barres de la console.
+     C'est possible SANS perdre en lisibilité parce qu'aucun texte ne
+     repose sur ces bandes : le rail Photos/Vidéo, les pastilles et les
+     boutons d'enregistrement portent chacun leur propre fond. Le calcul
+     de contraste ne concerne donc que ces fonds-là, inchangés. */
+  #bloc-volet:not([hidden]), .panneau-actions, .poignee {
+    background:color-mix(in srgb, var(--surface) 55%, transparent);
+    -webkit-backdrop-filter:saturate(180%) blur(22px);
+    backdrop-filter:saturate(180%) blur(22px);
+  }
   #bloc-volet:not([hidden]) {
     position:sticky; top:66px; z-index:5;
     margin:0 -18px 4px; padding:10px 18px;
-    background:color-mix(in srgb, var(--surface) 94%, transparent);
-    -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
   }
+  /* Bord de scroll : le contenu se DISSOUT sous la bande au lieu d'être
+     coupé au couteau (§8 : préférer un dégradé progressif à une bordure
+     dure). C'est ce trait net qui donnait l'effet « dalle ». */
+  #bloc-volet:not([hidden])::after, .panneau-actions::after {
+    content:''; position:absolute; left:0; right:0; top:100%; height:18px;
+    pointer-events:none;
+    background:linear-gradient(to bottom,
+      color-mix(in srgb, var(--surface) 55%, transparent), transparent);
+  }
+  #bloc-volet:not([hidden]), .panneau-actions { position:sticky; }
 
   /* ── Téléphone : le panneau devient une feuille par le bas ──
      C'est le geste attendu sur mobile, et la feuille laisse voir le
@@ -237,8 +258,7 @@
     /* Le trait ne fait que 5 px, mais la zone qu'on peut saisir en fait
        44 : la cible tactile a le droit de dépasser le visuel (§4). */
     padding:19px 0 20px; margin:0 -18px; cursor:grab;
-    background:color-mix(in srgb, var(--surface) 94%, transparent);
-    -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
+    /* fond et flou : voir la règle groupée « bandes épinglées » */
     touch-action:none;                 /* le glissement nous appartient */
   }
   .poignee::before {
@@ -473,8 +493,10 @@
     position:sticky; bottom:0; z-index:6; margin:26px -18px 0;
     padding:14px 18px calc(16px + env(safe-area-inset-bottom));
     border-radius:0 0 24px 24px;
-    background:color-mix(in srgb, var(--surface) 94%, transparent);
-    -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
+    /* Un peu plus dense que les autres bandes : elle porte l'action
+       d'enregistrement, qui ne doit jamais paraître flotter dans le vide. */
+    background:color-mix(in srgb, var(--surface) 72%, transparent);
+    -webkit-backdrop-filter:saturate(180%) blur(22px); backdrop-filter:saturate(180%) blur(22px);
     box-shadow:0 -10px 24px -14px var(--shadow-d);
     display:flex; gap:10px; align-items:center;
   }

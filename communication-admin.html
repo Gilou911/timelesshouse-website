@@ -171,6 +171,14 @@
       will-change: transform;
     }
 
+    /* Squelette d'attente : un battement lent et discret, juste assez
+       pour dire « ça travaille » sans attirer l'œil. Seule l'opacité
+       est animée — aucune repeinte. */
+    .th-squelette > *, .th-squelette > * > * {
+      animation: th-battement 1.8s ease-in-out infinite;
+    }
+    @keyframes th-battement { 0%, 100% { opacity: 0.55 } 50% { opacity: 0.9 } }
+
     @keyframes th-entre { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
     @keyframes th-fond  { from { opacity: 0; } to { opacity: 1; } }
     @keyframes th-boite { from { opacity: 0; transform: translateY(18px) scale(0.985); } to { opacity: 1; transform: none; } }

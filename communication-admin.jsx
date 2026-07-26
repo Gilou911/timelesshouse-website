@@ -1491,7 +1491,27 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       }, [factures]);
 
       if (factures === null) {
-        return <div className="py-16 flex justify-center"><Loader2 size={22} className="animate-spin text-stone-400" /></div>;
+        /* SQUELETTE et non écran vide (§10 : « montrer quelque chose
+           immédiatement — squelettes plutôt qu'écran vide »).
+           Une roue sur fond vide obligeait la vue à naître deux fois :
+           rien, puis tout d'un coup. C'est ce saut que Gil trouvait sec.
+           Le squelette reprend la FORME réelle de la page, si bien que
+           l'arrivée des chiffres ne déplace plus rien — le contenu se
+           substitue à sa propre esquisse. */
+        const Bloc = ({ h, c = '' }) => (
+          <div className={`rounded-[24px] lg:rounded-[28px] ${c}`}
+               style={{ ...neu.raised, height: h }} />
+        );
+        return (
+          <div className="space-y-5 lg:space-y-6 th-squelette" aria-busy="true"
+               aria-label="Chargement de vos revenus">
+            <div className="grid grid-cols-2 gap-4 lg:gap-5">
+              <Bloc h={116} /><Bloc h={116} /><Bloc h={116} /><Bloc h={116} />
+            </div>
+            <Bloc h={196} />
+            <Bloc h={260} />
+          </div>
+        );
       }
 
       const caMois = serie[11].ca;
@@ -8501,8 +8521,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             ];
             const actif = selectedClient ? -1 : onglets.findIndex(o => o.id === section);
             return (
+              /* PAS de `relative` sur la barre : `fixed` la positionne DÉJÀ,
+                 et suffit donc à ancrer la pastille absolue. En ajouter un
+                 second mettait deux utilitaires de position dans la même
+                 couche — `relative` l'emportait, la barre perdait son
+                 ancrage à l'écran et retombait en bas du document
+                 (constaté par Gil sur téléphone). */
               <nav
-                className="lg:hidden fixed bottom-4 left-4 right-4 z-30 rounded-[28px] px-2 py-2 flex items-center justify-around relative"
+                className="lg:hidden fixed bottom-4 left-4 right-4 z-30 rounded-[28px] px-2 py-2 flex items-center justify-around"
                 style={{
                   boxShadow: neu.raised.boxShadow,
                   background: isDark ? 'rgba(34,38,45,0.5)' : 'rgba(239,234,224,0.5)',

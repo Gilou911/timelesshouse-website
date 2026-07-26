@@ -8491,37 +8491,61 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           )}
 
           {/* Bottom nav — mobile uniquement, 52px tactile, verre dépoli translucide */}
-          <nav
-            className="lg:hidden fixed bottom-4 left-4 right-4 z-30 rounded-[28px] px-2 py-2 flex items-center justify-around"
-            style={{
-              boxShadow: neu.raised.boxShadow,
-              background: isDark ? 'rgba(34,38,45,0.5)' : 'rgba(239,234,224,0.5)',
-              border: isDark ? '0.5px solid rgba(255,255,255,0.06)' : '0.5px solid rgba(255,255,255,0.55)',
-              backdropFilter: 'saturate(180%) blur(22px)',
-              WebkitBackdropFilter: 'saturate(180%) blur(22px)',
-            }}>
-            {[
+          {(() => {
+            const onglets = [
               { id: 'overview', icon: Home, label: 'Aperçu' },
               { id: 'clients', icon: Users, label: 'Clients' },
               { id: 'revenus', icon: TrendingUp, label: 'Revenus' },
               ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),
               ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),
-            ].map(n => {
-              const Icon = n.icon;
-              const active = section === n.id && !selectedClient;
-              return (
-                <button
-                  key={n.id}
-                  onClick={() => { setSection(n.id); setSelectedClient(null); }}
-                  style={active ? neu.darkSm : {}}
-                  aria-current={active ? 'page' : undefined}
-                  className={`th-onglet flex-1 flex flex-col items-center justify-center gap-1 min-h-[52px] py-2 px-1 rounded-2xl active:scale-95 ${active ? 'text-white' : 'text-stone-500'}`}>
-                  <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
-                  <span className="text-[10px] font-semibold tracking-tight leading-none">{n.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+            ];
+            const actif = selectedClient ? -1 : onglets.findIndex(o => o.id === section);
+            return (
+              <nav
+                className="lg:hidden fixed bottom-4 left-4 right-4 z-30 rounded-[28px] px-2 py-2 flex items-center justify-around relative"
+                style={{
+                  boxShadow: neu.raised.boxShadow,
+                  background: isDark ? 'rgba(34,38,45,0.5)' : 'rgba(239,234,224,0.5)',
+                  border: isDark ? '0.5px solid rgba(255,255,255,0.06)' : '0.5px solid rgba(255,255,255,0.55)',
+                  backdropFilter: 'saturate(180%) blur(22px)',
+                  WebkitBackdropFilter: 'saturate(180%) blur(22px)',
+                }}>
+                {/* UNE seule pastille, qui GLISSE d'un onglet à l'autre.
+                    Avant, chaque bouton faisait apparaître et disparaître la
+                    sienne : deux fondus croisés, sans continuité — d'où le
+                    passage « brut » signalé par Gil, qu'allonger la durée ne
+                    faisait qu'étirer en flou gris.
+                    Les boutons étant tous `flex-1`, ils ont la même largeur :
+                    le déplacement se fait donc en `translateX` pur, sans
+                    animer ni largeur ni position — composité, à 60 fps. */}
+                <div
+                  aria-hidden="true"
+                  className="th-indicateur absolute rounded-2xl pointer-events-none"
+                  style={{
+                    ...neu.darkSm,
+                    top: 8, bottom: 8, left: 8,
+                    width: `calc((100% - 16px) / ${onglets.length})`,
+                    transform: `translateX(${Math.max(actif, 0) * 100}%)`,
+                    opacity: actif < 0 ? 0 : 1,
+                  }}
+                />
+                {onglets.map((n, i) => {
+                  const Icon = n.icon;
+                  const active = i === actif;
+                  return (
+                    <button
+                      key={n.id}
+                      onClick={() => { setSection(n.id); setSelectedClient(null); }}
+                      aria-current={active ? 'page' : undefined}
+                      className={`th-onglet relative z-10 flex-1 flex flex-col items-center justify-center gap-1 min-h-[52px] py-2 px-1 rounded-2xl active:scale-95 ${active ? 'text-white' : 'text-stone-500'}`}>
+                      <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
+                      <span className="text-[10px] font-semibold tracking-tight leading-none">{n.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            );
+          })()}
         </div>
       );
     }

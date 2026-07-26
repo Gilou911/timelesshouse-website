@@ -160,6 +160,17 @@
                   transform 0.16s var(--ease-doux);
     }
 
+    /* Pastille glissante de la barre du bas. Elle ne fait QUE se
+       déplacer : largeur et position fixes, seul `translateX` bouge —
+       donc composité, sans recalcul de mise en page à chaque image.
+       La durée est un peu plus longue que le reste (0,5 s) parce que
+       c'est le seul mouvement qu'on SUIT du regard : trop court, l'œil
+       ne l'accroche pas et le passage redevient sec. */
+    .th-indicateur {
+      transition: transform 0.5s var(--ease-doux), opacity 0.3s var(--ease-doux);
+      will-change: transform;
+    }
+
     @keyframes th-entre { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
     @keyframes th-fond  { from { opacity: 0; } to { opacity: 1; } }
     @keyframes th-boite { from { opacity: 0; transform: translateY(18px) scale(0.985); } to { opacity: 1; transform: none; } }

@@ -170,6 +170,12 @@
       position: fixed; z-index: 60;
       top: max(14px, env(safe-area-inset-top));
       right: max(14px, env(safe-area-inset-right));
+      /* Mise en page EXPLICITE. Sans elle, les boutons étaient de
+         simples éléments en ligne et leur écart valait… une espace du
+         HTML, soit 5 px mesurés. Le guide demande ~12 px entre deux
+         cibles qui portent un fond visible : sous ce seuil, deux
+         pastilles collées produisent des appuis à côté. */
+      display: flex; align-items: center; gap: 12px;
     }
     /* ICÔNE SEULE, au même gabarit que le bouton des scènes : une
        pastille large à côté d'un rond de 44 px déséquilibrait le coin

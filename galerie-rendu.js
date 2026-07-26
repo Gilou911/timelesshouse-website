@@ -304,9 +304,16 @@ function injectStyles() {
     color: var(--ink); background: color-mix(in srgb, var(--bg) 72%, transparent);
     border: 1px solid var(--line);
     -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px);
-    transition: transform .16s ease, background .3s ease;
+    transition: transform .16s ease, background .3s ease, border-color .3s ease;
   }
   .g-scenes-btn:active { transform: scale(.96); }
+  /* État de SURVOL, que son jumeau possédait déjà : deux boutons
+     identiques côte à côte qui ne réagissent pas pareil se remarquent
+     immédiatement, et le guide l'exige sur ordinateur (§14). */
+  @media (hover: hover) and (pointer: fine) {
+    .g-scenes-btn:hover { background: var(--bg); border-color: var(--accent); }
+  }
+  @media (prefers-reduced-motion: reduce) { .g-scenes-btn { transition: none; } }
   .g-scenes-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor;
                       stroke-width: 1.7; stroke-linecap: round; }
 

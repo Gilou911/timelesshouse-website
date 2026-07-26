@@ -36,16 +36,44 @@ function injectStyles() {
   stylesInjected = true;
   const s = document.createElement('style');
   s.textContent = `
+  /* ── SCÈNES — motif repris de la galerie d'Ezla & Davy ──────
+     (event-photos-cinematic.html, la galerie TimelessHouse que Gil
+     donne comme référence). Une catégorie n'est plus un titre posé à
+     gauche au-dessus d'une grille : c'est une SCÈNE, annoncée au
+     centre — son numéro en petites capitales espacées, son nom en
+     italique, un filet court dessous. Le rythme du récit devient
+     visible avant même de voir les photos. */
   .g-cat { margin: 0 0 clamp(38px, 6vw, 68px); }
   .g-cat-head {
-    display: flex; align-items: baseline; gap: 14px;
-    margin: 0 0 clamp(14px, 2vw, 20px);
+    text-align: center; max-width: 720px;
+    margin: 0 auto clamp(30px, 4.5vw, 56px);
+    padding-top: clamp(24px, 5vw, 64px);
+  }
+  .g-cat-no {
+    display: block; margin-bottom: 16px;
+    font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+    font-size: 11px; letter-spacing: 0.5em; text-transform: uppercase;
+    color: var(--accent);
   }
   .g-cat-name {
-    font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 500;
-    font-size: clamp(1.35rem, 3.4vw, 1.9rem); letter-spacing: -0.01em; color: var(--ink);
+    font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 300; font-style: italic;
+    font-size: clamp(2rem, 5.2vw, 3.6rem); line-height: 1.05; color: var(--ink);
   }
-  .g-cat-count { font-size: 12px; color: var(--faint); letter-spacing: 0.04em; }
+  .g-cat-rule { width: 46px; height: 1px; background: var(--accent); opacity: 0.5; margin: 24px auto 0; }
+  .g-cat-count { display: block; margin-top: 14px; font-size: 12px; color: var(--faint); letter-spacing: 0.08em; }
+
+  /* L'en-tête se lève au moment où la scène entre dans le champ — la
+     même dramaturgie que la référence. Retombe sur un simple fondu si
+     l'utilisateur a demandé moins d'animations. */
+  .g-cat-head { opacity: 0; transform: translateY(24px); }
+  .g-cat.in .g-cat-head {
+    opacity: 1; transform: none;
+    transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1), transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .g-cat-head { transform: none; }
+    .g-cat.in .g-cat-head { transition: opacity .3s ease; }
+  }
   .g-rows { display: flex; flex-direction: column; gap: var(--g-gap, 10px); }
   .g-row  { display: flex; gap: var(--g-gap, 10px); }
 
@@ -148,8 +176,23 @@ function injectStyles() {
     display: flex; align-items: center; justify-content: space-between;
     gap: 12px; padding: max(10px, env(safe-area-inset-top)) 12px 10px;
   }
-  .g-lb-cap { font-size: 12.5px; color: var(--muted); min-width: 0;
-              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Compteur en chiffres ITALIQUES, à gauche — la signature de la
+     galerie d'Ezla & Davy, où « 3 / 320 » se lit comme une pagination
+     de livre plutôt que comme un indicateur d'application. */
+  .g-lb-cap {
+    font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+    font-size: 1.05rem; letter-spacing: 0.12em; color: var(--ink-soft, var(--muted));
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* Nom de la scène SOUS la photo, en capitales espacées, sur un voile
+     dégradé — il accompagne l'image au lieu de lui disputer le haut. */
+  .g-lb-scene {
+    flex: none; text-align: center;
+    padding: 22px 20px calc(26px + env(safe-area-inset-bottom));
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.34em;
+    color: var(--muted);
+    background: linear-gradient(to top, color-mix(in srgb, var(--bg-deep, #000) 72%, transparent), transparent);
+  }
   .g-lb-acts { display: flex; align-items: center; gap: 4px; }
   .g-ic {
     width: 44px; height: 44px; border-radius: 50%; border: none; background: none;
@@ -227,9 +270,28 @@ function injectStyles() {
   .g-nav svg { width: 20px; height: 20px; fill: none; stroke: #fff;
                stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   @media (max-width: 640px) { .g-nav { display: none; } }
-  .g-lb-count {
-    text-align: center; font-size: 12px; color: var(--faint);
-    padding: 0 0 max(12px, env(safe-area-inset-bottom)); letter-spacing: 0.08em;
+
+  /* ── Retour en haut (motif d'Ezla & Davy) ───────────────────
+     Sur une galerie de plusieurs centaines de photos, remonter au
+     pouce est une corvée. Le bouton n'apparaît qu'une fois qu'on est
+     descendu — avant, il n'aurait servi à rien et encombré l'écran. */
+  .g-haut {
+    position: fixed; z-index: 55;
+    right: max(18px, env(safe-area-inset-right));
+    bottom: max(18px, env(safe-area-inset-bottom));
+    width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink); background: color-mix(in srgb, var(--bg-elev, var(--surface)) 82%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px);
+    box-shadow: 0 14px 34px -12px rgba(0,0,0,.55);
+    opacity: 0; transform: translateY(16px) scale(.9); pointer-events: none;
+    transition: opacity .3s ease-out, transform .38s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .g-haut.on { opacity: 1; transform: none; pointer-events: auto; }
+  .g-haut svg { width: 20px; height: 20px; fill: none; stroke: currentColor;
+                stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  @media (prefers-reduced-motion: reduce) {
+    .g-haut { transform: none; transition: opacity .2s ease; }
   }
   body.g-locked { position: fixed; width: 100%; overflow: hidden; }
   /* La gouttière réservée en permanence évite que la page change de
@@ -583,13 +645,20 @@ export function mountPhotos(mount, categories, opts = {}) {
   const sections = [];
   const multi = cats.length > 1;
   let flatIdx = 0;
-  cats.forEach(c => {
+  cats.forEach((c, sIdx) => {
     const sec = document.createElement('section');
     sec.className = 'g-cat';
     if (multi) {
+      /* En-tête de SCÈNE (motif d'Ezla & Davy) : numéro, nom en
+         italique, filet. Le compte de photos passe SOUS le filet — au
+         rang de détail, alors qu'il concurrençait le titre avant. */
       const head = document.createElement('div');
       head.className = 'g-cat-head';
-      head.innerHTML = `<h2 class="g-cat-name"></h2><span class="g-cat-count">${c.photos.length} photo${c.photos.length > 1 ? 's' : ''}</span>`;
+      head.innerHTML =
+        `<span class="g-cat-no">Scène ${String(sIdx + 1).padStart(2, '0')}</span>` +
+        `<h2 class="g-cat-name"></h2>` +
+        `<div class="g-cat-rule"></div>` +
+        `<span class="g-cat-count">${c.photos.length} photo${c.photos.length > 1 ? 's' : ''}</span>`;
       head.querySelector('.g-cat-name').textContent = c.category || 'Photos';
       sec.appendChild(head);
     }
@@ -600,6 +669,59 @@ export function mountPhotos(mount, categories, opts = {}) {
     sections.push({ rowsWrap, photos: c.photos, from: flatIdx });
     flatIdx += c.photos.length;
   });
+
+  /* Les scènes s'allument à l'approche. `once` : une scène déjà vue ne
+     rejoue pas son entrée quand on remonte — sinon la galerie
+     clignoterait à chaque aller-retour dans le défilement.
+     Sans IntersectionObserver (très vieux navigateur), on allume tout
+     d'emblée : mieux vaut pas d'animation qu'un en-tête invisible. */
+  const toutesLesScenes = () => [...mount.querySelectorAll('.g-cat')];
+  const allumer = (s) => s.classList.add('in');
+  if (window.IntersectionObserver) {
+    const veille = new IntersectionObserver((entrees) => {
+      entrees.forEach((e) => {
+        if (!e.isIntersecting) return;
+        allumer(e.target);
+        veille.unobserve(e.target);
+      });
+    }, { rootMargin: '0px 0px -12% 0px' });
+    toutesLesScenes().forEach((s) => veille.observe(s));
+
+    /* FILET. Un en-tête part à opacité 0 et n'existe que si l'observateur
+       parle. Or il ne parle pas dans un onglet en arrière-plan : une
+       galerie ouverte dans un onglet de fond puis consultée resterait
+       SANS AUCUN TITRE, et rien ne le signalerait.
+       Si au bout d'une seconde et demie aucune scène n'a été allumée,
+       on considère l'observateur muet et on montre tout. Une galerie
+       sans animation reste une galerie ; une galerie sans titres, non.
+       (Même parade que sur la page offres, et que pour la visionneuse
+       qui restait transparente.) */
+    setTimeout(() => {
+      if (!mount.querySelector('.g-cat.in')) toutesLesScenes().forEach(allumer);
+    }, 1500);
+  } else {
+    toutesLesScenes().forEach(allumer);
+  }
+
+  /* Bouton de retour en haut — un seul par page, même si la galerie
+     est repeinte (le concepteur rejoue mountPhotos à chaque réglage). */
+  let haut = document.querySelector('.g-haut');
+  if (!haut) {
+    haut = document.createElement('button');
+    haut.type = 'button';
+    haut.className = 'g-haut';
+    haut.setAttribute('aria-label', 'Revenir en haut');
+    haut.innerHTML = '<svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
+    haut.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    document.body.appendChild(haut);
+    let t = null;
+    window.addEventListener('scroll', () => {
+      // Le seuil est une hauteur d'écran : on ne propose de remonter
+      // que quand remonter veut dire quelque chose.
+      clearTimeout(t);
+      t = setTimeout(() => haut.classList.toggle('on', window.scrollY > window.innerHeight), 80);
+    }, { passive: true });
+  }
 
   /* Largeur du dernier calcul. La mise en page justifiée ne dépend QUE
      de la largeur : recalculer parce que la HAUTEUR a changé détruit et
@@ -732,7 +854,7 @@ export function mountPhotos(mount, categories, opts = {}) {
        </div>
        <div class="g-strip" data-el="strip" role="tablist" aria-label="Autres photos"></div>
      </div>
-     <div class="g-lb-count"><span data-el="i">1</span> / <span data-el="n">1</span></div>`;
+     <div class="g-lb-scene" data-el="scene"></div>`;
   document.body.appendChild(lb);
   const $ = (n) => lb.querySelector(`[data-el="${n}"]`);
   const lbStage = $('stage'), lbTrack = $('track'), lbStrip = $('strip');
@@ -816,9 +938,10 @@ export function mountPhotos(mount, categories, opts = {}) {
     poserSlot(slots[2], FLAT[modulo(lbIdx + 1)]);
     poserRail(CENTRE, false);
 
-    $('cap').textContent = p.category || title;
-    $('i').textContent = p.rangCat || (lbIdx + 1);
-    $('n').textContent = p.totalCat || FLAT.length;
+    // Le compteur prend la place de l'ancienne légende (haut gauche),
+    // et le nom de la scène descend sous la photo.
+    $('cap').textContent = `${p.rangCat || (lbIdx + 1)} / ${p.totalCat || FLAT.length}`;
+    $('scene').textContent = p.category || title;
     const dl = $('dl');
     dl.href = FULL(p);
     dl.setAttribute('download', fileNameOf(p, lbIdx));

@@ -28,11 +28,10 @@
        un réglage, assez petit pour laisser voir les commandes dessous —
        et repris tel quel comme décalage du sélecteur de volet, pour
        qu'aucun des deux ne recouvre l'autre. */
-    --h-apercu: 40dvh;
-    /* Marge autour de l'aperçu, reprise par ses outils pour qu'ils
-       restent alignés sur le cadre quelle que soit la taille d'écran. */
-    --marge-scene: 14px;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    /* Courbe d'un tiroir : départ franc, arrivée posée. C'est elle qui
+       fait qu'un panneau qui s'efface paraît glisser et non sauter. */
+    --ease-tiroir: cubic-bezier(0.32, 0.72, 0, 1);
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -59,113 +58,142 @@
   }
   .serif { font-family:'Instrument Serif',Georgia,serif; }
 
-  .studio { display:flex; height:100dvh; }
-  /* 30 / 70 — réglages à gauche, aperçu à droite. */
-  .panneau {
-    width:30%; min-width:320px; max-width:460px; height:100dvh; overflow-y:auto;
-    padding:22px 20px 40px; background:var(--surface);
-    box-shadow: 8px 0 26px var(--shadow-d);
-  }
-  /* `position:relative` : les outils de l'aperçu se placent PAR RAPPORT
-     à la scène. Sans elle ils se seraient accrochés au coin de la page. */
-  .scene {
-    flex:1; min-width:0; height:100dvh; padding:var(--marge-scene);
-    display:flex; flex-direction:column;
-  }
-  .scene iframe { flex:1; min-height:0; }
-  .scene iframe { width:100%; height:100%; border:none; border-radius:20px; background:#000;
-    box-shadow: 10px 10px 28px var(--shadow-d), -10px -10px 28px var(--shadow-l); }
+  /* ════════════════════════════════════════════════════════════
+     DISPOSITION — la galerie occupe TOUT l'écran, les réglages
+     flottent par-dessus et peuvent s'effacer.
+     ════════════════════════════════════════════════════════════
+     Avant : deux colonnes, l'aperçu confiné à 70 % (et à 40 % de la
+     hauteur sur téléphone). On jugeait un rendu plein écran dans une
+     vignette. Désormais la galerie est affichée exactement à la taille
+     où le client la verra, et les réglages sont un calque qu'on écarte
+     d'un geste.
 
-  /* ── Barre d'outils de l'aperçu ─────────────────────────────
-     « Agrandir » ouvre la galerie en grand SANS quitter la page ;
-     « Comparer » y remet la version enregistrée, pour voir d'un coup
-     d'œil ce que les réglages en cours ont changé (demande de Gil).
-     Cette barre est HORS du cadre, pas posée dessus : en surimpression
-     elle recouvrait la pastille « LE FILM » de la galerie — c'est-à-dire
-     précisément un des éléments qu'on vient juger. */
-  .scene-barre {
-    flex:none; display:flex; align-items:center; justify-content:space-between;
-    gap:8px; margin-bottom:8px; min-height:44px;
+     « Transparent » veut dire VERRE DÉPOLI, pas translucide : par-dessus
+     des photos, un fond réellement transparent rendrait les libellés
+     illisibles. Le panneau garde donc une teinte à ~88 % avec un flou
+     d'arrière-plan — l'image transparaît, le texte reste net. */
+  .studio { display:block; height:100dvh; }
+
+  .scene { position:fixed; inset:0; z-index:0; padding:0; }
+  .scene iframe {
+    width:100%; height:100%; border:none; border-radius:0;
+    background:#000; box-shadow:none; display:block;
   }
-  .scene-outils { display:flex; gap:8px; margin-left:auto; }
-  .scene-outils button {
+
+  .panneau {
+    position:fixed; z-index:30;
+    left:16px; top:16px; bottom:16px;
+    width:min(392px, calc(100vw - 32px));
+    padding:0 18px;
+    border-radius:24px; overflow-y:auto;
+    /* Le geste de défilement ne doit pas « traverser » vers la page. */
+    overscroll-behavior:contain;
+    background:color-mix(in srgb, var(--surface) 88%, transparent);
+    -webkit-backdrop-filter:saturate(180%) blur(28px);
+    backdrop-filter:saturate(180%) blur(28px);
+    border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+    box-shadow:0 30px 80px -24px rgba(0,0,0,.5);
+    transition:transform .42s var(--ease-tiroir), opacity .26s ease;
+    /* ENCRES SECONDAIRES RENFORCÉES, valables SEULEMENT dans le panneau.
+       Le verre laisse passer 12 % de la photo : calculé sur les pires
+       fonds possibles (photo noire en thème clair, photo blanche en
+       thème sombre), les couleurs normales tombaient à 3,4–4,2:1, donc
+       sous le seuil de lisibilité. Opacifier le panneau à 98 % aurait
+       réglé le contraste en supprimant l'effet de verre demandé ; on
+       fonce plutôt les deux encres, mesurées ≥ 4,6:1 dans tous les cas. */
+    --muted:#5b554a;
+    --faint:#5b544a;
+    /* Barre de défilement discrète : la barre système opaque coupait
+       le bord arrondi du panneau d'un trait clair. */
+    scrollbar-width:thin;
+    scrollbar-color:color-mix(in srgb, var(--ink) 22%, transparent) transparent;
+  }
+  .panneau::-webkit-scrollbar { width:8px; }
+  .panneau::-webkit-scrollbar-track { background:transparent; }
+  .panneau::-webkit-scrollbar-thumb {
+    background:color-mix(in srgb, var(--ink) 20%, transparent);
+    border-radius:999px; border:2px solid transparent; background-clip:content-box;
+  }
+  @media (prefers-color-scheme: dark) {
+    .panneau { --muted:#a8aeb7; --faint:#aab0ba; }
+  }
+  .panneau.masque { transform:translateX(calc(-100% - 30px)); opacity:0; pointer-events:none; }
+
+  /* Rangée d'actions épinglée en HAUT du panneau : « Masquer » doit
+     rester atteignable même après avoir descendu vingt réglages. */
+  .panneau-actions {
+    position:sticky; top:0; z-index:6;
+    display:flex; gap:8px; justify-content:flex-end;
+    margin:0 -18px 2px; padding:12px 18px 10px;
+    background:color-mix(in srgb, var(--surface) 94%, transparent);
+    -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
+  }
+  .pilule {
     min-height:44px; padding:0 16px; border-radius:999px; cursor:pointer;
     font-family:inherit; font-size:0.75rem; font-weight:700;
     color:var(--ink); background:var(--surface); border:1px solid transparent;
     box-shadow: 3px 3px 8px var(--shadow-d), -3px -3px 8px var(--shadow-l);
     transition: transform .16s var(--ease-out), background .2s var(--ease-out);
   }
-  .scene-outils button:active { transform:scale(.96); }
-  .scene-outils button[disabled] { opacity:.45; cursor:default; box-shadow:none; }
-  .scene-outils button[aria-pressed="true"] { background:var(--btn-bg); color:var(--btn-text); box-shadow:none; }
+  .pilule:active { transform:scale(.96); }
+  .pilule[disabled] { opacity:.45; cursor:default; box-shadow:none; }
+  .pilule[aria-pressed="true"] { background:var(--btn-bg); color:var(--btn-text); box-shadow:none; }
   @media (hover:hover) and (pointer:fine) {
-    .scene-outils button:not([disabled]):hover { transform:translateY(-1px); }
+    .pilule:not([disabled]):hover { transform:translateY(-1px); }
   }
-  /* Dire CE QU'ON REGARDE : sans ce repère, on croit que ses réglages
-     ont été perdus. */
+
+  /* Rappel flottant quand le panneau est effacé. Posé en BAS À GAUCHE :
+     zone du pouce sur téléphone, et surtout loin du coin haut-droit où
+     la galerie place sa propre pastille « Le film ». */
+  .rappel {
+    position:fixed; z-index:40; display:flex; gap:8px;
+    left:max(16px, env(safe-area-inset-left));
+    bottom:max(16px, env(safe-area-inset-bottom));
+    transform:translateY(150%); opacity:0; pointer-events:none;
+    transition:transform .42s var(--ease-tiroir), opacity .26s ease;
+  }
+  .rappel.on { transform:none; opacity:1; pointer-events:auto; }
+  .rappel .pilule {
+    background:color-mix(in srgb, var(--surface) 92%, transparent);
+    -webkit-backdrop-filter:saturate(180%) blur(20px); backdrop-filter:saturate(180%) blur(20px);
+    border-color:color-mix(in srgb, var(--ink) 12%, transparent);
+    box-shadow:0 14px 34px -12px rgba(0,0,0,.55);
+  }
+
+  /* Dire CE QU'ON REGARDE pendant une comparaison : sans ce repère, on
+     croit ses réglages effacés. En haut au CENTRE — le panneau occupe la
+     gauche, la galerie le coin droit. */
   .scene-badge {
+    position:fixed; z-index:40;
+    top:max(16px, env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
     padding:9px 14px; border-radius:999px;
     font-size:0.71875rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
-    color:#14171c; background:#e7c98f;
+    color:#14171c; background:#e7c98f; white-space:nowrap;
   }
 
-  /* Plein écran : l'aperçu couvre la fenêtre, la page reste dessous. */
-  .scene.plein {
-    position:fixed; inset:0; z-index:200; height:100dvh; width:100vw;
-    max-width:none; padding:14px;
-    padding-top:max(14px, env(safe-area-inset-top));
-    padding-bottom:max(14px, env(safe-area-inset-bottom));
-    background:var(--bg);
+  /* Le sélecteur Photos/Vidéo reste sous les yeux : épinglé juste sous
+     la rangée d'actions, on n'a plus à remonter pour changer de volet. */
+  #bloc-volet:not([hidden]) {
+    position:sticky; top:66px; z-index:5;
+    margin:0 -18px 4px; padding:10px 18px;
+    background:color-mix(in srgb, var(--surface) 94%, transparent);
+    -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
   }
 
-  /* ── Écran étroit : l'aperçu MONTE et reste ─────────────────
-     Avant, le panneau occupait le haut et l'aperçu suivait dessous :
-     il fallait redescendre après CHAQUE réglage pour voir le résultat,
-     puis remonter pour le réglage suivant. Et sur une galerie
-     « photos + film », le sélecteur Photos/Vidéo étant tout en haut, il
-     fallait remonter jusqu'à lui rien que pour passer d'un volet à
-     l'autre (deux gênes signalées par Gil).
-     L'aperçu passe donc EN PREMIER et s'épingle en haut de l'écran ; le
-     sélecteur s'épingle juste dessous. Les réglages défilent sous eux :
-     on voit le résultat pendant qu'on règle, et on change de volet sans
-     jamais remonter. */
+  /* ── Téléphone : le panneau devient une feuille par le bas ──
+     C'est le geste attendu sur mobile, et la feuille laisse voir le
+     haut de la galerie — titre et couverture — pendant qu'on règle. */
   @media (max-width: 900px) {
-    body { overflow:auto; }
-    .studio { flex-direction:column; height:auto; }
-    /* `overflow:visible` est INDISPENSABLE : hérité du bureau, le
-       `overflow-y:auto` du panneau en fait un conteneur de défilement,
-       et un enfant `sticky` s'y colle alors par rapport à LUI — donc
-       plus du tout par rapport à l'écran. Le sélecteur de volet
-       disparaissait comme avant (mesuré). */
     .panneau {
-      width:100%; max-width:none; height:auto; box-shadow:none;
-      padding-top:14px; overflow:visible;
+      left:10px; right:10px; width:auto;
+      top:auto; bottom:max(10px, env(safe-area-inset-bottom));
+      height:min(64dvh, 560px);
+      border-radius:26px;
     }
-
-    .scene {
-      order:-1;                     /* l'aperçu avant les réglages */
-      /* `flex:none` sinon le `flex:1` du bureau l'emporte sur la hauteur
-         demandée : l'aperçu tombait à 173 px au lieu de 40 % de
-         l'écran (mesuré). */
-      flex:none;
-      position:sticky; top:0; z-index:20;
-      height:var(--h-apercu);
-      --marge-scene:10px;
-      padding:10px 12px 8px;
-      background:var(--bg);
-    }
-    /* En plein écran, la scène quitte le flux : elle ne doit plus être
-       ni épinglée ni bornée à 40 % de l'écran. */
-    .scene.plein { position:fixed; height:100dvh; --marge-scene:12px; }
-    /* Le sélecteur de volet reste à portée, collé sous l'aperçu.
-       Les marges négatives lui font occuper toute la largeur du panneau
-       pour qu'aucun réglage ne transparaisse sur ses côtés en défilant. */
-    #bloc-volet:not([hidden]) {
-      position:sticky; top:var(--h-apercu); z-index:15;
-      margin:0 -20px 4px; padding:10px 20px;
-      background:var(--surface);
-      box-shadow:0 8px 18px -12px var(--shadow-d);
-    }
+    .panneau.masque { transform:translateY(calc(100% + 30px)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .panneau, .rappel { transition-duration:.01ms; }
   }
 
   /* 11 px : plancher absolu du guide pour du texte utile. */
@@ -361,11 +389,16 @@
   .jauge.on { display:block; }
   .jauge i { display:block; height:100%; width:0; background:#b08968; transition: width .3s var(--ease-out); }
 
+  /* Épinglée en BAS du panneau. Marges alignées sur le nouveau
+     rembourrage (18 px) et coins arrondis comme le panneau, sinon elle
+     débordait de son cadre en verre. */
   .barre {
-    position:sticky; bottom:0; margin:26px -20px -40px;
-    /* La barre home d'iPhone recouvrait « Enregistrer » sans cet env(). */
-    padding:14px 20px calc(20px + env(safe-area-inset-bottom));
-    background:var(--surface); box-shadow:0 -8px 22px var(--shadow-d);
+    position:sticky; bottom:0; z-index:6; margin:26px -18px 0;
+    padding:14px 18px calc(16px + env(safe-area-inset-bottom));
+    border-radius:0 0 24px 24px;
+    background:color-mix(in srgb, var(--surface) 94%, transparent);
+    -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
+    box-shadow:0 -10px 24px -14px var(--shadow-d);
     display:flex; gap:10px; align-items:center;
   }
   .btn {
@@ -410,7 +443,13 @@
 </head>
 <body>
   <div class="studio">
-    <aside class="panneau">
+    <aside class="panneau" id="panneau">
+      <!-- Épinglée en haut du panneau : « Masquer » doit rester
+           atteignable même après avoir descendu vingt réglages. -->
+      <div class="panneau-actions">
+        <button type="button" class="pilule" id="comparer" aria-pressed="false">Comparer</button>
+        <button type="button" class="pilule" id="masquer">Masquer</button>
+      </div>
       <div class="kicker">Concepteur</div>
       <h1 class="serif" id="titre">Votre galerie</h1>
       <div class="sous" id="sous">Chargement…</div>
@@ -529,17 +568,19 @@
     </aside>
 
     <main class="scene" id="scene">
-      <!-- Outils posés SUR l'aperçu : ils suivent donc l'agrandissement
-           et restent à portée en plein écran. -->
-      <div class="scene-barre">
-        <div class="scene-badge" id="scene-badge" hidden>Version enregistrée</div>
-        <div class="scene-outils">
-          <button type="button" id="comparer" aria-pressed="false">Comparer</button>
-          <button type="button" id="agrandir" aria-pressed="false">Agrandir</button>
-        </div>
-      </div>
       <iframe id="apercu" title="Aperçu de la galerie"></iframe>
     </main>
+
+    <!-- Repère de comparaison : au-dessus de tout, au centre. -->
+    <div class="scene-badge" id="scene-badge" hidden>Version enregistrée</div>
+
+    <!-- Rappel du panneau une fois qu'il est effacé. Les deux actions
+         utiles quand on regarde la galerie : la comparer, ou revenir
+         aux réglages. -->
+    <div class="rappel" id="rappel">
+      <button type="button" class="pilule" id="rouvrir">☰&nbsp; Réglages</button>
+      <button type="button" class="pilule" id="comparer2" aria-pressed="false">Comparer</button>
+    </div>
   </div>
 
 <script type="module">
@@ -1103,36 +1144,52 @@
   /* ── Comparer : brouillon ↔ version enregistrée ────────────
      Le bouton est désactivé tant que rien n'a changé — comparer deux
      états identiques ne montrerait rien et ferait douter de l'outil. */
-  const bComparer = el('comparer');
+  /* Deux boutons « Comparer » : celui du panneau, et celui du rappel
+     flottant quand le panneau est effacé. Ils commandent le MÊME état,
+     donc ils s'affichent toujours pareil — sans quoi l'un annoncerait
+     « Comparer » pendant que l'autre dit « Mes réglages ». */
+  const bComparer = [el('comparer'), el('comparer2')];
   function majComparer() {
     const possible = !!base && nonEnregistre();
-    bComparer.disabled = !possible && !compare;
-    bComparer.title = possible || compare
-      ? 'Afficher la version enregistrée, pour voir ce que vos réglages changent'
-      : 'Rien à comparer : aucun réglage modifié depuis le dernier enregistrement';
-  }
-  bComparer.addEventListener('click', () => {
-    compare = !compare;
-    bComparer.setAttribute('aria-pressed', String(compare));
-    bComparer.textContent = compare ? 'Mes réglages' : 'Comparer';
+    bComparer.forEach((b) => {
+      b.disabled = !possible && !compare;
+      b.setAttribute('aria-pressed', String(compare));
+      b.textContent = compare ? 'Mes réglages' : 'Comparer';
+      b.title = possible || compare
+        ? 'Afficher la version enregistrée, pour voir ce que vos réglages changent'
+        : 'Rien à comparer : aucun réglage modifié depuis le dernier enregistrement';
+    });
     el('scene-badge').hidden = !compare;
-    pousser();
-  });
-
-  /* ── Agrandir : la galerie occupe la fenêtre, SANS quitter la page ──
-     Le panneau reste derrière, on y revient d'un clic ou par Échap. */
-  const bAgrandir = el('agrandir');
-  function plein(oui) {
-    el('scene').classList.toggle('plein', oui);
-    bAgrandir.setAttribute('aria-pressed', String(oui));
-    bAgrandir.textContent = oui ? 'Réduire' : 'Agrandir';
-    // L'aperçu change de taille : la grille justifiée doit se recalculer.
-    // Elle n'écoute que `resize`, qu'un changement de classe ne déclenche pas.
-    setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
   }
-  bAgrandir.addEventListener('click', () => plein(!el('scene').classList.contains('plein')));
+  bComparer.forEach((b) => b.addEventListener('click', () => {
+    compare = !compare;
+    majComparer();
+    pousser();
+  }));
+
+  /* ── Masquer les réglages ────────────────────────────────────
+     La galerie est déjà en plein écran ; effacer le panneau la libère
+     complètement. Un rappel flottant revient en bas à gauche — zone du
+     pouce, et à l'opposé du coin haut-droit où la galerie place sa
+     propre pastille « Le film ». */
+  function reglages(visibles) {
+    el('panneau').classList.toggle('masque', !visibles);
+    el('rappel').classList.toggle('on', !visibles);
+    el('masquer').setAttribute('aria-expanded', String(visibles));
+    // La grille justifiée de la galerie n'écoute que `resize` ; le
+    // panneau qui s'efface ne change pas la taille de l'aperçu, mais
+    // l'événement ne coûte rien et couvre les mises en page qui
+    // dépendraient de la place réellement libre.
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 460);
+    // Le focus suit ce qui vient d'apparaître : sans ça, un utilisateur
+    // au clavier se retrouve à naviguer dans un panneau invisible.
+    (visibles ? el('masquer') : el('rouvrir')).focus();
+  }
+  el('masquer').addEventListener('click', () => reglages(false));
+  el('rouvrir').addEventListener('click', () => reglages(true));
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && el('scene').classList.contains('plein')) plein(false);
+    if (e.key !== 'Escape') return;
+    reglages(el('panneau').classList.contains('masque'));
   });
 
   el('couv-depot').addEventListener('click', () => el('couv-fichier').click());
@@ -1308,8 +1365,9 @@
          sans ça, « Comparer » aurait continué à montrer l'état d'AVANT
          l'enregistrement, ce qui n'a plus aucun sens. */
       base = JSON.parse(JSON.stringify(draft));
-      if (compare) el('comparer').click();   // on sort du mode comparaison
+      compare = false;                       // on sort du mode comparaison
       majComparer();
+      pousser();                             // l'aperçu revient au brouillon
     } catch (err) {
       // Une coupure réseau ne doit pas laisser le bouton mort et muet.
       etat(`Échec : ${err.message || "l'enregistrement n'a pas abouti."}`, 'ko');

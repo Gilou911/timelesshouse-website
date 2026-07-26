@@ -28,6 +28,19 @@
        un réglage, assez petit pour laisser voir les commandes dessous —
        et repris tel quel comme décalage du sélecteur de volet, pour
        qu'aucun des deux ne recouvre l'autre. */
+    /* ── Épaisseur du verre, par THÈME ──────────────────────────
+       §8 : « l'épaisseur du matériau = son opacité ». Elle ne peut pas
+       être la même dans les deux thèmes, parce que ce qu'il y a
+       DERRIÈRE n'est pas le même.
+       En sombre, la galerie et le panneau sont tous deux sombres : le
+       verre fin reste cohérent et lisible.
+       En clair, la galerie est presque toujours noire — un verre fin
+       laissait passer assez de noir pour DÉLAVER la crème : le panneau
+       virait au gris plat et le relief neumorphique, qui repose sur une
+       surface chaude et lumineuse, s'effondrait. Le verre s'épaissit
+       donc en clair (retour de Gil, 26/07/2026). */
+    --verre-panneau: 97%;
+    --verre-bande: 88%;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     /* Courbe d'un tiroir : départ franc, arrivée posée. C'est elle qui
        fait qu'un panneau qui s'efface paraît glisser et non sauter. */
@@ -40,6 +53,9 @@
       --shadow-d:rgba(0,0,0,0.55); --shadow-l:rgba(54,60,72,0.28);
       --btn-bg:#e8e4dc; --btn-text:#181b20;
       --ok:#7fc79a; --ko:#f28b82;
+      /* Sombre sur sombre : le verre peut rester fin sans rien délaver. */
+      --verre-panneau: 88%;
+      --verre-bande: 55%;
     }
   }
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -88,7 +104,7 @@
     border-radius:24px; overflow-y:auto;
     /* Le geste de défilement ne doit pas « traverser » vers la page. */
     overscroll-behavior:contain;
-    background:color-mix(in srgb, var(--surface) 88%, transparent);
+    background:color-mix(in srgb, var(--surface) var(--verre-panneau), transparent);
     -webkit-backdrop-filter:saturate(180%) blur(28px);
     backdrop-filter:saturate(180%) blur(28px);
     border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
@@ -98,15 +114,12 @@
        ENTRANTE et un temps plus court — on s'attarde sur ce qui arrive,
        pas sur ce qui s'en va. */
     transition:transform .36s var(--ease-tiroir), opacity .24s ease-out;
-    /* ENCRES SECONDAIRES RENFORCÉES, valables SEULEMENT dans le panneau.
-       Le verre laisse passer 12 % de la photo : calculé sur les pires
-       fonds possibles (photo noire en thème clair, photo blanche en
-       thème sombre), les couleurs normales tombaient à 3,4–4,2:1, donc
-       sous le seuil de lisibilité. Opacifier le panneau à 98 % aurait
-       réglé le contraste en supprimant l'effet de verre demandé ; on
-       fonce plutôt les deux encres, mesurées ≥ 4,6:1 dans tous les cas. */
-    --muted:#5b554a;
-    --faint:#5b544a;
+    /* Encres INCHANGÉES en clair : le verre y est désormais épais
+       (97 %), donc la photo ne délave plus rien et les couleurs
+       d'origine repassent largement le seuil. Les avoir foncées
+       participait au ton terne que Gil n'aimait pas — c'était une
+       compensation devenue inutile. Le renfort ne subsiste qu'en
+       thème sombre, où le verre reste fin (voir plus bas). */
     /* Barre de défilement discrète : la barre système opaque coupait
        le bord arrondi du panneau d'un trait clair. */
     scrollbar-width:thin;
@@ -119,6 +132,9 @@
     border-radius:999px; border:2px solid transparent; background-clip:content-box;
   }
   @media (prefers-color-scheme: dark) {
+    /* En SOMBRE le verre reste fin (88 %) : une photo claire derrière
+       ferait tomber les encres secondaires à 3,4–4,0:1. On les renforce
+       donc ici seulement — mesuré ≥ 4,6:1 dans le pire cas. */
     .panneau { --muted:#a8aeb7; --faint:#aab0ba; }
   }
   .panneau.masque {
@@ -160,7 +176,7 @@
   }
   .rappel.on { transform:none; opacity:1; pointer-events:auto; }
   .rappel .pilule {
-    background:color-mix(in srgb, var(--surface) 92%, transparent);
+    background:color-mix(in srgb, var(--surface) var(--verre-panneau), transparent);
     -webkit-backdrop-filter:saturate(180%) blur(20px); backdrop-filter:saturate(180%) blur(20px);
     border-color:color-mix(in srgb, var(--ink) 12%, transparent);
     box-shadow:0 14px 34px -12px rgba(0,0,0,.55);
@@ -212,7 +228,7 @@
      boutons d'enregistrement portent chacun leur propre fond. Le calcul
      de contraste ne concerne donc que ces fonds-là, inchangés. */
   #bloc-volet:not([hidden]), .panneau-actions, .poignee {
-    background:color-mix(in srgb, var(--surface) 55%, transparent);
+    background:color-mix(in srgb, var(--surface) var(--verre-bande), transparent);
     -webkit-backdrop-filter:saturate(180%) blur(22px);
     backdrop-filter:saturate(180%) blur(22px);
   }
@@ -227,7 +243,7 @@
     content:''; position:absolute; left:0; right:0; top:100%; height:18px;
     pointer-events:none;
     background:linear-gradient(to bottom,
-      color-mix(in srgb, var(--surface) 55%, transparent), transparent);
+      color-mix(in srgb, var(--surface) var(--verre-bande), transparent), transparent);
   }
   #bloc-volet:not([hidden]), .panneau-actions { position:sticky; }
 
@@ -495,7 +511,7 @@
     border-radius:0 0 24px 24px;
     /* Un peu plus dense que les autres bandes : elle porte l'action
        d'enregistrement, qui ne doit jamais paraître flotter dans le vide. */
-    background:color-mix(in srgb, var(--surface) 72%, transparent);
+    background:color-mix(in srgb, var(--surface) calc(var(--verre-bande) + 17%), transparent);
     -webkit-backdrop-filter:saturate(180%) blur(22px); backdrop-filter:saturate(180%) blur(22px);
     box-shadow:0 -10px 24px -14px var(--shadow-d);
     display:flex; gap:10px; align-items:center;

@@ -3409,7 +3409,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setLoading(true); setErr('');
         const [sel, ph] = await Promise.all([
           sb.from('gallery_selections')
-            .select('photo_id, voter_name').eq('gallery_id', g.id),
+            .select('photo_id, voter_name, voter_email').eq('gallery_id', g.id),
           sb.from('gallery_photos')
             .select('id, url_grid, category, position')
             .eq('gallery_id', g.id).order('position', { ascending: true }),
@@ -3428,18 +3428,26 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setLoading(false);
       })(); }, [g.id]);
 
-      /* Un prénom = une personne, quelle que soit sa casse ou ses
-         espaces. « elea » et « Eléa » restent deux colonnes (accents
-         différents) — les fusionner risquerait de confondre deux invités. */
+      /* Une ADRESSE = une personne. Grouper par prénom aurait fondu en
+         une seule colonne deux invités prénommés Marie (question de
+         Gil) ; l'adresse tranche, et suit la personne d'un appareil à
+         l'autre. Le prénom n'est qu'une étiquette. */
       const parPersonne = useMemo(() => {
         const m = new Map();
-        lignes.forEach(({ photo_id, voter_name }) => {
-          const cle = (voter_name || '').trim().toLowerCase();
+        lignes.forEach(({ photo_id, voter_name, voter_email }) => {
+          const cle = (voter_email || '').trim().toLowerCase();
           if (!cle) return;
-          if (!m.has(cle)) m.set(cle, { nom: (voter_name || '').trim(), photos: new Set() });
+          if (!m.has(cle)) m.set(cle, { cle, nom: (voter_name || '').trim() || cle, photos: new Set() });
           m.get(cle).photos.add(photo_id);
         });
-        return [...m.values()].sort((a, b) => b.photos.size - a.photos.size);
+        const liste = [...m.values()].sort((a, b) => b.photos.size - a.photos.size);
+        // On n'affiche l'adresse que lorsqu'elle DISTINGUE : deux Marie
+        // ont besoin d'être départagées, une Eléa seule n'a pas besoin
+        // qu'on affiche son email à côté de son prénom.
+        const vus = new Map();
+        liste.forEach((p) => vus.set(p.nom.toLowerCase(), (vus.get(p.nom.toLowerCase()) || 0) + 1));
+        liste.forEach((p) => { p.ambigu = vus.get(p.nom.toLowerCase()) > 1; });
+        return liste;
       }, [lignes]);
 
       // Les photos choisies par TOUT LE MONDE : c'est le vrai résultat
@@ -3466,7 +3474,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const retenues = useMemo(() => {
         const garde = qui === '*' ? new Set(lignes.map((l) => l.photo_id))
                     : qui === '=' ? communes
-                    : (parPersonne.find((p) => p.nom === qui)?.photos || new Set());
+                    : (parPersonne.find((p) => p.cle === qui)?.photos || new Set());
         return photos.filter((p) => garde.has(p.id));
       }, [qui, photos, lignes, communes, parPersonne]);
 
@@ -3507,8 +3515,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     nom="Choisies par les deux" n={communes.size} />
                 )}
                 {parPersonne.map((p) => (
-                  <SelPuce key={p.nom} actif={qui === p.nom} onClick={() => setQui(p.nom)}
-                    nom={p.nom} n={p.photos.size} />
+                  <SelPuce key={p.cle} actif={qui === p.cle} onClick={() => setQui(p.cle)}
+                    nom={p.ambigu ? `${p.nom} · ${p.cle}` : p.nom} titre={p.cle} n={p.photos.size} />
                 ))}
               </div>
 
@@ -3536,9 +3544,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       );
     }
 
-    function SelPuce({ actif, onClick, nom, n }) {
+    function SelPuce({ actif, onClick, nom, n, titre }) {
       return (
-        <button type="button" onClick={onClick} aria-pressed={actif}
+        <button type="button" onClick={onClick} aria-pressed={actif} title={titre}
           style={actif ? neu.pressedSm : neu.raisedXs}
           className={`min-h-[44px] px-4 rounded-full text-[12.5px] font-semibold transition-transform active:scale-[0.97] ${actif ? 'text-stone-900' : 'text-stone-500'}`}>
           {nom} <span className="opacity-60 font-normal">{n}</span>

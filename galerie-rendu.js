@@ -345,13 +345,17 @@ function injectStyles() {
     font-size: 0.8125rem; line-height: 1.6;
     color: var(--ink-soft, var(--ink)); margin: 8px 0 18px;
   }
+  /* Champs empilés — jamais côte à côte, même sur grand écran. */
   .g-qui-champ {
-    width: 100%; min-height: 48px; padding: 0 16px; border-radius: 999px;
+    display: block; width: 100%; min-height: 48px; padding: 0 16px;
+    border-radius: 999px; margin-bottom: 10px;
     border: 1px solid var(--line); background: var(--bg); color: var(--ink);
     /* 16 px au plancher, sinon iOS zoome la page à la mise au point. */
     font-family: inherit; font-size: max(1rem, 16px); outline: none;
   }
   .g-qui-champ:focus { border-color: var(--accent); }
+  .g-qui-champ.faux  { border-color: #f28b82; }
+  .g-qui-err { font-size: 0.75rem; line-height: 1.5; color: #f28b82; margin: 2px 0 0; }
   .g-qui-actions { display: flex; gap: 10px; margin-top: 16px; }
   .g-qui-actions button {
     min-height: 44px; padding: 0 18px; border-radius: 999px; cursor: pointer;
@@ -749,22 +753,24 @@ export function mountPhotos(mount, categories, opts = {}) {
   const code = opts.code && opts.code !== 'apercu' ? opts.code : null;
   const remonte = !!(sb && code);
 
-  /* Identité du visiteur, gardée pour TOUTES les galeries : on ne
-     redemande pas son prénom à chaque lien reçu.
-       · cle    → identité d'écriture. On ne peut décocher que ses
-                  propres choix : personne n'efface la liste de l'autre.
-       · prenom → sert à l'affichage dans la console du photographe. */
+  /* Identité du visiteur, gardée pour TOUTES les galeries : on ne la
+     redemande pas à chaque lien reçu.
+       · email  → l'IDENTITÉ. Le prénom seul ne pouvait pas la porter :
+                  deux invités prénommés Marie n'auraient formé qu'une
+                  colonne, et surtout l'identité était propre au
+                  navigateur — la même personne passée du téléphone à
+                  l'ordinateur voyait ses cœurs mais ne pouvait plus les
+                  décocher, faute de ligne à son nom.
+       · prenom → étiquette lisible dans la console du photographe. */
   const MOI_KEY = 'laloge_selection_moi';
   let moi = null;
   try { moi = JSON.parse(localStorage.getItem(MOI_KEY) || 'null'); } catch (_) {}
+  // Une identité d'avant l'email n'est plus exploitable : on la redemande.
+  if (moi && !moi.email) moi = null;
   const saveMoi = () => { try { localStorage.setItem(MOI_KEY, JSON.stringify(moi)); } catch (_) {} };
-  const nouvelleCle = () => (crypto?.randomUUID
-    ? crypto.randomUUID()
-    // Repli : contexte non sécurisé (http://), où randomUUID n'existe pas.
-    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-        const r = Math.random() * 16 | 0;
-        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-      }));
+  // Même règle que selection_email() en base : une seule définition de
+  // ce qu'est une adresse utilisable, des deux côtés.
+  const emailValide = (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((v || '').trim().toLowerCase());
 
   /* Envoi silencieux. Trois raisons de ne JAMAIS remonter une erreur à
      l'écran : la migration SQL peut ne pas être passée (la fonction
@@ -772,10 +778,10 @@ export function mountPhotos(mount, categories, opts = {}) {
      est un geste léger — l'interrompre par une alerte serait pire que
      de perdre la synchronisation. Le cœur reste posé localement. */
   async function pousserChoix(id, actif) {
-    if (!remonte || !moi?.cle || !moi?.prenom) return;
+    if (!remonte || !moi?.email || !moi?.prenom) return;
     try {
       await sb.rpc('set_gallery_selection', {
-        p_code: code, p_photo: id, p_voter: moi.cle, p_name: moi.prenom, p_on: actif,
+        p_code: code, p_photo: id, p_email: moi.email, p_name: moi.prenom, p_on: actif,
       });
     } catch (_) { /* silencieux, par conception */ }
   }
@@ -785,10 +791,10 @@ export function mountPhotos(mount, categories, opts = {}) {
      onglet). On n'écrase pas, on RÉUNIT — un cœur posé hors connexion
      puis jamais remonté ne doit pas disparaître. */
   async function rejoindreServeur() {
-    if (!remonte || !moi?.cle) return;
+    if (!remonte || !moi?.email) return;
     try {
       const { data } = await sb.rpc('get_gallery_selection_mine',
-        { p_code: code, p_voter: moi.cle });
+        { p_code: code, p_email: moi.email });
       if (!Array.isArray(data)) return;
       const avant = favs.size;
       data.forEach((id) => favs.add(id));
@@ -1115,14 +1121,18 @@ export function mountPhotos(mount, categories, opts = {}) {
        galerie qu'on vient admirer ne doit pas s'ouvrir sur un
        formulaire. Si la demande est annulée, on ne coche rien — cocher
        sans savoir qui aurait produit une liste anonyme inexploitable. */
-    if (remonte && !moi?.prenom) {
-      const prenom = await demanderPrenom();
-      if (!prenom) return;
-      moi = { cle: moi?.cle || nouvelleCle(), prenom };
+    if (remonte && !moi?.email) {
+      const ident = await demanderIdentite();
+      if (!ident) return;
+      moi = ident;
       saveMoi();
-      // Des cœurs posés AVANT ce prénom (aperçu, ou migration pas encore
-      // passée) : on les remonte maintenant, plutôt que de les perdre.
+      // Des cœurs posés AVANT l'identification (migration pas encore
+      // passée, ou refus initial) : on les remonte plutôt que de les perdre.
       favs.forEach((ancien) => pousserChoix(ancien, true));
+      /* Et dans l'autre sens : cette adresse a peut-être déjà choisi
+         depuis un autre appareil. On récupère cette liste tout de suite,
+         sinon elle n'apparaîtrait qu'au prochain chargement. */
+      rejoindreServeur();
     }
     if (favs.has(id)) favs.delete(id); else favs.add(id);
     saveFavs();
@@ -1133,26 +1143,32 @@ export function mountPhotos(mount, categories, opts = {}) {
   /* Petite feuille « Qui choisit ? ». Volontairement pas un prompt()
      natif : c'est la seule interruption d'une page que le client montre
      à sa famille, elle doit rester à la maison. */
-  function demanderPrenom() {
+  function demanderIdentite() {
     return new Promise((resolve) => {
       const d = document.createElement('div');
       d.className = 'g-qui';
       d.innerHTML =
         '<div class="g-qui-boite" role="dialog" aria-modal="true" aria-labelledby="g-qui-t">' +
           '<h2 id="g-qui-t">Qui choisit ?</h2>' +
-          '<p>Votre prénom sépare vos coups de cœur de ceux de votre moitié. ' +
-          'Votre photographe reçoit les deux listes.</p>' +
-          '<input class="g-qui-champ" type="text" maxlength="40" autocomplete="given-name" ' +
-                 'placeholder="Votre prénom" aria-label="Votre prénom" />' +
+          '<p>Pour que votre photographe sache de qui vient chaque liste, ' +
+          'et pour que vous retrouviez la vôtre depuis n\'importe quel appareil. ' +
+          'Rien d\'autre n\'en est fait : ni compte, ni envoi.</p>' +
+          '<input class="g-qui-champ" data-r="prenom" type="text" maxlength="40" ' +
+                 'autocomplete="given-name" placeholder="Votre prénom" aria-label="Votre prénom" />' +
+          '<input class="g-qui-champ" data-r="email" type="email" maxlength="160" ' +
+                 'autocomplete="email" inputmode="email" placeholder="Votre email" aria-label="Votre email" />' +
+          '<div class="g-qui-err" role="alert" hidden></div>' +
           '<div class="g-qui-actions">' +
             '<button type="button" class="g-qui-non">Plus tard</button>' +
             '<button type="button" class="g-qui-ok">Continuer</button>' +
           '</div>' +
         '</div>';
       document.body.appendChild(d);
-      const champ = d.querySelector('.g-qui-champ');
-      const ok    = d.querySelector('.g-qui-ok');
-      const avant = document.activeElement;
+      const champ  = d.querySelector('[data-r="prenom"]');
+      const mail   = d.querySelector('[data-r="email"]');
+      const erreur = d.querySelector('.g-qui-err');
+      const ok     = d.querySelector('.g-qui-ok');
+      const avant  = document.activeElement;
 
       const fermer = (valeur) => {
         d.remove();
@@ -1160,13 +1176,31 @@ export function mountPhotos(mount, categories, opts = {}) {
         try { avant?.focus?.(); } catch (_) {}
         resolve(valeur);
       };
-      const valider = () => fermer(champ.value.trim().slice(0, 40) || null);
+      /* Message en SOLUTION et à côté du champ fautif (HIG §13), plutôt
+         qu'un bouton inerte qui laisse deviner ce qui manque. */
+      const dire = (msg, cible) => {
+        erreur.textContent = msg; erreur.hidden = false;
+        cible.classList.add('faux'); cible.focus();
+      };
+      const valider = () => {
+        erreur.hidden = true;
+        d.querySelectorAll('.g-qui-champ').forEach((c) => c.classList.remove('faux'));
+        const prenom = champ.value.trim().slice(0, 40);
+        const email  = mail.value.trim().toLowerCase().slice(0, 160);
+        if (!prenom) return dire('Indiquez votre prénom.', champ);
+        if (!emailValide(email)) return dire('Vérifiez votre email : il manque un @ ou un point.', mail);
+        fermer({ prenom, email });
+      };
 
       ok.addEventListener('click', valider);
       d.querySelector('.g-qui-non').addEventListener('click', () => fermer(null));
       d.addEventListener('click', (e) => { if (e.target === d) fermer(null); });
-      champ.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); valider(); }
+      // Entrée valide depuis les DEUX champs : sur un formulaire de deux
+      // lignes, aller chercher le bouton à la souris est une corvée.
+      d.querySelectorAll('.g-qui-champ').forEach((c) => {
+        c.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); valider(); }
+        });
       });
       d.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') { e.preventDefault(); fermer(null); }

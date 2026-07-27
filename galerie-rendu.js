@@ -1080,6 +1080,14 @@ export function mountPhotos(mount, categories, opts = {}) {
         if (r[0]) rowEl.style.setProperty('--rh', Math.round(r[0].h) + 'px');
         r.forEach(({ p, w, h }) => {
           const gi = from + photos.indexOf(p);
+          /* La grille reçoit les photos BRUTES du groupe (c.photos), qui ne
+             portent pas leur catégorie — seule FLAT la leur ajoute. La même
+             photo se téléchargeait donc « photo-001.jpg » depuis la grille
+             et « prepa-001.jpg » depuis la visionneuse, et le texte
+             alternatif retombait sur le titre de la galerie. `gi` désigne
+             exactement cette photo dans FLAT : on y reprend la version
+             complète. */
+          const pc = FLAT[gi] || p;
           const cell = document.createElement('div');
           cell.className = 'g-cell' + (favs.has(p.id) ? ' is-fav' : '');
           cell.style.width = w + 'px';
@@ -1094,7 +1102,7 @@ export function mountPhotos(mount, categories, opts = {}) {
              faisait attendre un tour de mise en page pour rien. */
           const pressee = poseesTotal++ < 4;
           cell.innerHTML =
-            `<img src="${escAttr(GRID(p))}" alt="${escAttr(p.category || title)}"` +
+            `<img src="${escAttr(GRID(p))}" alt="${escAttr(pc.category || title)}"` +
             (pressee ? ` fetchpriority="high"` : ` loading="lazy"`) +
             ` decoding="async" />` +
             `<div class="g-fav-badge">${ICON.heartFull}</div>` +
@@ -1102,7 +1110,7 @@ export function mountPhotos(mount, categories, opts = {}) {
               `<button class="g-tool${favs.has(p.id) ? ' fav' : ''}" data-act="fav"` +
               ` aria-pressed="${favs.has(p.id)}" aria-label="${libelleFav(favs.has(p.id))}">` +
               `<span>${ICON.heart}</span></button>` +
-              `<a class="g-tool" data-act="dl" href="${escAttr(FULL(p))}" download="${escAttr(fileNameOf(p, gi))}" aria-label="Télécharger"><span>${ICON.dl}</span></a>` +
+              `<a class="g-tool" data-act="dl" href="${escAttr(FULL(p))}" download="${escAttr(fileNameOf(pc, gi))}" aria-label="Télécharger"><span>${ICON.dl}</span></a>` +
             `</div>`;
 
           cell.addEventListener('click', (e) => {

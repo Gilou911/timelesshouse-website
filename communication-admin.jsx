@@ -3411,7 +3411,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           sb.from('gallery_selections')
             .select('photo_id, voter_name, voter_email').eq('gallery_id', g.id),
           sb.from('gallery_photos')
-            .select('id, url_grid, category, position')
+            .select('id, url_grid, category, position, created_at')
             .eq('gallery_id', g.id).order('position', { ascending: true }),
         ]);
         /* 42P01 = la table n'existe pas encore. Le code part avant que la
@@ -3458,18 +3458,53 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           (id) => parPersonne.every((p) => p.photos.has(id))));
       }, [parPersonne]);
 
-      // Étiquette identique au nom du fichier que le client télécharge
-      // (voir fileNameOf dans galerie-rendu.js) : le photographe peut
-      // relier ce qu'il voit ici à ce qu'il reçoit.
+      /* Le NOM DE FICHIER exact que le client télécharge — pas une
+         étiquette approchante. Première version : « Préparatifs · n°2 »,
+         numéroté par catégorie. C'était faux deux fois, constaté sur une
+         vraie galerie : `fileNameOf` numérote sur l'ENSEMBLE de la
+         galerie, et en mode « tout mélangé » la catégorie disparaît (les
+         fichiers s'appellent alors photo-001.jpg). Une liste qui ne
+         correspond à rien de ce que le client reçoit ne sert à rien.
+
+         On rejoue donc l'ordre de rendu de la galerie : mêmes groupes
+         (RPC get_gallery_by_code : min(position), min(created_at), nom),
+         même tri interne, même repli 'photo' quand la catégorie est vide. */
       const etiquette = useMemo(() => {
-        const rang = new Map(); const compte = new Map();
+        const slug = (s) => (s || 'photo').toLowerCase()
+          .normalize('NFD').replace(/[̀-ͯ]/g, '')
+          .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'photo';
+        const cle = (p) => [p.position ?? 0, p.created_at || ''];
+        const avant = (a, b) => (a[0] - b[0]) || String(a[1]).localeCompare(String(b[1]));
+
+        const groupes = new Map();
         photos.forEach((p) => {
-          const c = p.category || 'photo';
-          const n = (compte.get(c) || 0) + 1; compte.set(c, n);
-          rang.set(p.id, `${c} · n°${n}`);
+          const c = p.category || '';
+          if (!groupes.has(c)) groupes.set(c, []);
+          groupes.get(c).push(p);
         });
+        let ordre = [...groupes.entries()]
+          .map(([c, liste]) => {
+            liste.sort((a, b) => avant(cle(a), cle(b)));
+            return { c, liste, pos: Math.min(...liste.map((p) => p.position ?? 0)),
+                     ne: liste.map((p) => p.created_at || '').sort()[0] };
+          })
+          .sort((a, b) => (a.pos - b.pos)
+            || String(a.ne).localeCompare(String(b.ne))
+            || a.c.localeCompare(b.c));
+
+        // Mode « tout mélangé » : la galerie fusionne tout en un groupe SANS
+        // nom, d'où le repli 'photo' sur le nom de fichier.
+        if ((g.config?.galleryMode || 'categorized') === 'flat' && ordre.length > 1) {
+          ordre = [{ c: '', liste: ordre.flatMap((o) => o.liste) }];
+        }
+
+        const rang = new Map();
+        let i = 0;
+        ordre.forEach(({ c, liste }) => liste.forEach((p) => {
+          rang.set(p.id, `${slug(c)}-${String(++i).padStart(3, '0')}.jpg`);
+        }));
         return rang;
-      }, [photos]);
+      }, [photos, g.config?.galleryMode]);
 
       const retenues = useMemo(() => {
         const garde = qui === '*' ? new Set(lignes.map((l) => l.photo_id))
@@ -3535,8 +3570,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 ))}
               </div>
               <p className="text-[11.5px] text-stone-500 mt-3 leading-relaxed">
-                « Copier la liste » reprend les repères tels que vos clients les téléchargent
-                ({'« '}Préparatifs · n°12{' »'}), pour les retrouver dans votre catalogue.
+                « Copier la liste » donne les noms de fichiers EXACTS que vos clients
+                téléchargent, pour retrouver leurs choix parmi les fichiers reçus.
               </p>
             </>
           )}

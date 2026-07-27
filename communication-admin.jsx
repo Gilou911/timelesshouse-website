@@ -3622,8 +3622,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <SelPuce actif={qui === '*'} onClick={() => setQui('*')}
                   nom="Tout le monde" n={new Set(lignes.map((l) => l.photo_id)).size} />
                 {parPersonne.length > 1 && (
+                  /* Le libellé suit le NOMBRE de personnes. « Choisies par
+                     les deux » mentait dès qu'il y en avait trois : la
+                     valeur, elle, a toujours été l'intersection de tous.
+                     Constaté en production — une galerie avait un troisième
+                     sélectionneur. */
                   <SelPuce actif={qui === '='} onClick={() => setQui('=')}
-                    nom="Choisies par les deux" n={communes.size} />
+                    nom={parPersonne.length === 2 ? 'Choisies par les deux' : 'Choisies par tous'}
+                    n={communes.size} />
                 )}
                 {parPersonne.map((p) => (
                   <SelPuce key={p.cle} actif={qui === p.cle} onClick={() => setQui(p.cle)}

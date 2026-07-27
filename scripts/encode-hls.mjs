@@ -142,7 +142,7 @@ const workDir = resolve("tmp-hls", workId);
 
 const n = rungs.length;
 console.log(`→ ffmpeg : transcodage HLS adaptatif en ${n} qualité${n > 1 ? "s" : ""}… (long pour un film complet, laisse tourner)`);
-transcodeHls({ src, rungs, workDir });
+await transcodeHls({ src, rungs, workDir });
 console.log("→ poster.jpg + hover.mp4 générés");
 
 // ─── Upload vers B2 ─────────────────────────────────────────

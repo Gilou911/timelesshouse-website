@@ -130,7 +130,10 @@ async function notifyVideoReady({ clientId, title, url }) {
     const res = await fetch(`${SB_URL}/functions/v1/notify-client`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        // Jeton DÉDIÉ, partagé avec notify-client. La clé de service ne
+        // convenait plus : celle injectée dans la fonction ne vaut plus
+        // celle d'ici, et les trois envois ont été refusés en silence.
+        Authorization: `Bearer ${process.env.WORKER_TOKEN || process.env.SUPABASE_SERVICE_ROLE_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -278,7 +281,23 @@ async function processJob(job) {
     const rungs = rungsFor(src.shortSide);
     log(`  ⚙ ${src.srcW}×${src.srcH} · ${fmtDuration(src.durationSeconds)} → paliers ${rungs.map((r) => r.name).join(" / ")}`);
 
-    transcodeHls({ src, rungs, workDir: outDir, quiet: !VERBOSE });
+    /* Progression rendue à celui qui a déposé la vidéo. Écriture
+       BRIDÉE : ffmpeg crache une ligne par image, on n'écrit qu'au
+       changement de point de pourcentage ET pas plus d'une fois toutes
+       les 3 s — sinon un film de 2 h produirait des milliers d'UPDATE
+       pour un chiffre que personne ne lit aussi vite. */
+    let dernierEcrit = 0, dernierPct = -1;
+    await transcodeHls({
+      src, rungs, workDir: outDir, quiet: !VERBOSE,
+      onProgress: (pct) => {
+        const t = Date.now();
+        if (pct === dernierPct || t - dernierEcrit < 3000) return;
+        dernierPct = pct; dernierEcrit = t;
+        // Best effort : un échec d'écriture ne doit pas casser l'encodage.
+        sb.from("encode_jobs").update({ progress: pct }).eq("id", job.id)
+          .then(() => {}, () => {});
+      },
+    });
 
     // Le HLS se range À CÔTÉ de l'original : media/<id>/hls-… pour un
     // média, weddings/<code>/galerie/videos/<uuid>/hls-… pour une galerie.

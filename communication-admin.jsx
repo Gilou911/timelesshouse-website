@@ -2939,8 +2939,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         // absente ou vide → aucun badge, jamais d'erreur bloquante.
         const ids = (data || []).map(g => g.id);
         if (ids.length) {
-          const { data: js } = await sb.from('encode_jobs')
-            .select('gallery_id, status').in('gallery_id', ids);
+          // `progress` : colonne ajoutée par files/migration-encode-progress.sql.
+          // Absente (migration pas encore passée), PostgREST rejette TOUTE la
+          // requête — d'où le repli sur l'ancien select, qui garde le badge.
+          let js = null;
+          ({ data: js } = await sb.from('encode_jobs')
+            .select('gallery_id, status, progress').in('gallery_id', ids));
+          if (!js) ({ data: js } = await sb.from('encode_jobs')
+            .select('gallery_id, status').in('gallery_id', ids));
           const byJob = {};
           (js || []).forEach(j => {
             if (!j.gallery_id) return;
@@ -2951,6 +2957,29 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setLoading(false);
       };
       useEffect(() => { load(); }, [client.id]);
+
+      /* Un encodage dure des heures sur un 4K : la barre doit avancer
+         sans que l'utilisateur recharge. On ne relit QUE les jobs, et
+         seulement TANT QU'IL Y EN A un en cours — un `load()` complet
+         toutes les 5 s rallumerait le voile de chargement et ferait
+         clignoter la liste. */
+      const enCours = Object.values(jobs).flat()
+        .some(j => j.status === 'pending' || j.status === 'processing');
+      useEffect(() => {
+        if (!enCours) return;
+        const ids = galleries.map(g => g.id);
+        if (!ids.length) return;
+        const tic = setInterval(async () => {
+          let js = null;
+          ({ data: js } = await sb.from('encode_jobs')
+            .select('gallery_id, status, progress').in('gallery_id', ids));
+          if (!js) return;
+          const by = {};
+          js.forEach(j => { if (j.gallery_id) (by[j.gallery_id] = by[j.gallery_id] || []).push(j); });
+          setJobs(by);
+        }, 5000);
+        return () => clearInterval(tic);
+      }, [enCours, galleries]);
 
       // Réordonnancement : échange des positions avec le voisin.
       // Si elles ne sont pas discriminantes, on ré-indexe toute la liste.
@@ -3171,8 +3200,26 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       );
     }
 
-    function EncodeBadge({ state }) {
+    function EncodeBadge({ state, progress }) {
       if (!state || state === 'none') return null;
+      /* Barre DÉTERMINÉE dès qu'un chiffre existe (§10) : sur un 4K de
+         trois minutes, « Optimisation en cours » restait seul à l'écran
+         pendant des heures, sans le moindre signe de vie. */
+      if (state === 'pending' && progress > 0) {
+        return (
+          <span className="inline-flex items-center gap-2 align-middle"
+                role="progressbar" aria-valuemin={0} aria-valuemax={100}
+                aria-valuenow={progress} aria-label="Optimisation du film">
+            <span className="w-16 h-1.5 rounded-full bg-amber-100 overflow-hidden">
+              <span className="block h-full rounded-full bg-amber-500 transition-[width] duration-700 ease-out"
+                    style={{ width: `${progress}%` }} />
+            </span>
+            <span className="text-[9.5px] uppercase tracking-wider text-amber-700 font-semibold tabular-nums">
+              Optimisation {progress} %
+            </span>
+          </span>
+        );
+      }
       const map = {
         pending:  { txt: 'Optimisation en cours', cls: 'bg-amber-100 text-amber-700' },
         error:    { txt: 'Optimisation échouée',  cls: 'bg-rose-100 text-rose-700'  },
@@ -3188,6 +3235,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     }
 
     // Résume l'état d'encodage d'une liste de vidéos + les jobs en cours.
+    // Avancement du job réellement en cours (0 si aucun, ou si la
+    // migration n'a pas encore ajouté la colonne).
+    function encodeProgressOf(jobs) {
+      const j = (jobs || []).find(x => x.status === 'processing')
+             || (jobs || []).find(x => x.status === 'pending');
+      return Math.max(0, Math.min(100, Number(j?.progress) || 0));
+    }
+
     function encodeStateOf(videos, jobs) {
       const list = Array.isArray(videos) ? videos.filter(v => v?.urls?.['1080p'] || v?.hls) : [];
       if (!list.length) return 'none';
@@ -3205,6 +3260,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const shareUrl = galleryShareUrl(g.access_code);
       const showsPhotos = g.kind === 'photos' || g.kind === 'mixte';
       const encodeState = encodeStateOf(g.config?.videos, encodeJobs);
+      const encodeProgress = encodeProgressOf(encodeJobs);
 
       // Panneau « Sélection » — indépendant du panneau Photos : on
       // consulte souvent les coups de cœur sans vouloir dérouler la
@@ -3269,7 +3325,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 {(g.kind === 'video' || g.kind === 'mixte') && (
                   <><span>·</span><span>{(g.config?.videos || []).length} vidéo{(g.config?.videos || []).length > 1 ? 's' : ''}</span></>
                 )}
-                <EncodeBadge state={encodeState} />
+                <EncodeBadge state={encodeState} progress={encodeProgress} />
               </div>
               {/* UX vague 2 : pendant l'optimisation, dire clairement
                   qu'il n'y a RIEN à faire — l'inquiétude naît du silence. */}

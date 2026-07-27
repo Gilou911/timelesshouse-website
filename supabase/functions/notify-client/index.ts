@@ -27,6 +27,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+/* Jeton dédié aux appelants internes (worker d'encodage, crons). Voir la
+   note dans la garde d'authentification : il remplace la comparaison à
+   SUPABASE_SERVICE_ROLE_KEY, qui s'est désynchronisée toute seule.
+   Absent, il ne vaut jamais un bearer (memeJeton refuse les vides). */
+const WORKER_TOKEN = Deno.env.get("WORKER_TOKEN");
 // Expéditeur : modifiable dans les secrets Supabase (FROM_EMAIL).
 //
 // ⚠️ Ce repli doit TOUJOURS pointer vers un domaine réellement vérifié chez
@@ -1133,8 +1138,24 @@ serve(async (req)=>{
       const CLIENT_TO_ADMIN = new Set(["admin_new_comment", "admin_media_approved", "admin_changes_requested"]);
       const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
       let autorise = false;
-      if (bearer && bearer === SB_KEY) {
-        autorise = true;                                    // ① interne de confiance
+      /* ① interne de confiance — worker d'encodage, crons.
+         WORKER_TOKEN est un secret DÉDIÉ, posé à la main des deux côtés.
+         La comparaison à SUPABASE_SERVICE_ROLE_KEY reste en second : elle
+         a cessé de fonctionner sans prévenir (la clé injectée ici ne vaut
+         plus celle que le worker détient — 3 emails « votre film est
+         prêt » refusés les 25 et 27/07, jamais un seul parti). Un secret
+         que l'on pose soi-même ne se désynchronise pas tout seul.
+         Comparaison à durée constante : une égalité de chaînes classique
+         s'arrête au premier caractère différent et laisse deviner le
+         jeton, octet par octet, à qui mesure le temps de réponse. */
+      const memeJeton = (a, b) => {
+        if (!a || !b || a.length !== b.length) return false;
+        let d = 0;
+        for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+        return d === 0;
+      };
+      if (bearer && (memeJeton(bearer, WORKER_TOKEN) || memeJeton(bearer, SB_KEY))) {
+        autorise = true;
       } else {
         // ② un JWT d'utilisateur ? (la clé anon ne résout aucun utilisateur)
         const who = bearer ? await fetch(`${SUPABASE_URL}/auth/v1/user`, {

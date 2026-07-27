@@ -12,7 +12,7 @@
 // écrire le résultat en base est l'affaire de l'appelant.
 // ════════════════════════════════════════════════════════════
 
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createReadStream, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import {
@@ -99,7 +99,47 @@ export function rungsFor(shortSide) {
 // Produit dans workDir : master.m3u8, index_N.m3u8, seg_*.ts,
 // poster.jpg, hover.mp4. Le contenu de ce dossier est ensuite
 // uploadé tel quel par uploadHlsDir().
-export function transcodeHls({ src, rungs, workDir, quiet = false }) {
+/* Lance ffmpeg en RENDANT COMPTE de son avancement.
+   `-progress pipe:1` fait cracher à ffmpeg des lignes clé=valeur, dont
+   `out_time_us` : la position atteinte dans le film. Rapportée à la
+   durée, elle donne une fraction honnête — et surtout MONOTONE, parce
+   que les quatre paliers sont produits en UNE passe. Une progression par
+   palier serait repartie de zéro quatre fois, exactement le « 90 % en
+   5 s puis 10 % en 5 min » que le guide proscrit.
+   Remplace execFileSync : on ne peut pas lire un flux d'un processus
+   synchrone. Le reste (poster, survol) tient en quelques secondes et
+   garde son appel bloquant. */
+function ffmpegSuivi(args, { quiet, durationSeconds, onProgress }) {
+  return new Promise((resolve, reject) => {
+    const p = spawn("ffmpeg", ["-progress", "pipe:1", "-nostats", ...args], {
+      stdio: ["ignore", "pipe", quiet ? "pipe" : "inherit"],
+    });
+    let reste = "";
+    let dernier = -1;
+    p.stdout.on("data", (buf) => {
+      reste += buf.toString();
+      const lignes = reste.split("\n");
+      reste = lignes.pop() || "";
+      for (const l of lignes) {
+        const m = /^out_time_us=(\d+)/.exec(l.trim());
+        if (!m || !durationSeconds || !onProgress) continue;
+        // Plafonné à 98 : les 2 derniers points couvrent poster, survol
+        // et envoi. Annoncer 100 avant la fin serait mentir.
+        const pct = Math.max(0, Math.min(98,
+          Math.round((Number(m[1]) / 1e6 / durationSeconds) * 100)));
+        if (pct !== dernier) { dernier = pct; onProgress(pct); }
+      }
+    });
+    let err = "";
+    if (quiet && p.stderr) p.stderr.on("data", (b) => { err += b.toString(); });
+    p.on("error", reject);
+    p.on("close", (code) => code === 0
+      ? resolve()
+      : reject(new Error(`ffmpeg a échoué (code ${code})${err ? ` : ${err.slice(-600)}` : ""}`)));
+  });
+}
+
+export async function transcodeHls({ src, rungs, workDir, quiet = false, onProgress }) {
   const { inputPath, portrait, hasAudio, durationSeconds } = src;
   rmSync(workDir, { recursive: true, force: true });
   mkdirSync(workDir, { recursive: true });
@@ -123,8 +163,7 @@ export function transcodeHls({ src, rungs, workDir, quiet = false }) {
     .map((r, i) => (hasAudio ? `v:${i},a:${i},name:${r.name}` : `v:${i},name:${r.name}`))
     .join(" ");
 
-  const stdio = quiet ? "pipe" : "inherit";
-  execFileSync("ffmpeg", [
+  await ffmpegSuivi([
     "-y",
     ...(quiet ? QUIET_LOG : []),
     "-i", inputPath,
@@ -142,7 +181,7 @@ export function transcodeHls({ src, rungs, workDir, quiet = false }) {
     "-var_stream_map", streamMap,
     "-hls_segment_filename", join(workDir, "seg_%v_%04d.ts"),
     join(workDir, "index_%v.m3u8"),
-  ], { stdio, maxBuffer: FFMPEG_MAX_BUFFER });
+  ], { quiet, durationSeconds, onProgress });
 
   // Poster (frame nette à 2 s) + vidéo de survol (480p muette, légère)
   const posterAt = Math.min(2, Math.max(0, durationSeconds - 1));

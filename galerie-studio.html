@@ -713,7 +713,7 @@
            PHOTO sont enfin voisines — elles étaient séparées par deux
            réglages sans rapport, alors qu'on les choisit ensemble. -->
       <div class="bloc" id="bloc-palette" hidden>
-        <div class="titre">Palette de couleurs</div>
+        <div class="titre" id="titre-palette">Palette de couleurs</div>
         <!-- Résumé quand la palette est choisie ; la grille des treize
              pastilles ne se déplie qu'à la demande. -->
         <button type="button" class="palette-resume" id="palette-resume" hidden></button>
@@ -901,10 +901,16 @@
   /* Une section par tâche. `blocs` sert à deux choses : masquer ce qui
      n'est pas de la section, et renseigner aria-controls — un lecteur
      d'écran doit savoir ce que l'onglet commande. */
+  /* Plus de section « Style » : chaque PAGE porte son apparence, à côté
+     de ce qu'elle contient (demande de Gil). Régler la couleur d'une
+     page depuis un autre onglet obligeait à faire l'aller-retour pour
+     juger le résultat.
+     La palette principale suit donc la page qu'elle habille : l'onglet
+     Photos sur une galerie qui en a, l'onglet Vidéo sur un film seul —
+     où elle est la seule page, donc la seule palette. */
   const SECTIONS = [
-    { id:'photos', nom:'Photos', blocs:['bloc-upload','bloc-photos','bloc-couv','bloc-mode'] },
-    { id:'video',  nom:'Vidéo',  blocs:['bloc-video'] },
-    { id:'style',  nom:'Style',  blocs:['bloc-palette','bloc-perso','bloc-palette-film'] },
+    { id:'photos', nom:'Photos', blocs:['bloc-upload','bloc-palette','bloc-perso','bloc-photos','bloc-couv','bloc-mode'] },
+    { id:'video',  nom:'Vidéo',  blocs:['bloc-video','bloc-palette','bloc-palette-film'] },
     { id:'infos',  nom:'Infos',  blocs:['bloc-titre','bloc-contenu','bloc-type','bloc-noces'] },
   ];
 
@@ -1432,8 +1438,10 @@
 
     const voirPhotos = aPhotos && section === 'photos';
     const voirVideo  = aVideo  && section === 'video';
-    const voirStyle  = section === 'style';
     const voirInfos  = section === 'infos';
+    /* La palette principale habille la page PHOTOS quand il y en a une ;
+       sur un film seul, elle habille le film — c'est la seule page. */
+    const voirPalette = aPhotos ? voirPhotos : voirVideo;
 
     boutons(el('kinds'), KINDS, g.kind || 'photos', (v) => { draft.gallery.kind = v; rendre(); });
     // Gabarit hérité (immobilier, corporate…) : on le réinjecte dans la
@@ -1449,15 +1457,19 @@
        galeries à photos — sur un film seul, Style se réduit aux couleurs. */
     el('bloc-upload').hidden  = !voirPhotos;
     el('bloc-video').hidden   = !voirVideo;
-    el('bloc-palette').hidden = !voirStyle;
-    /* Couverture et organisation ont rejoint la section PHOTOS : elles ne
-       concernent que cette page-là, et Style ne gardait qu'un réglage
-       réellement commun sur cinq (remarque de Gil). */
+    el('bloc-palette').hidden = !voirPalette;
     el('bloc-photos').hidden  = !voirPhotos;
     el('bloc-couv').hidden    = !voirPhotos;
     el('bloc-mode').hidden    = !voirPhotos;
-    // Palette du film : n'a de sens que sur une galerie qui EN a un.
-    el('bloc-palette-film').hidden = !(voirStyle && aVideo);
+    /* Palette PROPRE au film : seulement quand le film cohabite avec des
+       photos. Sur un film seul il n'y a rien à distinguer — c'est la
+       palette principale, juste au-dessus, qui l'habille. */
+    el('bloc-palette-film').hidden = !(voirVideo && aPhotos);
+    /* Le titre dit ce que la palette habille RÉELLEMENT : « de la
+       galerie » n'aurait aucun sens sur un film seul. */
+    el('titre-palette').textContent = aPhotos
+      ? 'Palette de la galerie photos'
+      : 'Palette de couleurs';
     el('bloc-titre').hidden   = !voirInfos;
     el('bloc-contenu').hidden = !voirInfos;
     el('bloc-type').hidden    = !voirInfos;
@@ -1488,11 +1500,11 @@
       boutons(el('mode'), MODES, cfg.galleryMode || 'categorized', (v) => { cfg.galleryMode = v; rendre(); });
     }
     if (voirVideo) { rendreVideos(); suivreEncodage(); }
-    if (voirStyle && aVideo) rendrePaletteFilm();
+    if (voirVideo && aPhotos) rendrePaletteFilm();
 
     // Couleurs sur mesure : seulement quand la palette l'est.
     const perso = cfg.palette === 'custom';
-    el('bloc-perso').hidden = !(voirStyle && perso);
+    el('bloc-perso').hidden = !(voirPalette && perso);
     if (perso) {
       el('perso-bg').value = cfg.customBg || '#1a1714';
       el('perso-ac').value = cfg.customAccent || '#b08968';

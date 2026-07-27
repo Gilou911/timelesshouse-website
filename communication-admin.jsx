@@ -2208,6 +2208,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         ...(strategiesOn ? [{ id: 'strategies', label: 'Stratégies', icon: Lightbulb }] : []),
         ...(shootsOn   ? [{ id: 'shoots',   label: 'Tournages', icon: CalendarIcon }] : []),
         ...(client.analytics_enabled && FEATURES.analytics && allowsAnalytics(client.universe) ? [{ id: 'analytics', label: 'Analyses', icon: BarChart3 }] : []),
+        // Toujours présent : tout espace envoie des emails, et savoir ce
+        // qui est parti ne dépend d'aucune option activée.
+        { id: 'envois', label: 'Envois', icon: Send },
       ];
 
       // Onglet par défaut : Page client si univers événement, sinon Médias (ou premier onglet dispo)
@@ -2352,6 +2355,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           {tab === 'strategies' && <StrategiesTab clientId={client.id} client={client} />}
           {tab === 'shoots' && <ShootsTab clientId={client.id} client={client} />}
           {tab === 'analytics' && <AnalyticsTab clientId={client.id} />}
+          {tab === 'envois' && <EnvoisTab clientId={client.id} />}
 
           {editClient && <ClientForm existing={client} onClose={() => setEditClient(false)} onSaved={() => { setEditClient(false); refresh(); }} />}
           {confirmDelete && (
@@ -2787,6 +2791,123 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               onSaved={() => { setEditing(null); load(); }}
               onSavedQuiet={() => load()}
             />
+          )}
+        </div>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       ✉️ JOURNAL DES ENVOIS
+       Un email partait au client final et il n'en restait presque rien :
+       le type de la demande, sans l'adresse, l'objet ni le corps. Le
+       photographe ne pouvait ni vérifier où c'était parti, ni relire ce
+       que ses mariés avaient sous les yeux, ni répondre à « je n'ai rien
+       reçu ».
+       La trace va au LOCATAIRE et pas à la plateforme (choix de Gil) :
+       lire la correspondance entre un photographe et ses mariés serait
+       un vrai sujet de confidentialité en marque blanche. La policy RLS
+       « agence » s'en charge — chacun ne voit que ses propres envois.
+       ════════════════════════════════════════════════════════════ */
+    const ENVOI_NOMS = {
+      welcome: 'Bienvenue', new_media: 'Nouveau média', invoice_ready: 'Facture disponible',
+      invoice_reminder: 'Rappel de facture', invoice_paid: 'Facture réglée',
+      gallery_ready: 'Galerie en ligne', video_ready: 'Film prêt',
+      event_ready: 'Page événement', strategy_ready: 'Stratégie',
+      shoot_scheduled: 'Tournage planifié', shoot_updated: 'Tournage modifié',
+      shoot_reminder: 'Rappel de tournage',
+      admin_new_comment: 'Commentaire client', admin_media_approved: 'Média validé',
+      admin_changes_requested: 'Modifications demandées', admin_client_expiring: 'Espace qui expire',
+    };
+
+    function EnvoisTab({ clientId }) {
+      const [lignes, setLignes] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [err, setErr] = useState('');
+      const [ouvert, setOuvert] = useState(null);
+
+      useEffect(() => { (async () => {
+        setLoading(true); setErr('');
+        /* Colonnes ajoutées par files/migration-journal-envois.sql. Absentes,
+           PostgREST rejette TOUTE la requête — d'où le repli sur l'ancien
+           jeu, qui garde la liste utilisable en attendant. */
+        let r = await sb.from('notifications')
+          .select('id, kind, to_email, subject, html, statut, erreur, sent_at, created_at')
+          .eq('client_id', clientId).order('created_at', { ascending: false }).limit(200);
+        if (r.error) {
+          r = await sb.from('notifications')
+            .select('id, kind, sent_at, created_at')
+            .eq('client_id', clientId).order('created_at', { ascending: false }).limit(200);
+          if (!r.error) setErr("Le détail des envois (destinataire, objet, contenu) n'est pas encore activé : exécutez files/migration-journal-envois.sql dans Supabase.");
+        }
+        if (r.error) setErr(humaniseErreur(r.error.message));
+        else setLignes(r.data || []);
+        setLoading(false);
+      })(); }, [clientId]);
+
+      if (loading) return (
+        <div className="py-10 flex justify-center"><Loader2 size={18} className="animate-spin text-stone-400" /></div>
+      );
+
+      return (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+          <div className="text-[10px] lg:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Historique</div>
+          <h3 className="text-[20px] lg:text-[22px] tracking-tight mt-1" style={SERIF}>Envois</h3>
+          <p className="text-[12px] lg:text-[13px] text-stone-500 mt-2 leading-relaxed">
+            Tout ce qui est parti vers ce client depuis votre espace, automatique ou déclenché
+            par vous. Ouvrez un envoi pour relire exactement ce qu'il a reçu.
+          </p>
+
+          {err && (
+            <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-amber-50 text-amber-800 text-[12.5px]">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" /> {err}
+            </div>
+          )}
+
+          {lignes.length === 0 ? (
+            <EmptyState icon={Send}
+              texte="Aucun email n'est encore parti vers ce client. Dès que vous enverrez une galerie, une facture ou qu'un film sera prêt, tout s'inscrira ici." />
+          ) : (
+            <div className="th-liste space-y-2 mt-4">
+              {lignes.map((l) => {
+                const ok = l.statut ? l.statut === 'envoye' : !!l.sent_at;
+                const quand = new Date(l.created_at);
+                return (
+                  <div key={l.id} style={neu.pressedSm} className="rounded-2xl p-3.5">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[13.5px] font-semibold">{ENVOI_NOMS[l.kind] || l.kind}</span>
+                          <span className={`text-[9.5px] uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold ${ok ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                            {ok ? 'Envoyé' : 'Échec'}
+                          </span>
+                        </div>
+                        <div className="text-[11.5px] text-stone-500 mt-1">
+                          {quand.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                          {' à '}{quand.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          {l.to_email && <> · {l.to_email}</>}
+                        </div>
+                        {l.subject && <div className="text-[12.5px] text-stone-600 mt-1 truncate">{l.subject}</div>}
+                        {l.erreur && <div className="text-[11.5px] text-rose-700 mt-1">{l.erreur}</div>}
+                      </div>
+                      {l.html && (
+                        <Btn icon={ouvert === l.id ? ChevronUp : Eye}
+                          onClick={() => setOuvert(ouvert === l.id ? null : l.id)}>
+                          {ouvert === l.id ? 'Replier' : 'Voir'}
+                        </Btn>
+                      )}
+                    </div>
+                    {ouvert === l.id && l.html && (
+                      /* Rendu dans un cadre ISOLÉ : c'est du HTML d'email,
+                         il ne doit ni hériter des styles de la console ni
+                         exécuter quoi que ce soit chez nous. `sandbox` vide
+                         coupe scripts, formulaires et navigation. */
+                      <iframe title="Aperçu de l'email envoyé" sandbox srcDoc={l.html}
+                        className="w-full h-[420px] mt-3 rounded-xl bg-white border border-stone-200" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       );

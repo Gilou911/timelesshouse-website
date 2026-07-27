@@ -1061,16 +1061,50 @@ async function alreadySent(dedupeKey) {
 }
 
 /** Trace chaque envoi (sent_at null = échec). Best effort — jamais bloquant. */
-async function logNotification(clientId, kind, payload, ok) {
+async function logNotification(clientId, kind, payload, ok, envoi, erreur) {
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+    /* `envoi` porte ce qui est RÉELLEMENT parti — destinataire, objet,
+       corps. Sans lui le journal ne disait que « un video_ready a été
+       demandé » : le photographe ne pouvait ni vérifier l'adresse, ni
+       relire ce que ses mariés ont eu sous les yeux, ni répondre à
+       « je n'ai rien reçu ».
+       Le corps est plafonné : un email de galerie fait quelques dizaines
+       de Ko, mais rien ne garantit qu'un gabarit futur reste sage, et le
+       journal ne doit pas devenir le plus gros poste de la base. */
+    const COUPE = 400_000;
+    const html = envoi?.html
+      ? (envoi.html.length > COUPE ? envoi.html.slice(0, COUPE) + "\n<!-- corps tronqué -->" : envoi.html)
+      : null;
+    const base = {
+      client_id: clientId, kind, payload,
+      sent_at: ok ? new Date().toISOString() : null,
+    };
+    const enrichi = {
+      ...base,
+      to_email: envoi?.to ?? null,
+      subject:  envoi?.subject ?? null,
+      html,
+      statut: ok ? "envoye" : "echec",
+      erreur: erreur ? String(erreur).slice(0, 600) : null,
+    };
+    const ecrire = (corps) => fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
       method: "POST",
       headers: {
         apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`,
         "Content-Type": "application/json", Prefer: "return=minimal",
       },
-      body: JSON.stringify({ client_id: clientId, kind, payload, sent_at: ok ? new Date().toISOString() : null }),
+      body: JSON.stringify(corps),
     });
+    /* La fonction est déployée AVANT que la migration ne soit exécutée.
+       Tant que les colonnes n'existent pas, PostgREST rejette l'insertion
+       ENTIÈRE (42703) : sans ce repli, on ne perdrait pas seulement le
+       détail — on perdrait la ligne de journal tout court, alors qu'elle
+       fonctionnait avant. On retente donc à l'ancienne forme. */
+    const r = await ecrire(enrichi);
+    if (!r.ok) {
+      const txt = await r.text().catch(() => "");
+      if (/does not exist|42703/i.test(txt)) await ecrire(base);
+    }
   } catch (_) { /* le journal ne doit jamais faire échouer un envoi */ }
 }
 
@@ -1421,8 +1455,8 @@ serve(async (req)=>{
         ...built
       };
       if (body.dry_run) return dryRun(outgoing);
-      try { await sendEmail(outgoing); await logNotification(client.id, kind, body, true); }
-      catch (e) { await logNotification(client.id, kind, body, false); throw e; }
+      try { await sendEmail(outgoing); await logNotification(client.id, kind, body, true, outgoing); }
+      catch (e) { await logNotification(client.id, kind, body, false, outgoing, e?.message); throw e; }
     // ── Emails vers l'admin ────────────────────────────────────────
     } else if ([
       "admin_new_comment",
@@ -1446,8 +1480,8 @@ serve(async (req)=>{
         ...built
       };
       if (body.dry_run) return dryRun(outgoing);
-      try { await sendEmail(outgoing); await logNotification(client.id, kind, body, true); }
-      catch (e) { await logNotification(client.id, kind, body, false); throw e; }
+      try { await sendEmail(outgoing); await logNotification(client.id, kind, body, true, outgoing); }
+      catch (e) { await logNotification(client.id, kind, body, false, outgoing, e?.message); throw e; }
     } else {
       return new Response(JSON.stringify({
         error: `Type inconnu : ${kind}`

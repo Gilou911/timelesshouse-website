@@ -317,12 +317,38 @@ function injectStyles() {
   .g-scenes-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor;
                       stroke-width: 1.7; stroke-linecap: round; }
 
+  /* Compteur de sélection — statut passif, jamais une interruption.
+     Coin BAS GAUCHE : « haut de page » tient le coin droit. */
+  .g-compte {
+    position: fixed; z-index: 54;
+    left: max(18px, env(safe-area-inset-left));
+    bottom: max(18px, env(safe-area-inset-bottom));
+    padding: 9px 15px; border-radius: 999px;
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em;
+    color: var(--ink); background: color-mix(in srgb, var(--bg) 72%, transparent);
+    border: 1px solid var(--line); pointer-events: none;
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    backdrop-filter: saturate(180%) blur(18px);
+    opacity: 0; transform: translateY(8px);
+    transition: opacity .28s ease, transform .28s cubic-bezier(.16,1,.3,1);
+  }
+  .g-compte.on { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .g-compte { transition: opacity .2s ease; transform: none; }
+  }
+
   /* Feuille « Qui choisit ? » — voir la note dans toggleFav : c'est la
      seule interruption d'une page que le client montre à sa famille,
      elle reste donc à la maison plutôt qu'en prompt() natif. */
   .g-qui {
     position: fixed; inset: 0; z-index: 300;
-    display: flex; align-items: center; justify-content: center;
+    /* Marge automatique sur la boîte plutôt qu'un centrage flex : centré
+       quand ça tient, DÉFILABLE quand ça ne tient plus. À 200 % de taille
+       de texte (§16), la boîte passait de 381 à 750 px dans un écran de
+       480 — elle débordait en haut ET en bas, et les deux boutons
+       devenaient inatteignables. Un flex centré coupe les débordements
+       des deux côtés, sans jamais laisser défiler jusqu'à eux. */
+    display: flex; overflow-y: auto; overscroll-behavior: contain;
     padding: 24px;
     background: color-mix(in srgb, var(--bg-deep, #000) 72%, transparent);
     -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
@@ -330,6 +356,7 @@ function injectStyles() {
   }
   .g-qui.on { opacity: 1; }
   .g-qui-boite {
+    margin: auto; flex: none;
     width: min(420px, 100%); border-radius: 22px; padding: 26px 24px;
     background: var(--bg-elev, var(--bg)); color: var(--ink);
     border: 1px solid var(--line);
@@ -345,6 +372,16 @@ function injectStyles() {
     font-size: 0.8125rem; line-height: 1.6;
     color: var(--ink-soft, var(--ink)); margin: 8px 0 18px;
   }
+  /* Libellé permanent : c'est LUI qui porte le sens, à plein contraste.
+     Le placeholder n'est plus qu'un exemple — il mesurait 4,30:1, sous
+     le seuil de 4,5, alors qu'il tenait lieu de libellé. */
+  .g-qui-lib {
+    display: block; font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 0.04em; color: var(--ink); margin: 0 0 6px 4px;
+  }
+  .g-qui-lib + .g-qui-champ { margin-bottom: 14px; }
+  .g-qui-champ::placeholder { color: var(--ink-soft, #9b958a); opacity: 1; }
+  .g-qui-lien { color: var(--ink); text-underline-offset: 3px; }
   /* Champs empilés — jamais côte à côte, même sur grand écran. */
   .g-qui-champ {
     display: block; width: 100%; min-height: 48px; padding: 0 16px;
@@ -1062,7 +1099,9 @@ export function mountPhotos(mount, categories, opts = {}) {
             ` decoding="async" />` +
             `<div class="g-fav-badge">${ICON.heartFull}</div>` +
             `<div class="g-tools">` +
-              `<button class="g-tool${favs.has(p.id) ? ' fav' : ''}" data-act="fav" aria-label="Ajouter aux favoris"><span>${ICON.heart}</span></button>` +
+              `<button class="g-tool${favs.has(p.id) ? ' fav' : ''}" data-act="fav"` +
+              ` aria-pressed="${favs.has(p.id)}" aria-label="${libelleFav(favs.has(p.id))}">` +
+              `<span>${ICON.heart}</span></button>` +
               `<a class="g-tool" data-act="dl" href="${escAttr(FULL(p))}" download="${escAttr(fileNameOf(p, gi))}" aria-label="Télécharger"><span>${ICON.dl}</span></a>` +
             `</div>`;
 
@@ -1093,27 +1132,60 @@ export function mountPhotos(mount, categories, opts = {}) {
     });
   }
 
+  /* Le libellé annonce l'ACTION à venir, aria-pressed porte l'ÉTAT.
+     Le bouton disait « Ajouter aux favoris » dans les deux cas, sans
+     aria-pressed : au lecteur d'écran, une photo déjà choisie était
+     indiscernable d'une autre, et le libellé mentait. */
+  const libelleFav = (on) => (on ? 'Retirer des favoris' : 'Ajouter aux favoris');
+
+  /* Statut passif (§10) : sur 400 photos, on perd le compte de ce qu'on a
+     retenu — or c'est le chiffre qui compte quand on prépare un album.
+     Il porte aussi aria-live, ce qui règle d'un même geste l'absence
+     d'annonce au lecteur d'écran (§16) : cocher ne disait rien du tout.
+     En bas à GAUCHE : « haut de page » occupe le coin droit. */
+  function annoncerCompte() {
+    const n = favs.size;
+    /* Retrouvée dans le document, PAS gardée dans cette fermeture : la
+       pastille vit sur <body> alors que mountPhotos est rejoué à chaque
+       réglage du concepteur. Une référence de fermeture faisait créer une
+       nouvelle pastille à chaque montage pendant que l'ancienne restait
+       affichée devant, figée — le compteur ne bougeait plus. */
+    let el = document.querySelector('.g-compte');
+    if (!el) {
+      if (!n) return;                     // rien à annoncer, rien à créer
+      el = document.createElement('div');
+      el.className = 'g-compte';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      document.body.appendChild(el);
+    }
+    el.textContent = n ? `${n} photo${n > 1 ? 's' : ''} choisie${n > 1 ? 's' : ''}` : '';
+    el.classList.toggle('on', n > 0);
+  }
+
+  function peindreCellule(c) {
+    const on = favs.has(c.dataset.id);
+    c.classList.toggle('is-fav', on);
+    const b = c.querySelector('.g-tool[data-act="fav"]');
+    if (!b) return;
+    b.classList.toggle('fav', on);
+    b.setAttribute('aria-pressed', String(on));
+    b.setAttribute('aria-label', libelleFav(on));
+  }
+
   // Repeint l'état d'UNE photo (après un clic).
   function peindreFav(id) {
-    const on = favs.has(id);
     const sel = window.CSS && CSS.escape ? CSS.escape(id) : id;
-    mount.querySelectorAll(`.g-cell[data-id="${sel}"]`).forEach(c => {
-      c.classList.toggle('is-fav', on);
-      const b = c.querySelector('.g-tool[data-act="fav"]');
-      if (b) b.classList.toggle('fav', on);
-    });
+    mount.querySelectorAll(`.g-cell[data-id="${sel}"]`).forEach(peindreCellule);
     syncLbFav();
+    annoncerCompte();
   }
 
   // Repeint TOUT (après la réunion avec la liste du serveur).
   function repeindreFavs() {
-    mount.querySelectorAll('.g-cell[data-id]').forEach(c => {
-      const on = favs.has(c.dataset.id);
-      c.classList.toggle('is-fav', on);
-      const b = c.querySelector('.g-tool[data-act="fav"]');
-      if (b) b.classList.toggle('fav', on);
-    });
+    mount.querySelectorAll('.g-cell[data-id]').forEach(peindreCellule);
     syncLbFav();
+    annoncerCompte();
   }
 
   async function toggleFav(id) {
@@ -1152,11 +1224,20 @@ export function mountPhotos(mount, categories, opts = {}) {
           '<h2 id="g-qui-t">Qui choisit ?</h2>' +
           '<p>Pour que votre photographe sache de qui vient chaque liste, ' +
           'et pour que vous retrouviez la vôtre depuis n\'importe quel appareil. ' +
-          'Rien d\'autre n\'en est fait : ni compte, ni envoi.</p>' +
-          '<input class="g-qui-champ" data-r="prenom" type="text" maxlength="40" ' +
-                 'autocomplete="given-name" placeholder="Votre prénom" aria-label="Votre prénom" />' +
-          '<input class="g-qui-champ" data-r="email" type="email" maxlength="160" ' +
-                 'autocomplete="email" inputmode="email" placeholder="Votre email" aria-label="Votre email" />' +
+          'Rien d\'autre n\'en est fait : ni compte, ni envoi. ' +
+          /* §19 : dire ce qui est collecté ET où c'est écrit. Une adresse
+             demandée sans un mot sur son sort est un dark pattern doux. */
+          '<a class="g-qui-lien" href="/confidentialite.html" target="_blank" rel="noopener">' +
+          'Vos données</a>.</p>' +
+          /* Libellé PERMANENT au-dessus de chaque champ (§13) : le
+             placeholder disparaît à la frappe, il ne peut pas porter le
+             sens. Il reprend son vrai rôle — un exemple de format. */
+          '<label class="g-qui-lib" for="g-qui-prenom">Votre prénom</label>' +
+          '<input class="g-qui-champ" id="g-qui-prenom" data-r="prenom" type="text" maxlength="40" ' +
+                 'autocomplete="given-name" placeholder="Eléa" />' +
+          '<label class="g-qui-lib" for="g-qui-email">Votre email</label>' +
+          '<input class="g-qui-champ" id="g-qui-email" data-r="email" type="email" maxlength="160" ' +
+                 'autocomplete="email" inputmode="email" placeholder="elea@exemple.fr" />' +
           '<div class="g-qui-err" role="alert" hidden></div>' +
           '<div class="g-qui-actions">' +
             '<button type="button" class="g-qui-non">Plus tard</button>' +
@@ -1170,7 +1251,14 @@ export function mountPhotos(mount, categories, opts = {}) {
       const ok     = d.querySelector('.g-qui-ok');
       const avant  = document.activeElement;
 
+      /* Le fond ne doit pas défiler sous une modale (§12) : sans ce
+         verrou, un doigt qui glisse à côté de la boîte faisait défiler la
+         galerie derrière, et on perdait sa place en revenant. */
+        const defilementAvant = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+
       const fermer = (valeur) => {
+        document.body.style.overflow = defilementAvant;
         d.remove();
         // Le focus revient d'où il venait, sinon il retombe sur <body>.
         try { avant?.focus?.(); } catch (_) {}
@@ -1204,6 +1292,20 @@ export function mountPhotos(mount, categories, opts = {}) {
       });
       d.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') { e.preventDefault(); fermer(null); }
+        /* Piège à focus (§12, §16) : sans lui, Tab sortait de la boîte et
+           s'en allait parcourir la galerie derrière — invisible pour qui
+           navigue au clavier, qui ne comprenait plus où il se trouvait.
+           La boîte se déclare aria-modal : elle DOIT tenir sa promesse. */
+        if (e.key !== 'Tab') return;
+        const cibles = [...d.querySelectorAll('button, input')]
+          .filter((el) => !el.disabled && el.offsetParent !== null);
+        if (!cibles.length) return;
+        const premier = cibles[0], dernier = cibles[cibles.length - 1];
+        if (e.shiftKey && document.activeElement === premier) {
+          e.preventDefault(); dernier.focus();
+        } else if (!e.shiftKey && document.activeElement === dernier) {
+          e.preventDefault(); premier.focus();
+        }
       });
       /* Un focus posé avant la première peinture est ignoré par Safari,
          d'où requestAnimationFrame. Mais rAF ne s'exécute PAS dans un
@@ -1227,7 +1329,7 @@ export function mountPhotos(mount, categories, opts = {}) {
     `<div class="g-lb-bar">
        <div class="g-lb-cap" data-el="cap"></div>
        <div class="g-lb-acts">
-         <button class="g-ic" data-el="fav" aria-label="Favori">${ICON.heart}</button>
+         <button class="g-ic" data-el="fav" aria-pressed="false" aria-label="Ajouter aux favoris">${ICON.heart}</button>
          <a class="g-ic" data-el="dl" download aria-label="Télécharger">${ICON.dl}</a>
          <button class="g-ic" data-el="close" aria-label="Fermer">${ICON.close}</button>
        </div>
@@ -1355,7 +1457,11 @@ export function mountPhotos(mount, categories, opts = {}) {
 
   function syncLbFav() {
     const p = FLAT[lbIdx];
-    $('fav').classList.toggle('fav', !!p && favs.has(p.id));
+    const on = !!p && favs.has(p.id);
+    const b = $('fav');
+    b.classList.toggle('fav', on);
+    b.setAttribute('aria-pressed', String(on));
+    b.setAttribute('aria-label', libelleFav(on));
   }
 
   /* ── Frise des autres photos ──────────────────────────────

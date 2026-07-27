@@ -19,7 +19,7 @@
 // identique, seules les variables d'environnement changent.
 // ════════════════════════════════════════════════════════════
 
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, createWriteStream, mkdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,7 +29,7 @@ import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import {
   makeS3, publicUrl, probeVideo, rungsFor, transcodeHls, stampedPrefix,
-  uploadHlsDir, purgeStaleHls, fmtDuration, fmtSize,
+  uploadHlsDir, uploadOriginalFile, purgeStaleHls, fmtDuration, fmtSize,
 } from "../../scripts/encode-core.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -348,6 +348,94 @@ async function failJob(job, err) {
 /* ════════════════════════════════════════════════════════════
    Boucle
    ════════════════════════════════════════════════════════════ */
+/* ─── Archive d'une galerie (téléchargement groupé) ──────────────
+   Le client téléchargeait photo par photo. Sur 400 photos de mariage ce
+   n'est pas tenable, et rien ne pouvait se faire dans le navigateur :
+   3 Go ne s'assemblent pas en mémoire sur un iPhone, et l'écriture en
+   flux vers le disque n'existe pas sur Safari. Le worker est déjà relié
+   à B2 et déjà là — c'est lui qui prépare l'archive, et le client reçoit
+   un simple lien, qui marche partout.
+   `zip -0` : les JPEG sont déjà compressés, recompresser ne gagne rien
+   et coûte du temps. On ne fait qu'emballer. */
+async function processZipJob(job) {
+  log(`▶ archive ${job.id} — galerie ${job.gallery_id}`);
+  const workRoot = join(ROOT, "tmp-zip", `zip-${job.id}`);
+  const dossier  = join(workRoot, "photos");
+  mkdirSync(dossier, { recursive: true });
+
+  const majProgress = async (p) => {
+    try { await sb.from("zip_jobs").update({ progress: p }).eq("id", job.id); } catch (_) {}
+  };
+
+  try {
+    const { data: photos, error } = await sb.from("gallery_photos")
+      .select("id, category, position, created_at, url_original, url_view")
+      .eq("gallery_id", job.gallery_id)
+      .order("position", { ascending: true });
+    if (error) throw new Error(`lecture des photos : ${error.message}`);
+    if (!photos?.length) throw new PermanentError("galerie sans photo — rien à archiver");
+
+    log(`  ↓ ${photos.length} photo(s) à rassembler`);
+    /* Noms de fichiers RANGÉS PAR CATÉGORIE, comme dans la galerie : le
+       client retrouve ses « Préparatifs » et sa « Soirée » en dossiers
+       plutôt qu'un tas de 400 fichiers. */
+    const compte = new Map();
+    let faites = 0;
+    for (const ph of photos) {
+      const url = ph.url_original || ph.url_view;
+      if (!url) continue;
+      const cat = slugDossier(ph.category || "photos");
+      const n = (compte.get(cat) || 0) + 1; compte.set(cat, n);
+      const sousDossier = join(dossier, cat);
+      mkdirSync(sousDossier, { recursive: true });
+      const cle = keyFromPublicUrl(url);
+      if (!cle) continue;
+      await downloadSource(cle, join(sousDossier, `${cat}-${String(n).padStart(3, "0")}.jpg`));
+      faites++;
+      // 0 → 85 pendant la collecte ; l'emballage et l'envoi font le reste.
+      if (faites % 5 === 0) await majProgress(Math.round((faites / photos.length) * 85));
+    }
+    if (!faites) throw new PermanentError("aucune photo téléchargeable");
+
+    await majProgress(88);
+    const nomZip = `galerie-${job.gallery_id.slice(0, 8)}.zip`;
+    const cheminZip = join(workRoot, nomZip);
+    log(`  ⧉ emballage de ${faites} photo(s)`);
+    // -0 : stocké, sans recompression. -r : récursif. -q : silencieux.
+    execFileSync("zip", ["-0", "-r", "-q", cheminZip, "."], { cwd: dossier });
+
+    await majProgress(92);
+    const octets = statSync(cheminZip).size;
+    /* uploadOriginalFile existe déjà et pose le bon en-tête de
+       téléchargement (Content-Disposition) — inutile d'en écrire une
+       seconde. Le préfixe est horodaté : une archive périmée n'écrase
+       pas la nouvelle pendant qu'un client télécharge encore l'ancienne. */
+    const cleZip = await uploadOriginalFile({
+      s3, bucket: BUCKET, inputPath: cheminZip,
+      basePrefix: `weddings/archives/${job.gallery_id}/${Date.now()}`,
+    });
+    const lien = publicUrl(cleZip);
+    log(`  ↑ archive envoyée (${fmtSize(octets)})`);
+
+    await sb.from("zip_jobs").update({
+      status: "done", url: lien, taille: octets, progress: 100, done_at: new Date().toISOString(),
+    }).eq("id", job.id);
+    log(`✓ archive ${job.id} prête — ${fmtSize(octets)}`);
+  } finally {
+    try { rmSync(workRoot, { recursive: true, force: true }); } catch (_) {}
+  }
+}
+
+const slugDossier = (s) => (s || "photos").toLowerCase()
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "photos";
+
+async function claimZip() {
+  const { data, error } = await sb.rpc("claim_zip_job");
+  if (error) return null;                 // table absente : migration pas passée
+  return data && data.id ? data : null;
+}
+
 async function claim() {
   const { data, error } = await sb.rpc("claim_encode_job");
   if (error) { log(`⚠ réclamation impossible : ${error.message}`); return null; }
@@ -365,6 +453,13 @@ async function requeueOrphans() {
       .update({ status: "pending" }).eq("status", "processing").select("id");
     if (error) { log(`⚠ requeue des orphelins impossible : ${error.message}`); return; }
     if (data?.length) log(`↺ ${data.length} job(s) orphelin(s) « processing » remis en file`);
+    /* Les archives ont la même fragilité : une machine endormie en plein
+       zip laisse un job « processing » que personne ne reprendra. La
+       table peut ne pas exister (migration pas encore passée) — l'erreur
+       est ignorée, comme le reste de ce filet. */
+    const { data: z } = await sb.from("zip_jobs")
+      .update({ status: "pending" }).eq("status", "processing").select("id");
+    if (z?.length) log(`↺ ${z.length} archive(s) orpheline(s) remise(s) en file`);
   } catch (e) { log(`⚠ requeue des orphelins : ${e.message}`); }
 }
 
@@ -407,6 +502,30 @@ while (!stopping) {
     busy = false;
     if (ONCE) break;
     continue;                       // enchaîne sans attendre : la file peut être pleine
+  }
+
+  /* Les archives passent APRÈS les encodages, jamais avant : un client
+     qui attend son film compte plus qu'un autre qui attend son zip, et
+     l'encodage est de loin le plus long des deux. On ne les regarde donc
+     que lorsque la file d'encodage est vide. */
+  const zip = await claimZip();
+  if (zip) {
+    busy = true;
+    empecherSommeil();
+    try { await processZipJob(zip); }
+    catch (err) {
+      log(`✗ archive ${zip.id} : ${err.message}`);
+      try {
+        await sb.from("zip_jobs").update({
+          status: err instanceof PermanentError || zip.attempts >= 3 ? "error" : "pending",
+          erreur: String(err.message).slice(0, 400),
+        }).eq("id", zip.id);
+      } catch (_) {}
+    }
+    finally { autoriserSommeil(); }
+    busy = false;
+    if (ONCE) break;
+    continue;
   }
 
   if (ONCE) { log("· aucun job en attente."); break; }

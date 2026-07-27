@@ -333,6 +333,34 @@ function injectStyles() {
     transition: opacity .28s ease, transform .28s cubic-bezier(.16,1,.3,1);
   }
   .g-compte.on { opacity: 1; transform: none; }
+
+  /* Téléchargement groupé. Même coin que le compteur, au-dessus de lui :
+     ce sont les deux repères « ma sélection / mes photos », le coin droit
+     restant au retour en haut de page. */
+  .g-zip {
+    position: fixed; z-index: 55;
+    left: max(18px, env(safe-area-inset-left));
+    bottom: calc(max(18px, env(safe-area-inset-bottom)) + 46px);
+    display: inline-flex; align-items: center; gap: 9px;
+    min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line);
+    font-family: inherit; font-size: 0.75rem; font-weight: 700; cursor: pointer;
+    color: var(--ink); background: color-mix(in srgb, var(--bg) 72%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    backdrop-filter: saturate(180%) blur(18px);
+    opacity: 0; transform: translateY(8px);
+    transition: opacity .28s ease, transform .28s cubic-bezier(.16,1,.3,1), background .3s ease;
+  }
+  .g-zip.on { opacity: 1; transform: none; }
+  .g-zip:active { transform: scale(.97); }
+  .g-zip[disabled] { cursor: default; }
+  .g-zip svg { width: 15px; height: 15px; fill: none; stroke: currentColor;
+               stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  @media (hover: hover) and (pointer: fine) {
+    .g-zip:not([disabled]):hover { background: var(--bg); border-color: var(--accent); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .g-zip { transition: opacity .2s ease; transform: none; }
+  }
   @media (prefers-reduced-motion: reduce) {
     .g-compte { transition: opacity .2s ease; transform: none; }
   }
@@ -1642,6 +1670,77 @@ export function mountPhotos(mount, categories, opts = {}) {
       onResize();
     }).observe(mount);
   }
+
+  /* ── Téléchargement groupé ────────────────────────────────────
+     Le client téléchargeait photo par photo — impraticable sur 400
+     photos. L'archive est préparée côté serveur (le worker) puis servie
+     comme un simple lien : c'est la seule approche qui marche sur un
+     iPhone, où l'on ne peut ni assembler 3 Go en mémoire ni écrire un
+     flux sur le disque.
+     Le bouton n'existe que sur une VRAIE galerie : l'aperçu du
+     concepteur n'a rien à archiver. */
+  function monterZip() {
+    if (!remonte) return;
+    document.querySelector('.g-zip')?.remove();
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'g-zip';
+    document.body.appendChild(b);
+    requestAnimationFrame(() => b.classList.add('on'));
+    setTimeout(() => b.classList.add('on'), 80);
+
+    let sondage = null;
+    const peindre = (e) => {
+      const st = e?.statut;
+      if (st === 'done' && e.url) {
+        b.disabled = false;
+        b.innerHTML = `${ICON.dl}<span>Tout télécharger${e.taille ? ` · ${poids(e.taille)}` : ''}</span>`;
+        b.onclick = () => { window.location.href = e.url; };
+        clearTimeout(sondage);
+      } else if (st === 'processing' || st === 'pending') {
+        b.disabled = true;
+        const p = Number(e.progress) || 0;
+        // On DIT que ça se prépare et combien : « patientez » sans chiffre
+        // sur une archive de 3 Go, c'est une attente sans fin apparente.
+        b.innerHTML = `${ICON.dl}<span>Préparation${p ? ` · ${p} %` : '…'}</span>`;
+        clearTimeout(sondage);
+        sondage = setTimeout(suivre, 4000);
+      } else if (st === 'vide') {
+        b.remove();
+      } else {
+        b.disabled = false;
+        b.innerHTML = `${ICON.dl}<span>Tout télécharger</span>`;
+        b.onclick = demander;
+      }
+    };
+    const poids = (o) => o > 1073741824
+      ? (o / 1073741824).toFixed(1).replace('.', ',') + ' Go'
+      : Math.round(o / 1048576) + ' Mo';
+
+    async function suivre() {
+      try {
+        const { data } = await sb.rpc('get_gallery_zip', { p_code: code });
+        peindre(data || {});
+      } catch (_) { /* migration pas passée : le bouton reste proposable */ }
+    }
+    async function demander() {
+      b.disabled = true;
+      b.innerHTML = `${ICON.dl}<span>Préparation…</span>`;
+      try {
+        const { data } = await sb.rpc('request_gallery_zip', { p_code: code });
+        peindre(data || {});
+      } catch (_) {
+        b.disabled = false;
+        b.innerHTML = `${ICON.dl}<span>Tout télécharger</span>`;
+        b.onclick = demander;
+      }
+    }
+    // État initial : si une archive est déjà prête, on l'offre tout de suite.
+    b.innerHTML = `${ICON.dl}<span>Tout télécharger</span>`;
+    b.onclick = demander;
+    suivre();
+  }
+  monterZip();
 
   /* Après le montage : on réunit la sélection déjà connue du serveur.
      Non bloquant — la grille est peinte, les cœurs manquants

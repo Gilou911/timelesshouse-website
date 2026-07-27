@@ -43,6 +43,9 @@ export const CONTENT_TYPES = {
   ts: "video/mp2t",
   jpg: "image/jpeg",
   mp4: "video/mp4",
+  // Archive de galerie : sans cette entrée le zip repartait en
+  // "video/mp4" (le repli de uploadOriginalFile).
+  zip: "application/zip",
 };
 
 // execFileSync bufferise TOUT stdout+stderr en mémoire quand stdio="pipe".
@@ -84,7 +87,13 @@ export function probeVideo(inputPath) {
 // Le palier s'applique au PETIT côté : une vidéo verticale 1080×1920
 // garde ainsi sa vraie qualité "1080p". On ne suréchantillonne jamais.
 export const LADDER = [
-  { name: "2160p", side: 2160, vb: "14000k", maxrate: "15000k", bufsize: "21000k" },
+  /* Plafond relevé de 15 à 20 Mbps le 27/07/2026, sur mesure VMAF d'un
+     vrai film (extrait difficile de « je kiffe ») : la scène tombait à
+     94,71 avec des creux à 88,67, et c'était le PLAFOND qui bridait, pas
+     l'encodeur ni le preset. À 20 Mbps elle remonte à 96,49 (creux
+     90,16) — dix fois le gain qu'apportait un changement de preset, qui
+     lui ne rapportait que +0,02. Coûte du stockage, pas du temps. */
+  { name: "2160p", side: 2160, vb: "17000k", maxrate: "20000k", bufsize: "30000k" },
   { name: "1080p", side: 1080, vb: "5000k",  maxrate: "5350k",  bufsize: "7500k"  },
   { name: "720p",  side: 720,  vb: "2800k",  maxrate: "3000k",  bufsize: "4200k"  },
   { name: "480p",  side: 480,  vb: "1200k",  maxrate: "1300k",  bufsize: "1800k"  },

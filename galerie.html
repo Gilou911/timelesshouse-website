@@ -730,6 +730,7 @@
       document.querySelector('.g-scenes-btn')?.remove();
       document.querySelector('.g-drawer')?.remove();
       document.querySelector('.g-compte')?.remove();
+      document.querySelector('.g-zip')?.remove();
       el('pgSwitch').hidden = true;
       el('cover').hidden = true;
       /* L'en-tête est masqué quand une couverture prend sa place. Sans ce
@@ -1071,6 +1072,12 @@
       if (!code) return showGate();
       const ok = await open(code);
       if (!ok) showGate("Cette galerie est introuvable ou n'est plus partagée.");
+      /* Une ouverture notée pour le photographe : « est-ce qu'ils l'ont
+         vue ? » est SA question permanente, celle qui décide s'il relance.
+         Volontairement grossier et anonyme — un compteur et deux dates,
+         rien sur QUI regarde. Après le rendu et sans await : compter une
+         visite ne doit jamais retarder l'affichage, ni le faire échouer. */
+      if (ok) { try { sb.rpc('note_gallery_open', { p_code: code }); } catch (_) {} }
     })();
 
     /* ── Saisie manuelle ─────────────────────────────────────── */

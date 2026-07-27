@@ -3478,6 +3478,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   <><span>·</span><span>{(g.config?.videos || []).length} vidéo{(g.config?.videos || []).length > 1 ? 's' : ''}</span></>
                 )}
                 <EncodeBadge state={encodeState} progress={encodeProgress} />
+                {/* « Est-ce qu'ils l'ont vue ? » — la question qui décide d'une relance.
+                     Rien sur QUI regarde : un compteur et une date, c'est tout. */}
+                {g.opened_count > 0 && (
+                  <><span>·</span><span title={`Première ouverture : ${new Date(g.first_opened_at).toLocaleString('fr-FR')}`}>
+                    Ouverte {g.opened_count} fois · dernière le {new Date(g.last_opened_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                  </span></>
+                )}
               </div>
               {/* UX vague 2 : pendant l'optimisation, dire clairement
                   qu'il n'y a RIEN à faire — l'inquiétude naît du silence. */}

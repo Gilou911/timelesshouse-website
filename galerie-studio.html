@@ -516,7 +516,16 @@
   }
   /* Le survol éclaircissait d'un coup ; et la photo qui ARRIVE après un
      dépôt apparaissait sèchement. Les deux se fondent maintenant. */
-  .couv-apercu { transition: filter .24s var(--ease-out); }
+  /* Il portait un effet de survol sans être cliquable : l'affordance
+     promettait une action qui n'existait pas. Plutôt que de retirer le
+     survol, on tient la promesse — cliquer l'aperçu ouvre le choix de
+     fichier, ce que tout le monde essaie en premier. */
+  .couv-apercu {
+    cursor:pointer;
+    transition: filter .24s var(--ease-out), transform .16s var(--ease-out),
+                box-shadow .24s var(--ease-out);
+  }
+  .couv-apercu:active { transform:scale(.985); }
   .couv-apercu img {
     width:100%; height:100%; object-fit:cover; display:block;
     animation: couv-arrive .42s var(--ease-doux) backwards;
@@ -655,7 +664,9 @@
     width:100%; margin-top:12px; min-height:48px; border:none; border-radius:999px;
     cursor:pointer; font-family:inherit; font-size:0.84375rem; font-weight:700;
     background:var(--btn-bg); color:var(--btn-text);
-    transition: transform .16s var(--ease-out);
+    /* `opacity` manquait : un bouton qui se désactive en plein envoi
+       s'éteignait d'un coup, comme un défaut d'affichage. */
+    transition: transform .16s var(--ease-out), opacity .22s var(--ease-out);
   }
   .depot:active { transform:scale(.97); }
   .depot[disabled] { opacity:.5; cursor:default; }
@@ -682,7 +693,7 @@
     flex:1; min-height:48px; border:none; border-radius:999px; cursor:pointer;
     font-family:inherit; font-size:0.875rem; font-weight:700;
     background:var(--btn-bg); color:var(--btn-text);
-    transition: transform .16s var(--ease-out);
+    transition: transform .16s var(--ease-out), opacity .22s var(--ease-out);
   }
   .btn:active { transform:scale(.97); }
   .btn[disabled] { opacity:.5; cursor:default; }
@@ -706,14 +717,21 @@
      paraît sélectionné à tort. Ici le survol ne révèle jamais une
      fonction — il ne fait que confirmer ce qui est déjà visible. */
   @media (hover: hover) and (pointer: fine) {
+    /* Cette règle REMPLACE la transition posée plus haut : sans y
+       reporter `opacity`, la désactivation en plein envoi redevenait
+       sèche sur ordinateur (et seulement là — piège classique). */
     .btn, .depot, .newcat button, .video-item .v-up {
-      transition: transform .16s var(--ease-out), filter .16s var(--ease-out);
+      transition: transform .16s var(--ease-out), filter .16s var(--ease-out),
+                  opacity .22s var(--ease-out);
     }
     .rail button:hover:not([aria-selected="true"]),
     .cats button:hover:not([aria-pressed="true"]),
     .choix button:hover:not([aria-pressed="true"]),
     .palettes button:hover:not([aria-pressed="true"]) { color:var(--ink); }
     .couv-apercu:hover { filter:brightness(1.04); }
+    /* Action destructrice sans le moindre retour au survol : on ne
+       savait pas qu'on la visait avant de cliquer. */
+    .sup-couv:hover, .video-item .sup:hover { opacity:.72; }
     .btn:not([disabled]):hover,
     .depot:not([disabled]):hover,
     .newcat button:hover,
@@ -2088,6 +2106,20 @@
   })();
 
   el('couv-depot').addEventListener('click', () => el('couv-fichier').click());
+  /* L'aperçu ouvre le même choix de fichier que le bouton : son effet de
+     survol l'annonçait déjà, il ne faisait rien. Rôle et libellé posés
+     pour que ce ne soit pas une zone cliquable muette au clavier. */
+  const apercuCouv = el('couv-apercu');
+  apercuCouv.setAttribute('role', 'button');
+  apercuCouv.tabIndex = 0;
+  apercuCouv.setAttribute('aria-label', 'Changer la photo de couverture');
+  apercuCouv.addEventListener('click', () => {
+    if (!edition) { etatUp('Connectez-vous à votre console pour déposer une couverture.', 'ko'); return; }
+    el('couv-fichier').click();
+  });
+  apercuCouv.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apercuCouv.click(); }
+  });
   el('couv-fichier').addEventListener('change', async (e) => {
     const file = (e.target.files || [])[0];
     e.target.value = '';

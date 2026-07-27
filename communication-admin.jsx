@@ -19,7 +19,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       Loader2, MessageSquare, Bell, Send, CheckCircle2, RefreshCw, Link2,
       FolderOpen, Download, Upload,
       Maximize2, Monitor, Smartphone, ChevronDown, ChevronUp,
-      Lightbulb, Copy, Power, Building2, HelpCircle
+      Lightbulb, Copy, Power, Building2, HelpCircle, Heart
     } from 'lucide-react';
     import AdminPortfolio from './admin-portfolio.jsx';
     import {
@@ -3206,6 +3206,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const showsPhotos = g.kind === 'photos' || g.kind === 'mixte';
       const encodeState = encodeStateOf(g.config?.videos, encodeJobs);
 
+      // Panneau « Sélection » — indépendant du panneau Photos : on
+      // consulte souvent les coups de cœur sans vouloir dérouler la
+      // gestion des fichiers.
+      const [selOpen, setSelOpen] = useState(false);
+
       // Email ① « votre galerie est en ligne » — LE geste de livraison,
       // à la marque de l'agence, avec le lien de partage en bouton.
       const [envoiGalerie, setEnvoiGalerie] = useState(false);
@@ -3280,6 +3285,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               {showsPhotos && (
                 <Btn icon={open ? ChevronUp : ImageIcon} onClick={onToggleOpen}>
                   {open ? 'Replier' : 'Photos'}
+                </Btn>
+              )}
+              {showsPhotos && (
+                <Btn icon={selOpen ? ChevronUp : Heart} onClick={() => setSelOpen(!selOpen)}>
+                  {selOpen ? 'Replier' : 'Sélection'}
                 </Btn>
               )}
               {/* Le concepteur REMPLACE l'ancienne fenêtre d'édition (choix de
@@ -3371,7 +3381,168 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           {open && showsPhotos && (
             <GalleryPhotos gallery={g} client={client} onChanged={onPhotosChanged} />
           )}
+          {selOpen && showsPhotos && <GallerySelection gallery={g} />}
         </div>
+      );
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       💛 LA SÉLECTION DU CLIENT
+       Les cœurs posés dans la galerie ne vivaient que dans le
+       navigateur du visiteur : le couple désignait ses photos
+       d'album et le photographe n'en savait rien. Ils remontent
+       maintenant, chacun sous son prénom.
+
+       Regroupé par PRÉNOM et non par identité technique : une même
+       personne venue de son téléphone puis de son ordinateur a deux
+       clés d'écriture, mais une seule colonne ici — c'est ce que le
+       photographe a en tête.
+       ══════════════════════════════════════════════════════════ */
+    function GallerySelection({ gallery: g }) {
+      const [loading, setLoading] = useState(true);
+      const [err, setErr] = useState('');
+      const [lignes, setLignes] = useState([]);
+      const [photos, setPhotos] = useState([]);
+      const [qui, setQui] = useState('*');          // '*' tous · '=' les deux · un prénom
+
+      useEffect(() => { (async () => {
+        setLoading(true); setErr('');
+        const [sel, ph] = await Promise.all([
+          sb.from('gallery_selections')
+            .select('photo_id, voter_name').eq('gallery_id', g.id),
+          sb.from('gallery_photos')
+            .select('id, url_grid, category, position')
+            .eq('gallery_id', g.id).order('position', { ascending: true }),
+        ]);
+        /* 42P01 = la table n'existe pas encore. Le code part avant que la
+           migration SQL ne soit exécutée : plutôt qu'un vide inexplicable,
+           on dit quoi faire. */
+        if (sel.error) {
+          setErr(sel.error.code === '42P01'
+            ? "La sélection n'est pas encore activée : exécutez files/migration-selection.sql dans Supabase."
+            : humaniseErreur(sel.error.message));
+        } else {
+          setLignes(sel.data || []);
+        }
+        setPhotos(ph.data || []);
+        setLoading(false);
+      })(); }, [g.id]);
+
+      /* Un prénom = une personne, quelle que soit sa casse ou ses
+         espaces. « elea » et « Eléa » restent deux colonnes (accents
+         différents) — les fusionner risquerait de confondre deux invités. */
+      const parPersonne = useMemo(() => {
+        const m = new Map();
+        lignes.forEach(({ photo_id, voter_name }) => {
+          const cle = (voter_name || '').trim().toLowerCase();
+          if (!cle) return;
+          if (!m.has(cle)) m.set(cle, { nom: (voter_name || '').trim(), photos: new Set() });
+          m.get(cle).photos.add(photo_id);
+        });
+        return [...m.values()].sort((a, b) => b.photos.size - a.photos.size);
+      }, [lignes]);
+
+      // Les photos choisies par TOUT LE MONDE : c'est le vrai résultat
+      // d'une sélection à deux, et la première chose qu'on cherche.
+      const communes = useMemo(() => {
+        if (parPersonne.length < 2) return new Set();
+        return new Set([...parPersonne[0].photos].filter(
+          (id) => parPersonne.every((p) => p.photos.has(id))));
+      }, [parPersonne]);
+
+      // Étiquette identique au nom du fichier que le client télécharge
+      // (voir fileNameOf dans galerie-rendu.js) : le photographe peut
+      // relier ce qu'il voit ici à ce qu'il reçoit.
+      const etiquette = useMemo(() => {
+        const rang = new Map(); const compte = new Map();
+        photos.forEach((p) => {
+          const c = p.category || 'photo';
+          const n = (compte.get(c) || 0) + 1; compte.set(c, n);
+          rang.set(p.id, `${c} · n°${n}`);
+        });
+        return rang;
+      }, [photos]);
+
+      const retenues = useMemo(() => {
+        const garde = qui === '*' ? new Set(lignes.map((l) => l.photo_id))
+                    : qui === '=' ? communes
+                    : (parPersonne.find((p) => p.nom === qui)?.photos || new Set());
+        return photos.filter((p) => garde.has(p.id));
+      }, [qui, photos, lignes, communes, parPersonne]);
+
+      const listeTexte = retenues.map((p) => etiquette.get(p.id) || p.id).join('\n');
+
+      if (loading) return (
+        <div className="mt-4 py-6 flex justify-center">
+          <Loader2 size={18} className="animate-spin text-stone-400" />
+        </div>
+      );
+
+      return (
+        <div style={neu.raised} className="rounded-2xl p-4 mt-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Coups de cœur</div>
+              <h4 className="text-[17px] tracking-tight mt-0.5" style={SERIF}>Leur sélection</h4>
+            </div>
+            {retenues.length > 0 && (
+              <CopyButton value={listeTexte} label="Copier la liste" />
+            )}
+          </div>
+
+          {err ? (
+            <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-amber-50 text-amber-800 text-[12.5px]">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" /> {err}
+            </div>
+          ) : parPersonne.length === 0 ? (
+            <EmptyState icon={Heart}
+              texte="Personne n'a encore choisi. Dès que vos clients cocheront leurs photos préférées dans la galerie, leurs listes apparaîtront ici." />
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-2 mt-4">
+                <SelPuce actif={qui === '*'} onClick={() => setQui('*')}
+                  nom="Tout le monde" n={new Set(lignes.map((l) => l.photo_id)).size} />
+                {parPersonne.length > 1 && (
+                  <SelPuce actif={qui === '='} onClick={() => setQui('=')}
+                    nom="Choisies par les deux" n={communes.size} />
+                )}
+                {parPersonne.map((p) => (
+                  <SelPuce key={p.nom} actif={qui === p.nom} onClick={() => setQui(p.nom)}
+                    nom={p.nom} n={p.photos.size} />
+                ))}
+              </div>
+
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2 mt-4">
+                {retenues.map((p) => (
+                  <div key={p.id} className="relative rounded-xl overflow-hidden aspect-square bg-stone-100">
+                    <img src={p.url_grid} alt={etiquette.get(p.id) || ''} loading="lazy"
+                      className="w-full h-full object-cover" />
+                    {communes.has(p.id) && (
+                      <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-white/90 text-rose-500 flex items-center justify-center"
+                        title="Choisie par les deux">
+                        <Heart size={11} fill="currentColor" />
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11.5px] text-stone-500 mt-3 leading-relaxed">
+                « Copier la liste » reprend les repères tels que vos clients les téléchargent
+                ({'« '}Préparatifs · n°12{' »'}), pour les retrouver dans votre catalogue.
+              </p>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    function SelPuce({ actif, onClick, nom, n }) {
+      return (
+        <button type="button" onClick={onClick} aria-pressed={actif}
+          style={actif ? neu.pressedSm : neu.raisedXs}
+          className={`min-h-[44px] px-4 rounded-full text-[12.5px] font-semibold transition-transform active:scale-[0.97] ${actif ? 'text-stone-900' : 'text-stone-500'}`}>
+          {nom} <span className="opacity-60 font-normal">{n}</span>
+        </button>
       );
     }
 

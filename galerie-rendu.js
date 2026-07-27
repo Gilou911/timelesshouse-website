@@ -317,6 +317,55 @@ function injectStyles() {
   .g-scenes-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor;
                       stroke-width: 1.7; stroke-linecap: round; }
 
+  /* Feuille « Qui choisit ? » — voir la note dans toggleFav : c'est la
+     seule interruption d'une page que le client montre à sa famille,
+     elle reste donc à la maison plutôt qu'en prompt() natif. */
+  .g-qui {
+    position: fixed; inset: 0; z-index: 300;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    background: color-mix(in srgb, var(--bg-deep, #000) 72%, transparent);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    opacity: 0; transition: opacity .24s ease;
+  }
+  .g-qui.on { opacity: 1; }
+  .g-qui-boite {
+    width: min(420px, 100%); border-radius: 22px; padding: 26px 24px;
+    background: var(--bg-elev, var(--bg)); color: var(--ink);
+    border: 1px solid var(--line);
+    box-shadow: 0 30px 80px -24px rgba(0,0,0,.6);
+    transform: translateY(10px); transition: transform .28s cubic-bezier(.16,1,.3,1);
+  }
+  .g-qui.on .g-qui-boite { transform: none; }
+  .g-qui h2 {
+    font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 400;
+    font-size: 1.5rem; letter-spacing: -0.01em; margin: 0;
+  }
+  .g-qui p {
+    font-size: 0.8125rem; line-height: 1.6;
+    color: var(--ink-soft, var(--ink)); margin: 8px 0 18px;
+  }
+  .g-qui-champ {
+    width: 100%; min-height: 48px; padding: 0 16px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+    /* 16 px au plancher, sinon iOS zoome la page à la mise au point. */
+    font-family: inherit; font-size: max(1rem, 16px); outline: none;
+  }
+  .g-qui-champ:focus { border-color: var(--accent); }
+  .g-qui-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .g-qui-actions button {
+    min-height: 44px; padding: 0 18px; border-radius: 999px; cursor: pointer;
+    font-family: inherit; font-size: 0.8125rem; font-weight: 700; border: none;
+    transition: transform .16s ease;
+  }
+  .g-qui-actions button:active { transform: scale(.97); }
+  .g-qui-ok  { flex: 1; background: var(--ink); color: var(--bg); }
+  .g-qui-non { background: transparent; color: var(--ink-soft, var(--ink));
+               box-shadow: inset 0 0 0 1px var(--line); }
+  @media (prefers-reduced-motion: reduce) {
+    .g-qui, .g-qui-boite { transition: none; }
+  }
+
   .g-drawer {
     position: fixed; inset: 0; z-index: 210; display: flex; flex-direction: column;
     padding: clamp(20px, 5vw, 60px);
@@ -659,7 +708,9 @@ async function downloadPhoto(url, filename) {
  * Monte une galerie photos.
  * @param {HTMLElement} mount      conteneur (vidé)
  * @param {Array} categories       [{ category, photos: [{id,width,height,url_*}] }]
- * @param {Object} opts            { favKey, title }
+ * @param {Object} opts            { favKey, title, code, sb }
+ *   `code` + `sb` activent la remontée de la sélection au photographe.
+ *   Absents (aperçu du concepteur), les cœurs restent purement locaux.
  */
 export function mountPhotos(mount, categories, opts = {}) {
   injectStyles();
@@ -678,11 +729,72 @@ export function mountPhotos(mount, categories, opts = {}) {
     return null;
   }
 
-  /* Favoris — persistés localement, silencieux en navigation privée */
+  /* ── La sélection ──────────────────────────────────────────────
+     Les cœurs ne restaient que dans le navigateur : le couple cochait
+     ses photos d'album et le photographe n'en savait jamais rien. Ils
+     remontent désormais, chacun sous SON prénom — deux listes, pas une.
+
+     Le stockage local reste la source d'affichage : la galerie doit
+     rester utilisable hors connexion, et un envoi qui échoue ne doit
+     jamais faire disparaître un cœur sous le doigt. Le serveur est la
+     destination, pas la vérité de l'écran. */
   const FAV_KEY = 'laloge_fav_' + (opts.favKey || 'x');
   let favs = new Set();
   try { favs = new Set(JSON.parse(localStorage.getItem(FAV_KEY) || '[]')); } catch (_) {}
   const saveFavs = () => { try { localStorage.setItem(FAV_KEY, JSON.stringify([...favs])); } catch (_) {} };
+
+  /* Remontée active seulement sur une VRAIE galerie : l'aperçu du
+     concepteur passe le code « apercu » et ne doit rien enregistrer. */
+  const sb = opts.sb || null;
+  const code = opts.code && opts.code !== 'apercu' ? opts.code : null;
+  const remonte = !!(sb && code);
+
+  /* Identité du visiteur, gardée pour TOUTES les galeries : on ne
+     redemande pas son prénom à chaque lien reçu.
+       · cle    → identité d'écriture. On ne peut décocher que ses
+                  propres choix : personne n'efface la liste de l'autre.
+       · prenom → sert à l'affichage dans la console du photographe. */
+  const MOI_KEY = 'laloge_selection_moi';
+  let moi = null;
+  try { moi = JSON.parse(localStorage.getItem(MOI_KEY) || 'null'); } catch (_) {}
+  const saveMoi = () => { try { localStorage.setItem(MOI_KEY, JSON.stringify(moi)); } catch (_) {} };
+  const nouvelleCle = () => (crypto?.randomUUID
+    ? crypto.randomUUID()
+    // Repli : contexte non sécurisé (http://), où randomUUID n'existe pas.
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      }));
+
+  /* Envoi silencieux. Trois raisons de ne JAMAIS remonter une erreur à
+     l'écran : la migration SQL peut ne pas être passée (la fonction
+     n'existe pas encore), le réseau peut manquer, et surtout un cœur
+     est un geste léger — l'interrompre par une alerte serait pire que
+     de perdre la synchronisation. Le cœur reste posé localement. */
+  async function pousserChoix(id, actif) {
+    if (!remonte || !moi?.cle || !moi?.prenom) return;
+    try {
+      await sb.rpc('set_gallery_selection', {
+        p_code: code, p_photo: id, p_voter: moi.cle, p_name: moi.prenom, p_on: actif,
+      });
+    } catch (_) { /* silencieux, par conception */ }
+  }
+
+  /* À l'ouverture, la liste du serveur fait foi : le visiteur revoit ses
+     cœurs même si son navigateur les a oubliés (cache vidé, autre
+     onglet). On n'écrase pas, on RÉUNIT — un cœur posé hors connexion
+     puis jamais remonté ne doit pas disparaître. */
+  async function rejoindreServeur() {
+    if (!remonte || !moi?.cle) return;
+    try {
+      const { data } = await sb.rpc('get_gallery_selection_mine',
+        { p_code: code, p_voter: moi.cle });
+      if (!Array.isArray(data)) return;
+      const avant = favs.size;
+      data.forEach((id) => favs.add(id));
+      if (favs.size !== avant) { saveFavs(); repeindreFavs(); }
+    } catch (_) { /* silencieux */ }
+  }
 
   /* Liste à plat : l'ordre d'affichage EST l'ordre de la lightbox */
   const FLAT = [];
@@ -975,9 +1087,8 @@ export function mountPhotos(mount, categories, opts = {}) {
     });
   }
 
-  function toggleFav(id) {
-    if (favs.has(id)) favs.delete(id); else favs.add(id);
-    saveFavs();
+  // Repeint l'état d'UNE photo (après un clic).
+  function peindreFav(id) {
     const on = favs.has(id);
     const sel = window.CSS && CSS.escape ? CSS.escape(id) : id;
     mount.querySelectorAll(`.g-cell[data-id="${sel}"]`).forEach(c => {
@@ -986,6 +1097,91 @@ export function mountPhotos(mount, categories, opts = {}) {
       if (b) b.classList.toggle('fav', on);
     });
     syncLbFav();
+  }
+
+  // Repeint TOUT (après la réunion avec la liste du serveur).
+  function repeindreFavs() {
+    mount.querySelectorAll('.g-cell[data-id]').forEach(c => {
+      const on = favs.has(c.dataset.id);
+      c.classList.toggle('is-fav', on);
+      const b = c.querySelector('.g-tool[data-act="fav"]');
+      if (b) b.classList.toggle('fav', on);
+    });
+    syncLbFav();
+  }
+
+  async function toggleFav(id) {
+    /* Le prénom est demandé au PREMIER cœur, jamais à l'ouverture : une
+       galerie qu'on vient admirer ne doit pas s'ouvrir sur un
+       formulaire. Si la demande est annulée, on ne coche rien — cocher
+       sans savoir qui aurait produit une liste anonyme inexploitable. */
+    if (remonte && !moi?.prenom) {
+      const prenom = await demanderPrenom();
+      if (!prenom) return;
+      moi = { cle: moi?.cle || nouvelleCle(), prenom };
+      saveMoi();
+      // Des cœurs posés AVANT ce prénom (aperçu, ou migration pas encore
+      // passée) : on les remonte maintenant, plutôt que de les perdre.
+      favs.forEach((ancien) => pousserChoix(ancien, true));
+    }
+    if (favs.has(id)) favs.delete(id); else favs.add(id);
+    saveFavs();
+    peindreFav(id);
+    pousserChoix(id, favs.has(id));
+  }
+
+  /* Petite feuille « Qui choisit ? ». Volontairement pas un prompt()
+     natif : c'est la seule interruption d'une page que le client montre
+     à sa famille, elle doit rester à la maison. */
+  function demanderPrenom() {
+    return new Promise((resolve) => {
+      const d = document.createElement('div');
+      d.className = 'g-qui';
+      d.innerHTML =
+        '<div class="g-qui-boite" role="dialog" aria-modal="true" aria-labelledby="g-qui-t">' +
+          '<h2 id="g-qui-t">Qui choisit ?</h2>' +
+          '<p>Votre prénom sépare vos coups de cœur de ceux de votre moitié. ' +
+          'Votre photographe reçoit les deux listes.</p>' +
+          '<input class="g-qui-champ" type="text" maxlength="40" autocomplete="given-name" ' +
+                 'placeholder="Votre prénom" aria-label="Votre prénom" />' +
+          '<div class="g-qui-actions">' +
+            '<button type="button" class="g-qui-non">Plus tard</button>' +
+            '<button type="button" class="g-qui-ok">Continuer</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(d);
+      const champ = d.querySelector('.g-qui-champ');
+      const ok    = d.querySelector('.g-qui-ok');
+      const avant = document.activeElement;
+
+      const fermer = (valeur) => {
+        d.remove();
+        // Le focus revient d'où il venait, sinon il retombe sur <body>.
+        try { avant?.focus?.(); } catch (_) {}
+        resolve(valeur);
+      };
+      const valider = () => fermer(champ.value.trim().slice(0, 40) || null);
+
+      ok.addEventListener('click', valider);
+      d.querySelector('.g-qui-non').addEventListener('click', () => fermer(null));
+      d.addEventListener('click', (e) => { if (e.target === d) fermer(null); });
+      champ.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); valider(); }
+      });
+      d.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); fermer(null); }
+      });
+      /* Un focus posé avant la première peinture est ignoré par Safari,
+         d'où requestAnimationFrame. Mais rAF ne s'exécute PAS dans un
+         onglet en arrière-plan, et c'est lui qui pose aussi la classe
+         qui rend la feuille visible : la feuille resterait alors à
+         opacité 0, invisible mais bloquante, si l'onglet reprend la main
+         sans nouvelle image. Un délai le double — idempotent, donc sans
+         effet quand les deux passent. */
+      const reveler = () => { d.classList.add('on'); if (document.activeElement !== champ) champ.focus(); };
+      requestAnimationFrame(reveler);
+      setTimeout(reveler, 80);
+    });
   }
 
   /* ── Lightbox ── */
@@ -1298,6 +1494,11 @@ export function mountPhotos(mount, categories, opts = {}) {
       onResize();
     }).observe(mount);
   }
+
+  /* Après le montage : on réunit la sélection déjà connue du serveur.
+     Non bloquant — la grille est peinte, les cœurs manquants
+     apparaissent quand la réponse arrive. */
+  rejoindreServeur();
 
   return { relayout: layoutAll, count: FLAT.length };
 }

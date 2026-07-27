@@ -861,7 +861,10 @@
         if ((cfg.galleryMode || 'categorized') === 'flat' && cats.length > 1) {
           cats = [{ category: '', photos: flatPhotos }];
         }
-        mountPhotos(el('photos'), cats, { favKey: code, title: g.title });
+        /* `code` + `sb` : la sélection remonte au photographe. En aperçu
+           du concepteur le code vaut « apercu » et le moteur n'enregistre
+           rien — on ne veut pas de coups de cœur de test dans la console. */
+        mountPhotos(el('photos'), cats, { favKey: code, title: g.title, code, sb });
       }
 
       /* ── Le bouton vers l'AUTRE page ──────────────────────────

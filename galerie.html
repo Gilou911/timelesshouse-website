@@ -227,19 +227,27 @@
        toucher, il doit rester immobile sous le doigt.
        Rien d'autre que transform et opacity — les seules propriétés qui
        n'obligent pas le navigateur à recalculer la mise en page. */
+    /* Sortie : un FONDU seul. Elle faisait aussi monter le contenu de
+       8 px, et ce petit sursaut juste avant la disparition était
+       l'essentiel de la sècheresse ressentie. */
     .view.bascule-sort > *:not(.pagebar) {
       opacity: 0;
-      transform: translateY(-8px);
-      transition: opacity 0.16s ease-in, transform 0.16s ease-in;
+      transition: opacity 0.24s cubic-bezier(0.4, 0, 0.6, 1);
     }
     .view.bascule-entre > *:not(.pagebar) {
-      animation: bascule-entre 0.44s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+      /* Courbe VOLONTAIREMENT douce. La précédente — cubic-bezier(.16,1,.3,1) —
+         part très vite puis freine net : c'est vif, pas doux. Celle-ci
+         (quadratique sortante) démarre sans à-coup et se pose lentement.
+         Distance réduite de 16 à 10 px, durée portée de 0,44 à 0,68 s :
+         au-delà de la fourchette 250-400 ms du guide, à la demande
+         explicite de Gil qui trouvait l'apparition trop brusque. */
+      animation: bascule-entre 0.68s cubic-bezier(0.25, 0.46, 0.45, 0.94) backwards;
       /* Le décalage fait LIRE l'ordre : le titre s'installe, le film
          suit. Posé par le JS, qui seul sait lesquels sont visibles. */
-      animation-delay: calc(var(--rang, 0) * 80ms);
+      animation-delay: calc(var(--rang, 0) * 95ms);
     }
     @keyframes bascule-entre {
-      from { opacity: 0; transform: translateY(16px); }
+      from { opacity: 0; transform: translateY(10px); }
       to   { opacity: 1; transform: none; }
     }
     .wrap { max-width: 1640px; margin: 0 auto; padding: 0 clamp(14px, 3vw, 40px); }
@@ -963,7 +971,7 @@
       basculeEnCours = true;
       try {
         v.classList.add('bascule-sort');
-        await new Promise((r) => setTimeout(r, 170));   // durée de la sortie
+        await new Promise((r) => setTimeout(r, 240));   // durée de la sortie
         v.classList.remove('bascule-entre');
         await repeindre();
         v.classList.remove('bascule-sort');
@@ -988,7 +996,7 @@
            à chaque réglage). Durée de l'animation + le retard du dernier
            rang, avec une marge. */
         const dernier = Math.max(0, rang - 1);
-        setTimeout(() => v.classList.remove('bascule-entre'), 440 + dernier * 80 + 120);
+        setTimeout(() => v.classList.remove('bascule-entre'), 680 + dernier * 95 + 120);
       } finally {
         basculeEnCours = false;
       }

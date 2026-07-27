@@ -30,6 +30,7 @@ import dotenv from "dotenv";
 import {
   makeS3, publicUrl, probeVideo, rungsFor, transcodeHls, stampedPrefix,
   uploadHlsDir, uploadOriginalFile, purgeStaleHls, fmtDuration, fmtSize,
+  deleteB2Keys, listB2Prefixes, listB2Keys,
 } from "../../scripts/encode-core.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -430,6 +431,54 @@ const slugDossier = (s) => (s || "photos").toLowerCase()
   .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "photos";
 
+/* ─── Ménage des archives ────────────────────────────────────────
+   Une archive périmée n'est plus atteignable — request_gallery_zip ne
+   regarde que l'empreinte COURANTE — mais elle occupe le quota de
+   l'agence pour toujours. Deux cas, et le second est le plus sournois :
+
+     · empreinte dépassée : la galerie a changé depuis. On attend 7 jours
+       avant de supprimer, car un client peut être EN TRAIN de télécharger
+       plusieurs Go ; couper le fichier sous lui serait incompréhensible.
+     · galerie supprimée : la ligne zip_jobs part en CASCADE, donc plus
+       rien en base ne pointe vers le fichier. Personne ne le retrouverait
+       jamais. On compare donc les dossiers présents sur B2 aux galeries
+       encore vivantes.
+
+   Best effort, toujours : un ménage raté ne doit rien interrompre. */
+let dernierMenage = 0;
+const MENAGE_MS = 6 * 60 * 60 * 1000;      // au plus une fois toutes les 6 h
+
+async function menageArchives() {
+  if (Date.now() - dernierMenage < MENAGE_MS) return;
+  dernierMenage = Date.now();
+  try {
+    // ① Empreinte dépassée, passé le délai de grâce.
+    const { data: perimees } = await sb.rpc("stale_zip_jobs", { p_grace_days: 7 });
+    if (perimees?.length) {
+      const cles = perimees.map((z) => keyFromPublicUrl(z.url)).filter(Boolean);
+      const n = await deleteB2Keys({ s3, bucket: BUCKET, keys: cles });
+      await sb.from("zip_jobs").delete().in("id", perimees.map((z) => z.id));
+      log(`🧹 ${n} archive(s) périmée(s) supprimée(s)`);
+    }
+
+    // ② Galeries disparues : leurs dossiers d'archives sont orphelins.
+    const { data: vivantes } = await sb.rpc("gallery_ids_vivants");
+    if (Array.isArray(vivantes)) {
+      const connues = new Set(vivantes.map((x) => (typeof x === "string" ? x : x.gallery_ids_vivants)));
+      const dossiers = await listB2Prefixes({ s3, bucket: BUCKET, prefix: "weddings/archives/" });
+      const orphelins = dossiers.filter((d) => {
+        const id = d.replace("weddings/archives/", "").replace(/\/$/, "");
+        return id && !connues.has(id);
+      });
+      for (const d of orphelins) {
+        const cles = await listB2Keys({ s3, bucket: BUCKET, prefix: d });
+        const n = await deleteB2Keys({ s3, bucket: BUCKET, keys: cles });
+        log(`🧹 archive orpheline supprimée (galerie disparue) — ${n} fichier(s)`);
+      }
+    }
+  } catch (e) { log(`⚠ ménage des archives : ${e.message}`); }
+}
+
 async function claimZip() {
   const { data, error } = await sb.rpc("claim_zip_job");
   if (error) return null;                 // table absente : migration pas passée
@@ -529,6 +578,8 @@ while (!stopping) {
   }
 
   if (ONCE) { log("· aucun job en attente."); break; }
+  // File vide : c'est le moment du ménage, jamais devant un vrai travail.
+  await menageArchives();
   await new Promise((r) => setTimeout(r, POLL_MS));
 }
 

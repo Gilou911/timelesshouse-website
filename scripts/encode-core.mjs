@@ -266,6 +266,52 @@ export async function uploadOriginalFile({ s3, bucket, inputPath, basePrefix, on
   return key;
 }
 
+/* ─── Suppression d'objets B2 (archives périmées) ─────────── */
+export async function deleteB2Keys({ s3, bucket, keys }) {
+  if (!keys?.length) return 0;
+  let n = 0;
+  // L'API accepte 1000 clés par appel ; on découpe pour ne pas dépendre
+  // du nombre d'archives accumulées.
+  for (let i = 0; i < keys.length; i += 1000) {
+    const lot = keys.slice(i, i + 1000).map((Key) => ({ Key }));
+    const r = await s3.send(new DeleteObjectsCommand({
+      Bucket: bucket, Delete: { Objects: lot, Quiet: true },
+    }));
+    n += lot.length - (r.Errors?.length || 0);
+  }
+  return n;
+}
+
+/* Les « dossiers » présents sous un préfixe (un niveau). Sert à repérer
+   les archives dont la galerie a été supprimée : leur ligne part en
+   cascade, le fichier resterait sinon orphelin pour toujours. */
+export async function listB2Prefixes({ s3, bucket, prefix }) {
+  const out = [];
+  let token;
+  do {
+    const r = await s3.send(new ListObjectsV2Command({
+      Bucket: bucket, Prefix: prefix, Delimiter: "/", ContinuationToken: token,
+    }));
+    (r.CommonPrefixes || []).forEach((p) => out.push(p.Prefix));
+    token = r.IsTruncated ? r.NextContinuationToken : undefined;
+  } while (token);
+  return out;
+}
+
+/* Toutes les clés sous un préfixe. */
+export async function listB2Keys({ s3, bucket, prefix }) {
+  const out = [];
+  let token;
+  do {
+    const r = await s3.send(new ListObjectsV2Command({
+      Bucket: bucket, Prefix: prefix, ContinuationToken: token,
+    }));
+    (r.Contents || []).forEach((o) => out.push(o.Key));
+    token = r.IsTruncated ? r.NextContinuationToken : undefined;
+  } while (token);
+  return out;
+}
+
 /* ─── Ménage des encodages précédents ─────────────────────── */
 // La nouvelle version est en base : les anciens segments hls-* du
 // même média sont orphelins et occupent le quota pour rien.

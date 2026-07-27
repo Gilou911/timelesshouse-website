@@ -41,6 +41,10 @@
     /* Courbe d'un tiroir : départ franc, arrivée posée. C'est elle qui
        fait qu'un panneau qui s'efface paraît glisser et non sauter. */
     --ease-tiroir: cubic-bezier(0.32, 0.72, 0, 1);
+    /* Courbe d'APPARITION : démarre sans à-coup et se pose lentement.
+       Réservée à ce qui ENTRE (un chapitre, une jauge, une couverture) —
+       --ease-out, plus vif, reste pour ce qu'on manipule. */
+    --ease-doux: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -294,6 +298,15 @@
     touch-action:none;                 /* le glissement nous appartient */
   }
   .panneau.tire .poignee { cursor:grabbing; }
+  /* Le trait s'épaissit et s'assombrit sous le doigt : la poignée dit
+     alors qu'elle a bien été SAISIE, pas seulement survolée. */
+  .poignee::before { transition: width .2s var(--ease-out), background .2s var(--ease-out); }
+  .panneau.tire .poignee::before {
+    width:56px; background:color-mix(in srgb, var(--ink) 40%, transparent);
+  }
+  @media (hover:hover) and (pointer:fine) {
+    .poignee:hover::before { background:color-mix(in srgb, var(--ink) 34%, transparent); }
+  }
   .poignee::before {
     content:''; display:block; width:42px; height:5px; margin:0 auto;
     border-radius:999px; background:color-mix(in srgb, var(--ink) 22%, transparent);
@@ -350,6 +363,20 @@
   .sous { font-size:0.78125rem; color:var(--muted); margin-top:6px; line-height:1.6; }
 
   .bloc { margin-top:22px; }
+  /* Changement de section : les blocs ARRIVENT au lieu d'apparaître.
+     La cascade d'ouverture existait déjà pour le premier rendu ; elle
+     manquait à chaque bascule, alors que c'est le geste le plus fréquent
+     du panneau. Même décalage que la cascade d'entrée (45 ms), même
+     courbe douce. `backwards` maintient l'état de départ pendant le
+     retard, sinon les blocs clignoteraient avant de partir. */
+  .panneau.change > .bloc:not([hidden]) {
+    animation: bloc-change .38s var(--ease-doux) backwards;
+    animation-delay: calc(var(--rang, 0) * 45ms);
+  }
+  @keyframes bloc-change {
+    from { opacity:0; transform:translateY(10px); }
+    to   { opacity:1; transform:none; }
+  }
   .bloc > .titre { font-size:0.6875rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:10px; }
   /* Note explicative sous un réglage. Existait en style inline sous une
      classe `metier-hint` jamais définie ici — seul l'inline la tenait
@@ -364,7 +391,13 @@
     padding:11px 13px; border-radius:14px; min-height:44px;
     background:var(--pressed); color:var(--ink); font-size:0.78125rem; font-weight:600;
     box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
-    transition: transform .16s var(--ease-out);
+    /* L'appui était animé, pas la SÉLECTION : cocher une option faisait
+       basculer fond et texte d'un coup sec. Le creux qui se comble est
+       ce qu'on regarde — il mérite les mêmes 220 ms que le reste. */
+    transition: transform .16s var(--ease-out),
+                background-color .22s var(--ease-out),
+                color .22s var(--ease-out),
+                box-shadow .22s var(--ease-out);
   }
   .choix button:active { transform:scale(.97); }
   .choix button[aria-pressed="true"] { background:var(--btn-bg); color:var(--btn-text); box-shadow:none; }
@@ -376,7 +409,10 @@
     background:var(--pressed); color:var(--ink); min-height:44px;
     box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
     display:flex; flex-direction:column; align-items:center; gap:6px;
-    transition: transform .16s var(--ease-out);
+    transition: transform .16s var(--ease-out),
+                background-color .22s var(--ease-out),
+                color .22s var(--ease-out),
+                box-shadow .22s var(--ease-out);
   }
   .palettes button:active { transform:scale(.97); }
   .palettes button[aria-pressed="true"] { background:var(--btn-bg); color:var(--btn-text); box-shadow:none; }
@@ -428,13 +464,38 @@
      plutôt que de laisser le texte se faire couper. */
   .rail[data-n="4"] button { font-size:0.75rem; }
   .rail button:active { transform:scale(.97); }
-  .rail button[aria-selected="true"] { background:var(--btn-bg); color:var(--btn-text); }
+  /* La pastille sombre SAUTAIT d'un onglet à l'autre : le fond changeait
+     sur deux boutons en même temps, sans rien pour relier les deux. Un
+     repère unique qui glisse dit d'où l'on vient — c'est le motif déjà
+     retenu pour la barre du bas de la console (choix de Gil). */
+  .rail { position:relative; }
+  .rail-pastille {
+    position:absolute; top:5px; bottom:5px; left:0; width:0;
+    border-radius:999px; background:var(--btn-bg); pointer-events:none;
+    transition: transform .42s var(--ease-tiroir), width .42s var(--ease-tiroir);
+    will-change: transform;
+  }
+  /* Tant qu'elle n'est pas placée, rien ne doit clignoter au chargement. */
+  .rail-pastille:not(.prete) { opacity:0; }
+  .rail button { position:relative; z-index:1; }
+  .rail button[aria-selected="true"] { color:var(--btn-text); }
 
   /* Champs texte — 16 px minimum, sinon iOS zoome à la mise au point. */
+  /* La bordure de mise au point apparaissait d'un coup. Un champ qui
+     s'allume doucement se remarque sans agresser. */
+  .champ, .newcat input {
+    transition: box-shadow .24s var(--ease-out), background-color .24s var(--ease-out);
+  }
   .champ {
     width:100%; min-height:48px; padding:0 18px; border:none; border-radius:999px;
     background:var(--pressed); color:var(--ink); font-size:max(1rem, 16px); font-family:inherit; outline:none;
     box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+  }
+  /* Le champ actif se CREUSE un peu plus. Discret par choix : le contour
+     de `:focus-visible` reste le repère d'accessibilité, ceci ne fait que
+     confirmer où l'on écrit — deux anneaux se disputeraient l'attention. */
+  .champ:focus, .newcat input:focus {
+    box-shadow: inset 3px 3px 8px var(--shadow-d), inset -3px -3px 8px var(--shadow-l);
   }
   /* 16 px OBLIGATOIRE (pas seulement sur .champ) : sous 16 px, iOS zoome
      sur le champ à la mise au point — et 44 px de cible minimum. */
@@ -453,8 +514,21 @@
     box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
     display:flex; align-items:center; justify-content:center;
   }
-  .couv-apercu img { width:100%; height:100%; object-fit:cover; display:block; }
+  /* Le survol éclaircissait d'un coup ; et la photo qui ARRIVE après un
+     dépôt apparaissait sèchement. Les deux se fondent maintenant. */
+  .couv-apercu { transition: filter .24s var(--ease-out); }
+  .couv-apercu img {
+    width:100%; height:100%; object-fit:cover; display:block;
+    animation: couv-arrive .42s var(--ease-doux) backwards;
+  }
+  @keyframes couv-arrive { from { opacity:0; transform:scale(1.03); } }
   .couv-rien { font-size:0.75rem; color:var(--faint); }
+  /* Actions de retrait : elles ne bougeaient pas du tout. L'appui les
+     enfonce comme le reste — un bouton sans état pressé paraît cassé. */
+  .sup-couv, .video-item .sup, .v-chap-add {
+    transition: transform .16s var(--ease-out), opacity .18s var(--ease-out);
+  }
+  .sup-couv:active, .video-item .sup:active, .v-chap-add:active { transform:scale(.96); }
   .sup-couv {
     display:block; margin:8px 0 0 auto; border:none; background:none; cursor:pointer;
     font-family:inherit; font-size:0.71875rem; font-weight:700; color:var(--ko);
@@ -540,6 +614,10 @@
     font-size:0.78125rem; font-weight:700;
     box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
   }
+  /* Un chapitre qui s'ajoute doit se voir arriver, sinon la liste
+     semble avoir toujours été là. */
+  .chap-ligne { animation: chap-arrive .34s var(--ease-doux) backwards; }
+  @keyframes chap-arrive { from { opacity:0; transform:translateY(-6px); } }
 
   .video-item .sup {
     justify-self:end; border:none; background:none; cursor:pointer; font-family:inherit;
@@ -553,7 +631,10 @@
     padding:9px 14px; border-radius:999px; min-height:44px;
     background:var(--pressed); color:var(--ink); font-size:0.75rem; font-weight:600;
     box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
-    transition: transform .16s var(--ease-out);
+    transition: transform .16s var(--ease-out),
+                background-color .22s var(--ease-out),
+                color .22s var(--ease-out),
+                box-shadow .22s var(--ease-out);
   }
   .cats button:active { transform:scale(.97); }
   .cats button[aria-pressed="true"] { background:var(--btn-bg); color:var(--btn-text); box-shadow:none; }
@@ -579,7 +660,8 @@
   .depot:active { transform:scale(.97); }
   .depot[disabled] { opacity:.5; cursor:default; }
   .jauge { height:4px; border-radius:4px; background:var(--pressed); overflow:hidden; margin-top:10px; display:none; }
-  .jauge.on { display:block; }
+  .jauge.on { display:block; animation: jauge-arrive .3s var(--ease-out) backwards; }
+  @keyframes jauge-arrive { from { opacity:0; transform:scaleY(.3); } }
   .jauge i { display:block; height:100%; width:0; background:#b08968; transition: width .3s var(--ease-out); }
 
   /* Épinglée en BAS du panneau. Marges alignées sur le nouveau
@@ -640,7 +722,16 @@
     .video-item .sup:hover { text-decoration:underline; }
   }
 
-  @media (prefers-reduced-motion: reduce) { * { transition-duration:.01ms !important; } }
+  /* Mouvement réduit : les ANIMATIONS manquaient à cette règle. Depuis
+     qu'il y en a (cascades, arrivées de blocs, jauges), les oublier
+     laisserait justement passer tout ce qui bouge le plus. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration:.01ms !important;
+      animation-duration:.01ms !important;
+      animation-iteration-count:1 !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -1450,6 +1541,17 @@
         `<button type="button" role="tab" data-section="${s.id}"` +
         ` aria-controls="${s.blocs.join(' ')}">${s.nom}</button>`).join('');
     }
+    /* Repère glissant : un seul élément, déplacé sous l'onglet actif.
+       Créé à la demande pour ne pas dépendre de l'ordre de construction
+       du rail (il est reconstruit quand la LISTE des sections change). */
+    let pastille = rail.querySelector('.rail-pastille');
+    if (!pastille) {
+      pastille = document.createElement('div');
+      pastille.className = 'rail-pastille';
+      pastille.setAttribute('aria-hidden', 'true');
+      rail.prepend(pastille);
+    }
+
     rail.querySelectorAll('button[data-section]').forEach((b) => {
       const actif = b.dataset.section === section;
       b.setAttribute('aria-selected', String(actif));
@@ -1458,6 +1560,7 @@
       // clavier devait traverser chaque onglet pour atteindre la suite.
       b.tabIndex = actif ? 0 : -1;
     });
+    placerPastille();
 
     const voirPhotos = aPhotos && section === 'photos';
     const voirVideo  = aVideo  && section === 'video';
@@ -1547,6 +1650,49 @@
   el('palette-resume').addEventListener('click', () => { paletteDepliee = true; rendre(); });
   el('palette-film-resume').addEventListener('click', () => { paletteFilmDepliee = true; rendre(); });
 
+  /* Cale le repère glissant sous l'onglet actif. Extrait de rendre()
+     parce qu'il faut le REJOUER : mesuré au premier rendu, il l'était
+     avant que les polices ne soient posées — la pastille restait décalée
+     de quelques pixels jusqu'au premier changement d'onglet. Et la
+     largeur du rail bouge aussi quand on redimensionne le panneau. */
+  function placerPastille() {
+    const rail = el('sections');
+    const pastille = rail.querySelector('.rail-pastille');
+    const actif = rail.querySelector('button[aria-selected="true"]');
+    if (!pastille || !actif) return;
+    const r = actif.getBoundingClientRect(), rr = rail.getBoundingClientRect();
+    if (!r.width) return;                   // pas encore posé : on réessaiera
+    pastille.style.width = `${r.width}px`;
+    pastille.style.transform = `translateX(${r.left - rr.left}px)`;
+    pastille.classList.add('prete');
+  }
+  // Les polices changent la largeur des onglets en arrivant.
+  if (document.fonts?.ready) document.fonts.ready.then(placerPastille).catch(() => {});
+  addEventListener('resize', placerPastille);
+  // Le panneau se redimensionne aussi à la main, sans que la fenêtre bouge.
+  new ResizeObserver(placerPastille).observe(el('sections'));
+
+  /* Rejoue l'entrée en cascade des blocs de la section qu'on vient
+     d'ouvrir. Le rang ne compte que les blocs VISIBLES : compter les
+     masqués laisserait des trous dans la cascade, soit des temps morts
+     sans rien à regarder. La classe est retirée une fois jouée, sinon
+     le moindre re-rendu (une frappe dans le titre) la relancerait. */
+  let ticCascade = null;
+  function cascadeSection() {
+    const pan = el('panneau');
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let rang = 0;
+    [...pan.querySelectorAll(':scope > .bloc')].forEach((b) => {
+      if (b.hidden || b.id === 'bloc-sections') { b.style.removeProperty('--rang'); return; }
+      b.style.setProperty('--rang', String(rang++));
+    });
+    pan.classList.remove('change');
+    void pan.offsetWidth;                    // relance l'animation
+    pan.classList.add('change');
+    clearTimeout(ticCascade);
+    ticCascade = setTimeout(() => pan.classList.remove('change'), 380 + rang * 45 + 120);
+  }
+
   el('sections').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-section]');
     if (!b) return;
@@ -1556,6 +1702,7 @@
        au-delà de sa fin — on croit l'onglet vide. */
     el('panneau').scrollTop = 0;
     rendre();          // `pousser()` embarque `vue` : l'aperçu se place seul
+    cascadeSection();
   });
 
   /* Flèches / Origine / Fin — le contrat clavier attendu d'une barre
@@ -1576,6 +1723,7 @@
     section = onglets[j].dataset.section;
     el('panneau').scrollTop = 0;
     rendre();
+    cascadeSection();
     /* rendre() a remis les tabindex ; le rail n'est reconstruit que si la
        LISTE change, donc le bouton visé est toujours le même nœud. */
     el('sections').querySelector(`button[data-section="${section}"]`)?.focus();

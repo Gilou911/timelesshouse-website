@@ -739,6 +739,18 @@
       el('view').querySelector('.head').style.display = '';
 
       const g = data.gallery, cfg = g.config || {}, T = tpl(g.template);
+      /* Remise à zéro de la palette précédente, AVANT applyBrand : celle
+         du film déteignait sinon sur les photos au retour (`data-theme`
+         restait posé, et les variables du mode « sur mesure » sont
+         écrites en ligne, donc elles gagnent sur toute feuille de style).
+         Placée ici et pas plus bas parce que applyBrand repose ensuite
+         l'accent de l'agence — l'effacer après lui le ferait disparaître
+         sur la palette « noir », qui n'en porte pas. */
+      document.documentElement.removeAttribute('data-theme');
+      ['--bg','--bg-deep','--bg-elev','--surface','--ink','--ink-soft','--ink-dim',
+       '--accent','--accent-gl','--line','--line-soft','--shadow']
+        .forEach((v) => document.documentElement.style.removeProperty(v));
+
       applyBrand(data.agency);
       derniereCharge = { data, code };   // pour le bouton Retour
 
@@ -780,7 +792,18 @@
       // ── Palette de couleurs (parité event-photos.html) ──
       // Choisie dans l'admin ; « custom » dérive toute la gamme depuis
       // fond + accent + base sombre/claire (même moteur qu'event-photos).
-      const PAL = cfg.palette || 'noir';
+      /* Palette PAR PAGE. Les photos et le film ne racontent pas la même
+         chose : on peut vouloir un fond crème pour la galerie et un noir
+         de salle pour le film. `paletteFilm` est facultative — vide, le
+         film suit la galerie, ce qui reste le cas de la plupart.
+         Volontairement limitée aux préréglages : une palette « sur
+         mesure » par page doublerait trois champs de couleur pour un
+         besoin rare, et la page film hériterait alors de réglages qu'on
+         ne verrait nulle part dans le concepteur. */
+      const PAL = (vueKind === 'video' && cfg.paletteFilm)
+        ? cfg.paletteFilm
+        : (cfg.palette || 'noir');
+
       const LIGHT_PRESETS = ['creme', 'lin', 'sauge', 'brume'];
       let isLight = LIGHT_PRESETS.includes(PAL);
       const rootStyle = document.documentElement.style;

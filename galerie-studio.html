@@ -393,6 +393,14 @@
   }
   .palette-resume:active { transform:scale(.98); }
   .palette-resume .palette-nom { font-size:0.8125rem; font-weight:700; flex:1; }
+  /* Pastille dans les boutons de la palette du film : le mot seul ne dit
+     pas la couleur (même raison que pour la grille principale). */
+  .pf-pastille {
+    display:inline-block; width:16px; height:16px; border-radius:999px;
+    border:1px solid rgba(0,0,0,.12); position:relative; overflow:hidden;
+    vertical-align:-3px; margin-right:7px;
+  }
+  .pf-pastille i { position:absolute; inset:0 0 0 50%; }
   .palette-resume .palette-chg {
     font-size:0.6875rem; font-weight:700; letter-spacing:.08em;
     text-transform:uppercase; color:var(--muted);
@@ -721,6 +729,15 @@
         <div class="choix" id="perso-mode" style="margin-top:8px"></div>
       </div>
 
+      <!-- La page film peut avoir sa propre palette : les photos et le
+           film ne racontent pas la même chose. Vide = le film suit la
+           galerie, ce qui reste le cas de la plupart. -->
+      <div class="bloc" id="bloc-palette-film" hidden>
+        <div class="titre">Palette de la page film</div>
+        <div class="choix" id="palette-film-choix"></div>
+        <div class="note" id="palette-film-note"></div>
+      </div>
+
       <div class="bloc" id="bloc-photos" hidden>
         <div class="titre">Disposition de la couverture</div>
         <div class="choix" id="couverture"></div>
@@ -885,9 +902,9 @@
      n'est pas de la section, et renseigner aria-controls — un lecteur
      d'écran doit savoir ce que l'onglet commande. */
   const SECTIONS = [
-    { id:'photos', nom:'Photos', blocs:['bloc-upload'] },
+    { id:'photos', nom:'Photos', blocs:['bloc-upload','bloc-photos','bloc-couv','bloc-mode'] },
     { id:'video',  nom:'Vidéo',  blocs:['bloc-video'] },
-    { id:'style',  nom:'Style',  blocs:['bloc-palette','bloc-perso','bloc-photos','bloc-couv','bloc-mode'] },
+    { id:'style',  nom:'Style',  blocs:['bloc-palette','bloc-perso','bloc-palette-film'] },
     { id:'infos',  nom:'Infos',  blocs:['bloc-titre','bloc-contenu','bloc-type','bloc-noces'] },
   ];
 
@@ -1109,6 +1126,36 @@
       clearTimeout(ticEncode);
       if (actif) ticEncode = setTimeout(suivreEncodage, 5000);
     } catch (_) { /* colonne ou table absente : on garde l'ancien libellé */ }
+  }
+
+  /* Palette du film. Volontairement limitée aux préréglages : une
+     palette « sur mesure » par page doublerait trois champs de couleur
+     pour un besoin rare, et la page film hériterait de réglages qu'on ne
+     verrait nulle part ici. « Comme la galerie » est le défaut. */
+  function rendrePaletteFilm() {
+    const cfg = draft.gallery.config;
+    const hote = el('palette-film-choix');
+    hote.innerHTML = '';
+    const actif = cfg.paletteFilm || '';
+    const options = [{ id:'', l:'Comme la galerie' },
+                     ...PALETTES.map((p) => ({ id:p.id, l:p.l, bg:p.bg, ac:p.ac }))];
+    options.forEach((o) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(o.id === actif));
+      b.innerHTML = o.id
+        ? `<span class="pf-pastille" style="background:${o.bg}"><i style="background:${o.ac}"></i></span>${o.l}`
+        : o.l;
+      b.addEventListener('click', () => {
+        if (o.id) cfg.paletteFilm = o.id; else delete cfg.paletteFilm;
+        rendre();
+      });
+      hote.appendChild(b);
+    });
+    const nom = (PALETTES.find((p) => p.id === actif) || {}).l;
+    el('palette-film-note').textContent = actif
+      ? `La page film s'affichera en « ${nom} », la galerie photos garde la sienne.`
+      : 'La page film reprend la palette de la galerie.';
   }
 
   function rendreVideos() {
@@ -1403,9 +1450,14 @@
     el('bloc-upload').hidden  = !voirPhotos;
     el('bloc-video').hidden   = !voirVideo;
     el('bloc-palette').hidden = !voirStyle;
-    el('bloc-photos').hidden  = !(voirStyle && aPhotos);
-    el('bloc-couv').hidden    = !(voirStyle && aPhotos);
-    el('bloc-mode').hidden    = !(voirStyle && aPhotos);
+    /* Couverture et organisation ont rejoint la section PHOTOS : elles ne
+       concernent que cette page-là, et Style ne gardait qu'un réglage
+       réellement commun sur cinq (remarque de Gil). */
+    el('bloc-photos').hidden  = !voirPhotos;
+    el('bloc-couv').hidden    = !voirPhotos;
+    el('bloc-mode').hidden    = !voirPhotos;
+    // Palette du film : n'a de sens que sur une galerie qui EN a un.
+    el('bloc-palette-film').hidden = !(voirStyle && aVideo);
     el('bloc-titre').hidden   = !voirInfos;
     el('bloc-contenu').hidden = !voirInfos;
     el('bloc-type').hidden    = !voirInfos;
@@ -1436,6 +1488,7 @@
       boutons(el('mode'), MODES, cfg.galleryMode || 'categorized', (v) => { cfg.galleryMode = v; rendre(); });
     }
     if (voirVideo) { rendreVideos(); suivreEncodage(); }
+    if (voirStyle && aVideo) rendrePaletteFilm();
 
     // Couleurs sur mesure : seulement quand la palette l'est.
     const perso = cfg.palette === 'custom';
@@ -1447,7 +1500,7 @@
     }
 
     if (voirPhotos) rendreCats();
-    if (voirStyle && aPhotos) rendreCouvertures();
+    if (voirPhotos) rendreCouvertures();
     pousser();
   }
 

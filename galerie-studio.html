@@ -1133,6 +1133,97 @@
     });
   }
 
+  /* ── Déplier au lieu d'apparaître ─────────────────────────────
+     Mesuré dans le panneau : ouvrir la palette poussait TOUT ce qui est
+     en dessous de 305 px en une seule image, et changer de disposition
+     en remontait 44. Les boutons, eux, étaient déjà animés — ce qui
+     saute n'est pas le bouton, c'est le panneau autour, et c'est ça
+     qu'on voit.
+
+     On anime la hauteur du bloc qui s'ouvre : ce qui suit descend alors
+     à la même vitesse, sans avoir à s'en occuper. Marges et rebords
+     entrent dans l'animation, sinon les 22 px de marge d'un bloc
+     arrivent d'un coup au premier pixel de hauteur.
+
+     Un repli interrompu en plein vol repart d'où il en est : cliquer
+     deux fois vite ne rejoue pas le mouvement depuis le début. */
+  /* Pendant une bascule d'onglet, tous les blocs partent et reviennent en
+     cascade. Y ajouter des plis ferait deux mouvements concurrents sur
+     les mêmes blocs — on laisse la cascade seule maîtresse.
+     Vrai AU DÉPART : au tout premier rendu, l'état initial se pose, il
+     ne s'anime pas. Sinon la palette déjà choisie se replierait sous les
+     yeux au chargement, comme si on venait de la refermer. */
+  let basculeSection = true;
+
+  const DOUX = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const PLIS = new WeakMap();
+  const BOITE = ['height', 'margin-top', 'margin-bottom', 'padding-top', 'padding-bottom'];
+  /* Le panneau est un conteneur flex en colonne. Poser overflow:hidden sur
+     un bloc fait tomber sa taille minimale automatique à zéro : le
+     conteneur l'écrase aussitôt, et la hauteur animée n'a plus aucun
+     effet — seule la marge bougeait, le bloc arrivait toujours d'un coup.
+     flex-shrink:0 le temps du pli, retiré avec le reste ensuite. */
+  const REGLAGES = BOITE.concat(['overflow', 'flex-shrink', 'min-height']);
+
+  function plier(e, ouvert, ms = 300) {
+    if (!e) return;
+    const suivi = PLIS.get(e);
+    if ((suivi ? suivi.vise : !e.hidden) === ouvert) return;   // déjà là
+    if (DOUX.matches || basculeSection) {
+      suivi?.a?.cancel(); PLIS.delete(e);
+      REGLAGES.forEach((k) => e.style.removeProperty(k));
+      e.hidden = !ouvert; return;
+    }
+    /* L'intention est posée tout de suite, la MESURE attend la fin du
+       rendu en cours : plusieurs blocs sont remplis APRÈS l'appel à
+       plier — bloc-noces se mesurait à 81 px au lieu de 117, et les
+       36 px manquants tombaient d'un coup à l'arrivée. Une micro-tâche
+       s'exécute avant tout affichage : rien ne clignote entre-temps. */
+    const jeton = {};
+    PLIS.set(e, { a: suivi?.a, vise: ouvert, jeton });
+    queueMicrotask(() => plierVraiment(e, ouvert, ms, jeton));
+  }
+
+  function plierVraiment(e, ouvert, ms, jeton) {
+    const suivi = PLIS.get(e);
+    if (!suivi || suivi.jeton !== jeton) return;    // dépassé par un autre pli
+    const mesurer = () => {
+      const c = getComputedStyle(e);
+      return { height: e.getBoundingClientRect().height + 'px',
+               marginTop: c.marginTop, marginBottom: c.marginBottom,
+               paddingTop: c.paddingTop, paddingBottom: c.paddingBottom };
+    };
+    const depart = e.hidden ? null : mesurer();   // reprend le vol en cours
+    suivi.a?.cancel();
+    REGLAGES.forEach((k) => e.style.removeProperty(k));
+    e.hidden = false;
+    const plein = mesurer();
+    const vide = { height:'0px', marginTop:'0px', marginBottom:'0px',
+                   paddingTop:'0px', paddingBottom:'0px' };
+    e.style.overflow = 'hidden';
+    e.style.flexShrink = '0';
+    /* Le résumé de palette est un BOUTON : min-height 44px (cible
+       tactile) est un plancher que la hauteur animée ne peut pas
+       franchir — il restait 52 px de haut et se posait d'un coup.
+       Plancher levé le temps du pli, rendu ensuite. */
+    e.style.minHeight = '0';
+    /* --ease-doux, recopié : l'API d'animation ne lit pas les variables CSS.
+       --ease-tiroir, essayé d'abord, avale 78 % de la course en 75 ms —
+       juste pour un panneau qui vole depuis le bord, mais sur un dépli
+       de 305 px sur place cela se lit comme un saut suivi d'un traînage.
+       Même courbe que la cascade des blocs : un seul vocabulaire. */
+    const a = e.animate([depart || vide, ouvert ? plein : vide],
+                        { duration: ms, easing: 'cubic-bezier(0.25,0.46,0.45,0.94)', fill: 'both' });
+    PLIS.set(e, { a, vise: ouvert, jeton });
+    a.finished.then(() => {
+      if (PLIS.get(e)?.a !== a) return;      // un autre pli a pris la main
+      PLIS.delete(e);
+      a.cancel();                            // la main revient au CSS
+      REGLAGES.forEach((k) => e.style.removeProperty(k));
+      e.hidden = !ouvert;
+    }).catch(() => {});                      // annulé : l'autre pli s'en charge
+  }
+
   /* Repliée une fois choisie. Treize pastilles sur trois colonnes font
      cinq rangées : à elles seules elles repoussaient la couverture et
      l'organisation hors de l'écran, alors qu'on ne change de palette
@@ -1150,16 +1241,15 @@
     const courante = toutes.find((p) => p.id === actif) || toutes[0];
 
     // Résumé cliquable : la palette retenue, et de quoi rouvrir le choix.
+    /* Les deux faces sont remplies à chaque fois : replier vidait la
+       grille avant qu'elle ait fini de se plier, et on voyait les treize
+       pastilles s'évanouir d'un coup au lieu de se refermer. */
     const resume = el('palette-resume');
-    resume.hidden = paletteDepliee;
-    hote.hidden = !paletteDepliee;
-    if (!paletteDepliee) {
-      resume.innerHTML =
-        `<span class="pastille" style="background:${courante.bg}"><i style="background:${courante.ac}"></i></span>` +
-        `<span class="palette-nom">${courante.l}</span><span class="palette-chg">Changer</span>`;
-      resume.setAttribute('aria-label', `Palette ${courante.l} — changer`);
-      return;
-    }
+    resume.innerHTML =
+      `<span class="pastille" style="background:${courante.bg}"><i style="background:${courante.ac}"></i></span>` +
+      `<span class="palette-nom">${courante.l}</span><span class="palette-chg">Changer</span>`;
+    resume.setAttribute('aria-label', `Palette ${courante.l} — changer`);
+    plier(resume, !paletteDepliee);
     // « Sur mesure » en plus des 12 préréglages — l'éditeur qu'on remplace
     // le proposait, on ne perd rien au passage.
     [...PALETTES, { id:'custom', l:'Sur mesure', bg:'#1a1714', ac:'#b08968' }].forEach((p) => {
@@ -1178,6 +1268,7 @@
       });
       hote.appendChild(b);
     });
+    plier(hote, paletteDepliee);
   }
 
   /* ── Vidéos ───────────────────────────────────────────────
@@ -1266,16 +1357,13 @@
        Sur « Comme la galerie » on montre donc la pastille de la palette
        PRINCIPALE — c'est elle qu'on verra sur la page film. */
     const resume = el('palette-film-resume');
-    resume.hidden = paletteFilmDepliee;
-    hote.hidden = !paletteFilmDepliee;
-    if (!paletteFilmDepliee) {
-      const effective = PALETTES.find((p) => p.id === (actif || cfg.palette || 'noir')) || PALETTES[0];
-      const nomAffiche = actif ? effective.l : 'Comme la galerie';
-      resume.innerHTML =
-        `<span class="pastille" style="background:${effective.bg}"><i style="background:${effective.ac}"></i></span>` +
-        `<span class="palette-nom">${nomAffiche}</span><span class="palette-chg">Changer</span>`;
-      resume.setAttribute('aria-label', `Palette du film : ${nomAffiche} — changer`);
-    }
+    const effective = PALETTES.find((p) => p.id === (actif || cfg.palette || 'noir')) || PALETTES[0];
+    const nomAffiche = actif ? effective.l : 'Comme la galerie';
+    resume.innerHTML =
+      `<span class="pastille" style="background:${effective.bg}"><i style="background:${effective.ac}"></i></span>` +
+      `<span class="palette-nom">${nomAffiche}</span><span class="palette-chg">Changer</span>`;
+    resume.setAttribute('aria-label', `Palette du film : ${nomAffiche} — changer`);
+    plier(resume, !paletteFilmDepliee);
     options.forEach((o) => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -1290,6 +1378,7 @@
       });
       hote.appendChild(b);
     });
+    plier(hote, paletteFilmDepliee);
     const nom = (PALETTES.find((p) => p.id === actif) || {}).l;
     el('palette-film-note').textContent = actif
       ? `La page film s'affichera en « ${nom} », la galerie photos garde la sienne.`
@@ -1523,7 +1612,7 @@
       : cour.origine === 'choisie' ? 'Une photo de la galerie sert de couverture.'
       : 'Par défaut : la première photo de la galerie.';
 
-    el('couv-retirer').hidden = !(cfg.coverPhoto || cfg.cover);
+    plier(el('couv-retirer'), !!(cfg.coverPhoto || cfg.cover), 220);
   }
 
   function rendre() {
@@ -1626,7 +1715,7 @@
        libellé se recalcule à l'affichage, donc corriger la table
        corrigera aussi les galeries déjà enregistrées. */
     const anniv = g.template === 'anniversaire';
-    el('bloc-noces').hidden = !(voirInfos && anniv);
+    plier(el('bloc-noces'), voirInfos && anniv);
     if (anniv) {
       const champ = el('noces-ans');
       if (document.activeElement !== champ) champ.value = cfg.annees ?? '';
@@ -1640,7 +1729,7 @@
       boutons(el('couverture'), COUVERTURES, cfg.coverMode || 'fill', (v) => { cfg.coverMode = v; rendre(); });
       // Split et Éditorial sont les deux dispositions en deux colonnes :
       // ce sont les seules dont la description ne tient pas sur un téléphone.
-      el('note-colonnes').hidden = !['split', 'editorial'].includes(cfg.coverMode);
+      plier(el('note-colonnes'), ['split', 'editorial'].includes(cfg.coverMode), 240);
       boutons(el('mode'), MODES, cfg.galleryMode || 'categorized', (v) => { cfg.galleryMode = v; rendre(); });
     }
     if (voirVideo) { rendreVideos(); suivreEncodage(); }
@@ -1648,7 +1737,7 @@
 
     // Couleurs sur mesure : seulement quand la palette l'est.
     const perso = cfg.palette === 'custom';
-    el('bloc-perso').hidden = !(voirPalette && perso);
+    plier(el('bloc-perso'), !!(voirPalette && perso));
     if (perso) {
       el('perso-bg').value = cfg.customBg || '#1a1714';
       el('perso-ac').value = cfg.customAccent || '#b08968';
@@ -1719,7 +1808,9 @@
        section longue on atterrit au milieu de la suivante, parfois
        au-delà de sa fin — on croit l'onglet vide. */
     el('panneau').scrollTop = 0;
+    basculeSection = true;
     rendre();          // `pousser()` embarque `vue` : l'aperçu se place seul
+    basculeSection = false;
     cascadeSection();
   });
 
@@ -1740,7 +1831,9 @@
             : (i + 1) % onglets.length;
     section = onglets[j].dataset.section;
     el('panneau').scrollTop = 0;
+    basculeSection = true;
     rendre();
+    basculeSection = false;
     cascadeSection();
     /* rendre() a remis les tabindex ; le rail n'est reconstruit que si la
        LISTE change, donc le bouton visé est toujours le même nœud. */
@@ -2364,6 +2457,7 @@
     el('apercu').src = '/galerie?preview=1';
 
     rendre();
+    basculeSection = false;      // l'état est posé ; à partir d'ici, ça se plie
 
     /* Entrée en cascade, UNE SEULE FOIS : les blocs se posent du haut
        vers le bas et l'œil suit. La classe est retirée dès la fin, pour

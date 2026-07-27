@@ -216,6 +216,32 @@
     /* ── Galerie ── */
     .view { display: none; }
     .view.on { display: block; }
+
+    /* ── Bascule galerie ↔ film ───────────────────────────────
+       Le contenu était remplacé d'un seul coup : on cliquait le triangle
+       et la page changeait sèchement, sans qu'on comprenne d'où venait
+       ce qui arrive. Deux temps, selon §9 : la sortie est BRÈVE et sur
+       une courbe entrante (on ne s'attarde pas sur ce qui s'en va),
+       l'entrée est plus longue et sur une courbe sortante.
+       La barre des boutons est exclue : c'est le repère qu'on vient de
+       toucher, il doit rester immobile sous le doigt.
+       Rien d'autre que transform et opacity — les seules propriétés qui
+       n'obligent pas le navigateur à recalculer la mise en page. */
+    .view.bascule-sort > *:not(.pagebar) {
+      opacity: 0;
+      transform: translateY(-8px);
+      transition: opacity 0.16s ease-in, transform 0.16s ease-in;
+    }
+    .view.bascule-entre > *:not(.pagebar) {
+      animation: bascule-entre 0.44s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+      /* Le décalage fait LIRE l'ordre : le titre s'installe, le film
+         suit. Posé par le JS, qui seul sait lesquels sont visibles. */
+      animation-delay: calc(var(--rang, 0) * 80ms);
+    }
+    @keyframes bascule-entre {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: none; }
+    }
     .wrap { max-width: 1640px; margin: 0 auto; padding: 0 clamp(14px, 3vw, 40px); }
     .head {
       padding: clamp(46px, 9vw, 96px) 0 clamp(30px, 5vw, 54px); text-align: center;
@@ -918,18 +944,74 @@
        sont déjà là, on repeint. L'URL suit, donc le Retour du
        navigateur fonctionne (une URL par vue). */
     let derniereCharge = null;
+
+    /* Repeint EN DEUX TEMPS : on efface, on remplace hors des regards,
+       on fait entrer. Le remplacement se fait pendant que la page est
+       effacée — c'est aussi ce qui cache le retour en haut de page que
+       paint() effectue, autrefois visible comme un à-coup.
+       Une seule bascule à la fois : re-cliquer pendant l'animation ne
+       doit pas empiler deux transitions sur le même contenu. */
+    let basculeEnCours = false;
+    const MOINS_DE_MOUVEMENT = () =>
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    async function basculer(repeindre) {
+      const v = el('view');
+      // Sans animation demandée, ou vue pas encore affichée : on repeint.
+      if (MOINS_DE_MOUVEMENT() || !v.classList.contains('on')) return repeindre();
+      if (basculeEnCours) return;
+      basculeEnCours = true;
+      try {
+        v.classList.add('bascule-sort');
+        await new Promise((r) => setTimeout(r, 170));   // durée de la sortie
+        v.classList.remove('bascule-entre');
+        await repeindre();
+        v.classList.remove('bascule-sort');
+        /* Le rang ne se calcule QU'ICI : il compte les enfants réellement
+           visibles. La couverture est masquée sur la page film — la
+           compter laisserait un trou dans la cascade. */
+        let rang = 0;
+        [...v.children].forEach((e) => {
+          if (e.classList.contains('pagebar') || e.hidden ||
+              getComputedStyle(e).display === 'none') {
+            e.style.removeProperty('--rang');
+            return;
+          }
+          e.style.setProperty('--rang', String(rang++));
+        });
+        // Forcer un calcul de style pour que l'animation reparte à zéro
+        // même si la classe vient d'être retirée dans la même tâche.
+        void v.offsetWidth;
+        v.classList.add('bascule-entre');
+        /* Retirée une fois jouée : laissée en place, elle rejouerait
+           l'entrée au moindre re-rendu (le concepteur repeint son aperçu
+           à chaque réglage). Durée de l'animation + le retard du dernier
+           rang, avec une marge. */
+        const dernier = Math.max(0, rang - 1);
+        setTimeout(() => v.classList.remove('bascule-entre'), 440 + dernier * 80 + 120);
+      } finally {
+        basculeEnCours = false;
+      }
+    }
+
     function allerA(vue, data, code) {
+      /* Le garde est ici, AVANT l'URL. Placé dans basculer(), il laissait
+         le second clic empiler quand même une entrée d'historique pour
+         une bascule qui n'avait pas lieu : l'historique se remplissait de
+         doublons et il fallait presser Retour deux fois pour bouger. */
+      if (basculeEnCours) return;
       if (code && code !== 'apercu') {
         const url = `?c=${encodeURIComponent(code)}${vue === 'film' ? '&vue=film' : ''}`;
         history.pushState({ vue }, '', url);
       }
-      paint({ ...data, vue }, code);
+      basculer(() => paint({ ...data, vue }, code));
     }
 
     window.addEventListener('popstate', () => {
       if (!derniereCharge) return;
       const vue = new URLSearchParams(location.search).get('vue') || 'photos';
-      paint({ ...derniereCharge.data, vue }, derniereCharge.code);
+      // Le Retour du navigateur mérite la même transition que le bouton.
+      basculer(() => paint({ ...derniereCharge.data, vue }, derniereCharge.code));
     });
 
     /* ── Démarrage ───────────────────────────────────────────── */

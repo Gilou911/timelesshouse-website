@@ -876,11 +876,63 @@
      brouillon à la fermeture — pas un drapeau : changer de section ou
      re-rendre sans rien changer ne crie pas au loup. */
   let instantaneSauve = '';
-  const instantane = () => draft ? JSON.stringify({
-    t: draft.gallery.title, k: draft.gallery.kind,
-    g: draft.gallery.template, c: draft.gallery.config,
+  const instantaneDe = (g) => g ? JSON.stringify({
+    t: g.title, k: g.kind, g: g.template, c: g.config,
   }) : '';
+  const instantane = () => instantaneDe(draft && draft.gallery);
   const nonEnregistre = () => draft && instantane() !== instantaneSauve;
+
+  /* ── Ce qu'on DÉPOSE est enregistré tout seul ─────────────────
+     Un fichier déposé est déjà un engagement irréversible : il est sur
+     B2, transféré, facturé — parfois plusieurs Go et de longues minutes.
+     Exiger un clic d'enregistrement APRÈS ça, c'est demander de
+     confirmer ce qui est déjà fait, et l'oubli laisse un fichier payé
+     que la galerie ne référence pas. Les photos, dans ce même panneau,
+     s'enregistraient déjà seules : le film et la vignette ne le
+     faisaient pas, sans que rien ne le signale.
+
+     On n'enregistre PAS tout le brouillon pour autant. L'utilisateur
+     essaie peut-être une palette ou une couverture qu'il n'a pas encore
+     choisies ; les publier au passage enverrait chez son client des
+     réglages qu'il était en train de tester. On repart donc de la
+     version ENREGISTRÉE et on n'y remplace que ce que le dépôt a
+     touché. Les autres modifications restent en brouillon, et le garde
+     anti-perte continue de les signaler. */
+  /* Met UN film en file d'encodage. Même règle que l'enregistrement
+     manuel : 23505 = ticket déjà en attente, donc un succès. Sans ce
+     ticket le film resterait en une seule qualité ET invisible pour le
+     client, qui attend que le drapeau `awaitingEncode` retombe. */
+  async function enfilerEncodage(v) {
+    const mp4 = v?.urls?.['1080p'];
+    if (!edition || !mp4 || v.hls) return false;
+    try {
+      const { error } = await sb.from('encode_jobs').insert({
+        kind: 'gallery_video', gallery_id: edition.gallery.id,
+        video_key: v.key, source_url: mp4,
+      });
+      return !error || error.code === '23505';
+    } catch (_) { return false; }
+  }
+
+  async function enregistrerDepot(champs, quoi) {
+    if (!edition) return false;
+    const sauve = (base && base.gallery && base.gallery.config) || {};
+    const fusion = { ...sauve, ...champs };
+    try {
+      const { error } = await sb.from('galleries')
+        .update({ config: fusion }).eq('id', edition.gallery.id);
+      if (error) throw new Error(error.message);
+      base.gallery.config = fusion;
+      // La référence « rien à perdre » avance sur la version enregistrée,
+      // pas sur le brouillon : ce qui reste en attente le reste.
+      instantaneSauve = instantaneDe(base.gallery);
+      return true;
+    } catch (e) {
+      etatVid(`${quoi} est en ligne, mais l'enregistrement a échoué : ${e.message}. `
+            + `Cliquez sur Enregistrer.`, 'ko');
+      return false;
+    }
+  }
 
   const etat = (msg, cls) => { const e = el('etat'); e.textContent = msg || ''; e.className = 'etat' + (cls ? ' ' + cls : ''); };
 
@@ -1089,7 +1141,8 @@
           });
           // La balise <video poster> veut UNE url : on garde la grande.
           v.poster = img.url_view || img.url_grid;
-          etatVid('Vignette en place — pensez à enregistrer.', 'ok');
+          const ok = await enregistrerDepot({ videos: draft.gallery.config.videos }, 'La vignette');
+          if (ok) etatVid('Vignette en place et enregistrée.', 'ok');
           rendre();
         } catch (e2) {
           etatVid(`✗ ${e2.message || "L'envoi a échoué — la vignette n'a pas changé."}`, 'ko');
@@ -1158,7 +1211,15 @@
           // encodé : sans ce drapeau il verrait une seule qualité brute.
           v.hls = '';
           v.awaitingEncode = true;
-          etatVid('Film en ligne — il sera préparé en qualité adaptative.', 'ok');
+          /* Enregistré tout de suite : le fichier est déjà sur B2, on ne
+             fait pas dépendre sa survie d'un clic supplémentaire. */
+          const ok = await enregistrerDepot({ videos: draft.gallery.config.videos }, 'Le film');
+          const misEnFile = ok ? await enfilerEncodage(v) : false;
+          if (ok) {
+            etatVid(misEnFile
+              ? 'Film en ligne et enregistré — sa préparation a commencé.'
+              : 'Film en ligne et enregistré.', 'ok');
+          }
           rendre();
         } catch (e2) {
           etatVid(`✗ ${e2.message || "L'envoi a échoué — rien n'a été mis en ligne."}`, 'ko');
@@ -1757,7 +1818,12 @@
       // plus lieu d'être dès qu'une couverture est déposée, et le laisser
       // ferait deux sources de vérité pour la même image.
       delete cfg.cover;
-      etatUp('Couverture en place — pensez à enregistrer.', 'ok');
+      /* Même raisonnement que le film : le fichier est déjà sur B2.
+         `cover` est explicitement remis à vide dans la version
+         enregistrée — sans quoi l'ancien réglage y survivrait et ferait
+         deux sources de vérité pour la même image. */
+      const ok = await enregistrerDepot({ coverPhoto: photo, cover: undefined }, 'La couverture');
+      if (ok) etatUp('Couverture en place et enregistrée.', 'ok');
       rendre();
     } catch (err) {
       etatUp(`✗ ${err.message || "L'envoi a échoué — la couverture n'a pas changé."}`, 'ko');

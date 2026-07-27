@@ -450,6 +450,20 @@
   .video-item .v-etat { font-size:0.71875rem; }
   .video-item .v-ok { color:var(--ok); font-weight:700; }
   .video-item .v-attente { color:var(--muted); }
+  /* Échec et poste éteint : deux situations différentes, deux tons.
+     L'un se règlera tout seul, l'autre attend une action de l'humain. */
+  .video-item .v-echec  { color:var(--ko); font-weight:600; }
+  .video-item .v-eteint { color:var(--ko); display:block; margin-top:6px; line-height:1.5; }
+  /* Barre DÉTERMINÉE : « en attente » sans rien qui bouge laissait
+     croire à un blocage pendant des heures (§10). */
+  .video-item .v-jauge {
+    display:block; height:4px; border-radius:4px; background:var(--pressed);
+    overflow:hidden; margin-top:8px;
+  }
+  .video-item .v-jauge i {
+    display:block; height:100%; background:#b08968;
+    transition: width .6s var(--ease-out);
+  }
   .video-item .v-vide { color:var(--faint); }
   .video-item .v-up {
     border:none; cursor:pointer; font-family:inherit; min-height:44px; border-radius:999px;
@@ -937,6 +951,63 @@
      préfixe du client (périmètre vérifié par b2-sign), en morceaux
      reprenables : un film de mariage pèse plusieurs Go. Il sert ensuite
      de source au worker d'encodage, qui en tire le HLS adaptatif. */
+  /* ── Où en est l'encodage ? ────────────────────────────────────
+     Le concepteur ne disait que « encodage en attente », sans jamais
+     bouger — sur un 4K de trois minutes cela reste affiché des heures.
+     Pire : si le poste d'encodage est éteint, ce texte est un mensonge
+     poli, rien ne se prépare et personne ne le dit.
+     Les jobs ne sont lisibles que par un membre de l'agence (RLS) :
+     hors édition, on retombe sur l'ancien libellé. */
+  let jobsEncode = {};        // video_key → { status, progress, created_at }
+
+  // Au-delà de ce délai sans qu'un job soit pris en charge, la seule
+  // explication est que le worker ne tourne pas : sa boucle fait 30 s.
+  const ATTENTE_ANORMALE_MS = 3 * 60 * 1000;
+
+  function etatEncodage(cle) {
+    const j = jobsEncode[cle];
+    if (!j) return ' <span class="v-attente">· encodage en attente</span>';
+    if (j.status === 'error') {
+      return ' <span class="v-echec">· l\'optimisation a échoué, elle sera retentée</span>';
+    }
+    if (j.status === 'processing') {
+      const p = Math.max(0, Math.min(100, Number(j.progress) || 0));
+      return ' <span class="v-attente">· optimisation ' + p + ' %</span>' +
+        `<span class="v-jauge" role="progressbar" aria-label="Optimisation du film"` +
+        ` aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}">` +
+        `<i style="width:${p}%"></i></span>`;
+    }
+    // En attente : depuis quand ?
+    const depuis = Date.now() - new Date(j.created_at || Date.now()).getTime();
+    if (depuis > ATTENTE_ANORMALE_MS) {
+      return ' <span class="v-eteint">· en attente — l\'ordinateur qui prépare les films' +
+             ' est éteint. Le film reste lisible ; l\'optimisation reprendra' +
+             ' toute seule au prochain démarrage.</span>';
+    }
+    return ' <span class="v-attente">· encodage en attente</span>';
+  }
+
+  /* Relit les jobs, et se relance TANT QU'IL Y EN A un en cours. On ne
+     re-rend que la liste des vidéos, pas tout le panneau : rejouer
+     rendre() effacerait la saisie en cours dans un champ de titre. */
+  let ticEncode = null;
+  async function suivreEncodage() {
+    if (!edition || !draft?.gallery?.id) return;
+    try {
+      const { data } = await sb.from('encode_jobs')
+        .select('video_key, status, progress, created_at')
+        .eq('gallery_id', draft.gallery.id);
+      if (!Array.isArray(data)) return;
+      const avant = JSON.stringify(jobsEncode);
+      jobsEncode = {};
+      data.forEach((j) => { if (j.video_key) jobsEncode[j.video_key] = j; });
+      if (JSON.stringify(jobsEncode) !== avant && section === 'video') rendreVideos();
+      const actif = data.some((j) => j.status === 'pending' || j.status === 'processing');
+      clearTimeout(ticEncode);
+      if (actif) ticEncode = setTimeout(suivreEncodage, 5000);
+    } catch (_) { /* colonne ou table absente : on garde l'ancien libellé */ }
+  }
+
   function rendreVideos() {
     const hote = el('videos');
     const list = draft.gallery.config.videos || [];
@@ -961,7 +1032,7 @@
       d.innerHTML = `
         <input class="champ petit" data-k="title" placeholder="Titre (Le Film…)" value="${(v.title || '').replace(/"/g, '&quot;')}" />
         <div class="v-etat">${enLigne
-          ? `<span class="v-ok">✓ Film en ligne</span>${v.hls ? '' : ' <span class="v-attente">· encodage en attente</span>'}`
+          ? `<span class="v-ok">✓ Film en ligne</span>${v.hls ? '' : etatEncodage(v.key)}`
           : '<span class="v-vide">Aucun fichier</span>'}</div>
         <button type="button" class="v-up">${enLigne ? 'Remplacer le film' : 'Déposer le film'}</button>
         <input type="file" class="v-fichier" accept="video/*" hidden />
@@ -1252,7 +1323,7 @@
       el('note-colonnes').hidden = !['split', 'editorial'].includes(cfg.coverMode);
       boutons(el('mode'), MODES, cfg.galleryMode || 'categorized', (v) => { cfg.galleryMode = v; rendre(); });
     }
-    if (voirVideo) rendreVideos();
+    if (voirVideo) { rendreVideos(); suivreEncodage(); }
 
     // Couleurs sur mesure : seulement quand la palette l'est.
     const perso = cfg.palette === 'custom';

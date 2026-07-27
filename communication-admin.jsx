@@ -2944,9 +2944,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           // requête — d'où le repli sur l'ancien select, qui garde le badge.
           let js = null;
           ({ data: js } = await sb.from('encode_jobs')
-            .select('gallery_id, status, progress').in('gallery_id', ids));
+            .select('gallery_id, status, progress, created_at').in('gallery_id', ids));
           if (!js) ({ data: js } = await sb.from('encode_jobs')
-            .select('gallery_id, status').in('gallery_id', ids));
+            .select('gallery_id, status, created_at').in('gallery_id', ids));
           const byJob = {};
           (js || []).forEach(j => {
             if (!j.gallery_id) return;
@@ -2972,7 +2972,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         const tic = setInterval(async () => {
           let js = null;
           ({ data: js } = await sb.from('encode_jobs')
-            .select('gallery_id, status, progress').in('gallery_id', ids));
+            .select('gallery_id, status, progress, created_at').in('gallery_id', ids));
           if (!js) return;
           const by = {};
           js.forEach(j => { if (j.gallery_id) (by[j.gallery_id] = by[j.gallery_id] || []).push(j); });
@@ -3222,6 +3222,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       }
       const map = {
         pending:  { txt: 'Optimisation en cours', cls: 'bg-amber-100 text-amber-700' },
+        eteint:   { txt: 'En attente du poste',   cls: 'bg-rose-100 text-rose-700'  },
         error:    { txt: 'Optimisation échouée',  cls: 'bg-rose-100 text-rose-700'  },
         ready:    { txt: 'Qualité adaptative',    cls: 'bg-emerald-100 text-emerald-700' },
       };
@@ -3243,10 +3244,22 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return Math.max(0, Math.min(100, Number(j?.progress) || 0));
     }
 
+    /* Au-delà de ce délai sans qu'un job soit pris en charge, la seule
+       explication est que le poste d'encodage ne tourne pas : la boucle
+       du worker fait 30 s. « En attente » indéfiniment est un mensonge
+       poli — rien ne se prépare, et personne ne le dit. */
+    const ATTENTE_ANORMALE_MS = 3 * 60 * 1000;
+
     function encodeStateOf(videos, jobs) {
       const list = Array.isArray(videos) ? videos.filter(v => v?.urls?.['1080p'] || v?.hls) : [];
       if (!list.length) return 'none';
-      if (jobs?.some(j => j.status === 'pending' || j.status === 'processing')) return 'pending';
+      if (jobs?.some(j => j.status === 'processing')) return 'pending';
+      const attente = (jobs || []).filter(j => j.status === 'pending');
+      if (attente.length) {
+        const vieux = attente.every(j =>
+          Date.now() - new Date(j.created_at || Date.now()).getTime() > ATTENTE_ANORMALE_MS);
+        return vieux ? 'eteint' : 'pending';
+      }
       if (list.every(v => v.hls)) return 'ready';
       if (jobs?.some(j => j.status === 'error')) return 'error';
       return 'none';
@@ -3333,6 +3346,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <div className="text-[11.5px] text-amber-700 mt-1.5 leading-relaxed">
                   Nous préparons votre film — vous n'avez rien d'autre à faire.
                   Votre client le verra dès qu'il sera prêt.
+                </div>
+              )}
+              {encodeState === 'eteint' && (
+                <div className="text-[11.5px] text-rose-700 mt-1.5 leading-relaxed">
+                  L'optimisation n'a pas démarré : l'ordinateur qui prépare les films est
+                  éteint ou hors ligne. Votre film reste lisible par votre client en
+                  attendant, et l'optimisation reprendra toute seule au prochain démarrage.
                 </div>
               )}
             </div>

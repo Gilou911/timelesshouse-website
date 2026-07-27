@@ -734,6 +734,10 @@
            galerie, ce qui reste le cas de la plupart. -->
       <div class="bloc" id="bloc-palette-film" hidden>
         <div class="titre">Palette de la page film</div>
+        <!-- Même repli que la palette de la galerie : treize choix
+             ouverts pour un réglage qu'on touche une fois, c'était
+             l'écran mangé pour rien. -->
+        <button type="button" class="palette-resume" id="palette-film-resume" hidden></button>
         <div class="choix" id="palette-film-choix"></div>
         <div class="note" id="palette-film-note"></div>
       </div>
@@ -1138,6 +1142,9 @@
      palette « sur mesure » par page doublerait trois champs de couleur
      pour un besoin rare, et la page film hériterait de réglages qu'on ne
      verrait nulle part ici. « Comme la galerie » est le défaut. */
+  // Repliée comme celle de la galerie — voir `paletteDepliee`.
+  let paletteFilmDepliee = false;
+
   function rendrePaletteFilm() {
     const cfg = draft.gallery.config;
     const hote = el('palette-film-choix');
@@ -1145,6 +1152,21 @@
     const actif = cfg.paletteFilm || '';
     const options = [{ id:'', l:'Comme la galerie' },
                      ...PALETTES.map((p) => ({ id:p.id, l:p.l, bg:p.bg, ac:p.ac }))];
+
+    /* Résumé : le nom du choix ET la couleur qu'il donnera réellement.
+       Sur « Comme la galerie » on montre donc la pastille de la palette
+       PRINCIPALE — c'est elle qu'on verra sur la page film. */
+    const resume = el('palette-film-resume');
+    resume.hidden = paletteFilmDepliee;
+    hote.hidden = !paletteFilmDepliee;
+    if (!paletteFilmDepliee) {
+      const effective = PALETTES.find((p) => p.id === (actif || cfg.palette || 'noir')) || PALETTES[0];
+      const nomAffiche = actif ? effective.l : 'Comme la galerie';
+      resume.innerHTML =
+        `<span class="pastille" style="background:${effective.bg}"><i style="background:${effective.ac}"></i></span>` +
+        `<span class="palette-nom">${nomAffiche}</span><span class="palette-chg">Changer</span>`;
+      resume.setAttribute('aria-label', `Palette du film : ${nomAffiche} — changer`);
+    }
     options.forEach((o) => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -1154,6 +1176,7 @@
         : o.l;
       b.addEventListener('click', () => {
         if (o.id) cfg.paletteFilm = o.id; else delete cfg.paletteFilm;
+        paletteFilmDepliee = false;      // choix fait : on rend la place
         rendre();
       });
       hote.appendChild(b);
@@ -1522,6 +1545,7 @@
 
   /* Rouvre la grille. Un `rendre()` suffit : palettes() relit le drapeau. */
   el('palette-resume').addEventListener('click', () => { paletteDepliee = true; rendre(); });
+  el('palette-film-resume').addEventListener('click', () => { paletteFilmDepliee = true; rendre(); });
 
   el('sections').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-section]');

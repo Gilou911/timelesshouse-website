@@ -383,6 +383,23 @@
   .pastille { width:26px; height:26px; border-radius:999px; border:1px solid rgba(0,0,0,.12); position:relative; overflow:hidden; }
   .pastille i { position:absolute; inset:0 0 0 50%; }
   .palettes .nom { font-size:0.6875rem; font-weight:700; }
+  /* Résumé de la palette retenue — même hauteur de cible que le reste. */
+  .palette-resume {
+    display:flex; align-items:center; gap:10px; width:100%;
+    min-height:52px; padding:0 14px; border:none; border-radius:16px; cursor:pointer;
+    background:var(--pressed); color:var(--ink); font-family:inherit; text-align:left;
+    box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+    transition: transform .16s var(--ease-out);
+  }
+  .palette-resume:active { transform:scale(.98); }
+  .palette-resume .palette-nom { font-size:0.8125rem; font-weight:700; flex:1; }
+  .palette-resume .palette-chg {
+    font-size:0.6875rem; font-weight:700; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--muted);
+  }
+  @media (hover:hover) and (pointer:fine) {
+    .palette-resume:hover .palette-chg { color:var(--ink); }
+  }
 
   /* Rail en creux + pastille sombre active : la convention maison pour
      toute barre d'onglets (règle « halo »). */
@@ -689,6 +706,9 @@
            réglages sans rapport, alors qu'on les choisit ensemble. -->
       <div class="bloc" id="bloc-palette" hidden>
         <div class="titre">Palette de couleurs</div>
+        <!-- Résumé quand la palette est choisie ; la grille des treize
+             pastilles ne se déplie qu'à la demande. -->
+        <button type="button" class="palette-resume" id="palette-resume" hidden></button>
         <div class="palettes" id="palettes"></div>
       </div>
 
@@ -977,9 +997,33 @@
     });
   }
 
+  /* Repliée une fois choisie. Treize pastilles sur trois colonnes font
+     cinq rangées : à elles seules elles repoussaient la couverture et
+     l'organisation hors de l'écran, alors qu'on ne change de palette
+     qu'une fois. Dépliée d'office tant qu'aucune n'est retenue — c'est
+     alors le premier choix à faire. */
+  let paletteDepliee = null;   // null = pas encore décidé
+
   function palettes(actif) {
     const hote = el('palettes');
     hote.innerHTML = '';
+    const dejaChoisie = !!(draft.gallery.config || {}).palette;
+    if (paletteDepliee === null) paletteDepliee = !dejaChoisie;
+
+    const toutes = [...PALETTES, { id:'custom', l:'Sur mesure', bg:'#1a1714', ac:'#b08968' }];
+    const courante = toutes.find((p) => p.id === actif) || toutes[0];
+
+    // Résumé cliquable : la palette retenue, et de quoi rouvrir le choix.
+    const resume = el('palette-resume');
+    resume.hidden = paletteDepliee;
+    hote.hidden = !paletteDepliee;
+    if (!paletteDepliee) {
+      resume.innerHTML =
+        `<span class="pastille" style="background:${courante.bg}"><i style="background:${courante.ac}"></i></span>` +
+        `<span class="palette-nom">${courante.l}</span><span class="palette-chg">Changer</span>`;
+      resume.setAttribute('aria-label', `Palette ${courante.l} — changer`);
+      return;
+    }
     // « Sur mesure » en plus des 12 préréglages — l'éditeur qu'on remplace
     // le proposait, on ne perd rien au passage.
     [...PALETTES, { id:'custom', l:'Sur mesure', bg:'#1a1714', ac:'#b08968' }].forEach((p) => {
@@ -988,7 +1032,14 @@
       b.setAttribute('aria-pressed', String(p.id === actif));
       b.setAttribute('aria-label', p.l);
       b.innerHTML = `<span class="pastille" style="background:${p.bg}"><i style="background:${p.ac}"></i></span><span class="nom">${p.l}</span>`;
-      b.addEventListener('click', () => { draft.gallery.config.palette = p.id; rendre(); });
+      b.addEventListener('click', () => {
+        draft.gallery.config.palette = p.id;
+        // On replie DÈS le choix : c'est fini, la place revient à la
+        // couverture et à l'organisation. « Sur mesure » fait exception,
+        // ses réglages de couleur s'ouvrent juste en dessous.
+        paletteDepliee = (p.id === 'custom');
+        rendre();
+      });
       hote.appendChild(b);
     });
   }
@@ -1403,6 +1454,9 @@
   // Nom lisible d'un gabarit hérité, pour ne pas afficher sa valeur brute.
   const NOMS = { evenement:'Événement', immobilier:'Immobilier', corporate:'Corporate', mannequinat:'Shooting' };
   function templateNom(v) { return NOMS[v] || (v ? v.charAt(0).toUpperCase() + v.slice(1) : 'Autre'); }
+
+  /* Rouvre la grille. Un `rendre()` suffit : palettes() relit le drapeau. */
+  el('palette-resume').addEventListener('click', () => { paletteDepliee = true; rendre(); });
 
   el('sections').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-section]');

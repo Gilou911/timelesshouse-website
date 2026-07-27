@@ -720,6 +720,16 @@
       if (cph) { cph.classList.remove('on'); cph.removeAttribute('src'); }
       const hPh = el('photos'); if (hPh) hPh.innerHTML = '';
       const hVi = el('videos'); if (hVi) hVi.innerHTML = '';
+      /* Éléments que la galerie PHOTOS pose hors de son conteneur : le
+         bouton scènes (dans la barre du haut), son tiroir et le compteur
+         de sélection, tous trois sur le document. mountPhotos les nettoie
+         à son propre démarrage — mais sur la page FILM il n'est jamais
+         appelé, et ils survivaient donc à la bascule. Le hamburger
+         proposait alors les scènes des PHOTOS pendant qu'on regarde le
+         film. Le nettoyage appartient à la remise à zéro commune. */
+      document.querySelector('.g-scenes-btn')?.remove();
+      document.querySelector('.g-drawer')?.remove();
+      document.querySelector('.g-compte')?.remove();
       el('pgSwitch').hidden = true;
       el('cover').hidden = true;
       /* L'en-tête est masqué quand une couverture prend sa place. Sans ce

@@ -3036,6 +3036,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [jobs, setJobs]           = useState({});      // gallery_id → [jobs d'encodage]
       const [loading, setLoading]     = useState(true);
       const [editing, setEditing]     = useState(null);   // {} = création, {…} = édition
+      const [selCounts, setSelCounts] = useState({});     // coups de cœur par galerie
       const [openId, setOpenId]       = useState(null);   // galerie dépliée (photos)
       const [busy, setBusy]           = useState(false);
       const [err, setErr]             = useState('');
@@ -3074,6 +3075,22 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             (byJob[j.gallery_id] = byJob[j.gallery_id] || []).push(j);
           });
           setJobs(byJob);
+
+          /* Combien de coups de cœur par galerie ? Sans ce chiffre il
+             fallait OUVRIR chaque panneau pour savoir si quelqu'un avait
+             choisi — un statut passif vaut mieux qu'une exploration (§10).
+             On compte les photos DISTINCTES : trois personnes ayant coché
+             la même photo, c'est une photo retenue, pas trois. */
+          const { data: sel } = await sb.from('gallery_selections')
+            .select('gallery_id, photo_id').in('gallery_id', ids);
+          if (sel) {
+            const par = {};
+            sel.forEach(x => {
+              (par[x.gallery_id] = par[x.gallery_id] || new Set()).add(x.photo_id);
+            });
+            setSelCounts(Object.fromEntries(
+              Object.entries(par).map(([k, v]) => [k, v.size])));
+          }
         }
         setLoading(false);
       };
@@ -3275,6 +3292,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   busy={busy}
                   open={openId === g.id}
                   encodeJobs={jobs[g.id]}
+                  selCount={selCounts[g.id] || 0}
                   onToggleOpen={() => setOpenId(openId === g.id ? null : g.id)}
                   onMove={(dir) => move(idx, dir)}
                   onEdit={() => setEditing(g)}
@@ -3388,7 +3406,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
     /* ── Une galerie : en-tête, partage, puis photos dépliables ── */
     function GalleryCard({
-      gallery: g, client, count, first, last, busy, open, encodeJobs,
+      gallery: g, client, count, first, last, busy, open, encodeJobs, selCount,
       onToggleOpen, onMove, onEdit, onRemove, onToggleShare, onRegenCode, onPhotosChanged,
     }) {
       const shareUrl = galleryShareUrl(g.access_code);
@@ -3486,7 +3504,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               )}
               {showsPhotos && (
                 <Btn icon={selOpen ? ChevronUp : Heart} onClick={() => setSelOpen(!selOpen)}>
-                  {selOpen ? 'Replier' : 'Sélection'}
+                  {selOpen ? 'Replier' : (selCount ? `Sélection · ${selCount}` : 'Sélection')}
                 </Btn>
               )}
               {/* Le concepteur REMPLACE l'ancienne fenêtre d'édition (choix de

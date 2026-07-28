@@ -60,3 +60,6 @@ workers/encoder/launchd.err.log
 /ThelanaManoah.png
 /027.jpeg
 /02.jpeg
+
+# Cache et bundles temporaires de wrangler (jamais versionnés)
+.wrangler/

@@ -389,12 +389,19 @@ async function processZipJob(job) {
   };
 
   try {
-    const { data: photos, error } = await sb.from("gallery_photos")
-      .select("id, category, position, created_at, url_original, url_view")
+    /* select("*") et filtre côté JS, PAS un .eq("hidden", false) : si ce
+       worker redémarre avant que la migration du masquage soit passée,
+       une colonne nommée dans la requête la ferait échouer entière —
+       ici, `hidden` absent vaut simplement « visible ». */
+    const { data: brut, error } = await sb.from("gallery_photos")
+      .select("*")
       .eq("gallery_id", job.gallery_id)
       .order("position", { ascending: true });
     if (error) throw new Error(`lecture des photos : ${error.message}`);
-    if (!photos?.length) throw new PermanentError("galerie sans photo — rien à archiver");
+    /* Jamais une photo masquée dans l'archive : l'empreinte se périme à
+       chaque bascule, donc ce job ne fabrique que la vue des invités. */
+    const photos = (brut || []).filter((p) => !p.hidden);
+    if (!photos.length) throw new PermanentError("galerie sans photo visible — rien à archiver");
 
     log(`  ↓ ${photos.length} photo(s) à rassembler`);
     /* Noms de fichiers RANGÉS PAR CATÉGORIE, comme dans la galerie : le

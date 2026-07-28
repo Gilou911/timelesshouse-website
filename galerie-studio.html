@@ -999,6 +999,10 @@
      l'agence. Sans session (lien ouvert hors console), l'aperçu et les
      réglages marchent, mais le dépôt reste fermé. */
   let edition = null;   // { client:{id,code}, gallery:{id} } si connecté
+  /* Vue maîtresse acquise à l'amorçage (photos masquées incluses).
+     Déclaré ICI et non dans le bloc d'amorçage : celui-ci est une
+     fonction, et pousser() comme rafraichirPhotos() doivent le lire. */
+  let masquageApercu = false;
   let catChoisie = null;
   let catsEnAttente = [];  // catégories créées ici, encore vides
   /* Section ouverte dans le panneau : photos | video | style | infos.
@@ -1116,6 +1120,15 @@
        ce que verra le client en cliquant sur la pastille. */
     const source = compare && base ? base : draft;
     const charge = { ...source, vue: vueApercu === 'video' ? 'film' : 'photos' };
+    /* L'aperçu reçoit le droit de masquer avec les codes qui scellent
+       les RPC. Jamais en mode Comparer : on y montre l'état publié,
+       pas un panneau de commandes. */
+    if (masquageApercu && edition && !compare) {
+      charge.masquage = {
+        codeClient: edition.client.code,
+        codeGalerie: (qs.get('c') || '').trim().toLowerCase(),
+      };
+    }
     el('apercu').contentWindow.postMessage(
       { type:'laloge-preview', payload: charge }, location.origin);
     majComparer();     // « Comparer » n'a de sens qu'une fois quelque chose modifié
@@ -2302,7 +2315,12 @@
      les nouvelles photos sans perdre le travail non enregistré. */
   async function rafraichirPhotos() {
     const code = (qs.get('c') || '').trim().toLowerCase();
-    const { data } = await sb.rpc('get_gallery_by_code', { p_code: code });
+    /* En vue maîtresse, rester en vue maîtresse : la RPC publique ne
+       livre pas les photos masquées, un rafraîchissement les aurait
+       fait disparaître de l'aperçu du photographe. */
+    const { data } = masquageApercu && edition
+      ? await sb.rpc('get_gallery_master', { p_client_code: edition.client.code, p_code: code })
+      : await sb.rpc('get_gallery_by_code', { p_code: code });
     if (data && data.gallery) {
       /* La couverture se lit désormais dans `draft.photos` — la même
          charge que l'aperçu. Une requête authentifiée séparée existait
@@ -2447,10 +2465,53 @@
       }
     } catch (_) { edition = null; }
 
+    /* ── Vue maîtresse du concepteur ──────────────────────────────
+       La RPC publique ne livre plus les photos masquées : sans cette
+       recharge, le photographe perdrait de vue ce que les mariés ont
+       masqué — impossible alors de « remettre la 47 » au téléphone.
+       Le drapeau n'est levé que si la RPC répond : avant la migration
+       du masquage elle n'existe pas, et tout continue comme avant. */
+    if (edition) {
+      try {
+        const { data: maitre } = await sb.rpc('get_gallery_master', {
+          p_client_code: edition.client.code,
+          p_code: (qs.get('c') || '').trim().toLowerCase(),
+        });
+        if (maitre && maitre.gallery) {
+          base.photos = maitre.photos || [];
+          base.gallery.config = maitre.gallery.config || {};
+          draft.photos = JSON.parse(JSON.stringify(base.photos));
+          draft.gallery.config = JSON.parse(JSON.stringify(base.gallery.config));
+          instantaneSauve = instantane();   // rien n'est encore édité
+          masquageApercu = true;
+        }
+      } catch (_) {}
+    }
+
     // L'enfant annonce qu'il écoute ; alors seulement on peint.
     window.addEventListener('message', (e) => {
       if (e.origin !== location.origin) return;
       if (e.data && e.data.type === 'laloge-preview-ready') { pretApercu = true; pousser(); }
+      /* Une bascule d'œil faite DANS l'aperçu : le serveur est déjà à
+         jour, on aligne nos copies — sans quoi le prochain pousser()
+         repeindrait l'état d'avant le clic. `base` ET `draft` : la
+         bascule n'est pas un brouillon, elle est déjà enregistrée. */
+      if (e.data && e.data.type === 'laloge-masquage') {
+        const m = e.data;
+        if (m.genre === 'photo') {
+          [base, draft].forEach((d) => (d && d.photos || []).forEach((c) =>
+            (c.photos || []).forEach((ph) => { if (ph.id === m.id) ph.hidden = m.cache; })));
+        } else if (m.genre === 'video') {
+          [base, draft].forEach((d) => {
+            const vs = d && d.gallery && d.gallery.config && d.gallery.config.videos;
+            if (!Array.isArray(vs)) return;
+            vs.forEach((v) => { if (v.key === m.key) { if (m.cache) v.hidden = true; else delete v.hidden; } });
+          });
+          /* La référence « rien à perdre » suit base : le drapeau est déjà
+             en base de données, il ne doit pas allumer « Enregistrer ». */
+          instantaneSauve = instantaneDe(base.gallery);
+        }
+      }
     });
     // Sans extension : /galerie.html répond 308 vers /galerie — autant
     // charger la bonne adresse du premier coup.

@@ -166,6 +166,13 @@
        chemin vers l'autre page, un client ne doit pas avoir à deviner
        qu'il faut faire défiler pour la trouver.
        Chiffres alignés sur l'audit HIG : cible 44 px, libellé 12 px. */
+    /* Bandeau de la vue maîtresse (mariés / aperçu du concepteur). */
+    .g-bandeau-maitre {
+      margin: 14px auto 0; padding: 10px 18px; max-width: 680px;
+      border-radius: 999px; text-align: center;
+      background: color-mix(in srgb, var(--accent, #b08968) 14%, transparent);
+      color: var(--ink, #1a1714); font-size: 13px; line-height: 1.5;
+    }
     .pagebar {
       position: fixed; z-index: 60;
       top: max(14px, env(safe-area-inset-top));
@@ -679,10 +686,60 @@
       el('gateCode').focus();
     }
 
+    /* ── Masquage : les outils que reçoit le moteur ───────────────
+       La bascule passe par les RPC scellées par le CODE CLIENT — celui
+       qui ouvre l'espace des mariés, que les invités n'ont jamais. En
+       aperçu du concepteur, chaque bascule est aussi annoncée au parent :
+       sans quoi le prochain réglage repousserait l'état d'avant le clic
+       et le voile semblerait se défaire tout seul. */
+    function outilsMasquage(codeClient, codeGalerie, enApercu) {
+      const annoncer = (m) => {
+        if (enApercu) { try { parent.postMessage({ type: 'laloge-masquage', ...m }, location.origin); } catch (_) {} }
+      };
+      return {
+        photo: async (id, cache) => {
+          const { data, error } = await sb.rpc('set_gallery_photo_hidden',
+            { p_client_code: codeClient, p_photo: id, p_hidden: cache });
+          if (error || data !== true) throw new Error('bascule refusée');
+          annoncer({ genre: 'photo', id, cache });
+        },
+        video: async (key, cache) => {
+          const { data, error } = await sb.rpc('set_gallery_video_hidden',
+            { p_client_code: codeClient, p_code: codeGalerie, p_key: key, p_hidden: cache });
+          if (error || data !== true) throw new Error('bascule refusée');
+          annoncer({ genre: 'video', key, cache });
+        },
+      };
+    }
+
+    /* Le code client mémorisé par l'espace (même domaine). S'il ouvre la
+       vue maîtresse, c'est que le serveur a reconnu le COUPLE de cette
+       galerie — un code client étranger retombe sur la vue publique. */
+    function codeClientMemorise() {
+      let c = null;
+      try { c = sessionStorage.getItem('access_granted') || localStorage.getItem('th_access_code'); } catch (_) {}
+      return (c || '').trim().toLowerCase() || null;
+    }
+
     /* ── Ouverture d'une galerie ─────────────────────────────── */
     async function open(code) {
-      const { data, error } = await sb.rpc('get_gallery_by_code', { p_code: code });
-      if (error || !data || !data.gallery) return null;
+      /* Vue maîtresse d'abord si un code client traîne dans ce
+         navigateur ; tout échec (code étranger, migration pas encore
+         passée) retombe sans bruit sur la vue publique. */
+      let data = null;
+      const codeClient = codeClientMemorise();
+      if (codeClient) {
+        try {
+          const r = await sb.rpc('get_gallery_master', { p_client_code: codeClient, p_code: code });
+          if (!r.error && r.data && r.data.gallery) data = r.data;
+        } catch (_) {}
+      }
+      if (!data) {
+        const { data: pub, error } = await sb.rpc('get_gallery_by_code', { p_code: code });
+        if (error || !pub || !pub.gallery) return null;
+        data = pub;
+      }
+      if (data.maitre) data.__masquage = outilsMasquage(codeClient, code, false);
 
       // La Loge : sur le sous-domaine d'une agence, la galerie d'une AUTRE
       // agence est refusée (cohérence espace ↔ marque, comme app.html et
@@ -916,10 +973,25 @@
       el('view').classList.add('on');
       document.body.classList.add('ready');
 
+      /* Le bandeau de la vue maîtresse — les mariés doivent COMPRENDRE
+         qu'ils ne voient pas la même chose que leurs invités, sinon le
+         voile ressemble à une photo abîmée. Reposé à chaque paint : la
+         remise à zéro plus haut ne le couvre pas (il vit hors des hôtes
+         vidés), on le retire donc nous-mêmes avant d'en reposer un. */
+      document.querySelector('.g-bandeau-maitre')?.remove();
+      if (data.__masquage) {
+        const bd = document.createElement('div');
+        bd.className = 'g-bandeau-maitre';
+        bd.setAttribute('role', 'note');
+        bd.textContent = 'Votre vue privée — l\u2019œil masque une photo ou un film à vos invités, sans rien supprimer.';
+        el('view').prepend(bd);
+      }
+
       // Vidéos — page « film »
       if (vueKind === 'video') {
         const vids = normalizeVideos(cfg);
-        if (vids.length) await mountVideos(el('videos'), vids, { forceTitles: deux, titre: g.title });
+        if (vids.length) await mountVideos(el('videos'), vids,
+          { forceTitles: deux, titre: g.title, masquage: data.__masquage || null });
       }
       // Photos — page « galerie ».
       // Mode galerie : 'flat' fusionne toutes les catégories en une seule
@@ -932,7 +1004,8 @@
         /* `code` + `sb` : la sélection remonte au photographe. En aperçu
            du concepteur le code vaut « apercu » et le moteur n'enregistre
            rien — on ne veut pas de coups de cœur de test dans la console. */
-        mountPhotos(el('photos'), cats, { favKey: code, title: g.title, code, sb });
+        mountPhotos(el('photos'), cats,
+          { favKey: code, title: g.title, code, sb, masquage: data.__masquage || null });
       }
 
       /* ── Le bouton vers l'AUTRE page ──────────────────────────
@@ -1082,6 +1155,10 @@
              ne rien faire (relevé par Gil). */
           if (m.type !== 'laloge-preview' || !m.payload) return;
           try {
+            if (m.payload.masquage && m.payload.masquage.codeClient) {
+              m.payload.__masquage = outilsMasquage(
+                m.payload.masquage.codeClient, m.payload.masquage.codeGalerie, true);
+            }
             if (m.payload.agency) applyBrand(m.payload.agency);
             await paint(m.payload, 'apercu');
           } catch (err) { console.warn('[aperçu]', err); }

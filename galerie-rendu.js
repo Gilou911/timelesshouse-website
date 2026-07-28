@@ -684,6 +684,32 @@ function injectStyles() {
     transition: color .2s ease, border-color .2s ease;
   }
   .g-dl-max:hover { color: var(--ink); border-bottom-color: currentColor; }
+  /* ── Masquage (vue maîtresse des mariés / aperçu du concepteur) ──
+     La photo masquée reste VISIBLE mais voilée : la vue maîtresse doit
+     montrer ce que les invités ne verront pas, pas le cacher aussi. */
+  .g-cell.est-cachee img { opacity: .38; }
+  .g-cachee-badge {
+    position: absolute; left: 8px; bottom: 8px; display: none;
+    align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px;
+    background: rgba(20,18,16,.72); color: #fff; font-size: 10px;
+    letter-spacing: .12em; text-transform: uppercase; pointer-events: none;
+  }
+  .g-cell.est-cachee .g-cachee-badge { display: inline-flex; }
+  /* Bascule d'un film : un lien discret, pas un second bouton plein —
+     il ne doit pas concurrencer « Télécharger ». */
+  .g-oeil-film {
+    min-height: 44px; padding: 0 14px; border-radius: 999px; display: inline-flex;
+    align-items: center; gap: 8px; background: transparent; cursor: pointer;
+    border: 1px solid color-mix(in srgb, var(--faint) 55%, transparent);
+    color: var(--faint); font-size: 12px; font-family: inherit; letter-spacing: .05em;
+  }
+  .g-oeil-film svg { width: 15px; height: 15px; fill: none; stroke: currentColor;
+                     stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .g-oeil-film.off { border-color: var(--ink); color: var(--ink); }
+  /* Échec d'une bascule : l'état ne change pas, le bouton le dit. */
+  .g-rate { box-shadow: 0 0 0 2px #b3423a !important; }
+  /* display des .g-ic bat le [hidden] du navigateur (même piège que .g-soon). */
+  .g-ic[hidden] { display: none; }
   .g-soon {
     display: flex; align-items: center; justify-content: center; aspect-ratio: 16/9;
     border-radius: 6px; background: var(--surface); color: var(--faint);
@@ -704,6 +730,8 @@ const ICON = {
   close: '<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
   prev: '<svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>',
   next: '<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>',
+  oeil: '<svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  oeilBarre: '<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.6 10.6 0 0 1 12 19c-7 0-11-7-11-7a19.8 19.8 0 0 1 5.06-5.94"/><path d="M9.9 4.24A10.6 10.6 0 0 1 12 5c7 0 11 7 11 7a19.8 19.8 0 0 1-3.87 4.62"/><line x1="1" y1="1" x2="23" y2="23"/></svg>',
 };
 
 /* ── Verrou de scroll (compteur : lightbox empilable) ──────── */
@@ -864,6 +892,11 @@ const poids = (o) => o > 1073741824
 export function mountPhotos(mount, categories, opts = {}) {
   injectStyles();
   const title = opts.title || 'Galerie';
+  /* Vue maîtresse : { photo: async (id, cache) } — fourni par la page
+     quand la personne devant la galerie a le droit de masquer (mariés
+     via leur code client, photographe via l'aperçu du concepteur).
+     Absent = galerie publique ordinaire, aucun œil nulle part. */
+  const masquage = opts.masquage || null;
   const cats = (categories || []).filter(c => c && Array.isArray(c.photos) && c.photos.length);
   /* Galerie encore vide : on le DIT. Auparavant la fonction sortait en
      silence et le client voyait une page qui semblait cassée — sans
@@ -1062,6 +1095,11 @@ export function mountPhotos(mount, categories, opts = {}) {
      n'offrirait qu'un seul choix — celui où l'on est déjà. */
   document.querySelector('.g-drawer')?.remove();
   document.querySelector('.g-scenes-btn')?.remove();
+  /* La lightbox aussi vit sur le document : sans ce retrait, chaque
+     re-montage (chaque réglage du concepteur repeint la galerie) en
+     EMPILAIT une nouvelle sur les précédentes — fuite silencieuse, et
+     toute recherche `.g-lb` tombait sur la plus vieille, morte. */
+  document.querySelectorAll('.g-lb').forEach((e) => e.remove());
   if (multi) {
     const tiroir = document.createElement('div');
     tiroir.className = 'g-drawer';
@@ -1197,7 +1235,12 @@ export function mountPhotos(mount, categories, opts = {}) {
              complète. */
           const pc = FLAT[gi] || p;
           const cell = document.createElement('div');
-          cell.className = 'g-cell' + (favs.has(p.id) ? ' is-fav' : '');
+          /* L'état de masquage se lit sur `pc` — l'objet FLAT, le même
+             que manipule le plein écran. Les entrées FLAT sont des
+             copies enrichies : lire `p` ici et FLAT là-bas faisait
+             diverger les deux vues au premier aller-retour. */
+          cell.className = 'g-cell' + (favs.has(p.id) ? ' is-fav' : '')
+            + (masquage && pc.hidden ? ' est-cachee' : '');
           cell.style.width = w + 'px';
           cell.style.height = Math.round(h) + 'px';
           cell.dataset.grid = GRID(p);
@@ -1219,13 +1262,20 @@ export function mountPhotos(mount, categories, opts = {}) {
               ` aria-pressed="${favs.has(p.id)}" aria-label="${libelleFav(favs.has(p.id))}">` +
               `<span>${ICON.heart}</span></button>` +
               `<a class="g-tool" data-act="dl" href="${escAttr(FULL(p))}" download="${escAttr(fileNameOf(pc, gi))}" aria-label="Télécharger"><span>${ICON.dl}</span></a>` +
-            `</div>`;
+              (masquage
+                ? `<button class="g-tool" data-act="oeil" aria-pressed="${!!pc.hidden}"` +
+                  ` aria-label="${pc.hidden ? 'Révéler aux invités' : 'Masquer aux invités'}">` +
+                  `<span>${pc.hidden ? ICON.oeilBarre : ICON.oeil}</span></button>`
+                : '') +
+            `</div>` +
+            (masquage ? `<div class="g-cachee-badge">Masquée</div>` : '');
 
           cell.addEventListener('click', (e) => {
             const act = e.target.closest('[data-act]');
             if (act) {
               e.stopPropagation();
               if (act.dataset.act === 'fav') { e.preventDefault(); toggleFav(p.id); }
+              else if (act.dataset.act === 'oeil') { e.preventDefault(); basculerCache(pc, act); }
               else if (act.dataset.act === 'dl') {
                 // Téléchargement direct (blob) — jamais d'onglet qui s'ouvre.
                 e.preventDefault();
@@ -1437,6 +1487,38 @@ export function mountPhotos(mount, categories, opts = {}) {
   }
 
   /* ── Lightbox ── */
+  /* La bascule ATTEND le serveur : la page ne voile jamais une photo
+     que la RPC n'a pas réellement masquée — une promesse de
+     confidentialité ne se joue pas en optimiste. Échec : l'état ne
+     bouge pas, le bouton le signale deux secondes. */
+  async function basculerCache(p, btn) {
+    if (!masquage || !btn || btn.disabled) return;
+    const vise = !p.hidden;
+    btn.disabled = true;
+    try {
+      await masquage.photo(p.id, vise);
+      p.hidden = vise;
+      peindreCache(p);
+    } catch (_) {
+      btn.classList.add('g-rate');
+      setTimeout(() => btn.classList.remove('g-rate'), 2000);
+    }
+    btn.disabled = false;
+  }
+  function peindreCache(p) {
+    const cell = mount.querySelector(`.g-cell[data-id="${p.id}"]`);
+    if (cell) {
+      cell.classList.toggle('est-cachee', !!p.hidden);
+      const b = cell.querySelector('[data-act="oeil"]');
+      if (b) {
+        b.setAttribute('aria-pressed', String(!!p.hidden));
+        b.setAttribute('aria-label', p.hidden ? 'Révéler aux invités' : 'Masquer aux invités');
+        b.querySelector('span').innerHTML = p.hidden ? ICON.oeilBarre : ICON.oeil;
+      }
+    }
+    if (lbOpen && FLAT[lbIdx] === p) majOeilLb();
+  }
+
   const lb = document.createElement('div');
   lb.className = 'g-lb';
   lb.setAttribute('role', 'dialog');
@@ -1447,6 +1529,7 @@ export function mountPhotos(mount, categories, opts = {}) {
        <div class="g-lb-acts">
          <button class="g-ic" data-el="fav" aria-pressed="false" aria-label="Ajouter aux favoris">${ICON.heart}</button>
          <a class="g-ic" data-el="dl" download aria-label="Télécharger">${ICON.dl}</a>
+         <button class="g-ic" data-el="oeil" hidden aria-pressed="false" aria-label="Masquer aux invités">${ICON.oeil}</button>
          <button class="g-ic" data-el="close" aria-label="Fermer">${ICON.close}</button>
        </div>
      </div>
@@ -1478,6 +1561,24 @@ export function mountPhotos(mount, categories, opts = {}) {
     lbTrack.classList.toggle('anim', !!anime);
     lbTrack.style.transform = `translate3d(${pct}%, 0, 0)`;
   };
+
+  /* L'œil du plein écran suit la photo courante — c'est LÀ que les
+     mariés font leur tri, photo par photo, en grand. */
+  function majOeilLb() {
+    const b = $('oeil');
+    if (!b) return;
+    if (!masquage) { b.hidden = true; return; }
+    const p = FLAT[lbIdx];
+    if (!p) return;
+    b.hidden = false;
+    b.setAttribute('aria-pressed', String(!!p.hidden));
+    b.setAttribute('aria-label', p.hidden ? 'Révéler aux invités' : 'Masquer aux invités');
+    b.innerHTML = p.hidden ? ICON.oeilBarre : ICON.oeil;
+  }
+  $('oeil').addEventListener('click', () => {
+    const p = FLAT[lbIdx];
+    if (p) basculerCache(p, $('oeil'));
+  });
 
   let tFerme = null;
   function openLb(i) {
@@ -1554,6 +1655,7 @@ export function mountPhotos(mount, categories, opts = {}) {
     dl.href = FULL(p);
     dl.setAttribute('download', fileNameOf(p, lbIdx));
     syncLbFav();
+    majOeilLb();
     marquerFrise();
 
     /* Précharge un peu plus loin que les voisins immédiats, déjà tenus
@@ -1869,6 +1971,9 @@ export function normalizeVideos(c) {
         // Drapeau d'attente d'encodage : sans ce report, la vidéo
         // s'afficherait malgré tout (l'objet est reconstruit ici).
         awaitingEncode: v.awaitingEncode === true,
+        // Masquée aux invités. La RPC publique la retire déjà : ce
+        // drapeau n'arrive qu'en vue maîtresse, pour l'œil.
+        hidden: v.hidden === true,
       };
     });
   }
@@ -2036,9 +2141,37 @@ export async function mountVideos(mount, videos, opts = {}) {
   });
 
   // Téléchargement : celui de la vidéo ACTIVE, sous la scène.
+  const masquage = opts.masquage || null;
   function renderBar(i) {
     bar.innerHTML = '';
     const v = list[i];
+
+    /* L'œil d'un film, AVANT le bloc téléchargement : un film sans
+       downloadUrl doit rester masquable, le retour anticipé plus bas
+       l'aurait avalé. Même contrat que les photos : le serveur d'abord,
+       l'état ensuite. */
+    if (masquage && v.key) {
+      const o = document.createElement('button');
+      o.type = 'button';
+      const peindre = () => {
+        o.className = 'g-oeil-film' + (v.hidden ? ' off' : '');
+        o.innerHTML = (v.hidden ? ICON.oeilBarre : ICON.oeil) +
+          `<span>${v.hidden ? 'Masqué aux invités — révéler' : 'Masquer aux invités'}</span>`;
+      };
+      peindre();
+      o.addEventListener('click', async () => {
+        if (o.disabled) return;
+        o.disabled = true;
+        try { await masquage.video(v.key, !v.hidden); v.hidden = !v.hidden; peindre(); }
+        catch (_) {
+          o.classList.add('g-rate');
+          setTimeout(() => o.classList.remove('g-rate'), 2000);
+        }
+        o.disabled = false;
+      });
+      bar.appendChild(o);
+    }
+
     const leger = v.download1080 && v.download1080.url ? v.download1080 : null;
 
     /* Deux versions dès que l'encodeur en a produit une légère, et c'est

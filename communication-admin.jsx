@@ -3632,8 +3632,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         const [sel, ph] = await Promise.all([
           sb.from('gallery_selections')
             .select('photo_id, voter_name, voter_email').eq('gallery_id', g.id),
+          /* select('*') et non une liste de colonnes : `hidden` est une
+             colonne récente, la nommer ici casserait la requête ENTIÈRE
+             sur une base où la migration du masquage n'est pas passée
+             (règle apprise avec la colonne progress). Absente, elle vaut
+             simplement undefined = visible. */
           sb.from('gallery_photos')
-            .select('id, url_grid, category, position, created_at')
+            .select('*')
             .eq('gallery_id', g.id).order('position', { ascending: true }),
         ]);
         /* 42P01 = la table n'existe pas encore. Le code part avant que la
@@ -3723,6 +3728,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         const rang = new Map();
         let i = 0;
         ordre.forEach(({ c, liste }) => liste.forEach((p) => {
+          /* Les invités ne reçoivent pas les photos masquées : la
+             numérotation qui fabrique les noms de fichiers doit les
+             SAUTER, sinon la liste copiée désigne les mauvais fichiers
+             dès la première photo masquée. Un cœur peut exister sur une
+             photo masquée APRÈS coup — elle garde une étiquette, qui dit
+             ce qu'elle est plutôt qu'un numéro que personne ne verra. */
+          if (p.hidden) { rang.set(p.id, '(masquée aux invités)'); return; }
           rang.set(p.id, `${slug(c)}-${String(++i).padStart(3, '0')}.jpg`);
         }));
         return rang;
@@ -3787,7 +3799,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 {retenues.map((p) => (
                   <div key={p.id} className="relative rounded-xl overflow-hidden aspect-square bg-stone-100">
                     <img src={p.url_grid} alt={etiquette.get(p.id) || ''} loading="lazy"
-                      className="w-full h-full object-cover" />
+                      className={'w-full h-full object-cover' + (p.hidden ? ' opacity-40' : '')} />
+                    {p.hidden && (
+                      <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded-full bg-stone-900/70 text-white text-[9px] uppercase tracking-wider"
+                        title="Les invités ne voient pas cette photo">
+                        Masquée
+                      </span>
+                    )}
                     {communes.has(p.id) && (
                       <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-white/90 text-rose-500 flex items-center justify-center"
                         title="Choisie par les deux">

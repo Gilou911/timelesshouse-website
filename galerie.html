@@ -919,7 +919,7 @@
       // Vidéos — page « film »
       if (vueKind === 'video') {
         const vids = normalizeVideos(cfg);
-        if (vids.length) await mountVideos(el('videos'), vids, { forceTitles: deux });
+        if (vids.length) await mountVideos(el('videos'), vids, { forceTitles: deux, titre: g.title });
       }
       // Photos — page « galerie ».
       // Mode galerie : 'flat' fusionne toutes les catégories en une seule

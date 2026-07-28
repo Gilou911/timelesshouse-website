@@ -660,7 +660,30 @@ function injectStyles() {
     align-items: center; gap: 8px; text-decoration: none;
     background: var(--accent); color: #fff; font-size: 12px; font-weight: 600;
     letter-spacing: 0.08em; text-transform: uppercase;
+    /* Le libellé porte maintenant un poids (« · 325 Mo ») : sans ceci il
+       se coupait en deux lignes dès qu'on rétrécit. */
+    white-space: nowrap;
   }
+  /* Cette icône était la SEULE du composant sans dimension. Un SVG sans
+     taille dans un conteneur flex se laisse écraser à 0×0 : la flèche du
+     bouton Télécharger n'a donc jamais été visible. flex:none la
+     protège de l'écrasement, fill:none + stroke lui donnent le même
+     trait qu'ailleurs — sans quoi elle s'affiche en aplat noir. */
+  .g-dl svg {
+    width: 15px; height: 15px; flex: none;
+    fill: none; stroke: currentColor; stroke-width: 1.8;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  /* Le second choix est un LIEN, pas une pastille : deux boutons de même
+     poids se disputeraient le regard alors qu'un seul convient à presque
+     tout le monde. Hauteur de cible tactile conservée. */
+  .g-dl-max {
+    min-height: 44px; padding: 0 6px; display: inline-flex; align-items: center;
+    text-decoration: none; color: var(--faint); font-size: 12px;
+    letter-spacing: 0.06em; border-bottom: 1px solid transparent;
+    transition: color .2s ease, border-color .2s ease;
+  }
+  .g-dl-max:hover { color: var(--ink); border-bottom-color: currentColor; }
   .g-soon {
     display: flex; align-items: center; justify-content: center; aspect-ratio: 16/9;
     border-radius: 6px; background: var(--surface); color: var(--faint);
@@ -781,31 +804,54 @@ async function downloadPhoto(url, filename) {
    un téléphone n'y survit pas. Un lecteur vidéo s'ouvrait donc dans un
    onglet au lieu d'enregistrer le fichier.
 
-   C'est au serveur de dire « pièce jointe ». Le marqueur ?dl=1 est lu par
-   la règle posée sur le domaine média, qui répond alors avec
-   Content-Disposition: attachment. L'URL SANS marqueur ne bouge pas :
-   c'est elle qui sert à la lecture en ligne, et elle doit rester lisible.
+   C'est au serveur de dire « pièce jointe ». Le même fichier est servi
+   par /telecharger/ au lieu de /file/ : un Worker y ajoute cet en-tête,
+   et rien d'autre. L'URL en /file/ ne bouge pas — c'est elle qui sert à
+   la lecture en ligne, et elle doit rester lisible.
 
-   Marqueur réservé à media.timelesshouse.org : une vieille galerie
-   pointant encore droit sur Backblaze garde son lien inchangé, plutôt que
-   d'en porter un que personne ne lit là-bas.
-   Même origine → on n'y touche pas non plus, `download` suffit.
+   NE JAMAIS y ajouter ?dl=1. Une règle Cloudflare répond à ce marqueur
+   sur le même domaine, et elle s'applique APRÈS le Worker : elle
+   écraserait son en-tête soigné par un « attachment » nu, et le fichier
+   perdrait son nom. Les deux portes coexistent (la règle sert de filet
+   aux galeries déjà ouvertes chez un client, qui tournent encore avec
+   l'ancien code) mais une requête ne passe jamais par les deux.
 
-   Le fichier s'enregistre sous le nom donné à l'envoi : c'est le dernier
-   morceau de l'adresse, et le navigateur le reprend tel quel. */
+   Réécriture réservée à media.timelesshouse.org : une vieille galerie
+   pointant encore droit sur Backblaze garde son lien tel quel, plutôt
+   que d'être envoyée vers un chemin qui n'existe pas là-bas.
+   Même origine → on n'y touche pas non plus, `download` suffit. */
 const HOTE_MEDIA = 'media.timelesshouse.org';
 
-function lienTelechargement(url) {
+function lienTelechargement(url, nom) {
   try {
     const u = new URL(url, location.href);
     if (u.origin === location.origin) return url;
-    if (u.hostname !== HOTE_MEDIA) return url;
-    u.searchParams.set('dl', '1');
+    if (u.hostname !== HOTE_MEDIA || !u.pathname.startsWith('/file/')) return url;
+    u.pathname = '/telecharger/' + u.pathname.slice('/file/'.length);
+    if (nom) u.searchParams.set('nom', nom);
     return u.toString();
   } catch (_) {
     return url;                       // URL bancale : on ne casse pas le lien
   }
 }
+
+/* Nom proposé à l'enregistrement : « Manon & Charles — Film.mp4 » plutôt
+   que le nom du rush tel qu'il a quitté la carte mémoire du vidéaste.
+   Les barres obliques sont remplacées : elles fabriqueraient des dossiers. */
+function nomDuFichier(url, morceaux) {
+  const base = decodeURIComponent(String(url).split('/').pop() || '');
+  const ext = (base.match(/\.[a-z0-9]{2,4}$/i) || ['.mp4'])[0];
+  const titre = morceaux.filter(Boolean)
+    .map((t) => String(t).trim().replace(/[/\\]/g, '-'))
+    .filter(Boolean).join(' — ');
+  return titre ? titre + ext : base;
+}
+
+/* Poids lisible. Au module, pas dans une fonction : l'archive photos et
+   le film l'utilisent tous les deux. */
+const poids = (o) => o > 1073741824
+  ? (o / 1073741824).toFixed(1).replace('.', ',') + ' Go'
+  : Math.round(o / 1048576) + ' Mo';
 
 /**
  * Monte une galerie photos.
@@ -1732,7 +1778,9 @@ export function mountPhotos(mount, categories, opts = {}) {
         /* L'archive s'enregistre déjà sans rien demander (le navigateur
            n'affiche pas un zip), mais elle vient du même domaine que le
            film : autant qu'elle passe par la même porte. */
-        b.onclick = () => { window.location.href = lienTelechargement(e.url); };
+        b.onclick = () => {
+          window.location.href = lienTelechargement(e.url, nomDuFichier(e.url, [title, 'photos']));
+        };
         clearTimeout(sondage);
       } else if (st === 'processing' || st === 'pending') {
         b.disabled = true;
@@ -1750,10 +1798,6 @@ export function mountPhotos(mount, categories, opts = {}) {
         b.onclick = demander;
       }
     };
-    const poids = (o) => o > 1073741824
-      ? (o / 1073741824).toFixed(1).replace('.', ',') + ' Go'
-      : Math.round(o / 1048576) + ' Mo';
-
     async function suivre() {
       try {
         const { data } = await sb.rpc('get_gallery_zip', { p_code: code });
@@ -1812,6 +1856,11 @@ export function normalizeVideos(c) {
         hls: v.hls || '',
         urls: v.urls || {},
         downloadUrl: v.downloadUrl || '',
+        /* Version légère produite par l'encodeur : { url, octets, palier }.
+           Recopiées explicitement — cette fonction reconstruit l'objet
+           clé par clé, une clé oubliée ici disparaît en silence. */
+        download1080: v.download1080 || null,
+        originalOctets: Number(v.originalOctets) || 0,
         // Vignette d'attente : l'image que le client voit AVANT de lancer
         // la lecture. Sans elle, le lecteur affiche un rectangle noir —
         // ou, selon le navigateur, une image tirée au hasard du film.
@@ -1990,13 +2039,34 @@ export async function mountVideos(mount, videos, opts = {}) {
   function renderBar(i) {
     bar.innerHTML = '';
     const v = list[i];
-    if (v.downloadUrl) {
-      const a = document.createElement('a');
-      a.className = 'g-dl'; a.href = lienTelechargement(v.downloadUrl);
-      a.setAttribute('download', '');
-      a.innerHTML = ICON.dl + '<span>Télécharger</span>';
-      bar.appendChild(a);
-    }
+    const leger = v.download1080 && v.download1080.url ? v.download1080 : null;
+
+    /* Deux versions dès que l'encodeur en a produit une légère, et c'est
+       ELLE qu'on met devant : le rush d'origine d'un teaser pèse 1,1 Go
+       contre trois à quatre fois moins ici, pour une image que personne
+       ne distingue. Le rush reste offert, en retrait, à qui archive.
+       Les poids sont écrits : sans eux, « qualité maximale » ne veut
+       rien dire tant qu'on n'a pas vu la barre de téléchargement. */
+    const principal = leger ? leger.url : v.downloadUrl;
+    if (!principal) return;
+
+    const a = document.createElement('a');
+    a.className = 'g-dl';
+    a.href = lienTelechargement(principal, nomDuFichier(principal, [opts.titre, v.title]));
+    a.setAttribute('download', '');
+    a.innerHTML = ICON.dl +
+      `<span>Télécharger${leger && leger.octets ? ` · ${poids(leger.octets)}` : ''}</span>`;
+    bar.appendChild(a);
+
+    // Rien à proposer en second si le rush est justement ce qu'on offre.
+    if (!leger || !v.downloadUrl) return;
+    const b = document.createElement('a');
+    b.className = 'g-dl-max';
+    b.href = lienTelechargement(v.downloadUrl,
+      nomDuFichier(v.downloadUrl, [opts.titre, v.title, 'qualité maximale']));
+    b.setAttribute('download', '');
+    b.textContent = 'Qualité maximale' + (v.originalOctets ? ` · ${poids(v.originalOctets)}` : '');
+    bar.appendChild(b);
   }
 
   // ── Chapitres de la vidéo active (mécanique event-video) ──

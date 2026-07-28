@@ -174,7 +174,7 @@ async function applyToMedia(job, { masterUrl, posterUrl, hoverUrl, src }) {
   }
 }
 
-async function applyToGalleryVideo(job, { masterUrl }) {
+async function applyToGalleryVideo(job, { masterUrl, leger, octetsOriginal }) {
   // Relecture JUSTE avant l'écriture : l'admin a pu modifier la
   // galerie pendant l'encodage (qui dure des minutes). On ne
   // réécrit que la clé `hls` de la vidéo concernée.
@@ -194,7 +194,15 @@ async function applyToGalleryVideo(job, { masterUrl }) {
   const videos = list.map((v, i) => {
     if (i !== idx) return v;
     const { awaitingEncode, ...rest } = v;
-    return { ...rest, hls: masterUrl };
+    /* `leger` peut manquer (encodage d'avant cette version, ou remuxage
+       qui a échoué) : on ne pose alors RIEN plutôt qu'une clé vide, et
+       la galerie retombe sur le seul bouton d'origine. */
+    return {
+      ...rest,
+      hls: masterUrl,
+      ...(leger ? { download1080: leger } : {}),
+      ...(octetsOriginal ? { originalOctets: octetsOriginal } : {}),
+    };
   });
   const { error } = await sb.from("galleries")
     .update({ config: { ...config, videos } })
@@ -288,7 +296,7 @@ async function processJob(job) {
        les 3 s — sinon un film de 2 h produirait des milliers d'UPDATE
        pour un chiffre que personne ne lit aussi vite. */
     let dernierEcrit = 0, dernierPct = -1;
-    await transcodeHls({
+    const rendu = await transcodeHls({
       src, rungs, workDir: outDir, quiet: !VERBOSE,
       onProgress: (pct) => {
         const t = Date.now();
@@ -312,7 +320,19 @@ async function processJob(job) {
       posterUrl: publicUrl(`${hlsPrefix}/poster.jpg`),
       hoverUrl:  publicUrl(`${hlsPrefix}/hover.mp4`),
       src,
+      /* Le MP4 léger, à proposer au client à côté du rush d'origine.
+         Sa taille est mesurée ici : sans elle, « version légère » ne
+         voudrait rien dire pour des mariés — c'est le poids qui décide. */
+      leger: rendu?.telechargement ? {
+        url: publicUrl(`${hlsPrefix}/${rendu.telechargement.fichier}`),
+        octets: rendu.telechargement.octets,
+        palier: rendu.telechargement.palier,
+      } : null,
+      octetsOriginal: bytes,
     };
+    if (urls.leger) {
+      log(`  ⇩ version légère ${urls.leger.palier} : ${fmtSize(urls.leger.octets)} (original ${fmtSize(bytes)})`);
+    }
     if (job.kind === "media") await applyToMedia(job, urls);
     else                      await applyToGalleryVideo(job, urls);
 

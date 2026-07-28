@@ -104,6 +104,9 @@ export function rungsFor(shortSide) {
   return rungs.length ? rungs : [LADDER[LADDER.length - 1]]; // source < 480p : un seul palier
 }
 
+// Le MP4 léger proposé au client, à côté du HLS et sous le même préfixe.
+export const NOM_TELECHARGEMENT = "telechargement.mp4";
+
 /* ─── Transcodage HLS + poster + aperçu au survol ─────────── */
 // Produit dans workDir : master.m3u8, index_N.m3u8, seg_*.ts,
 // poster.jpg, hover.mp4. Le contenu de ce dossier est ensuite
@@ -206,6 +209,38 @@ export async function transcodeHls({ src, rungs, workDir, quiet = false, onProgr
     "-pix_fmt", "yuv420p", "-movflags", "+faststart",
     join(workDir, "hover.mp4"),
   ], { stdio: "pipe", maxBuffer: FFMPEG_MAX_BUFFER });
+
+  /* ─── Le fichier à télécharger ───────────────────────────────
+     Jusqu'ici on ne proposait au client QUE le rush d'origine : 1,1 Go
+     pour un teaser, parce que c'est le master sorti de la carte du
+     vidéaste. Personne n'a besoin de ça pour regarder son film.
+
+     Le palier 1080p vient d'être produit, en morceaux de six secondes.
+     Les recoller en un seul MP4 est un REMUXAGE, pas un ré-encodage :
+     `-c copy` ne retouche pas une image, ça prend quelques secondes et
+     ça ne perd rien — le même flux, dans un autre contenant.
+
+     Source plus petite que 1080p → on prend le meilleur palier
+     disponible : il n'y a rien au-dessus à recoller. */
+  const palier = rungs.find((r) => r.side <= 1080) || rungs[rungs.length - 1];
+  execFileSync("ffmpeg", [
+    "-y", ...QUIET_LOG,
+    "-allowed_extensions", "ALL",        // lire un m3u8 local qui pointe des .ts
+    "-i", join(workDir, `index_${palier.name}.m3u8`),
+    "-c", "copy",
+    // L'audio d'un HLS est en ADTS : sans ce filtre il est muet en MP4.
+    ...(hasAudio ? ["-bsf:a", "aac_adtstoasc"] : []),
+    "-movflags", "+faststart",           // lisible avant la fin du téléchargement
+    join(workDir, NOM_TELECHARGEMENT),
+  ], { stdio: "pipe", maxBuffer: FFMPEG_MAX_BUFFER });
+
+  return {
+    telechargement: {
+      fichier: NOM_TELECHARGEMENT,
+      palier: palier.name,
+      octets: statSync(join(workDir, NOM_TELECHARGEMENT)).size,
+    },
+  };
 }
 
 /* ─── Préfixe horodaté ────────────────────────────────────── */

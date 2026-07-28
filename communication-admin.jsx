@@ -6302,9 +6302,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // Email ④ : la facture vient de PASSER à « payée » → proposer le reçu.
       // `editing` porte encore l'état d'avant l'enregistrement : on ne
       // propose rien si elle était déjà payée (pas de reçu en double).
-      const proposerRecu = async (saved) => {
+      const proposerRecu = async (saved, avant) => {
         if (!saved || saved.status !== 'payée') return;
-        if (editing && editing.status === 'payée') return;
+        if (avant === 'payée') return;
         if (!client?.client_email) return;
         if (!confirm(`Facture ${saved.reference} marquée payée.\n\nEnvoyer un reçu de paiement à ${client.client_email} ?`)) return;
         try {
@@ -6318,6 +6318,43 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         } catch (e) { alert(humaniseErreur(e.message)); }
       };
       const [notifying, setNotifying] = useState(null);
+
+      const [basculeEnCours, setBasculeEnCours] = useState(null);
+
+      /* Marquer payée SANS ouvrir la fiche : la pastille de statut est le
+         bouton (demande de Gil, 28/07/2026). Payée → attente demande
+         confirmation : c'est le chemin de l'erreur, pas celui du geste
+         courant. Le reçu est proposé comme depuis la fiche. */
+      const basculerStatut = async (inv) => {
+        if (basculeEnCours) return;
+        const versPayee = inv.status !== 'payée';
+        if (!versPayee && !confirm(`Repasser la facture ${inv.reference} en « en attente » ?`)) return;
+        setBasculeEnCours(inv.id);
+        const { data: saved, error } = await sb.from('invoices')
+          .update({ status: versPayee ? 'payée' : 'en attente' })
+          .eq('id', inv.id).select().single();
+        setBasculeEnCours(null);
+        if (error) { alert(humaniseErreur(error.message)); return; }
+        await load();
+        if (versPayee) proposerRecu(saved, inv.status);
+      };
+
+      /* La pastille-bouton, partagée mobile/bureau. Rembourrage négatif
+         compensé + tap-ext : la cible dépasse 44 px sans grossir le
+         visuel. Le libellé annonce l'action, pas seulement l'état. */
+      const PastilleStatut = ({ inv }) => (
+        <button type="button" onClick={() => basculerStatut(inv)}
+          disabled={basculeEnCours === inv.id}
+          title={inv.status === 'payée' ? 'Repasser en « en attente »' : 'Marquer payée'}
+          aria-label={inv.status === 'payée'
+            ? `Facture ${inv.reference} payée — cliquer pour repasser en attente`
+            : `Marquer la facture ${inv.reference} payée`}
+          className="tap-ext p-2 -m-2 shrink-0 rounded-full disabled:opacity-50 active:scale-95 transition-transform group">
+          <span className={`block text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold leading-none transition-shadow group-hover:ring-2 ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700 group-hover:ring-emerald-200' : 'bg-amber-100 text-amber-700 group-hover:ring-amber-300'}`}>
+            {basculeEnCours === inv.id ? '…' : inv.status}
+          </span>
+        </button>
+      );
 
       const load = async () => {
         setLoading(true);
@@ -6393,7 +6430,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                           <div className="font-mono text-[13px] font-semibold leading-none">{inv.reference}</div>
                           <div className="text-[13px] text-stone-700 mt-2 leading-snug line-clamp-2">{inv.description}</div>
                         </div>
-                        <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold shrink-0 leading-none ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
+                        <PastilleStatut inv={inv} />
                       </div>
                       <div className="flex items-center justify-between pt-3 border-t border-stone-200/60 gap-3">
                         <div>
@@ -6417,7 +6454,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       <div className="col-span-2 text-[12px] text-stone-500">{inv.date_label}</div>
                       <div className="col-span-2 font-semibold text-[14px]" style={SERIF}>{parseFloat(inv.amount).toLocaleString('fr-FR')} €</div>
                       <div className="col-span-1">
-                        <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold ${inv.status === 'payée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{inv.status}</span>
+                        <PastilleStatut inv={inv} />
                       </div>
                       <div className="col-span-1 flex items-center justify-end gap-1.5">
                         {client?.client_email && (
@@ -6438,7 +6475,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             )}
           </div>
 
-          {showForm && <InvoiceForm clientId={clientId} existing={editing} onClose={() => setShowForm(false)} onSaved={(saved) => { setShowForm(false); load(); proposerRecu(saved); }} />}
+          {showForm && <InvoiceForm clientId={clientId} existing={editing} onClose={() => setShowForm(false)} onSaved={(saved) => { setShowForm(false); load(); proposerRecu(saved, editing?.status); }} />}
         </div>
       );
     }

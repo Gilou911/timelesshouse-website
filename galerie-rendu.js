@@ -782,15 +782,24 @@ async function downloadPhoto(url, filename) {
    onglet au lieu d'enregistrer le fichier.
 
    C'est au serveur de dire « pièce jointe ». Le marqueur ?dl=1 est lu par
-   la règle posée sur le domaine média, qui ajoute Content-Disposition:
-   attachment à la réponse. L'URL sans marqueur ne change pas : c'est elle
-   qui sert à la lecture en ligne, et elle doit rester lisible.
+   la règle posée sur le domaine média, qui répond alors avec
+   Content-Disposition: attachment. L'URL SANS marqueur ne bouge pas :
+   c'est elle qui sert à la lecture en ligne, et elle doit rester lisible.
 
-   Même origine → on n'y touche pas, `download` suffit et nomme le fichier. */
+   Marqueur réservé à media.timelesshouse.org : une vieille galerie
+   pointant encore droit sur Backblaze garde son lien inchangé, plutôt que
+   d'en porter un que personne ne lit là-bas.
+   Même origine → on n'y touche pas non plus, `download` suffit.
+
+   Le fichier s'enregistre sous le nom donné à l'envoi : c'est le dernier
+   morceau de l'adresse, et le navigateur le reprend tel quel. */
+const HOTE_MEDIA = 'media.timelesshouse.org';
+
 function lienTelechargement(url) {
   try {
     const u = new URL(url, location.href);
     if (u.origin === location.origin) return url;
+    if (u.hostname !== HOTE_MEDIA) return url;
     u.searchParams.set('dl', '1');
     return u.toString();
   } catch (_) {

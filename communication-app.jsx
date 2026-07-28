@@ -738,7 +738,11 @@ const Sidebar = ({ section, setSection, onLogout }) => {
   );
 };
 
-const MobileHeader = ({ onLogout }) => (
+/* `isDark` arrive en PROP, comme pour BottomNav : ce composant vit au
+   niveau module, où aucun état de thème n'existe. La refonte du 26/07
+   (thème piloté par l'appareil) l'avait laissé lire une variable morte —
+   ReferenceError au premier rendu, espace client entièrement blanc. */
+const MobileHeader = ({ onLogout, isDark }) => (
   <header
     className="lg:hidden flex items-center justify-between px-5 py-3.5 sticky top-0 z-30"
     style={{
@@ -3826,7 +3830,7 @@ function App() {
 
   return (
     <div className="min-h-screen w-full" style={{ ...neu.base, fontFamily: '"Manrope", system-ui, sans-serif' }}>
-      <MobileHeader onLogout={handleLogout} />
+      <MobileHeader onLogout={handleLogout} isDark={isDark} />
       <div className="flex gap-5 px-4 pb-28 lg:p-5 lg:pb-5 min-h-screen">
         <Sidebar section={section} setSection={setSection} onLogout={handleLogout} />
         <main className="flex-1 min-w-0">

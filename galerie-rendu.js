@@ -773,6 +773,31 @@ async function downloadPhoto(url, filename) {
   setTimeout(() => URL.revokeObjectURL(obj), 4000);
 }
 
+/* ── Lien de téléchargement d'un gros fichier (film, archive) ──
+   Même cause que pour les photos : `download` est IGNORÉ en cross-origin,
+   et le film vit sur le stockage média. Mais le détour par un blob, qui
+   règle le cas des photos, est impraticable ici — un film de mariage pèse
+   plus d'un Go et le navigateur devrait le tenir entièrement en mémoire ;
+   un téléphone n'y survit pas. Un lecteur vidéo s'ouvrait donc dans un
+   onglet au lieu d'enregistrer le fichier.
+
+   C'est au serveur de dire « pièce jointe ». Le marqueur ?dl=1 est lu par
+   la règle posée sur le domaine média, qui ajoute Content-Disposition:
+   attachment à la réponse. L'URL sans marqueur ne change pas : c'est elle
+   qui sert à la lecture en ligne, et elle doit rester lisible.
+
+   Même origine → on n'y touche pas, `download` suffit et nomme le fichier. */
+function lienTelechargement(url) {
+  try {
+    const u = new URL(url, location.href);
+    if (u.origin === location.origin) return url;
+    u.searchParams.set('dl', '1');
+    return u.toString();
+  } catch (_) {
+    return url;                       // URL bancale : on ne casse pas le lien
+  }
+}
+
 /**
  * Monte une galerie photos.
  * @param {HTMLElement} mount      conteneur (vidé)
@@ -1695,7 +1720,10 @@ export function mountPhotos(mount, categories, opts = {}) {
       if (st === 'done' && e.url) {
         b.disabled = false;
         b.innerHTML = `${ICON.dl}<span>Tout télécharger${e.taille ? ` · ${poids(e.taille)}` : ''}</span>`;
-        b.onclick = () => { window.location.href = e.url; };
+        /* L'archive s'enregistre déjà sans rien demander (le navigateur
+           n'affiche pas un zip), mais elle vient du même domaine que le
+           film : autant qu'elle passe par la même porte. */
+        b.onclick = () => { window.location.href = lienTelechargement(e.url); };
         clearTimeout(sondage);
       } else if (st === 'processing' || st === 'pending') {
         b.disabled = true;
@@ -1955,7 +1983,8 @@ export async function mountVideos(mount, videos, opts = {}) {
     const v = list[i];
     if (v.downloadUrl) {
       const a = document.createElement('a');
-      a.className = 'g-dl'; a.href = v.downloadUrl; a.setAttribute('download', '');
+      a.className = 'g-dl'; a.href = lienTelechargement(v.downloadUrl);
+      a.setAttribute('download', '');
       a.innerHTML = ICON.dl + '<span>Télécharger</span>';
       bar.appendChild(a);
     }

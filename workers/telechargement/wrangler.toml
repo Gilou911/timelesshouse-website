@@ -1,0 +1,17 @@
+# Worker telechargement — ajoute Content-Disposition: attachment aux
+# gros médias (films, archives) servis depuis media.timelesshouse.org.
+#
+# DÉPLOIEMENT (depuis ce dossier) :
+#   npx wrangler deploy
+#
+# ⚠️ La route est VOLONTAIREMENT étroite : /telecharger/* seulement.
+#    L'élargir à /* ferait passer la lecture des films, les segments HLS
+#    et toutes les photos par ce Worker — une panne ici deviendrait une
+#    panne de toutes les galeries. Ne pas y toucher.
+name = "telechargement"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+
+routes = [
+  { pattern = "media.timelesshouse.org/telecharger/*", zone_name = "timelesshouse.org" },
+]

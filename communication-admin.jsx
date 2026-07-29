@@ -1108,6 +1108,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const activer = async () => {
         setBusy(true); setMsg(null);
         try {
+          /* Une tentative abandonnée (onglet fermé avant le premier code)
+             laisse un facteur inachevé sur le compte, et Supabase refuse
+             d'en créer un second du même nom — l'activation semblait
+             cassée à jamais. On balaie d'abord tout facteur non vérifié :
+             il ne protège rien, il ne fait que bloquer. */
+          const { data: fs } = await sb.auth.mfa.listFactors();
+          for (const f of (fs?.all || []).filter((x) => x.status !== 'verified')) {
+            await sb.auth.mfa.unenroll({ factorId: f.id }).catch(() => {});
+          }
           const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Console' });
           if (error) throw error;
           setEnrolement({ id: data.id, qr: data.totp?.qr_code || '', secret: data.totp?.secret || '' });

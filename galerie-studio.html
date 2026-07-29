@@ -635,6 +635,72 @@
 
   /* ── Photos & catégories ── */
   .cats { display:flex; flex-wrap:wrap; gap:8px; }
+  /* ── Grille de gestion des photos déposées ── */
+  .grille-tete {
+    display:flex; align-items:center; gap:8px; margin-top:14px;
+    font-size:0.75rem; color:var(--muted); font-weight:600;
+  }
+  .grille-tete .nom { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .grille-tete button {
+    border:none; cursor:pointer; font-family:inherit; background:var(--pressed);
+    color:var(--muted); width:34px; height:34px; border-radius:10px;
+    box-shadow: inset 1px 1px 3px var(--shadow-d), inset -1px -1px 3px var(--shadow-l);
+    display:inline-flex; align-items:center; justify-content:center; font-size:0.8rem;
+    transition: color .22s var(--ease-out), transform .16s var(--ease-out), opacity .22s var(--ease-out);
+  }
+  .grille-tete button:disabled { opacity:.35; cursor:default; }
+  .grille-tete button:not(:disabled):hover { color:var(--ink); }
+  .grille-tete button:not(:disabled):active { transform:scale(.94); }
+  .grille-tete input {
+    flex:1; min-width:0; font-family:inherit; font-size:16px; color:var(--ink);
+    border:none; border-radius:10px; padding:6px 10px; background:var(--pressed);
+    box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 5px var(--shadow-l);
+  }
+  .grille-photos {
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-top:10px;
+  }
+  .grille-photos .tuile {
+    position:relative; border:none; padding:0; cursor:pointer; border-radius:10px;
+    overflow:hidden; aspect-ratio:1; background:var(--pressed);
+    transition: transform .16s var(--ease-out), box-shadow .22s var(--ease-out);
+  }
+  .grille-photos .tuile img {
+    width:100%; height:100%; object-fit:cover; display:block;
+    transition: opacity .22s var(--ease-out);
+  }
+  .grille-photos .tuile:active { transform:scale(.96); }
+  .grille-photos .tuile[aria-pressed="true"] {
+    box-shadow: 0 0 0 3px var(--ink);
+  }
+  .grille-photos .tuile[aria-pressed="true"] img { opacity:.75; }
+  .grille-photos .tuile .coche {
+    position:absolute; top:6px; right:6px; width:20px; height:20px; border-radius:50%;
+    background:var(--ink); color:var(--bg); display:none; align-items:center;
+    justify-content:center; font-size:12px; line-height:1; pointer-events:none;
+  }
+  .grille-photos .tuile[aria-pressed="true"] .coche { display:flex; }
+  .grille-photos .tuile .voile {
+    position:absolute; left:5px; bottom:5px; padding:2px 7px; border-radius:999px;
+    background:rgba(20,18,16,.72); color:#fff; font-size:9px; letter-spacing:.1em;
+    text-transform:uppercase; pointer-events:none;
+  }
+  .grille-photos .tuile .marque-couv {
+    position:absolute; top:6px; left:6px; padding:2px 7px; border-radius:999px;
+    background:rgba(255,255,255,.88); color:#1a1714; font-size:9px;
+    letter-spacing:.1em; text-transform:uppercase; pointer-events:none;
+  }
+  .grille-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center; }
+  .grille-actions button, .grille-actions select {
+    border:none; cursor:pointer; font-family:inherit; font-weight:600;
+    font-size:0.75rem; color:var(--ink); background:var(--surface);
+    min-height:44px; padding:0 14px; border-radius:12px;
+    box-shadow: 3px 3px 7px var(--shadow-d), -3px -3px 7px var(--shadow-l);
+    transition: transform .16s var(--ease-out), opacity .22s var(--ease-out);
+  }
+  .grille-actions button:active { transform:scale(.97); }
+  .grille-actions button:disabled, .grille-actions select:disabled { opacity:.45; cursor:default; }
+  .grille-actions .danger { color:#b3423a; }
+  .grille-actions select { appearance:auto; font-size:16px; max-width:100%; }
   .cats button {
     border:none; cursor:pointer; font-family:inherit;
     padding:9px 14px; border-radius:999px; min-height:44px;
@@ -801,6 +867,16 @@
         <!-- aria-live : un lecteur d'écran doit ENTENDRE la progression et
              les erreurs — sans ça, l'envoi est un silence total. -->
         <div class="etat" id="etat-upload" role="status" aria-live="polite"></div>
+        <!-- Gestion des photos déposées (audit métier du 29/07) : jusqu'ici
+             une photo en ligne était INDÉLOGEABLE — ni supprimer, ni
+             changer de catégorie, ni réordonner, ni en faire la
+             couverture. La grille montre la catégorie active seulement :
+             c'est ce qui avait tué l'ancien sélecteur de couverture,
+             « intenable avec des milliers de photos » — filtrée, elle
+             reste courte. -->
+        <div class="grille-tete" id="grille-tete" hidden></div>
+        <div class="grille-photos" id="grille-photos" hidden></div>
+        <div class="grille-actions" id="grille-actions" hidden></div>
       </div>
 
       <!-- ══ VIDÉO ═════════════════════════════════════════════════ -->
@@ -1894,13 +1970,17 @@
       b.type = 'button';
       b.setAttribute('aria-pressed', String(c.nom === catChoisie));
       b.innerHTML = `${c.nom}<span class="n">${c.n}</span>`;
-      b.addEventListener('click', () => { catChoisie = c.nom; rendreCats(); });
+      b.addEventListener('click', () => {
+        if (catChoisie !== c.nom) selectionGrille.clear();
+        catChoisie = c.nom; rendreCats();
+      });
       hote.appendChild(b);
     });
     if (!edition) {
       el('depot').disabled = true;
       etatUp('Ouvrez ce concepteur depuis votre console (connecté) pour déposer des photos.');
     }
+    rendreGrille();
   }
 
   // Entrée VALIDE (règle formulaire du guide) : taper un nom puis Entrée
@@ -1919,6 +1999,263 @@
     etatUp('');
     rendreCats();
   });
+
+  /* ══ Gestion des photos déposées ═════════════════════════════════
+     Jusqu'ici, une photo en ligne était indélogeable : ni suppression,
+     ni changement de catégorie, ni ordre, ni couverture depuis la
+     galerie. Tout passe par UNE primitive : on modifie draft.photos,
+     puis pousserOrdre() renumérote l'ensemble et l'écrit en une seule
+     requête (upsert) — l'ordre des catégories comme celui des photos
+     ne sont que des positions. */
+  let selectionGrille = new Set();
+  let renommageEnCours = false;
+
+  /* Le nom AFFICHÉ d'un groupe : une catégorie vide (galerie héritée)
+     s'appelle « Galerie » dans les puces — toute recherche par nom doit
+     passer par le même résolveur, sinon ce groupe devient introuvable. */
+  const nomDeCat = (c) => (c && c.category) || 'Galerie';
+  function groupeDeCat(nom) {
+    return (draft.photos || []).find((x) => nomDeCat(x) === nom) || null;
+  }
+  function photosDeCat(nom) {
+    const c = groupeDeCat(nom);
+    return c ? (c.photos || []) : [];
+  }
+
+  /* Renumérote TOUTES les photos de la galerie dans l'ordre courant de
+     draft.photos et pousse id + catégorie + position. client_id est
+     joint : l'upsert construit un tuple d'insertion même quand tout
+     existe déjà, et la colonne est non-nulle. */
+  async function pousserOrdre(quoi) {
+    if (!edition) return false;
+    const lignes = [];
+    let pos = 0;
+    (draft.photos || []).forEach((c) => (c.photos || []).forEach((ph) => {
+      lignes.push({ id: ph.id, client_id: edition.client.id,
+                    category: c.category || '', position: pos++ });
+    }));
+    if (!lignes.length) return true;
+    const { error } = await sb.from('gallery_photos').upsert(lignes, { onConflict: 'id' });
+    if (error) { etatUp(`${quoi} a échoué : ${error.message}`, 'ko'); return false; }
+    base.photos = JSON.parse(JSON.stringify(draft.photos));
+    etatUp(`${quoi} — fait.`, 'ok');
+    return true;
+  }
+
+  /* Suppression du fichier B2 d'une photo (original + 2 variantes).
+     Best-effort : un raté laisse un orphelin que la réconciliation de
+     stockage finira par compter, il ne bloque jamais le geste. */
+  async function signerSuppression(url) {
+    try {
+      const u = new URL(url);
+      const m = u.pathname.match(/^\/file\/[^/]+\/(.+)$/);
+      if (!m) return;
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return;
+      const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/b2-sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ action: 'sign-delete', key: decodeURIComponent(m[1]) }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (j.url) await fetch(j.url, { method: 'DELETE' });
+    } catch (_) {}
+  }
+
+  function rendreGrille() {
+    const tete = el('grille-tete'), grille = el('grille-photos'), actions = el('grille-actions');
+    const cats = listeCats();
+    const photos = photosDeCat(catChoisie);
+    const montrer = !!edition && photos.length > 0;
+    tete.hidden = grille.hidden = !montrer;
+    if (!montrer) { actions.hidden = true; selectionGrille.clear(); return; }
+
+    const idx = cats.findIndex((c) => c.nom === catChoisie);
+    const cfg = draft.gallery.config || {};
+
+    // ── Tête : nom + renommer + ordre de la catégorie
+    tete.innerHTML = '';
+    if (renommageEnCours) {
+      const champ = document.createElement('input');
+      champ.value = catChoisie;
+      champ.maxLength = 60;
+      champ.setAttribute('aria-label', 'Nouveau nom de la catégorie');
+      const ok = document.createElement('button');
+      ok.type = 'button'; ok.textContent = '✓'; ok.title = 'Renommer';
+      ok.setAttribute('aria-label', 'Valider le nouveau nom');
+      const valider = async () => {
+        const neuf = champ.value.trim();
+        renommageEnCours = false;
+        if (!neuf || neuf === catChoisie) { rendreCats(); return; }
+        if (listeCats().some((c) => c.nom === neuf)) { etatUp('Cette catégorie existe déjà.', 'ko'); rendreCats(); return; }
+        const c = groupeDeCat(catChoisie);
+        if (c) c.category = neuf;
+        catChoisie = neuf;
+        rendreCats();
+        await pousserOrdre('Le renommage');
+        rafraichirPhotos();
+      };
+      champ.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); valider(); }
+        if (e.key === 'Escape') { renommageEnCours = false; rendreCats(); }
+      });
+      ok.addEventListener('click', valider);
+      tete.append(champ, ok);
+      champ.focus(); champ.select();
+    } else {
+      const nom = document.createElement('span');
+      nom.className = 'nom';
+      nom.textContent = `${catChoisie} — ${photos.length} photo${photos.length > 1 ? 's' : ''}`;
+      const ren = document.createElement('button');
+      ren.type = 'button'; ren.textContent = '✎'; ren.title = 'Renommer la catégorie';
+      ren.setAttribute('aria-label', 'Renommer la catégorie');
+      ren.addEventListener('click', () => { renommageEnCours = true; rendreGrille(); });
+      const av = document.createElement('button');
+      av.type = 'button'; av.textContent = '◂'; av.title = 'Avancer la catégorie';
+      av.setAttribute('aria-label', 'Avancer la catégorie dans la galerie');
+      av.disabled = idx <= 0;
+      const re = document.createElement('button');
+      re.type = 'button'; re.textContent = '▸'; re.title = 'Reculer la catégorie';
+      re.setAttribute('aria-label', 'Reculer la catégorie dans la galerie');
+      re.disabled = idx < 0 || idx >= cats.length - 1;
+      const bougerCat = async (delta) => {
+        const liste = draft.photos || [];
+        const i = liste.findIndex((x) => nomDeCat(x) === catChoisie);
+        const j = i + delta;
+        if (i < 0 || j < 0 || j >= liste.length) return;
+        [liste[i], liste[j]] = [liste[j], liste[i]];
+        rendreCats();
+        await pousserOrdre('Le déplacement de la catégorie');
+        rafraichirPhotos();
+      };
+      av.addEventListener('click', () => bougerCat(-1));
+      re.addEventListener('click', () => bougerCat(1));
+      tete.append(nom, ren, av, re);
+    }
+
+    // ── Tuiles
+    grille.innerHTML = '';
+    photos.forEach((ph) => {
+      const t = document.createElement('button');
+      t.type = 'button';
+      t.className = 'tuile';
+      t.setAttribute('aria-pressed', String(selectionGrille.has(ph.id)));
+      t.setAttribute('aria-label', 'Sélectionner cette photo');
+      t.innerHTML = `<img src="${ph.url_grid || ph.url_view || ''}" alt="" loading="lazy" decoding="async" />`
+        + `<span class="coche">✓</span>`
+        + (ph.hidden ? `<span class="voile">Masquée</span>` : '')
+        + (String(cfg.cover || '') === String(ph.id) ? `<span class="marque-couv">Couv.</span>` : '');
+      t.addEventListener('click', () => {
+        if (selectionGrille.has(ph.id)) selectionGrille.delete(ph.id);
+        else selectionGrille.add(ph.id);
+        rendreGrille();
+      });
+      grille.appendChild(t);
+    });
+
+    // ── Barre d'actions (n'existe qu'avec une sélection)
+    const n = selectionGrille.size;
+    actions.hidden = n === 0;
+    actions.innerHTML = '';
+    if (!n) return;
+
+    const bouton = (txt, titre, fn, classe) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = txt; if (titre) b.title = titre;
+      if (classe) b.className = classe;
+      b.addEventListener('click', fn);
+      actions.appendChild(b);
+      return b;
+    };
+
+    if (n === 1) {
+      const id = [...selectionGrille][0];
+      const ph = photos.find((x) => x.id === id);
+      const i = photos.indexOf(ph);
+
+      bouton('Couverture', 'En faire la photo de couverture', async () => {
+        const cfg2 = draft.gallery.config;
+        cfg2.cover = id;
+        delete cfg2.coverPhoto;
+        selectionGrille.clear();
+        rendre();
+        const ok = await enregistrerDepot({ cover: id, coverPhoto: undefined }, 'La couverture');
+        if (ok) etatUp('Cette photo est la couverture.', 'ok');
+      });
+
+      bouton('En tête', 'Mettre cette photo en première position', async () => {
+        photos.splice(i, 1); photos.unshift(ph);
+        rendreGrille();
+        await pousserOrdre('La mise en tête');
+        rafraichirPhotos();
+      });
+
+      const gauche = bouton('◂', 'Avancer la photo', async () => {
+        if (i <= 0) return;
+        [photos[i - 1], photos[i]] = [photos[i], photos[i - 1]];
+        rendreGrille();
+        await pousserOrdre('Le déplacement');
+      });
+      gauche.disabled = i <= 0;
+      gauche.setAttribute('aria-label', 'Avancer la photo dans la catégorie');
+      const droite = bouton('▸', 'Reculer la photo', async () => {
+        if (i >= photos.length - 1) return;
+        [photos[i], photos[i + 1]] = [photos[i + 1], photos[i]];
+        rendreGrille();
+        await pousserOrdre('Le déplacement');
+      });
+      droite.disabled = i >= photos.length - 1;
+      droite.setAttribute('aria-label', 'Reculer la photo dans la catégorie');
+    }
+
+    // Déplacer vers une autre catégorie — pour 1 comme pour plusieurs.
+    const autres = cats.map((c) => c.nom).filter((x) => x !== catChoisie);
+    if (autres.length) {
+      const sel = document.createElement('select');
+      sel.setAttribute('aria-label', 'Déplacer la sélection vers une catégorie');
+      sel.innerHTML = `<option value="">Déplacer vers…</option>`
+        + autres.map((x) => `<option>${x.replace(/</g, '&lt;')}</option>`).join('');
+      sel.addEventListener('change', async () => {
+        const vers = sel.value;
+        if (!vers) return;
+        const src = groupeDeCat(catChoisie);
+        let dst = groupeDeCat(vers);
+        if (!dst) { dst = { category: vers, photos: [] }; draft.photos.push(dst); }
+        const bougees = (src.photos || []).filter((x) => selectionGrille.has(x.id));
+        src.photos = (src.photos || []).filter((x) => !selectionGrille.has(x.id));
+        dst.photos = [...(dst.photos || []), ...bougees];
+        if (!src.photos.length) draft.photos = draft.photos.filter((x) => x !== src);
+        selectionGrille.clear();
+        rendreCats();
+        await pousserOrdre('Le déplacement');
+        rafraichirPhotos();
+      });
+      actions.appendChild(sel);
+    }
+
+    bouton(n === 1 ? 'Supprimer' : `Supprimer (${n})`, 'Supprimer définitivement', async () => {
+      const ids = [...selectionGrille];
+      if (!confirm(`Supprimer ${n === 1 ? 'cette photo' : `ces ${n} photos`} ?\n\n` +
+        `${n === 1 ? 'Elle disparaîtra' : 'Elles disparaîtront'} de la galerie et des favoris des invités. ` +
+        `Cette action est irréversible — pour simplement ${n === 1 ? 'la' : 'les'} retirer de la vue des invités, utilisez l'œil dans l'aperçu.`)) return;
+      const touchees = photos.filter((x) => ids.includes(x.id));
+      const { error } = await sb.from('gallery_photos').delete().in('id', ids);
+      if (error) { etatUp(`La suppression a échoué : ${error.message}`, 'ko'); return; }
+      // Les fichiers B2, en arrière-plan — jamais bloquant.
+      touchees.forEach((x) => [x.url_original, x.url_view, x.url_grid]
+        .filter(Boolean).forEach((u) => signerSuppression(u)));
+      // La couverture pointait sur une supprimée : on la libère.
+      const cfg2 = draft.gallery.config;
+      if (ids.some((x) => String(cfg2.cover || '') === String(x))) {
+        delete cfg2.cover;
+        await enregistrerDepot({ cover: undefined }, 'La couverture');
+      }
+      selectionGrille.clear();
+      etatUp(`${n === 1 ? 'Photo supprimée' : n + ' photos supprimées'}.`, 'ok');
+      await rafraichirPhotos();
+      await pousserOrdre('La renumérotation');
+    }, 'danger');
+  }
 
   /* ── Dépôt de la photo de couverture ─────────────────────
      Elle ne rejoint PAS la livraison : aucune ligne gallery_photos,

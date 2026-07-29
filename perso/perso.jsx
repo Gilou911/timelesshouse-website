@@ -40,10 +40,25 @@ import {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-/* Le retour d'un lien magique arrive en fragment (#access_token=…
-   ou #error_code=…). On photographie le fragment AVANT que
-   supabase-js ne le consomme : c'est notre seule chance de dire
-   « lien expiré » proprement au lieu d'un écran de connexion muet. */
+/* Le lien magique de l'email porte ?lm=<token_hash> et c'est l'app qui
+   l'échange contre une session (verifyOtp) : les scanners de boîtes
+   mail pré-visitent les liens, et le lien /verify de Supabase est à
+   usage unique — le jeton était grillé avant le clic humain (boucle
+   de connexion constatée le 29/07/2026). Un GET de robot n'exécute
+   pas ce JavaScript ; le clic humain, si. On photographie le jeton
+   puis on nettoie l'URL : un rechargement ne doit pas rejouer un
+   échange déjà consommé (la session vit en localStorage). */
+const LM_BOOT = new URLSearchParams(window.location.search).get('lm') || '';
+if (LM_BOOT) {
+  const u = new URL(window.location.href);
+  u.searchParams.delete('lm');
+  history.replaceState(null, '', u.pathname + u.search + u.hash);
+}
+
+/* Filet pour les liens de l'ancien format (fragment #access_token /
+   #error_code posé par le /verify de Supabase) : on photographie le
+   fragment AVANT que supabase-js ne le consomme, pour dire « lien
+   expiré » proprement au lieu d'un écran de connexion muet. */
 const FRAGMENT_BOOT = window.location.hash || '';
 const LIEN_EN_ERREUR = /error(_code|_description)?=/.test(FRAGMENT_BOOT)
   ? (/otp_expired|invalid/i.test(FRAGMENT_BOOT)
@@ -690,11 +705,10 @@ function EcranMfa({ onDone, onAbandon }) {
   );
 }
 
-function Connexion() {
+function Connexion({ avertissement }) {
   const [email, setEmail] = useState('');
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);
-  const [avertissement] = useState(LIEN_EN_ERREUR);
   // Repli mot de passe (Gil) — replié par défaut : les invités n'en ont pas.
   const [avecMdp, setAvecMdp] = useState(false);
   const [pwd, setPwd] = useState('');
@@ -1395,13 +1409,21 @@ function App() {
   const [mfaEnAttente, setMfaEnAttente] = useState(false);
   const [route, setRoute] = useState(lireRoute());
   const [donnees, setDonnees] = useState(null); // { estProprio, pages, roles }
+  const [avisLien, setAvisLien] = useState(LIEN_EN_ERREUR);
+  // Tant que l'échange ?lm= n'a pas conclu, les « session nulle » qui
+  // arrivent entre-temps (INITIAL_SESSION…) ne doivent pas monter
+  // l'écran de connexion : ils perdraient la course contre verifyOtp.
+  const lmEnCours = useRef(!!LM_BOOT);
 
   /* Une session n'ouvre l'espace que si la double vérification est
      satisfaite — sans cette garde, la policy restrictive aal2 rendrait
      toutes les requêtes muettes (0 ligne, 0 erreur). Un échec de l'API
      MFA ne mure jamais la porte. */
   const poserSession = async (s) => {
-    if (!s?.user) { setMfaEnAttente(false); setSession(null); return; }
+    if (!s?.user) {
+      if (lmEnCours.current) return;
+      setMfaEnAttente(false); setSession(null); return;
+    }
     try {
       const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aal && aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
@@ -1414,9 +1436,25 @@ function App() {
 
   useEffect(() => {
     if (JETON_URL) { setSession(null); return; } // mode jeton : pas d'auth
-    sb.auth.getSession().then(({ data }) => {
+    (async () => {
+      // Échange du lien magique (?lm=) contre une session — voir LM_BOOT.
+      if (LM_BOOT) {
+        const { error } = await sb.auth.verifyOtp({ type: 'email', token_hash: LM_BOOT });
+        lmEnCours.current = false;
+        if (error) {
+          // Jeton consommé ou périmé. S'il reste une session en poche
+          // (localStorage), on entre quand même ; sinon, on l'explique.
+          const { data } = await sb.auth.getSession();
+          if (!data.session) {
+            setAvisLien('Ce lien a expiré ou a déjà servi — redemandez-en un ci-dessous.');
+            setSession(null);
+            return;
+          }
+        }
+      }
+      const { data } = await sb.auth.getSession();
       if (data.session) poserSession(data.session); else setSession(null);
-    });
+    })();
     const { data: sub } = sb.auth.onAuthStateChange((_event, s) => { poserSession(s); });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -1456,7 +1494,7 @@ function App() {
       onAbandon={async () => { await sb.auth.signOut(); setMfaEnAttente(false); }}
     />
   );
-  if (!session) return <Connexion />;
+  if (!session) return <Connexion avertissement={avisLien} />;
 
   const rolePour = (racineId) => {
     if (donnees?.estProprio) return 'proprietaire';

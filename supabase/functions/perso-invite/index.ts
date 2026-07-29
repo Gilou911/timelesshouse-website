@@ -127,10 +127,17 @@ async function envoyerLien(email: string, redirectTo: string, invitation: boolea
     email,
     options: { redirectTo },
   });
-  if (error || !link?.properties?.action_link) {
+  if (error || !link?.properties?.hashed_token) {
     console.error("[perso-invite] generateLink:", error);
     return;
   }
+  // L'email ne porte PAS le lien /verify de Supabase : les scanners de
+  // boîtes mail (Outlook SafeLinks, antivirus…) pré-visitent les liens,
+  // et ce lien-là est à usage unique — le jeton était grillé avant le
+  // clic humain (constaté le 29/07/2026, boucle de connexion chez Gil).
+  // On envoie ?lm=<token_hash> vers l'app, qui l'échange elle-même via
+  // verifyOtp : un GET de robot n'exécute pas ce JavaScript.
+  const lien = `${redirectTo}?lm=${encodeURIComponent(link.properties.hashed_token)}`;
   if (RESEND_API_KEY) {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -141,7 +148,7 @@ async function envoyerLien(email: string, redirectTo: string, invitation: boolea
         subject: invitation
           ? "Vous êtes invité·e — Espace perso"
           : "Votre lien de connexion — Espace perso",
-        html: emailHtml(link.properties.action_link, invitation),
+        html: emailHtml(lien, invitation),
       }),
     });
     if (!res.ok) console.error("[perso-invite] resend:", await res.text());

@@ -93,6 +93,10 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
 // périmètre, cible supprimée…). À l'inverse, une coupure réseau ou
 // un B2 momentanément indisponible mérite une seconde chance.
 class PermanentError extends Error {}
+/* Ni une réussite ni un échec : une condition extérieure passagère
+   (disque plein). Le job retourne en file SANS consommer de tentative —
+   sinon trois disques pleins de suite condamneraient un film sain. */
+class AttenteError extends Error {}
 
 /* ════════════════════════════════════════════════════════════
    Téléchargement de l'original depuis B2
@@ -112,6 +116,17 @@ async function downloadSource(key, destPath) {
   const size = Number(res.ContentLength || 0);
   if (size > MAX_SOURCE_BYTES) {
     throw new Error(`source trop volumineuse (${fmtSize(size)}) — maximum ${fmtSize(MAX_SOURCE_BYTES)}`);
+  }
+  /* La place se vérifie AVANT le premier octet écrit. Erreur passagère
+     et non définitive : le job reste en file et repartira tout seul
+     quand le disque respirera. */
+  const besoin = besoinPour(size);
+  const libre = espaceLibre();
+  if (libre < besoin) {
+    alerter("Encodage en attente — disque plein",
+      `Il faut ${fmtSize(besoin)} pour ce film (${fmtSize(size)}), il reste ${fmtSize(libre)}. `
+      + `Libérez de la place : l'encodage repartira tout seul.`);
+    throw new AttenteError(`espace disque insuffisant : ${fmtSize(libre)} libres, ${fmtSize(besoin)} nécessaires`);
   }
   mkdirSync(dirname(destPath), { recursive: true });
   await pipeline(res.Body, createWriteStream(destPath));
@@ -267,6 +282,48 @@ async function bumpAgencyStorage(job, deltaBytes) {
 }
 
 /* ════════════════════════════════════════════════════════════
+   Espace disque — la garde avant de commencer
+   ════════════════════════════════════════════════════════════
+   Un encodage écrit BEAUCOUP : l'original, les quatre paliers, puis le
+   MP4 léger. Sur un disque plein, ffmpeg meurt en pleine écriture sans
+   pouvoir dire pourquoi (constaté le 29/07 : 12 Go libres sur 926).
+   On mesure AVANT, on prévient, et le job reste en file — il repartira
+   dès que la place est là, sans perdre une tentative. */
+
+/** Octets libres sur le volume du dépôt. */
+function espaceLibre() {
+  try {
+    const sortie = execFileSync("/bin/df", ["-k", ROOT]).toString().trim().split("\n").pop();
+    return Number(sortie.split(/\s+/)[3]) * 1024;
+  } catch (_) {
+    return Infinity;              // mesure impossible : on ne bloque pas
+  }
+}
+
+/** Ce qu'un job va écrire, au pire : l'original + ses dérivés (~1,6×)
+ *  plus une marge de sécurité. Généreux à dessein — mieux vaut attendre
+ *  une heure que perdre deux heures d'encodage à 99 %. */
+const MARGE_DISQUE = 8 * 1024 ** 3;
+const besoinPour = (octetsSource) => Math.round(octetsSource * 2.6) + MARGE_DISQUE;
+
+/** Prévient Gil SUR SA MACHINE — le journal ne se lit que si on l'ouvre.
+ *  Une même alerte ne se répète pas avant une heure : la boucle tourne
+ *  toutes les 30 s, sans ce frein un disque plein produirait 120
+ *  notifications par heure et on cesserait de les lire. */
+const derniereAlerte = new Map();
+function alerter(titre, texte) {
+  const t = Date.now();
+  if (t - (derniereAlerte.get(titre) || 0) < 3600_000) return;
+  derniereAlerte.set(titre, t);
+  log(`⚠ ${titre} — ${texte}`);
+  try {
+    execFileSync("/usr/bin/osascript", ["-e",
+      `display notification ${JSON.stringify(texte)} with title ${JSON.stringify(titre)} sound name "Basso"`,
+    ], { stdio: "ignore" });
+  } catch (_) { /* pas de session graphique : le journal suffit */ }
+}
+
+/* ════════════════════════════════════════════════════════════
    Traitement d'un job
    ════════════════════════════════════════════════════════════ */
 async function processJob(job) {
@@ -371,6 +428,14 @@ async function failJob(job, err) {
   // Une panne passagère (réseau, B2 indisponible) mérite un 2ᵉ essai ;
   // au-delà — ou d'emblée si l'erreur est définitive — on s'arrête pour
   // ne pas boucler sur un fichier corrompu.
+  if (err instanceof AttenteError) {
+    // La tentative est RENDUE : claim_encode_job l'avait incrémentée.
+    await sb.from("encode_jobs")
+      .update({ status: "pending", error: message, attempts: Math.max(0, job.attempts - 1) })
+      .eq("id", job.id);
+    log(`⏸ job ${job.id} en attente — ${message}`);
+    return;
+  }
   const retry = !(err instanceof PermanentError) && job.attempts < MAX_ATTEMPTS;
   await sb.from("encode_jobs")
     .update({ status: retry ? "pending" : "error", error: message })

@@ -91,6 +91,25 @@
   .studio { display:block; height:100dvh; }
 
   .scene { position:fixed; inset:0; z-index:0; padding:0; }
+  /* ── Aperçu téléphone (audit métier, point n° 10) ──────────────
+     Le photographe conçoit à 1280 px une galerie que les invités
+     ouvriront à 390. Le cadre réduit l'iframe à une taille de
+     téléphone : ses media queries s'appliquent à SA fenêtre, le rendu
+     est donc exactement celui d'un vrai mobile — pas une simulation.
+     La scène s'assombrit pour détacher l'appareil, et le cadre se
+     décale vers la droite : le panneau vit à gauche. */
+  body.tel-apercu .scene { background:#141210; }
+  body.tel-apercu .scene iframe {
+    position:absolute; top:50%; left:calc(50% + clamp(0px, 16vw, 210px));
+    transform:translate(-50%, -50%);
+    width:390px; height:min(800px, calc(100dvh - 48px));
+    border-radius:44px; border:12px solid #17151a; background:#000;
+    box-shadow:0 34px 90px -24px rgba(0,0,0,.6);
+  }
+  @media (max-width: 899px) {
+    /* Sur un vrai téléphone, l'aperçu EST déjà un téléphone. */
+    .pilule-tel { display:none; }
+  }
   .scene iframe {
     width:100%; height:100%; border:none; border-radius:0;
     background:#000; box-shadow:none; display:block;
@@ -856,6 +875,8 @@
              masquer LE PANNEAU ici, masquer AUX INVITÉS dans l'aperçu.
              La pilule dit désormais ce qu'elle donne à voir ; le mot
              appartient au masquage. -->
+        <button type="button" class="pilule pilule-tel" id="tel" aria-pressed="false"
+                aria-label="Voir l'aperçu comme sur un téléphone">Téléphone</button>
         <button type="button" class="pilule" id="masquer">Plein aperçu</button>
       </div>
       <div class="kicker">Concepteur</div>
@@ -1048,6 +1069,8 @@
          aux réglages. -->
     <div class="rappel" id="rappel">
       <button type="button" class="pilule" id="rouvrir">☰&nbsp; Réglages</button>
+      <button type="button" class="pilule pilule-tel" id="tel2" aria-pressed="false"
+              aria-label="Voir l'aperçu comme sur un téléphone">Téléphone</button>
       <button type="button" class="pilule" id="comparer2" aria-pressed="false">Comparer</button>
     </div>
   </div>
@@ -2401,6 +2424,20 @@
       : el('rouvrir');
     cible?.focus();
   }
+  /* Aperçu téléphone : une classe sur body, rien d'autre — l'iframe
+     reprend sa taille de mobile et ses media queries font le reste. */
+  let telApercu = false;
+  const majTel = () => {
+    document.body.classList.toggle('tel-apercu', telApercu);
+    ['tel', 'tel2'].forEach((id) => {
+      const b = el(id);
+      if (b) b.setAttribute('aria-pressed', String(telApercu));
+    });
+  };
+  ['tel', 'tel2'].forEach((id) => el(id).addEventListener('click', () => {
+    telApercu = !telApercu; majTel();
+  }));
+
   el('masquer').addEventListener('click', () => reglages(false));
   el('rouvrir').addEventListener('click', () => reglages(true));
   el('poignee').addEventListener('click', () => reglages(false));

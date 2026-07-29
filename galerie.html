@@ -281,15 +281,11 @@
        avec n'importe quelle palette de couleurs choisie à côté.
        (Lumière et Rideau ont existé un jour — retirés sur le verdict
        de Gil, remplacés par Halo.) */
-    /* Halo — le lecteur flotte sur un halo aux couleurs du film : la
-       vignette, floutée à l'extrême, emplit tout le fond — l'effet
-       « ambiance » de YouTube autour de ses vidéos. */
-    .fond-halo {
-      position: fixed; inset: -8%; z-index: -1;
-      background-size: cover; background-position: center;
-      filter: blur(64px) saturate(1.3) brightness(0.5);
-      transform: scale(1.12);
-    }
+    /* Halo — le film éclaire la scène : fond sombre QUELLE QUE SOIT la
+       palette (une lueur ne se voit que dans le noir — retour de Gil),
+       et la lueur elle-même, animée aux couleurs de l'image courante,
+       vit dans le moteur de galerie, derrière le lecteur. */
+    body.decor-halo { background: color-mix(in srgb, var(--bg) 14%, #000); }
     body.decor-halo .head h1,
     body.decor-halo .head .kicker,
     body.decor-halo .head .sub { text-shadow: 0 2px 26px rgba(0, 0, 0, 0.55); }
@@ -802,7 +798,6 @@
          sans ce retour, changer de décor dans le concepteur empilait
          les habits, et l'entête restait invisible à jamais. */
       document.body.classList.remove('decor-halo');
-      document.querySelector('.fond-halo')?.remove();
       const hTete = el('view').querySelector('.head');
       if (hTete) hTete.style.display = '';
       /* Éléments que la galerie PHOTOS pose hors de son conteneur : le
@@ -968,21 +963,13 @@
       /* L'image qui représente le film : sa vignette, à défaut la
          couverture déposée, puis la première photo. Sert à l'Affiche
          (héros plein écran) comme au Halo (fond flouté). */
-      const posterFilm = decorFilm && decorFilm !== 'scene'
+      const posterFilm = decorFilm === 'affiche'
         ? (normalizeVideos(cfg).find((v) => v.poster) || {}).poster : null;
-      const imageFilm = decorFilm && decorFilm !== 'scene'
+      const imageFilm = decorFilm === 'affiche'
         ? (posterFilm ? { url_view: posterFilm, url_grid: posterFilm }
                       : (coverUp || flatPhotos[0] || null))
         : null;
-      if (decorFilm === 'halo' && imageFilm) {
-        document.body.classList.add('decor-halo');
-        const fond = document.createElement('div');
-        fond.className = 'fond-halo';
-        fond.setAttribute('aria-hidden', 'true');
-        const src = imageFilm.url_view || imageFilm.url_grid || '';
-        fond.style.backgroundImage = 'url("' + src.replace(/"/g, '%22') + '")';
-        document.body.prepend(fond);
-      }
+      if (decorFilm === 'halo') document.body.classList.add('decor-halo');
       let modeEff = hasPhotos ? coverMode : null;
       let coverEff = hasPhotos ? cover : null;
       if (decorFilm === 'affiche') {

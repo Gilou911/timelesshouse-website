@@ -677,6 +677,24 @@ function injectStyles() {
   @media (hover: hover) and (pointer: fine) {
     .g-stage:hover .g-chap-strip { opacity: 1; pointer-events: auto; transform: none; }
   }
+  /* ── La lueur du décor Halo ────────────────────────────────────
+     Deux canvas minuscules (32×18) démesurément floutés, en fondu
+     croisé : le lecteur y peint l'image COURANTE du film — la lueur
+     vit et respire avec lui, comme l'ambiance de YouTube. Dessiner ne
+     lit aucun pixel : pas de CORS en jeu. */
+  .g-scene-cadre { position: relative; }
+  .g-scene-cadre .g-stage { position: relative; z-index: 1; }
+  .g-halo { display: none; }
+  body.decor-halo .g-halo {
+    display: block; position: absolute; inset: -9% -7%; z-index: 0;
+    pointer-events: none;
+    filter: blur(64px) saturate(1.75);
+    opacity: 0.85;
+  }
+  body.decor-halo .g-halo canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; transition: opacity 1.2s ease;
+  }
   .g-chap-strip button {
     flex: none; width: 128px; border: none; padding: 0; cursor: pointer;
     border-radius: 8px; overflow: hidden; background: rgba(10, 10, 10, 0.6);
@@ -2160,7 +2178,56 @@ export async function mountVideos(mount, videos, opts = {}) {
   // ── Scène unique : un slide par vidéo, fondu croisé ──
   const stage = document.createElement('div');
   stage.className = 'g-stage';
-  sec.appendChild(stage);
+  /* Un cadre autour de la scène : c'est LUI qui porte la lueur du
+     décor Halo — elle doit vivre HORS du lecteur (overflow le
+     rognerait) mais suivre exactement sa boîte. Transparent et sans
+     effet pour les autres décors. */
+  const cadre = document.createElement('div');
+  cadre.className = 'g-scene-cadre';
+  cadre.appendChild(stage);
+  sec.appendChild(cadre);
+
+  /* ── Halo : la lueur qui suit le film ─────────────────────────
+     Toutes les ~1,2 s, l'image courante du film actif est peinte dans
+     le canvas caché, qui fond vers le visible — la scène s'éclaire aux
+     couleurs du moment. Avant la lecture, la vignette amorce la
+     lueur ; mouvement réduit demandé → l'amorce seule, sans battement. */
+  if (document.body.classList.contains('decor-halo')) {
+    const boite = document.createElement('div');
+    boite.className = 'g-halo';
+    boite.setAttribute('aria-hidden', 'true');
+    const toiles = [document.createElement('canvas'), document.createElement('canvas')];
+    toiles.forEach((c) => { c.width = 32; c.height = 18; boite.appendChild(c); });
+    cadre.prepend(boite);
+    let tour = 0;
+    const peindre = (source) => {
+      const c = toiles[tour ^= 1];
+      try {
+        c.getContext('2d').drawImage(source, 0, 0, 32, 18);
+        c.style.opacity = '1';
+        toiles[tour ^ 1].style.opacity = '0';
+      } catch (_) {}
+    };
+    const amorce = new Image();
+    amorce.onload = () => peindre(amorce);
+    const va = list[0] || {};
+    if (va.poster) amorce.src = va.poster;
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const battement = setInterval(() => {
+        if (!boite.isConnected) { clearInterval(battement); return; }
+        const v = slides[current] && slides[current].video;
+        if (v && v.readyState >= 2 && !v.paused) peindre(v);
+      }, 1200);
+      /* Un saut de chapitre ou une reprise doit rafraîchir la lueur
+         sans attendre le battement. */
+      cadre.addEventListener('play', (e) => {
+        if (e.target.tagName === 'VIDEO') setTimeout(() => peindre(e.target), 250);
+      }, true);
+      cadre.addEventListener('seeked', (e) => {
+        if (e.target.tagName === 'VIDEO') peindre(e.target);
+      }, true);
+    }
+  }
 
   const bar = document.createElement('div');
   bar.className = 'g-video-bar';

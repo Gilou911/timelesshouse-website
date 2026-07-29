@@ -333,6 +333,24 @@ function injectStyles() {
     transition: opacity .28s ease, transform .28s cubic-bezier(.16,1,.3,1);
   }
   .g-compte.on { opacity: 1; transform: none; }
+  /* « J'ai terminé » — le geste qui clôt la sélection et prévient le
+     studio. Accolé au compteur : c'est la suite naturelle de « N photos
+     choisies ». Un BOUTON, lui (le compteur reste passif). */
+  .g-fini {
+    position: fixed; z-index: 54;
+    left: max(18px, env(safe-area-inset-left));
+    bottom: calc(max(18px, env(safe-area-inset-bottom)) + 44px);
+    min-height: 40px; padding: 0 15px; border-radius: 999px; border: 1px solid var(--line);
+    font-family: inherit; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em;
+    color: var(--ink); background: color-mix(in srgb, var(--bg) 72%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    backdrop-filter: saturate(180%) blur(18px);
+    cursor: pointer; opacity: 0; transform: translateY(8px); pointer-events: none;
+    transition: opacity .28s ease, transform .28s cubic-bezier(.16,1,.3,1);
+  }
+  .g-fini.on { opacity: 1; transform: none; pointer-events: auto; }
+  .g-fini:disabled { cursor: default; opacity: .75; }
+  .g-fini:not(:disabled):active { transform: scale(.97); }
 
   /* Téléchargement groupé. Même coin que le compteur, au-dessus de lui :
      ce sont les deux repères « ma sélection / mes photos », le coin droit
@@ -1100,6 +1118,7 @@ export function mountPhotos(mount, categories, opts = {}) {
      EMPILAIT une nouvelle sur les précédentes — fuite silencieuse, et
      toute recherche `.g-lb` tombait sur la plus vieille, morte. */
   document.querySelectorAll('.g-lb').forEach((e) => e.remove());
+  document.querySelector('.g-fini')?.remove();
   if (multi) {
     const tiroir = document.createElement('div');
     tiroir.className = 'g-drawer';
@@ -1327,6 +1346,59 @@ export function mountPhotos(mount, categories, opts = {}) {
     }
     el.textContent = n ? `${n} photo${n > 1 ? 's' : ''} choisie${n > 1 ? 's' : ''}` : '';
     el.classList.toggle('on', n > 0);
+    majFini();
+  }
+
+  /* « J'ai terminé » : visible dès qu'une sélection existe ET que la
+     page connaît le client (charge d'après la migration « sélection
+     finie ») — sans identifiant client, l'email ne peut pas partir, on
+     ne promet rien. Un nouvel élan de cœurs après l'envoi rouvre le
+     bouton : le serveur dédoublonne par contenu, pas nous. */
+  let finiEnvoye = 0;   // le compte au moment du dernier envoi
+  function majFini() {
+    const n = favs.size;
+    let b = document.querySelector('.g-fini');
+    const possible = !!(opts.clientId && opts.code && opts.code !== 'apercu' && moi && moi.email);
+    if (!b) {
+      if (!n || !possible) return;
+      b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'g-fini';
+      b.addEventListener('click', envoyerFini);
+      document.body.appendChild(b);
+    }
+    const envoye = finiEnvoye === n && n > 0;
+    b.disabled = envoye;
+    b.textContent = envoye ? 'Sélection envoyée au studio ✓' : 'J\u2019ai terminé ma sélection';
+    b.classList.toggle('on', n > 0 && possible);
+  }
+  async function envoyerFini() {
+    const b = document.querySelector('.g-fini');
+    if (!b || b.disabled) return;
+    const n = favs.size;
+    b.disabled = true;
+    b.textContent = 'Envoi\u2026';
+    try {
+      const r = await fetch(`${opts.supabaseUrl}/functions/v1/notify-client`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${opts.supabaseAnonKey}` },
+        body: JSON.stringify({
+          kind: 'admin_selection_done',
+          client_id: opts.clientId,
+          gallery_id: opts.galleryId,
+          access_code: opts.code,
+          dedupe_key: `seldone-${opts.code}-${(moi.email || '').toLowerCase()}-${n}`,
+          extra: { voter_name: moi.prenom || moi.email, count: n, gallery_title: title },
+        }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.error) throw new Error(j.error || 'envoi refusé');
+      finiEnvoye = n;
+    } catch (_) {
+      b.textContent = 'L\u2019envoi a échoué \u2014 réessayez';
+    }
+    b.disabled = false;
+    majFini();
   }
 
   function peindreCellule(c) {

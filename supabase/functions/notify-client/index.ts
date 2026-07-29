@@ -809,6 +809,28 @@ function buildAdminNewComment(client, media, comment) {
     `)
   };
 }
+/* « La sélection est terminée » — le signal qui manquait au travail
+   d'album : les coups de cœur existaient, mais rien ne disait au studio
+   QUAND le choix était clos. Envoyé par un invité de la galerie
+   (souvent le couple), preuve = le code de la galerie. */
+function buildAdminSelectionDone(client, extra) {
+  const nom = esc(extra.voter_name || "Un invité");
+  const n = Number(extra.count) || 0;
+  const titre = esc(extra.gallery_title || "la galerie");
+  return {
+    subject: `Sélection terminée — ${client?.name || "client"} (${n} photo${n > 1 ? "s" : ""})`,
+    html: layout(`
+      <h2>La sélection est terminée</h2>
+      <p><strong>${nom}</strong> vient de clore sa sélection dans « ${titre} »
+         (${client?.name ? esc(client.name) : "votre client"})&nbsp;: <strong>${n} photo${n > 1 ? "s" : ""}</strong> retenue${n > 1 ? "s" : ""}.</p>
+      <p>Retrouvez le détail — et l'archive des favoris — dans votre console,
+         fiche client, panneau «&nbsp;Leur sélection&nbsp;».</p>
+      <p class="note">Les coups de cœur restent modifiables par vos clients ;
+         ce message marque le moment où ils s'estiment prêts.</p>
+    `)
+  };
+}
+
 function buildAdminApproval(client, media, kind) {
   const B = brandOf(client);
   const approved = kind === "admin_media_approved";
@@ -1202,7 +1224,7 @@ serve(async (req)=>{
     //      (commentaire / validation), et seulement en prouvant qu'il
     //      détient le code d'accès du client.
     {
-      const CLIENT_TO_ADMIN = new Set(["admin_new_comment", "admin_media_approved", "admin_changes_requested"]);
+      const CLIENT_TO_ADMIN = new Set(["admin_new_comment", "admin_media_approved", "admin_changes_requested", "admin_selection_done"]);
       const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
       let autorise = false;
       /* ① interne de confiance — worker d'encodage, crons.
@@ -1240,6 +1262,15 @@ serve(async (req)=>{
             .replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
           autorise = !!(body.access_code && client.code &&
                         norm(body.access_code) === norm(client.code));
+          /* Sélection terminée : celui qui parle est un INVITÉ de la
+             galerie — il n'a jamais eu le code client, seulement celui
+             de la galerie. Ce code-là vaut preuve, à condition que la
+             galerie appartienne bien au client visé. */
+          if (!autorise && kind === "admin_selection_done" && body.gallery_id && body.access_code) {
+            const g = await sbGet("galleries", body.gallery_id);
+            autorise = !!(g && g.client_id === client.id && g.access_code &&
+                          norm(body.access_code) === norm(g.access_code));
+          }
         }
       }
       if (!autorise) {
@@ -1498,11 +1529,14 @@ serve(async (req)=>{
       "admin_new_comment",
       "admin_media_approved",
       "admin_changes_requested",
-      "admin_client_expiring"
+      "admin_client_expiring",
+      "admin_selection_done"
     ].includes(kind)) {
       const media = media_id ? await sbGet("media", media_id) : null;
       let built;
-      if (kind === "admin_new_comment") {
+      if (kind === "admin_selection_done") {
+        built = buildAdminSelectionDone(client, extra ?? {});
+      } else if (kind === "admin_new_comment") {
         built = buildAdminNewComment(client, media, comment ?? "");
       } else if (kind === "admin_client_expiring") {
         built = buildAdminClientExpiring(client, extra ?? {});

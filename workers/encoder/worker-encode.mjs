@@ -398,10 +398,17 @@ async function processZipJob(job) {
       .eq("gallery_id", job.gallery_id)
       .order("position", { ascending: true });
     if (error) throw new Error(`lecture des photos : ${error.message}`);
-    /* Jamais une photo masquée dans l'archive : l'empreinte se périme à
-       chaque bascule, donc ce job ne fabrique que la vue des invités. */
-    const photos = (brut || []).filter((p) => !p.hidden);
-    if (!photos.length) throw new PermanentError("galerie sans photo visible — rien à archiver");
+    /* Deux sortes d'archives. COMPLÈTE (photo_ids nul) : jamais une
+       photo masquée — c'est la vue des invités, l'empreinte se périme à
+       chaque bascule. DE SÉLECTION (photo_ids posé) : exactement ces
+       photos, masquées comprises — c'est l'outil d'album du photographe,
+       un favori masqué ensuite reste un favori. */
+    const selection = Array.isArray(job.photo_ids) && job.photo_ids.length
+      ? new Set(job.photo_ids) : null;
+    const photos = (brut || []).filter((p) => selection ? selection.has(p.id) : !p.hidden);
+    if (!photos.length) throw new PermanentError(selection
+      ? "sélection introuvable — photos supprimées depuis ?"
+      : "galerie sans photo visible — rien à archiver");
 
     log(`  ↓ ${photos.length} photo(s) à rassembler`);
     /* Noms de fichiers RANGÉS PAR CATÉGORIE, comme dans la galerie : le

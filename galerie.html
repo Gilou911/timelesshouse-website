@@ -817,6 +817,7 @@
       document.querySelector('.g-drawer')?.remove();
       document.querySelector('.g-compte')?.remove();
       document.querySelector('.g-zip')?.remove();
+      document.querySelector('.g-fini')?.remove();
       el('pgSwitch').hidden = true;
       el('cover').hidden = true;
       /* L'en-tête est masqué quand une couverture prend sa place. Sans ce
@@ -1054,8 +1055,17 @@
         /* `code` + `sb` : la sélection remonte au photographe. En aperçu
            du concepteur le code vaut « apercu » et le moteur n'enregistre
            rien — on ne veut pas de coups de cœur de test dans la console. */
-        mountPhotos(el('photos'), cats,
-          { favKey: code, title: g.title, code, sb, masquage: data.__masquage || null });
+        mountPhotos(el('photos'), cats, {
+          favKey: code, title: g.title, code, sb,
+          masquage: data.__masquage || null,
+          /* « J'ai terminé » : l'email au studio a besoin du client et de
+             la galerie. clientId n'arrive qu'avec la migration « sélection
+             finie » — absent, le bouton n'existe simplement pas. */
+          clientId: (data.client && data.client.id) || null,
+          galleryId: g.id,
+          supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+          supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        });
       }
 
       /* ── Le bouton vers l'AUTRE page ──────────────────────────

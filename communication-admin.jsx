@@ -3872,6 +3872,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [loading, setLoading] = useState(true);
       const [err, setErr] = useState('');
       const [lignes, setLignes] = useState([]);
+      /* Archive des favoris — l'outil d'album : un zip des seules photos
+         retenues, fabriqué par le worker comme l'archive de galerie. Le
+         ménage l'emporte 7 jours après : un outil de travail, pas un
+         stock. { statut, id, progress, url, message } */
+      const [archive, setArchive] = useState(null);
       const [photos, setPhotos] = useState([]);
       const [qui, setQui] = useState('*');          // '*' tous · '=' les deux · un prénom
 
@@ -3997,6 +4002,51 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       const listeTexte = retenues.map((p) => etiquette.get(p.id) || p.id).join('\n');
 
+      const telechargerArchive = (url) => {
+        try {
+          const u = new URL(url);
+          if (u.hostname === 'media.timelesshouse.org' && u.pathname.startsWith('/file/')) {
+            u.pathname = '/telecharger/' + u.pathname.slice('/file/'.length);
+            u.searchParams.set('nom', `selection-${(g.title || 'galerie').replace(/[\/\\]/g, '-')}.zip`);
+          }
+          window.location.href = u.toString();
+        } catch (_) { window.location.href = url; }
+      };
+      const demanderArchive = async () => {
+        setArchive({ statut: 'demande' });
+        const { data, error } = await sb.rpc('request_selection_zip', {
+          p_gallery: g.id, p_photo_ids: retenues.map((p) => p.id),
+        });
+        if (error) {
+          setArchive({ statut: 'erreur', message: /request_selection_zip/.test(error.message || '')
+            ? "L'archive de sélection n'est pas encore activée : exécutez files/migration-selection-finie.sql dans Supabase."
+            : humaniseErreur(error.message) });
+          return;
+        }
+        if (data?.statut === 'done' && data.url) { setArchive(data); telechargerArchive(data.url); }
+        else if (data?.statut === 'refus') setArchive({ statut: 'erreur', message: 'Cette galerie ne vous appartient pas.' });
+        else setArchive(data);
+      };
+      useEffect(() => {
+        if (!archive?.id || !['pending', 'processing'].includes(archive.statut)) return;
+        const t = setInterval(async () => {
+          const { data } = await sb.from('zip_jobs')
+            .select('status, url, progress').eq('id', archive.id).maybeSingle();
+          if (!data) return;
+          if (data.status === 'done' && data.url) {
+            clearInterval(t);
+            setArchive({ statut: 'done', url: data.url });
+            telechargerArchive(data.url);
+          } else if (data.status === 'error') {
+            clearInterval(t);
+            setArchive({ statut: 'erreur', message: 'La préparation a échoué — réessayez.' });
+          } else {
+            setArchive((a) => ({ ...a, statut: data.status, progress: data.progress }));
+          }
+        }, 4000);
+        return () => clearInterval(t);
+      }, [archive?.id, archive?.statut]);
+
       if (loading) return (
         <div className="mt-4 py-6 flex justify-center">
           <Loader2 size={18} className="animate-spin text-stone-400" />
@@ -4011,10 +4061,23 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <h4 className="text-[17px] tracking-tight mt-0.5" style={SERIF}>Leur sélection</h4>
             </div>
             {retenues.length > 0 && (
-              <CopyButton value={listeTexte} label="Copier la liste" />
+              <span className="inline-flex items-center gap-2 flex-wrap">
+                <CopyButton value={listeTexte} label="Copier la liste" />
+                <Btn icon={Download} onClick={demanderArchive}
+                  disabled={archive && ['demande', 'pending', 'processing'].includes(archive.statut)}>
+                  {archive?.statut === 'pending' || archive?.statut === 'demande' ? 'Préparation…'
+                    : archive?.statut === 'processing' ? `Préparation… ${archive.progress || 0}%`
+                    : `Archive (${retenues.length})`}
+                </Btn>
+              </span>
             )}
           </div>
 
+          {archive?.statut === 'erreur' && (
+            <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" /> {archive.message}
+            </div>
+          )}
           {err ? (
             <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-amber-50 text-amber-800 text-[12.5px]">
               <AlertCircle size={14} className="mt-0.5 shrink-0" /> {err}

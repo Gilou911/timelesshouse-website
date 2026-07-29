@@ -720,6 +720,15 @@
   .grille-actions button:disabled, .grille-actions select:disabled { opacity:.45; cursor:default; }
   .grille-actions .danger { color:#b3423a; }
   .grille-actions select { appearance:auto; font-size:16px; max-width:100%; }
+  .alerte-nouvelles {
+    display:block; width:100%; margin-top:12px; border:none; cursor:pointer;
+    font-family:inherit; font-weight:600; font-size:0.78125rem; color:var(--ink);
+    min-height:44px; padding:0 16px; border-radius:12px; background:var(--surface);
+    box-shadow: 3px 3px 7px var(--shadow-d), -3px -3px 7px var(--shadow-l);
+    transition: transform .16s var(--ease-out), opacity .22s var(--ease-out);
+  }
+  .alerte-nouvelles:active { transform:scale(.985); }
+  .alerte-nouvelles:disabled { opacity:.5; cursor:default; }
   .v-ordre {
     display:flex; align-items:center; gap:8px; margin-bottom:8px;
     font-size:0.7rem; color:var(--muted); font-weight:700;
@@ -925,6 +934,10 @@
              c'est ce qui avait tué l'ancien sélecteur de couverture,
              « intenable avec des milliers de photos » — filtrée, elle
              reste courte. -->
+        <!-- Sneak peek : après une vague de dépôt, proposer l'email
+             « de nouvelles photos » — sans lui, livrer en plusieurs fois
+             obligeait à renvoyer le lien à la main à chaque vague. -->
+        <button type="button" class="alerte-nouvelles" id="alerte-photos" hidden></button>
         <div class="note" id="note-masquage-photos" hidden>
           Dans l'aperçu, l'œil sur une photo la masque aux invités — sans la supprimer.
         </div>
@@ -2127,6 +2140,54 @@
     rendreCats();
   });
 
+  /* ── Sneak peek : prévenir les mariés des nouvelles photos ──────
+     Le compteur s'accumule sur les vagues de dépôt successives et ne se
+     vide qu'à l'envoi de l'email — déposer en trois fois puis prévenir
+     une seule fois est exactement l'usage attendu. */
+  let photosDepuisAlerte = 0;
+  function majAlertePhotos() {
+    const b = el('alerte-photos');
+    if (!b) return;
+    const visible = !!edition && photosDepuisAlerte > 0;
+    b.hidden = !visible;
+    if (visible) {
+      b.textContent = photosDepuisAlerte > 1
+        ? `Prévenir vos clients — ${photosDepuisAlerte} nouvelles photos`
+        : 'Prévenir vos clients — 1 nouvelle photo';
+    }
+  }
+  el('alerte-photos').addEventListener('click', async () => {
+    const b = el('alerte-photos');
+    if (b.disabled) return;
+    b.disabled = true;
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) throw new Error('Session expirée — reconnectez-vous à votre console.');
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-client`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          kind: 'gallery_new_photos',
+          client_id: edition.client.id,
+          gallery_id: edition.gallery.id,
+          extra: { count: photosDepuisAlerte },
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j.error) throw new Error(j.error || `Échec (${res.status})`);
+      if (j.skipped) {
+        etatUp('Email non envoyé : le partage de la galerie est coupé, le lien serait mort.', 'ko');
+      } else {
+        photosDepuisAlerte = 0;
+        etatUp('Vos clients sont prévenus — l\u2019email est parti (journal des envois dans la console).', 'ok');
+      }
+    } catch (err) {
+      etatUp(`L'email n'est pas parti : ${err.message}`, 'ko');
+    }
+    b.disabled = false;
+    majAlertePhotos();
+  });
+
   /* ══ Gestion des photos déposées ═════════════════════════════════
      Jusqu'ici, une photo en ligne était indélogeable : ni suppression,
      ni changement de catégorie, ni ordre, ni couverture depuis la
@@ -2781,6 +2842,8 @@
         });
       }
       etatUp(`${files.length} photo${files.length > 1 ? 's' : ''} en ligne.`, 'ok');
+      photosDepuisAlerte += files.length;
+      majAlertePhotos();
       catsEnAttente = catsEnAttente.filter((n) => n !== catChoisie);
       await rafraichirPhotos();
     } catch (err) {

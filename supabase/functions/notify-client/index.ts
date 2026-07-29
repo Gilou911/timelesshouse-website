@@ -839,6 +839,39 @@ function buildAdminApproval(client, media, kind) {
  *  S'adapte au CONTENU (photos seules / film seul / les deux) et à
  *  l'UNIVERS : en mariage, gabarit éditorial façon faire-part (modèle
  *  fourni par Gil le 22/07/2026) avec photo de couverture de l'album. */
+/* « De nouvelles photos vous attendent » — le sneak peek qui prévient.
+   Un photographe livre 8 photos le lendemain du mariage, le reste des
+   semaines après : sans cet email, il renvoyait le lien à la main à
+   chaque vague. `count` est optionnel — on ne promet un nombre que
+   quand on le connaît. */
+function buildGalleryNewPhotos(client, gallery, url, photoUrl, count) {
+  const B = brandOf(client);
+  const prenom = esc(client.partner1 && client.partner2
+    ? `${client.partner1} & ${client.partner2}`
+    : (client.greeting ?? client.partner1 ?? client.name ?? "chers clients"));
+  const titre = esc(gallery?.title || "Votre galerie");
+  const n = Number(count) || 0;
+  const quoi = n > 1 ? `${n} nouvelles photos` : n === 1 ? "une nouvelle photo" : "de nouvelles photos";
+  const photoHtml = photoUrl
+    ? `<img src="${esc(photoUrl)}" alt="" width="492"
+           style="width:100%;height:auto;display:block;border-radius:3px;margin:0 0 30px"/>`
+    : "";
+  return {
+    subject: `${n > 1 ? `${n} nouvelles photos` : "De nouvelles photos"} dans « ${gallery?.title || "votre galerie"} » — ${B.name}`,
+    html: layout(`
+      ${photoHtml}
+      <h2>${titre} s'est enrichie</h2>
+      <p>Bonjour ${prenom},</p>
+      <p>Votre galerie vient de recevoir ${quoi} — le même lien, toujours le vôtre,
+         avec du nouveau à découvrir.</p>
+      <div style="text-align:center">
+        <a class="btn" href="${esc(url)}">Voir les nouvelles photos</a>
+      </div>
+      <p class="note">Vos coups de cœur déjà marqués sont conservés.</p>
+    `)
+  };
+}
+
 function buildGalleryReady(client, gallery, url, photoUrl) {
   const B = brandOf(client);
   // Un couple se salue à deux : « Chers Éléa & David »
@@ -1259,6 +1292,7 @@ serve(async (req)=>{
       "shoot_reminder",
       "strategy_ready",
       "gallery_ready",
+      "gallery_new_photos",
       "video_ready",
       "access_expiring"
     ];
@@ -1365,7 +1399,7 @@ serve(async (req)=>{
           });
         }
         built = buildStrategyReady(client, strategy);
-      } else if (kind === "gallery_ready") {
+      } else if (kind === "gallery_ready" || kind === "gallery_new_photos") {
         const gallery = gallery_id ? await sbGet("galleries", gallery_id) : null;
         if (!gallery) {
           return new Response(JSON.stringify({ error: "Galerie introuvable (gallery_id manquant ou invalide)." }), {
@@ -1406,7 +1440,9 @@ serve(async (req)=>{
           photoUrl = p?.url_view || p?.url_grid || null;
           if (photoUrl && !/^https:\/\//i.test(photoUrl)) photoUrl = null; // http = image cassée en mail
         }
-        built = buildGalleryReady(client, gallery, galerieUrl, photoUrl);
+        built = kind === "gallery_new_photos"
+          ? buildGalleryNewPhotos(client, gallery, galerieUrl, photoUrl, extra?.count)
+          : buildGalleryReady(client, gallery, galerieUrl, photoUrl);
       } else if (kind === "video_ready") {
         built = buildVideoReady(client, extra ?? {}, (extra && extra.url) || espaceUrl);
       } else if (kind === "access_expiring") {

@@ -686,10 +686,15 @@ function injectStyles() {
   .g-scene-cadre .g-stage { position: relative; z-index: 1; }
   .g-halo { display: none; }
   body.decor-halo .g-halo {
-    display: block; position: absolute; inset: -9% -7%; z-index: 0;
+    display: block; position: absolute; inset: -14% -11%; z-index: 0;
     pointer-events: none;
-    filter: blur(64px) saturate(1.75);
-    opacity: 0.85;
+    /* Flou POUSSÉ : à 64 px on devinait encore des formes (retour de
+       Gil). À 150 px, plus rien qu'une lueur — d'autant que la toile
+       n'est peinte qu'en 8×5 pixels : l'information de forme n'existe
+       même pas, seules les couleurs restent. Le second flou, en cascade,
+       gomme les arêtes que le premier laisse aux bords. */
+    filter: blur(150px) saturate(1.9) blur(40px);
+    opacity: 0.9;
   }
   body.decor-halo .g-halo canvas {
     position: absolute; inset: 0; width: 100%; height: 100%;
@@ -2196,14 +2201,17 @@ export async function mountVideos(mount, videos, opts = {}) {
     const boite = document.createElement('div');
     boite.className = 'g-halo';
     boite.setAttribute('aria-hidden', 'true');
+    /* 8×5 : quarante pixels pour tout un plan. Aucune forme ne survit
+       à cette réduction — c'est la garantie STRUCTURELLE que le halo
+       reste une lueur, quel que soit le flou appliqué par-dessus. */
     const toiles = [document.createElement('canvas'), document.createElement('canvas')];
-    toiles.forEach((c) => { c.width = 32; c.height = 18; boite.appendChild(c); });
+    toiles.forEach((c) => { c.width = 8; c.height = 5; boite.appendChild(c); });
     cadre.prepend(boite);
     let tour = 0;
     const peindre = (source) => {
       const c = toiles[tour ^= 1];
       try {
-        c.getContext('2d').drawImage(source, 0, 0, 32, 18);
+        c.getContext('2d').drawImage(source, 0, 0, 8, 5);
         c.style.opacity = '1';
         toiles[tour ^ 1].style.opacity = '0';
       } catch (_) {}

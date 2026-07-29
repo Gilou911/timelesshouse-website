@@ -1439,7 +1439,12 @@ function App() {
     (async () => {
       // Échange du lien magique (?lm=) contre une session — voir LM_BOOT.
       if (LM_BOOT) {
-        const { error } = await sb.auth.verifyOtp({ type: 'email', token_hash: LM_BOOT });
+        // Le jeton est né « magiclink » ; certains GoTrue le rangent
+        // sous le type consolidé « email ». On tente les deux.
+        let { error } = await sb.auth.verifyOtp({ type: 'magiclink', token_hash: LM_BOOT });
+        if (error) {
+          ({ error } = await sb.auth.verifyOtp({ type: 'email', token_hash: LM_BOOT }));
+        }
         lmEnCours.current = false;
         if (error) {
           // Jeton consommé ou périmé. S'il reste une session en poche

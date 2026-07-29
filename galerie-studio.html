@@ -2709,12 +2709,17 @@
     bouton.disabled = false;
   });
 
-  el('couv-retirer').addEventListener('click', () => {
+  el('couv-retirer').addEventListener('click', async () => {
     const cfg = draft.gallery.config;
     delete cfg.coverPhoto;
     delete cfg.cover;
-    etatUp('Couverture retirée — la première photo sera utilisée.');
     rendre();
+    /* Enregistré TOUT DE SUITE, comme la pose : déposer ou choisir une
+       couverture écrit sans attendre, son retrait faisait semblant —
+       il ne touchait que le brouillon, et un rechargement la
+       ressuscitait. Même geste, même engagement. */
+    const ok = await enregistrerDepot({ cover: undefined, coverPhoto: undefined }, 'Le retrait de la couverture');
+    if (ok) etatUp('Couverture retirée — la première photo sera utilisée.', 'ok');
   });
 
   el('depot').addEventListener('click', () => el('fichiers').click());

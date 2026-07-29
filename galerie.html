@@ -979,7 +979,7 @@
          remise à zéro plus haut ne le couvre pas (il vit hors des hôtes
          vidés), on le retire donc nous-mêmes avant d'en reposer un. */
       document.querySelector('.g-bandeau-maitre')?.remove();
-      if (data.__masquage) {
+      if (data.__masquage && code !== 'apercu') {
         const bd = document.createElement('div');
         bd.className = 'g-bandeau-maitre';
         bd.setAttribute('role', 'note');

@@ -20,6 +20,18 @@
       "port": 4174
     },
     {
+      "name": "perso-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--config", "vite.config.perso.js"],
+      "port": 4175
+    },
+    {
+      "name": "perso-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "preview", "--config", "vite.config.perso.js", "--port", "4176"],
+      "port": 4176
+    },
+    {
       "name": "openreply-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "/Users/gil/openreply", "run", "dev"],

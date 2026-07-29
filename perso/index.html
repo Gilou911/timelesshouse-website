@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+
+  <meta charset="UTF-8" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <style>/* HIG : contenu hors de l'encoche en paysage iPhone */body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);}</style>
+  <title>Espace perso</title>
+
+  <!-- Espace privé : jamais dans un moteur de recherche. Le dépôt n'a
+       pas de robots.txt (protection page par page), et post-build.mjs
+       ajoute en plus X-Robots-Tag aux en-têtes de ce build. -->
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#e9e4d9" />
+
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+
+  <!-- Thème posé AVANT le rendu, pour éviter le flash blanc.
+       Il suit le réglage de l'appareil : pas de préférence enregistrée,
+       pas de bascule dans l'interface. -->
+  <script>
+    (function(){
+      try {
+        var sombre = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', sombre ? 'dark' : 'light');
+      } catch(e) {}
+    })();
+  </script>
+
+  <style>
+    body { margin: 0; background: #e9e4d9; font-family: 'Manrope', system-ui, sans-serif; transition: background 0.5s ease; }
+    [data-theme="dark"] body { background: #181b20; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(134,121,106,0.32); border-radius: 4px; }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(232,216,190,0.18); }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(232,216,190,0.32); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    /* ─── RÈGLE « HALO » (anti-collision d'ombres neumorphiques) ───
+       Un conteneur qui défile rogne toute ombre peinte hors de sa boîte.
+       Toute bande défilante de pastilles réserve donc d'office 12 px
+       verticaux (portée du halo d'une pastille raisedXs = 10 px).
+       Ne jamais compenser à la main avec py-*/-my-* : la règle gagne.
+       display:flex rend chaque enfant « flex item », ce qui active le
+       zIndex:2 du jeton raisedXs : une pastille est ainsi toujours
+       peinte AU-DESSUS du halo des grandes cartes voisines.
+       Les contrôles segmentés (.rounded-full, relief porté par le
+       conteneur lui-même, ombres internes) sont exemptés. */
+    .overflow-x-auto.no-scrollbar:not(.rounded-full) { display: flex; padding-top: 12px; padding-bottom: 12px; }
+    input, textarea, select { font-family: inherit; }
+    /* ── HIG P0 : AUCUN contrôle sous 16 px sur téléphone ──
+       Sous 16 px, iOS zoome la page au focus… et le zoom RESTE après
+       fermeture (bug « barre de navigation au milieu de l'écran »
+       constaté le 22/07/2026). Filet global. */
+    @media (max-width: 639px) {
+      input, select, textarea { font-size: 16px !important; }
+    }
+    input:focus, textarea:focus, select:focus { outline: none; }
+
+    /* ─── Dark-mode color overrides (palette graphite + ivoire chaud) ─── */
+    [data-theme="dark"] .text-stone-900 { color: #e6e8eb !important; }
+    [data-theme="dark"] .text-stone-800 { color: #d4d6dc !important; }
+    [data-theme="dark"] .text-stone-700 { color: #b6b9c0 !important; }
+    [data-theme="dark"] .text-stone-600 { color: #969aa3 !important; }
+    [data-theme="dark"] .text-stone-500 { color: #7e828b !important; }
+    [data-theme="dark"] .text-stone-400 { color: #686c75 !important; }
+    [data-theme="dark"] .text-stone-300 { color: #4f535c !important; }
+    [data-theme="dark"] .bg-white { background-color: #22262d !important; }
+    [data-theme="dark"] .bg-stone-50 { background-color: #1d2025 !important; }
+    [data-theme="dark"] .bg-stone-100 { background-color: #22262d !important; }
+    [data-theme="dark"] .bg-stone-200 { background-color: rgba(232,216,190,0.12) !important; }
+    [data-theme="dark"] .bg-stone-300 { background-color: rgba(232,216,190,0.18) !important; }
+    [data-theme="dark"] .bg-stone-900 { background-color: #e8d8be !important; }
+    [data-theme="dark"] .text-white { color: #1a1410 !important; }
+    [data-theme="dark"] .placeholder\:text-stone-400::placeholder { color: #686c75 !important; }
+    [data-theme="dark"] .border-stone-200 { border-color: rgba(255,255,255,0.07) !important; }
+    [data-theme="dark"] .border-stone-300 { border-color: rgba(232,216,190,0.22) !important; }
+    [data-theme="dark"] .border-stone-900 { border-color: #e8d8be !important; }
+    [data-theme="dark"] hr { border-color: rgba(255,255,255,0.07) !important; }
+
+    /* Transitions de thème limitées aux conteneurs — un `*` global
+       provoquait du layout thrashing avec les re-renders React. */
+    body, header, aside, nav, main {
+      transition: background-color 0.45s ease, color 0.45s ease, border-color 0.45s ease;
+    }
+
+    /* §6 — Contrastes : sur le fond crème #e9e4d9, stone-500/400
+       tombaient sous 4.5:1. On assombrit sans toucher à la marque. */
+    .text-stone-500 { color: #635c50 !important; }   /* 5.2:1 */
+    .text-stone-400 { color: #6b6357 !important; }   /* 4.7:1 */
+    .placeholder\:text-stone-400::placeholder,
+    .placeholder\:text-stone-500::placeholder { color: #6b6357 !important; }
+
+    /* §16 — Le focus clavier doit toujours se voir. */
+    :focus-visible {
+      outline: 2px solid #2a2620;
+      outline-offset: 3px;
+      border-radius: 8px;
+    }
+    [data-theme="dark"] :focus-visible { outline-color: #e8d8be; }
+
+    /* §4 — Zone tactile 44 px pour les petits contrôles dessinés fin. */
+    .th-hit-44 { position: relative; }
+    .th-hit-44::after {
+      content: ""; position: absolute;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 44px; height: 44px;
+    }
+
+    /* ═══ MOUVEMENT — utilitaires partagés (HIG §9) ═══
+       Trois gestes seulement : une vue qui entre, une liste qui se
+       pose, une modale qui arrive. Uniquement transform/opacity. */
+    :root { --ease-doux: cubic-bezier(0.16, 1, 0.3, 1); }
+
+    .th-onglet {
+      transition: box-shadow 0.44s var(--ease-doux),
+                  background-color 0.44s var(--ease-doux),
+                  color 0.34s var(--ease-doux),
+                  transform 0.16s var(--ease-doux);
+    }
+
+    .th-squelette > *, .th-squelette > * > * {
+      animation: th-battement 1.8s ease-in-out infinite;
+    }
+    @keyframes th-battement { 0%, 100% { opacity: 0.55 } 50% { opacity: 0.9 } }
+
+    @keyframes th-fond  { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes th-boite { from { opacity: 0; transform: translateY(18px) scale(0.985); } to { opacity: 1; transform: none; } }
+    @keyframes th-feuille { from { transform: translateY(100%); } to { transform: none; } }
+
+    .th-vue { animation: th-entre-doux 0.52s var(--ease-doux) backwards; }
+    @keyframes th-entre-doux { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    .th-liste > * { animation: th-entre-doux 0.58s var(--ease-doux) backwards; }
+    .th-liste > *:nth-child(1) { animation-delay: 0ms; }
+    .th-liste > *:nth-child(2) { animation-delay: 48ms; }
+    .th-liste > *:nth-child(3) { animation-delay: 96ms; }
+    .th-liste > *:nth-child(4) { animation-delay: 144ms; }
+    .th-liste > *:nth-child(5) { animation-delay: 192ms; }
+    .th-liste > *:nth-child(6) { animation-delay: 240ms; }
+    .th-liste > *:nth-child(7) { animation-delay: 288ms; }
+    .th-liste > *:nth-child(8) { animation-delay: 336ms; }
+    .th-liste > *:nth-child(9) { animation-delay: 384ms; }
+    .th-liste > *:nth-child(n+10) { animation-delay: 432ms; }
+
+    .th-modal-fond  { animation: th-fond 0.22s ease-out backwards; }
+    .th-modal-boite { animation: th-boite 0.32s cubic-bezier(0.32, 0.72, 0, 1) backwards; }
+    @media (max-width: 639px) {
+      .th-modal-boite { animation: th-feuille 0.34s cubic-bezier(0.32, 0.72, 0, 1) backwards; }
+    }
+
+    .th-press { transition: transform 0.16s cubic-bezier(0.23, 1, 0.32, 1); }
+    .th-press:active { transform: scale(0.985); }
+
+    /* §16 — Respecter « réduire les animations ». */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module" src="./perso.jsx"></script>
+</body>
+</html>

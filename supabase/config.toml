@@ -33,3 +33,9 @@ verify_jwt = false
 # Cron quotidien (Dashboard → Integrations → Cron) : appelée sans JWT.
 [functions.scheduled-notifications]
 verify_jwt = false
+
+# Contrôle d'identité DANS le code (rejeu du JWT appelant contre
+# perso_est_proprietaire, comme admin-mfa-reset) ; l'action « lien »
+# est anonyme par conception (écran de connexion).
+[functions.perso-invite]
+verify_jwt = false

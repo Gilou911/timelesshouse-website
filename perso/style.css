@@ -1,0 +1,6 @@
+/* Entrée CSS du build perso. Le root Vite est perso/, donc le
+   « /style.css » du shell tombe ici ; on remonte simplement à la
+   feuille commune du dépôt (@import "tailwindcss" + utilitaires
+   HIG .tap-ext / touch-action). Un @import relatif se résout
+   depuis le dossier de CE fichier, pas depuis le root. */
+@import "../style.css";

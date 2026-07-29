@@ -3,8 +3,10 @@ node_modules
 .pnp
 .pnp.js
 
-# Build Vite
+# Build Vite (un dossier par projet Pages — voir files/DEUX-SITES.md)
 dist
+dist-studio
+dist-perso
 dist-ssr
 *.local
 

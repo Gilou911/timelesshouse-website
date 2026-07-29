@@ -11,9 +11,10 @@
 
      node scripts/post-build.mjs studio    → dist-studio/_redirects
      node scripts/post-build.mjs loge      → dist/_redirects
+     node scripts/post-build.mjs perso     → dist-perso/_redirects (+ noindex)
    ════════════════════════════════════════════════════════════ */
 
-import { writeFileSync, existsSync } from "node:fs";
+import { writeFileSync, existsSync, appendFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -66,14 +67,32 @@ const logeRedirects = (dossier) => [
   "",
 ].join("\n");
 
+/* L'espace perso est une app mono-page : rien à rediriger. En revanche
+   il ne doit JAMAIS être indexé, et le `_headers` de `public/` est
+   partagé par les trois builds — y poser un noindex désindexerait le
+   studio et La Loge. On l'ajoute donc ici, après la copie, seulement
+   dans dist-perso/. (La page porte aussi <meta name="robots">.) */
+const PERSO = [
+  "# Généré par scripts/post-build.mjs — ne pas éditer à la main.",
+  "# Espace perso : app mono-page, rien à rediriger.",
+  "",
+].join("\n");
+const persoNoindex = (dossier) =>
+  appendFileSync(
+    join(dossier, "_headers"),
+    "\n# Espace privé : jamais indexé (ajouté par post-build.mjs, cible perso).\n/*\n  X-Robots-Tag: noindex\n",
+    "utf8"
+  );
+
 const CIBLES = {
   studio: { dossier: "dist-studio", contenu: () => STUDIO },
   loge:   { dossier: "dist",        contenu: logeRedirects },
+  perso:  { dossier: "dist-perso",  contenu: () => PERSO, apres: persoNoindex },
 };
 
 const choix = CIBLES[cible];
 if (!choix) {
-  console.error(`Cible inconnue : « ${cible ?? ""} ». Attendu : studio | loge`);
+  console.error(`Cible inconnue : « ${cible ?? ""} ». Attendu : studio | loge | perso`);
   process.exit(1);
 }
 const dossier = join(RACINE, choix.dossier);
@@ -83,4 +102,5 @@ if (!existsSync(dossier)) {
 }
 const contenu = choix.contenu(dossier);
 writeFileSync(join(dossier, "_redirects"), contenu, "utf8");
+choix.apres?.(dossier);
 console.log(`✓ ${choix.dossier}/_redirects écrit (${contenu.trim().split("\n").length} lignes)`);

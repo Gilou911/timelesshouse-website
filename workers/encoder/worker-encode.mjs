@@ -20,7 +20,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, createWriteStream, mkdirSync, rmSync, statSync } from "node:fs";
+import { appendFileSync, createWriteStream, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pipeline } from "node:stream/promises";
@@ -350,7 +350,19 @@ async function processJob(job) {
       .eq("id", job.id);
     log(`✓ job ${job.id} terminé — qualité adaptative active (${rungs.map((r) => r.name).join(" / ")})`);
   } finally {
-    rmSync(workRoot, { recursive: true, force: true });
+    /* Le ménage ne doit JAMAIS faire échouer un job réussi. Constaté le
+       29/07/2026 : un ENOTEMPTY sur ce rmSync, jeté depuis un `finally`,
+       a remplacé la réussite du job par une erreur — le worker a
+       remis en file un film 4K de 29 minutes DÉJÀ encodé et publié, et
+       reparti pour deux heures. Un dossier temporaire qui survit coûte
+       du disque ; une erreur ici coûtait tout le travail.
+       maxRetries : macOS rend ENOTEMPTY quand un descripteur se ferme
+       encore pendant la suppression — quelques reprises suffisent. */
+    try {
+      rmSync(workRoot, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
+    } catch (e) {
+      log(`  ⚠ dossier de travail non supprimé (${e.code || e.message}) — le prochain démarrage s'en charge`);
+    }
   }
 }
 
@@ -457,7 +469,8 @@ async function processZipJob(job) {
     }).eq("id", job.id);
     log(`✓ archive ${job.id} prête — ${fmtSize(octets)}`);
   } finally {
-    try { rmSync(workRoot, { recursive: true, force: true }); } catch (_) {}
+    // Déjà protégé, on ajoute seulement les reprises (même ENOTEMPTY).
+    try { rmSync(workRoot, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 }); } catch (_) {}
   }
 }
 
@@ -513,6 +526,28 @@ async function menageArchives() {
   } catch (e) { log(`⚠ ménage des archives : ${e.message}`); }
 }
 
+/* Dossiers de travail laissés par un job interrompu (Mac endormi,
+   ménage en échec) : ils ne servent plus à rien et pèsent des dizaines
+   de Go. Balayés au démarrage, jamais pendant — un job en cours écrit
+   dans le sien. */
+function balayerDossiersOrphelins() {
+  for (const base of ["tmp-hls", "tmp-zip"]) {
+    const racine = join(ROOT, base);
+    let noms = [];
+    try { noms = readdirSync(racine); } catch (_) { continue; }
+    let n = 0, octets = 0;
+    for (const nom of noms) {
+      const d = join(racine, nom);
+      try {
+        octets += Number(execFileSync("/usr/bin/du", ["-sk", d]).toString().split(/\s+/)[0]) * 1024;
+        rmSync(d, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
+        n++;
+      } catch (_) {}
+    }
+    if (n) log(`🧹 ${n} dossier(s) de travail orphelin(s) supprimé(s) dans ${base} (${fmtSize(octets)})`);
+  }
+}
+
 async function claimZip() {
   const { data, error } = await sb.rpc("claim_zip_job");
   if (error) return null;                 // table absente : migration pas passée
@@ -566,6 +601,7 @@ function autoriserSommeil() {
 }
 
 log(`🎬 worker d'encodage démarré (${ONCE ? "mode --once" : `boucle ${POLL_MS / 1000} s`})`);
+balayerDossiersOrphelins();
 await requeueOrphans();
 
 while (!stopping) {

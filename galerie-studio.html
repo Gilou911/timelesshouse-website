@@ -1916,6 +1916,10 @@
        galeries à photos — sur un film seul, Style se réduit aux couleurs. */
     el('bloc-upload').hidden  = !voirPhotos;
     el('bloc-video').hidden   = !voirVideo;
+    /* Oubliée à la naissance du bloc : la visibilité est EXPLICITE ici,
+       les listes de SECTIONS ne pilotent que la cascade — le décor
+       restait donc caché à jamais, boutons remplis mais invisibles. */
+    el('bloc-decor-film').hidden = !voirVideo;
     el('bloc-palette').hidden = !voirPalette;
     el('bloc-photos').hidden  = !voirPhotos;
     el('bloc-couv').hidden    = !voirPhotos;

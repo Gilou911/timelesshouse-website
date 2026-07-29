@@ -19,7 +19,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       Loader2, MessageSquare, Bell, Send, CheckCircle2, RefreshCw, Link2,
       FolderOpen, Download, Upload,
       Maximize2, Monitor, Smartphone, ChevronDown, ChevronUp,
-      Lightbulb, Copy, Power, Building2, HelpCircle, Heart
+      Lightbulb, Copy, Power, Building2, HelpCircle, Heart, ShieldCheck
     } from 'lucide-react';
     import AdminPortfolio from './admin-portfolio.jsx';
     import {
@@ -657,7 +657,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     /* ════════════════════════════════════════════════════════════
        🔐 LOGIN
        ════════════════════════════════════════════════════════════ */
-    function LoginScreen({ onLogin }) {
+    function LoginScreen({ onLogin, mfaSession }) {
       const [email, setEmail] = useState('');
       const [pwd, setPwd] = useState('');
       const [showPwd, setShowPwd] = useState(false);
@@ -681,6 +681,29 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setSent(true); setSending(false);
       };
 
+      /* Étape du code : { factorId } quand la double vérification est
+         attendue. La session existe déjà (mot de passe validé) mais elle
+         est de niveau 1 — la console ne s'ouvre qu'après verify(). */
+      const [mfa, setMfa] = useState(null);
+      const [codeMfa, setCodeMfa] = useState('');
+      const [mfaBusy, setMfaBusy] = useState(false);
+
+      const versEtapeCode = async () => {
+        const { data: fs, error: e1 } = await sb.auth.mfa.listFactors();
+        if (e1) return false;
+        const f = (fs?.totp || []).find((x) => x.status === 'verified') || (fs?.totp || [])[0];
+        if (!f) return false;
+        setMfa({ factorId: f.id });
+        return true;
+      };
+
+      /* Session rechargée à mi-parcours (mot de passe validé hier, code
+         jamais saisi) : on arrive directement à l'étape du code. */
+      useEffect(() => {
+        if (!mfaSession) return;
+        versEtapeCode().then((ok) => { if (!ok) sb.auth.signOut(); });
+      }, [mfaSession]);
+
       const submit = async (e) => {
         e.preventDefault();
         setLoading(true); setError('');
@@ -688,10 +711,79 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (err) {
           setError("Identifiants incorrects ou compte non trouvé.");
           setLoading(false);
-        } else {
-          onLogin(data.user);
+          return;
         }
+        /* Double vérification exigée ? L'échec de l'API MFA ne bloque
+           jamais l'entrée : sans réponse, on se comporte comme avant. */
+        try {
+          const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+          if (aal && aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
+            if (await versEtapeCode()) { setLoading(false); return; }
+          }
+        } catch (_) {}
+        onLogin(data.user);
       };
+
+      const verifierCode = async (e) => {
+        e.preventDefault();
+        if (!mfa || mfaBusy) return;
+        setMfaBusy(true); setError('');
+        try {
+          const { data: ch, error: e1 } = await sb.auth.mfa.challenge({ factorId: mfa.factorId });
+          if (e1) throw e1;
+          const { data, error: e2 } = await sb.auth.mfa.verify({
+            factorId: mfa.factorId, challengeId: ch.id, code: codeMfa.trim(),
+          });
+          if (e2) throw e2;
+          onLogin(data.user);
+        } catch (err) {
+          setError(/invalid|expired/i.test(err?.message || '')
+            ? 'Code incorrect ou expiré — regardez le nouveau code dans votre application.'
+            : humaniseErreur(err?.message || 'La vérification a échoué.'));
+          setCodeMfa('');
+        }
+        setMfaBusy(false);
+      };
+
+      const abandonnerMfa = async () => {
+        await sb.auth.signOut().catch(() => {});
+        setMfa(null); setCodeMfa(''); setError(''); setLoading(false);
+      };
+
+      if (mfa) return (
+        <div className="min-h-screen flex items-center justify-center p-6">
+          <div style={neu.raised} className="rounded-[32px] p-10 max-w-md w-full">
+            <div className="text-center mb-8">
+              <div style={neu.dark} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mx-auto mb-4">
+                <ShieldCheck size={20} />
+              </div>
+              <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">Double vérification</div>
+              <h1 className="text-[34px] tracking-tight mt-1 leading-none" style={SERIF}>Votre code</h1>
+              <p className="text-[13px] text-stone-500 mt-3">Ouvrez votre application d'authentification et saisissez le code à 6 chiffres.</p>
+            </div>
+            <form onSubmit={verifierCode} className="space-y-4">
+              <Field label="Code à 6 chiffres">
+                <Input value={codeMfa} onChange={(e) => setCodeMfa(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  inputMode="numeric" autoComplete="one-time-code" placeholder="123456" autoFocus required
+                  className="text-center tracking-[0.4em] font-semibold" />
+              </Field>
+              {error && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]">
+                  <AlertCircle size={14} className="shrink-0" /> {error}
+                </div>
+              )}
+              <button type="submit" disabled={mfaBusy || codeMfa.length < 6} style={neu.dark}
+                className="w-full min-h-[48px] rounded-full text-white text-[14px] font-semibold disabled:opacity-50 active:scale-[0.99] transition-transform">
+                {mfaBusy ? 'Vérification…' : 'Entrer'}
+              </button>
+              <button type="button" onClick={abandonnerMfa}
+                className="w-full min-h-[44px] text-[12.5px] text-stone-500 hover:text-stone-800">
+                Revenir à la connexion
+              </button>
+            </form>
+          </div>
+        </div>
+      );
 
       return (
         <div className="min-h-screen flex items-center justify-center p-6">
@@ -993,6 +1085,146 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       );
     }
 
+    // ── Double vérification (2FA) : un code en plus du mot de passe ──
+    function MfaCard() {
+      const [facteurs, setFacteurs] = useState(undefined);   // undefined = chargement
+      const [enrolement, setEnrolement] = useState(null);    // { id, qr, secret }
+      const [code, setCode] = useState('');
+      const [busy, setBusy] = useState(false);
+      const [msg, setMsg] = useState(null);
+
+      const charger = async () => {
+        try {
+          const { data, error } = await sb.auth.mfa.listFactors();
+          if (error) throw error;
+          setFacteurs((data?.totp || []).filter((f) => f.status === 'verified'));
+        } catch (e) {
+          setFacteurs(null);
+          setMsg({ kind: 'err', text: humaniseErreur(e?.message || 'Impossible de lire l\u2019état de la double vérification.') });
+        }
+      };
+      useEffect(() => { charger(); }, []);
+
+      const activer = async () => {
+        setBusy(true); setMsg(null);
+        try {
+          const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Console' });
+          if (error) throw error;
+          setEnrolement({ id: data.id, qr: data.totp?.qr_code || '', secret: data.totp?.secret || '' });
+        } catch (e) {
+          setMsg({ kind: 'err', text: /not enabled|disabled/i.test(e?.message || '')
+            ? 'La double vérification n\u2019est pas activée côté Supabase : Dashboard \u2192 Authentication \u2192 Multi-Factor \u2192 TOTP.'
+            : humaniseErreur(e?.message || 'L\u2019activation a échoué.') });
+        }
+        setBusy(false);
+      };
+
+      const confirmer = async (e) => {
+        e.preventDefault();
+        if (!enrolement || busy) return;
+        setBusy(true); setMsg(null);
+        try {
+          const { data: ch, error: e1 } = await sb.auth.mfa.challenge({ factorId: enrolement.id });
+          if (e1) throw e1;
+          const { error: e2 } = await sb.auth.mfa.verify({ factorId: enrolement.id, challengeId: ch.id, code: code.trim() });
+          if (e2) throw e2;
+          setEnrolement(null); setCode('');
+          setMsg({ kind: 'ok', text: 'Double vérification activée — le code vous sera demandé à chaque connexion.' });
+          charger();
+        } catch (err) {
+          setMsg({ kind: 'err', text: /invalid|expired/i.test(err?.message || '')
+            ? 'Code incorrect — regardez le nouveau code dans l\u2019application et réessayez.'
+            : humaniseErreur(err?.message || 'La vérification a échoué.') });
+          setCode('');
+        }
+        setBusy(false);
+      };
+
+      const abandonner = async () => {
+        // Le facteur jamais vérifié ne doit pas traîner sur le compte.
+        if (enrolement) await sb.auth.mfa.unenroll({ factorId: enrolement.id }).catch(() => {});
+        setEnrolement(null); setCode(''); setMsg(null);
+      };
+
+      const desactiver = async (f) => {
+        if (!confirm('Désactiver la double vérification ?\n\nVotre mot de passe redeviendra la seule protection de la console.')) return;
+        setBusy(true); setMsg(null);
+        const { error } = await sb.auth.mfa.unenroll({ factorId: f.id });
+        setBusy(false);
+        if (error) return setMsg({ kind: 'err', text: humaniseErreur(error.message) });
+        setMsg({ kind: 'ok', text: 'Double vérification désactivée.' });
+        charger();
+      };
+
+      const active = Array.isArray(facteurs) && facteurs.length > 0;
+
+      return (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>Double vérification</h2>
+              <p className="text-[12.5px] text-stone-500 mt-1 max-w-md leading-relaxed">
+                Un code à 6 chiffres, généré par une application (Google Authenticator, 1Password…),
+                demandé à chaque connexion. Même si votre mot de passe fuit, votre console reste fermée.
+              </p>
+            </div>
+            {facteurs === undefined ? (
+              <Loader2 size={16} className="animate-spin text-stone-400" />
+            ) : active ? (
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider px-3 py-1.5 rounded-full font-semibold bg-emerald-100 text-emerald-700">
+                  <ShieldCheck size={12} /> Activée
+                </span>
+                <Btn onClick={() => desactiver(facteurs[0])} disabled={busy}>Désactiver</Btn>
+              </div>
+            ) : !enrolement && (
+              <Btn icon={ShieldCheck} kind="dark" onClick={activer} disabled={busy || facteurs === null}>
+                {busy ? 'Préparation…' : 'Activer'}
+              </Btn>
+            )}
+          </div>
+
+          {enrolement && (
+            <div className="mt-6 grid sm:grid-cols-[auto_1fr] gap-6 items-start">
+              <img alt="QR code à scanner avec votre application d'authentification"
+                src={'data:image/svg+xml;utf8,' + encodeURIComponent(enrolement.qr)}
+                className="w-44 h-44 rounded-2xl bg-white p-2 shadow-sm" />
+              <div className="min-w-0">
+                <ol className="text-[13px] text-stone-600 leading-relaxed list-decimal ml-4 space-y-1.5">
+                  <li>Scannez ce QR code avec votre application d'authentification.</li>
+                  <li>Saisissez le code à 6 chiffres qu'elle affiche.</li>
+                  <li><strong>Gardez l'application</strong> : sans elle, vous ne pourrez plus entrer.</li>
+                </ol>
+                <div className="mt-3 flex items-center gap-2 flex-wrap text-[12px] text-stone-500">
+                  <span>Pas de caméra ?</span>
+                  <code className="px-2 py-1 rounded-lg bg-stone-100 text-[11px] break-all">{enrolement.secret}</code>
+                  <CopyButton value={enrolement.secret} label="Copier la clé" />
+                </div>
+                <form onSubmit={confirmer} className="mt-4 flex items-end gap-3 flex-wrap">
+                  <Field label="Code affiché par l'application">
+                    <Input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      inputMode="numeric" autoComplete="one-time-code" placeholder="123456" required
+                      className="text-center tracking-[0.3em] font-semibold w-40" />
+                  </Field>
+                  <Btn kind="dark" type="submit" disabled={busy || code.length < 6}>
+                    {busy ? 'Vérification…' : 'Confirmer'}
+                  </Btn>
+                  <Btn onClick={abandonner} disabled={busy}>Annuler</Btn>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {msg && (
+            <div className={`flex items-center gap-2 mt-4 text-[12.5px] ${msg.kind === 'ok' ? 'text-emerald-700' : 'text-rose-600'}`}>
+              {msg.kind === 'ok' ? <CheckCircle2 size={14} className="shrink-0" /> : <AlertCircle size={14} className="shrink-0" />}
+              {msg.text}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     // ── Ma marque (SaaS B.3) : l'agence règle ELLE-MÊME son identité ──
     // Nom, logo, couleurs et email de contact — écrits via la RPC
     // update_my_agency_brand (owners uniquement). C'est la SEULE voie
@@ -1274,6 +1506,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
           {/* Sécurité — changement de mot de passe */}
           <PasswordCard />
+
+          {/* Double vérification (2FA) */}
+          <MfaCard />
         </div>
       );
     }
@@ -8660,13 +8895,32 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         try { if (user) localStorage.setItem(`laloge-guide-vu:${user.id}`, '1'); } catch (_) {}
       };
 
+      /* Une session n'ouvre la console que si la double vérification est
+         SATISFAITE : l'événement de connexion arrive dès le mot de passe,
+         AVANT le code à 6 chiffres — sans cette garde, il court-circuitait
+         l'étape. Un échec de l'API MFA (réseau, option désactivée côté
+         Supabase) ne mure jamais la porte : on laisse passer, comme avant
+         la fonctionnalité. */
+      const [mfaEnAttente, setMfaEnAttente] = useState(false);
+      const poserSession = async (session) => {
+        if (!session?.user) { setMfaEnAttente(false); setUser(null); return; }
+        try {
+          const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+          if (aal && aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
+            setMfaEnAttente(true); setUser(null); return;
+          }
+        } catch (_) {}
+        setMfaEnAttente(false);
+        setUser(session.user);
+      };
+
       // Vérification session au mount
       useEffect(() => {
         sb.auth.getSession().then(({ data }) => {
-          setUser(data.session?.user || null);
+          if (data.session) poserSession(data.session); else setUser(null);
         });
         const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
-          setUser(session?.user || null);
+          poserSession(session);
         });
         return () => sub.subscription.unsubscribe();
       }, []);
@@ -8789,7 +9043,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-stone-400" size={28} /></div>;
       }
 
-      if (!user) return <LoginScreen onLogin={setUser} />;
+      if (!user) return <LoginScreen onLogin={setUser} mfaSession={mfaEnAttente} />;
 
       // Loge en attente de validation (SaaS B.3) : au-delà du seuil
       // d'inscriptions automatiques, l'agence est inactive tant que la

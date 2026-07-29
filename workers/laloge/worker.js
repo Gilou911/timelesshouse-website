@@ -184,7 +184,25 @@ export default {
 
     // ── Proxy transparent vers l'origine Pages ──
     url.hostname = env.PAGES_HOST;
-    const res = await fetch(new Request(url, req));
+    /* Les NAVIGATIONS repartent sans en-têtes conditionnels. Constaté le
+       29/07/2026 : après un déploiement, une navigation recevait encore
+       l'ANCIENNE page pendant de longues minutes alors qu'un fetch de la
+       même URL rapportait la neuve — le « ma copie est-elle bonne ? »
+       (If-None-Match) du navigateur trouvait en chemin une entrée
+       périmée qui répondait 304 à tort, et le navigateur ressortait son
+       vieux disque. Sans l'en-tête, la réponse arrive toujours entière :
+       ~60 Ko de HTML déjà servi en max-age=0, le prix est nul — et un
+       déploiement est visible au premier rechargement, pour tout le
+       monde. Les assets hachés, eux, gardent leurs conditionnels : leur
+       nom change à chaque version, ils ne peuvent pas mentir. */
+    const requete = new Request(url, req);
+    if (req.mode === "navigate" || (req.headers.get("Accept") || "").includes("text/html")) {
+      const entetes = new Headers(requete.headers);
+      entetes.delete("If-None-Match");
+      entetes.delete("If-Modified-Since");
+      return fetch(new Request(requete, { headers: entetes }));
+    }
+    const res = await fetch(requete);
     return res;
   },
 };

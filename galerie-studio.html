@@ -974,6 +974,12 @@
       <!-- La page film peut avoir sa propre palette : les photos et le
            film ne racontent pas la même chose. Vide = le film suit la
            galerie, ce qui reste le cas de la plupart. -->
+      <div class="bloc" id="bloc-decor-film" hidden>
+        <div class="titre">Décor de la page film</div>
+        <div class="choix" id="decor-film"></div>
+        <div class="note" id="decor-film-note"></div>
+      </div>
+
       <div class="bloc" id="bloc-palette-film" hidden>
         <div class="titre">Palette de la page film</div>
         <!-- Même repli que la palette de la galerie : treize choix
@@ -1170,7 +1176,7 @@
      où elle est la seule page, donc la seule palette. */
   const SECTIONS = [
     { id:'photos', nom:'Photos', blocs:['bloc-upload','bloc-palette','bloc-perso','bloc-photos','bloc-couv','bloc-mode'] },
-    { id:'video',  nom:'Vidéo',  blocs:['bloc-video','bloc-palette','bloc-palette-film'] },
+    { id:'video',  nom:'Vidéo',  blocs:['bloc-video','bloc-palette','bloc-decor-film','bloc-palette-film'] },
     { id:'infos',  nom:'Infos',  blocs:['bloc-titre','bloc-contenu','bloc-type','bloc-noces'] },
   ];
 
@@ -1499,6 +1505,30 @@
      pour un besoin rare, et la page film hériterait de réglages qu'on ne
      verrait nulle part ici. « Comme la galerie » est le défaut. */
   // Repliée comme celle de la galerie — voir `paletteDepliee`.
+  /* ── Décor de la page film ────────────────────────────────
+     Des HABITS de mise en page — chacun compose avec la palette
+     choisie à côté, aucun ne l'impose. « Scène » est l'état
+     historique : on n'écrit rien dans la config pour lui, les
+     galeries déjà partagées restent à l'identique. */
+  const DECORS_FILM = [
+    { id:'scene',   l:'Scène',   d:'Le titre, puis le film' },
+    { id:'affiche', l:'Affiche', d:'La vignette en plein écran, le film en dessous' },
+    { id:'lumiere', l:'Lumière', d:'Grand titre, lecteur encadré comme un tirage' },
+    { id:'rideau',  l:'Rideau',  d:'Salle noire : le film presque seul' },
+  ];
+  function rendreDecorFilm() {
+    const cfg = draft.gallery.config;
+    const actif = DECORS_FILM.some((x) => x.id === cfg.decorFilm) ? cfg.decorFilm : 'scene';
+    boutons(el('decor-film'), DECORS_FILM, actif, (v) => {
+      if (v === 'scene') delete cfg.decorFilm; else cfg.decorFilm = v;
+      rendre();
+    });
+    const aVignette = (cfg.videos || []).some((x) => x.poster);
+    el('decor-film-note').textContent = actif === 'affiche' && !aVignette
+      ? 'L\u2019Affiche utilise la vignette du film \u2014 d\u00e9posez-en une pour le plus bel effet ; en attendant, la couverture ou la premi\u00e8re photo la remplace.'
+      : '';
+  }
+
   let paletteFilmDepliee = false;
 
   function rendrePaletteFilm() {
@@ -1916,6 +1946,7 @@
       boutons(el('mode'), MODES, cfg.galleryMode || 'categorized', (v) => { cfg.galleryMode = v; rendre(); });
     }
     if (voirVideo) { rendreVideos(); suivreEncodage(); }
+    if (voirVideo) rendreDecorFilm();
     if (voirVideo && aPhotos) rendrePaletteFilm();
 
     // Couleurs sur mesure : seulement quand la palette l'est.

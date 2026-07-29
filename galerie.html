@@ -276,6 +276,29 @@
     }
     .head .sub { font-size: 13.5px; color: var(--muted); margin-top: 14px; }
     .sep { width: 38px; height: 1px; background: var(--accent); opacity: 0.5; margin: 26px auto 0; }
+    /* ── Décors de la page film (config.decorFilm) ─────────────────
+       Des HABITS de mise en page, pas des palettes : chacun compose
+       avec n'importe quelle palette de couleurs choisie à côté. */
+    /* Lumière — le film accroché comme un tirage : grand titre, filet
+       accent élargi, lecteur dans un passe-partout. */
+    body.decor-lumiere .head { padding-top: clamp(64px, 11vw, 140px); }
+    body.decor-lumiere .head h1 { font-size: clamp(2.6rem, 8.5vw, 5.2rem); }
+    body.decor-lumiere .sep { width: 74px; opacity: 0.75; }
+    body.decor-lumiere #videos {
+      padding: clamp(12px, 2.4vw, 28px);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: color-mix(in srgb, currentColor 3%, transparent);
+      box-shadow: var(--shadow, 0 30px 90px rgba(0,0,0,0.35));
+    }
+    /* Rideau — salle noire : l'entête s'efface, le fond s'assombrit
+       QUELLE QUE SOIT la palette, le lecteur prend toute la scène. */
+    body.decor-rideau { background: color-mix(in srgb, var(--bg) 26%, #000); }
+    body.decor-rideau .head { padding: clamp(26px, 5vw, 46px) 0 clamp(12px, 2vw, 20px); }
+    body.decor-rideau .head h1 { font-size: clamp(1.35rem, 3.2vw, 2rem); letter-spacing: 0.01em; }
+    body.decor-rideau .head .mk, body.decor-rideau .head .kicker,
+    body.decor-rideau .head .sub, body.decor-rideau .sep { display: none; }
+    body.decor-rideau .wrap { max-width: min(1780px, 99vw); padding: 0 clamp(6px, 1vw, 16px); }
     .view footer {
       padding: clamp(50px, 8vw, 90px) 0 44px; text-align: center;
       font-size: 12.5px; color: var(--faint); line-height: 2; letter-spacing: 0.04em;
@@ -777,6 +800,12 @@
       if (cph) { cph.classList.remove('on'); cph.removeAttribute('src'); }
       const hPh = el('photos'); if (hPh) hPh.innerHTML = '';
       const hVi = el('videos'); if (hVi) hVi.innerHTML = '';
+      /* Les décors du film et l'entête escamotée par une couverture :
+         sans ce retour, changer de décor dans le concepteur empilait
+         les habits, et l'entête restait invisible à jamais. */
+      document.body.classList.remove('decor-lumiere', 'decor-rideau');
+      const hTete = el('view').querySelector('.head');
+      if (hTete) hTete.style.display = '';
       /* Éléments que la galerie PHOTOS pose hors de son conteneur : le
          bouton scènes (dans la barre du haut), son tiroir et le compteur
          de sélection, tous trois sur le document. mountPhotos les nettoie
@@ -927,7 +956,28 @@
       const cover = coverUp
         || flatPhotos.find(p => String(p.id) === String(cfg.cover))
         || flatPhotos[0];
-      if (coverMode && hasPhotos && cover) {
+      /* ── Décor de la page film (config.decorFilm) ──
+         « Affiche » réutilise la machinerie de couverture, avec la
+         VIGNETTE du premier film pour image — c'est elle qui a été
+         choisie pour représenter le film. À défaut : la couverture
+         déposée, puis la première photo. */
+      const DECORS_FILM = ['scene', 'affiche', 'lumiere', 'rideau'];
+      const decorFilm = vueKind === 'video'
+        ? (DECORS_FILM.includes(cfg.decorFilm) ? cfg.decorFilm : 'scene')
+        : null;
+      if (decorFilm === 'lumiere' || decorFilm === 'rideau') {
+        document.body.classList.add('decor-' + decorFilm);
+      }
+      let modeEff = hasPhotos ? coverMode : null;
+      let coverEff = hasPhotos ? cover : null;
+      if (decorFilm === 'affiche') {
+        const posterFilm = (normalizeVideos(cfg).find((v) => v.poster) || {}).poster;
+        coverEff = posterFilm
+          ? { url_view: posterFilm, url_grid: posterFilm }
+          : (coverUp || flatPhotos[0] || null);
+        modeEff = coverEff ? 'fill' : null;
+      }
+      if (modeEff && coverEff) {
         el('coverMark').innerHTML = el('vMark').innerHTML;
         el('coverKicker').textContent = kicker;   // même annonce que l'en-tête
         el('coverTitle').textContent = g.title || heading;
@@ -937,17 +987,17 @@
           if (i) sub.appendChild(document.createElement('i'));
           sub.appendChild(document.createTextNode(b));
         });
-        const hi = cover.url_view || cover.url_original || cover.url_grid || '';
-        const lo = cover.url_grid || hi;
-        if (coverMode === 'fill') {
+        const hi = coverEff.url_view || coverEff.url_original || coverEff.url_grid || '';
+        const lo = coverEff.url_grid || hi;
+        if (modeEff === 'fill') {
           el('coverBg').style.backgroundImage = 'url("' + hi.replace(/"/g, '%22') + '")';
         } else {
-          el('cover').classList.add('mode-' + coverMode);
+          el('cover').classList.add('mode-' + modeEff);
           const img = el('coverPhoto');
           img.src = lo;
           const big = new Image();
           big.onload = () => {
-            if (coverMode === 'fit') {
+            if (modeEff === 'fit') {
               const r = big.naturalWidth / big.naturalHeight;
               el('cover').classList.add(r >= 1.15 ? 'is-landscape' : (r <= 0.85 ? 'is-portrait' : 'is-square'));
             }

@@ -892,6 +892,30 @@ function PleinEcranChargement() {
   );
 }
 
+/* Squelettes bornés dans le temps : au-delà de 8 s, quelque chose ne
+   va pas — on le dit et on donne le geste (HIG §10, jamais d'attente
+   muette sans issue). */
+function ChargementOuPanne({ onRetry }) {
+  const [tropLong, setTropLong] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setTropLong(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
+  if (tropLong) return (
+    <EmptyState icon={AlertCircle} title="Le chargement n'aboutit pas"
+      text="Le réseau ou le serveur n'a pas répondu. Réessayez — si ça persiste, dites-le à Gil.">
+      <Btn kind="dark" onClick={onRetry} icon={RefreshCw}>Réessayer</Btn>
+    </EmptyState>
+  );
+  return (
+    <div className="th-squelette space-y-4">
+      <div style={neu.raisedSm} className="h-20 rounded-3xl" />
+      <div style={neu.raisedSm} className="h-20 rounded-3xl" />
+      <div style={neu.raisedSm} className="h-20 rounded-3xl" />
+    </div>
+  );
+}
+
 function FilAriane({ chemin, naviguer, racineLabel }) {
   if (!chemin || chemin.length === 0) return null;
   return (
@@ -1414,6 +1438,10 @@ function App() {
   // arrivent entre-temps (INITIAL_SESSION…) ne doivent pas monter
   // l'écran de connexion : ils perdraient la course contre verifyOtp.
   const lmEnCours = useRef(!!LM_BOOT);
+  // La session courante, lisible sans repasser par sb.auth.getSession()
+  // (qui prend le verrou interne du SDK — évitons de nous y coincer).
+  const sessionRef = useRef(null);
+  useEffect(() => { sessionRef.current = session || null; }, [session]);
 
   /* Une session n'ouvre l'espace que si la double vérification est
      satisfaite — sans cette garde, la policy restrictive aal2 rendrait
@@ -1426,9 +1454,19 @@ function App() {
     }
     try {
       const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (aal && aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
-        setMfaEnAttente(true); setSession(null); return;
+      let besoinCode = !!(aal && aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2');
+      if (!besoinCode && aal && aal.currentLevel !== 'aal2') {
+        // getAAL se fie aux facteurs portés par la session ; une session
+        // née d'un lien magique arrive parfois SANS eux — le portillon
+        // laissait alors entrer une session aal1, que la policy
+        // restrictive rend muette (0 ligne partout, constaté 29/07).
+        // On demande donc la liste réelle au serveur.
+        const { data: u } = await sb.auth.getUser();
+        besoinCode = (u?.user?.factors || []).some(
+          (f) => f.factor_type === 'totp' && f.status === 'verified'
+        );
       }
+      if (besoinCode) { setMfaEnAttente(true); setSession(null); return; }
     } catch (_) {}
     setMfaEnAttente(false);
     setSession(s);
@@ -1471,18 +1509,28 @@ function App() {
   }, []);
 
   const recharger = useCallback(async () => {
-    const uid = (await sb.auth.getSession()).data.session?.user?.id;
-    if (!uid) return;
-    const [proprio, pages, roles] = await Promise.all([
-      sb.from('perso_proprietaires').select('user_id').eq('user_id', uid).maybeSingle(),
-      sb.from('perso_pages').select('*'),
-      sb.from('perso_membres').select('racine_id, role').eq('user_id', uid),
-    ]);
-    setDonnees({
-      estProprio: !!proprio.data,
-      pages: pages.data || [],
-      roles: new Map((roles.data || []).map(r => [r.racine_id, r.role])),
-    });
+    try {
+      const uid = sessionRef.current?.user?.id;
+      if (!uid) return;
+      const [proprio, pages, roles] = await Promise.all([
+        sb.from('perso_proprietaires').select('user_id').eq('user_id', uid).maybeSingle(),
+        sb.from('perso_pages').select('*'),
+        sb.from('perso_membres').select('racine_id, role').eq('user_id', uid),
+      ]);
+      const souci = proprio.error || pages.error || roles.error;
+      if (souci) console.error('[perso] chargement :', souci);
+      setDonnees({
+        estProprio: !!proprio.data,
+        pages: pages.data || [],
+        roles: new Map((roles.data || []).map(r => [r.racine_id, r.role])),
+        erreur: souci ? (souci.message || 'Le chargement a échoué.') : null,
+      });
+    } catch (err) {
+      // Un squelette qui pulse sans fin ne dit rien à personne (HIG §10) :
+      // l'échec s'affiche, avec de quoi réessayer.
+      console.error('[perso] chargement :', err);
+      setDonnees({ estProprio: false, pages: [], roles: new Map(), erreur: err?.message || 'Le chargement a échoué.' });
+    }
   }, []);
 
   useEffect(() => { if (session?.user) recharger(); else setDonnees(null); }, [session, recharger]);
@@ -1521,11 +1569,12 @@ function App() {
 
       <main key={`${route.vue}:${route.id || ''}`} className="th-vue max-w-3xl mx-auto px-5 sm:px-8 py-8 pb-24">
         {donnees === null ? (
-          <div className="th-squelette space-y-4">
-            <div style={neu.raisedSm} className="h-20 rounded-3xl" />
-            <div style={neu.raisedSm} className="h-20 rounded-3xl" />
-            <div style={neu.raisedSm} className="h-20 rounded-3xl" />
-          </div>
+          <ChargementOuPanne onRetry={recharger} />
+        ) : donnees.erreur ? (
+          <EmptyState icon={AlertCircle} title="Le chargement a échoué"
+            text={donnees.erreur}>
+            <Btn kind="dark" onClick={recharger} icon={RefreshCw}>Réessayer</Btn>
+          </EmptyState>
         ) : route.vue === 'page' ? (
           <VuePage pageId={route.id} pages={donnees.pages} rolePour={rolePour}
             recharger={recharger} estProprio={donnees.estProprio} />

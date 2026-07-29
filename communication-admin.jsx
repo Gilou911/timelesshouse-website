@@ -8104,6 +8104,48 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
       useEffect(() => { chargerBeta(); }, [agencies]);
 
+      const [busy2fa, setBusy2fa] = useState(null);
+      /* Retire tous les facteurs 2FA du patron de l'agence — le geste de
+         secours du téléphone perdu. Plusieurs propriétaires : on demande
+         lequel. Le compte repasse en mot de passe seul, et son détenteur
+         réactive la 2FA depuis ses Paramètres quand il veut. */
+      const retirer2fa = async (agency) => {
+        const patrons = agency.owners || [];
+        if (!patrons.length) { alert("Cette agence n'a pas de propriétaire."); return; }
+        let email = patrons[0];
+        if (patrons.length > 1) {
+          email = prompt(`Plusieurs propriétaires — lequel ?\n${patrons.join('\n')}`, patrons[0]);
+          if (!email || !patrons.includes(email.trim())) return;
+          email = email.trim();
+        }
+        /* La cible peut être… soi-même : VisonMike, l'agence d'essai de
+           Gil, a son propre compte pour patron. Sans ce miroir, un clic
+           de test emportait SA vraie 2FA derrière un message anodin. */
+        const { data: { session } } = await sb.auth.getSession();
+        const cestMoi = (session?.user?.email || '').toLowerCase() === email.toLowerCase();
+        if (!confirm(cestMoi
+          ? `⚠ ${email}, c'est VOTRE compte.\n\nCe bouton retirerait votre propre double `
+            + `vérification. Pour la gérer normalement, passez par Paramètres → Double `
+            + `vérification → Désactiver.\n\nRetirer quand même ?`
+          : `Retirer la double vérification de ${email} ?\n\n`
+            + `Son compte repassera en mot de passe seul — à faire uniquement s'il a perdu `
+            + `son application d'authentification. Il pourra la réactiver dans ses Paramètres.`)) return;
+        setBusy2fa(agency.id);
+        try {
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-mfa-reset`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
+            body: JSON.stringify({ email }),
+          });
+          const j = await res.json().catch(() => ({}));
+          if (!res.ok || !j.ok) throw new Error(j.error || `Échec (${res.status})`);
+          alert(j.retires > 0
+            ? `✓ Double vérification retirée pour ${email} (${j.retires} facteur${j.retires > 1 ? 's' : ''}).`
+            : `${email} n'avait pas de double vérification active — rien à retirer.`);
+        } catch (e) { alert(humaniseErreur(e.message)); }
+        setBusy2fa(null);
+      };
+
       const basculerBeta = async (agency) => {
         const nouveau = !beta[agency.id];
         if (!nouveau && !confirm(`Retirer « ${agency.name} » des bêta-testeurs ?\n\nLe chat disparaîtra de sa console. Les messages déjà échangés sont conservés.`)) return;
@@ -8381,6 +8423,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         {busyId === a.id ? '…' : 'Ouvrir la loge'}
                       </Btn>
                     )}
+                    {/* Téléphone perdu chez un locataire : retirer sa 2FA
+                        sans passer par le dashboard Supabase. La fonction
+                        est scellée par platform_is_owner() — seul le
+                        propriétaire de la plateforme peut appuyer ici. */}
+                    <Btn icon={ShieldCheck} onClick={() => retirer2fa(a)} disabled={busy2fa === a.id}>
+                      {busy2fa === a.id ? '…' : 'Retirer la 2FA'}
+                    </Btn>
                     {/* Upgrade/downgrade manuel de l'offre (sans Stripe) */}
                     <select
                       value={a.plan || 'decouverte'}

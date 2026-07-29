@@ -278,27 +278,25 @@
     .sep { width: 38px; height: 1px; background: var(--accent); opacity: 0.5; margin: 26px auto 0; }
     /* ── Décors de la page film (config.decorFilm) ─────────────────
        Des HABITS de mise en page, pas des palettes : chacun compose
-       avec n'importe quelle palette de couleurs choisie à côté. */
-    /* Lumière — le film accroché comme un tirage : grand titre, filet
-       accent élargi, lecteur dans un passe-partout. */
-    body.decor-lumiere .head { padding-top: clamp(64px, 11vw, 140px); }
-    body.decor-lumiere .head h1 { font-size: clamp(2.6rem, 8.5vw, 5.2rem); }
-    body.decor-lumiere .sep { width: 74px; opacity: 0.75; }
-    body.decor-lumiere #videos {
-      padding: clamp(12px, 2.4vw, 28px);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: color-mix(in srgb, currentColor 3%, transparent);
-      box-shadow: var(--shadow, 0 30px 90px rgba(0,0,0,0.35));
+       avec n'importe quelle palette de couleurs choisie à côté.
+       (Lumière et Rideau ont existé un jour — retirés sur le verdict
+       de Gil, remplacés par Halo.) */
+    /* Halo — le lecteur flotte sur un halo aux couleurs du film : la
+       vignette, floutée à l'extrême, emplit tout le fond — l'effet
+       « ambiance » de YouTube autour de ses vidéos. */
+    .fond-halo {
+      position: fixed; inset: -8%; z-index: -1;
+      background-size: cover; background-position: center;
+      filter: blur(64px) saturate(1.3) brightness(0.5);
+      transform: scale(1.12);
     }
-    /* Rideau — salle noire : l'entête s'efface, le fond s'assombrit
-       QUELLE QUE SOIT la palette, le lecteur prend toute la scène. */
-    body.decor-rideau { background: color-mix(in srgb, var(--bg) 26%, #000); }
-    body.decor-rideau .head { padding: clamp(26px, 5vw, 46px) 0 clamp(12px, 2vw, 20px); }
-    body.decor-rideau .head h1 { font-size: clamp(1.35rem, 3.2vw, 2rem); letter-spacing: 0.01em; }
-    body.decor-rideau .head .mk, body.decor-rideau .head .kicker,
-    body.decor-rideau .head .sub, body.decor-rideau .sep { display: none; }
-    body.decor-rideau .wrap { max-width: min(1780px, 99vw); padding: 0 clamp(6px, 1vw, 16px); }
+    body.decor-halo .head h1,
+    body.decor-halo .head .kicker,
+    body.decor-halo .head .sub { text-shadow: 0 2px 26px rgba(0, 0, 0, 0.55); }
+    body.decor-halo .g-stage {
+      border-radius: 18px; overflow: clip;
+      box-shadow: 0 44px 130px -24px rgba(0, 0, 0, 0.7);
+    }
     .view footer {
       padding: clamp(50px, 8vw, 90px) 0 44px; text-align: center;
       font-size: 12.5px; color: var(--faint); line-height: 2; letter-spacing: 0.04em;
@@ -803,7 +801,8 @@
       /* Les décors du film et l'entête escamotée par une couverture :
          sans ce retour, changer de décor dans le concepteur empilait
          les habits, et l'entête restait invisible à jamais. */
-      document.body.classList.remove('decor-lumiere', 'decor-rideau');
+      document.body.classList.remove('decor-halo');
+      document.querySelector('.fond-halo')?.remove();
       const hTete = el('view').querySelector('.head');
       if (hTete) hTete.style.display = '';
       /* Éléments que la galerie PHOTOS pose hors de son conteneur : le
@@ -962,20 +961,32 @@
          VIGNETTE du premier film pour image — c'est elle qui a été
          choisie pour représenter le film. À défaut : la couverture
          déposée, puis la première photo. */
-      const DECORS_FILM = ['scene', 'affiche', 'lumiere', 'rideau'];
+      const DECORS_FILM = ['scene', 'affiche', 'halo'];
       const decorFilm = vueKind === 'video'
         ? (DECORS_FILM.includes(cfg.decorFilm) ? cfg.decorFilm : 'scene')
         : null;
-      if (decorFilm === 'lumiere' || decorFilm === 'rideau') {
-        document.body.classList.add('decor-' + decorFilm);
+      /* L'image qui représente le film : sa vignette, à défaut la
+         couverture déposée, puis la première photo. Sert à l'Affiche
+         (héros plein écran) comme au Halo (fond flouté). */
+      const posterFilm = decorFilm && decorFilm !== 'scene'
+        ? (normalizeVideos(cfg).find((v) => v.poster) || {}).poster : null;
+      const imageFilm = decorFilm && decorFilm !== 'scene'
+        ? (posterFilm ? { url_view: posterFilm, url_grid: posterFilm }
+                      : (coverUp || flatPhotos[0] || null))
+        : null;
+      if (decorFilm === 'halo' && imageFilm) {
+        document.body.classList.add('decor-halo');
+        const fond = document.createElement('div');
+        fond.className = 'fond-halo';
+        fond.setAttribute('aria-hidden', 'true');
+        const src = imageFilm.url_view || imageFilm.url_grid || '';
+        fond.style.backgroundImage = 'url("' + src.replace(/"/g, '%22') + '")';
+        document.body.prepend(fond);
       }
       let modeEff = hasPhotos ? coverMode : null;
       let coverEff = hasPhotos ? cover : null;
       if (decorFilm === 'affiche') {
-        const posterFilm = (normalizeVideos(cfg).find((v) => v.poster) || {}).poster;
-        coverEff = posterFilm
-          ? { url_view: posterFilm, url_grid: posterFilm }
-          : (coverUp || flatPhotos[0] || null);
+        coverEff = imageFilm;
         modeEff = coverEff ? 'fill' : null;
       }
       if (modeEff && coverEff) {

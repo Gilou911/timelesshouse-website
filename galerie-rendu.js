@@ -654,6 +654,42 @@ function injectStyles() {
     color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums;
   }
   .g-chap-list { display: flex; flex-direction: column; }
+  /* L'image du moment, à côté de chaque chapitre. Absente tant que la
+     génération n'a pas abouti : la liste reste lisible sans elle. */
+  .g-chap-vig {
+    flex: none; width: 96px; height: 54px; border-radius: 6px;
+    background-size: cover; background-position: center;
+    background-color: rgba(244, 240, 235, 0.05);
+    display: none;
+  }
+  .g-chap.avec-vig .g-chap-vig { display: block; }
+  .g-chap.avec-vig { align-items: center; }
+  /* Bandeau des chapitres SUR le lecteur, révélé au survol (souris
+     seulement — au doigt, la liste sous le lecteur fait le travail). */
+  .g-chap-strip {
+    position: absolute; left: 0; right: 0; bottom: 56px; z-index: 5;
+    display: flex; gap: 8px; padding: 10px 14px;
+    overflow-x: auto; scrollbar-width: none;
+    opacity: 0; pointer-events: none; transform: translateY(6px);
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  .g-chap-strip::-webkit-scrollbar { display: none; }
+  @media (hover: hover) and (pointer: fine) {
+    .g-stage:hover .g-chap-strip { opacity: 1; pointer-events: auto; transform: none; }
+  }
+  .g-chap-strip button {
+    flex: none; width: 128px; border: none; padding: 0; cursor: pointer;
+    border-radius: 8px; overflow: hidden; background: rgba(10, 10, 10, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    transition: transform .18s ease, border-color .18s ease;
+  }
+  .g-chap-strip button:hover { transform: translateY(-3px); border-color: rgba(255, 255, 255, 0.6); }
+  .g-chap-strip img { width: 100%; height: 72px; object-fit: cover; display: block; }
+  .g-chap-strip .t {
+    display: block; padding: 5px 8px; font-size: 10px; letter-spacing: .04em;
+    color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-align: left;
+  }
   .g-chap {
     display: flex; align-items: baseline; gap: 20px; width: 100%;
     min-height: 44px; padding: 14px 16px; text-align: left; cursor: pointer;
@@ -2295,6 +2331,54 @@ export async function mountVideos(mount, videos, opts = {}) {
       ? h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0')
       : m + ':' + String(s).padStart(2, '0');
   };
+  /* ── L'image du moment de chaque chapitre ──────────────────────
+     Fabriquée DANS le navigateur : une <video> cachée lit le MP4
+     progressif (léger de préférence), se cale sur chaque temps de
+     chapitre et croque l'image en canvas. Aucun stockage, toujours à
+     jour quand les chapitres bougent — au prix de quelques requêtes
+     Range au chargement. Réservée à notre domaine média : ailleurs,
+     pas d'en-têtes CORS, le canvas serait souillé et tout échouerait. */
+  const vigChapCache = {};   // clé vidéo → [dataURL] (une génération par montage)
+  const attendre = (cible, evt, ms) => new Promise((res, rej) => {
+    const t = setTimeout(() => { nettoie(); rej(new Error(evt)); }, ms);
+    const ok = () => { nettoie(); res(); };
+    const nettoie = () => { clearTimeout(t); cible.removeEventListener(evt, ok); };
+    cible.addEventListener(evt, ok, { once: true });
+  });
+  async function genererVignettesChap(v, chs) {
+    if (vigChapCache[v.key]) return vigChapCache[v.key];
+    const src = (v.download1080 && v.download1080.url) || v.downloadUrl
+      || (v.urls && (v.urls['1080p'] || v.urls['4K'])) || '';
+    if (!/^https:\/\/media\.timelesshouse\.org\//.test(src)) return null;
+    const vid = document.createElement('video');
+    vid.crossOrigin = 'anonymous';
+    vid.preload = 'metadata';
+    vid.muted = true;
+    vid.src = src;
+    try {
+      await attendre(vid, 'loadedmetadata', 9000);
+      const ratio = (vid.videoWidth / vid.videoHeight) || (16 / 9);
+      const cnv = document.createElement('canvas');
+      cnv.width = 256; cnv.height = Math.max(2, Math.round(256 / ratio));
+      const ctx = cnv.getContext('2d');
+      const sorties = [];
+      for (const ch of chs) {
+        const borne = Math.max(0, Math.min(ch.time + 0.1, (vid.duration || ch.time + 1) - 0.1));
+        vid.currentTime = borne;
+        await attendre(vid, 'seeked', 7000);
+        ctx.drawImage(vid, 0, 0, cnv.width, cnv.height);
+        sorties.push(cnv.toDataURL('image/jpeg', 0.72));
+      }
+      vigChapCache[v.key] = sorties;
+      return sorties;
+    } catch (_) {
+      return null;             // CORS, réseau, format : la liste reste en texte
+    } finally {
+      vid.removeAttribute('src');
+      try { vid.load(); } catch (_) {}
+    }
+  }
+
   const chapsOf = (v) => (Array.isArray(v.chapitres) ? v.chapitres : [])
     .map(c => ({ time: parseT(c.time ?? c.temps ?? c.start), titre: String(c.titre ?? c.title ?? '').trim() }))
     .filter(c => c.titre)
@@ -2320,7 +2404,8 @@ export async function mountVideos(mount, videos, opts = {}) {
       b.type = 'button';
       b.className = 'g-chap';
       b.setAttribute('aria-label', 'Lire à ' + fmtT(ch.time) + ' — ' + ch.titre);
-      b.innerHTML = '<span class="g-chap-time">' + fmtT(ch.time) + '</span><span class="g-chap-titre"></span>';
+      b.innerHTML = '<span class="g-chap-vig" aria-hidden="true"></span>'
+        + '<span class="g-chap-time">' + fmtT(ch.time) + '</span><span class="g-chap-titre"></span>';
       b.querySelector('.g-chap-titre').textContent = ch.titre;
       b.addEventListener('click', () => {
         const vid = slides[current].video;
@@ -2333,6 +2418,46 @@ export async function mountVideos(mount, videos, opts = {}) {
       chapItems.push({ el: b, time: ch.time });
     });
     chapWrap.appendChild(ul);
+
+    /* Les images des moments arrivent APRÈS coup, sans bloquer la
+       liste : chaque chapitre reçoit la sienne, et le lecteur gagne son
+       bandeau de survol — la frise des moments, cliquable, comme sur
+       les grands lecteurs. */
+    stage.querySelector('.g-chap-strip')?.remove();
+    genererVignettesChap(list[i], chs).then((vigs) => {
+      if (!vigs || !vigs.length) return;
+      if (chapsOf(list[i]).length !== chs.length) return;   // chapitres changés entre-temps
+      chs.forEach((ch, k) => {
+        const item = chapItems[k];
+        if (!item || !vigs[k]) return;
+        const zone = item.el.querySelector('.g-chap-vig');
+        if (zone) { zone.style.backgroundImage = 'url("' + vigs[k] + '")'; item.el.classList.add('avec-vig'); }
+      });
+      const strip = document.createElement('div');
+      strip.className = 'g-chap-strip';
+      strip.setAttribute('role', 'group');
+      strip.setAttribute('aria-label', 'Chapitres du film');
+      chs.forEach((ch, k) => {
+        if (!vigs[k]) return;
+        const bt = document.createElement('button');
+        bt.type = 'button';
+        bt.setAttribute('aria-label', 'Lire à ' + fmtT(ch.time) + ' — ' + ch.titre);
+        const im = document.createElement('img');
+        im.src = vigs[k]; im.alt = '';
+        const t = document.createElement('span');
+        t.className = 't';
+        t.textContent = fmtT(ch.time) + ' · ' + ch.titre;
+        bt.append(im, t);
+        bt.addEventListener('click', () => {
+          const vid = slides[current].video;
+          if (!vid) return;
+          try { vid.currentTime = ch.time; } catch (e) {}
+          vid.play().catch(() => {});
+        });
+        strip.appendChild(bt);
+      });
+      if (strip.children.length) stage.appendChild(strip);
+    });
   }
   function updateActiveChap() {
     if (!chapItems.length) return;

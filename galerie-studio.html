@@ -701,6 +701,21 @@
   .grille-actions button:disabled, .grille-actions select:disabled { opacity:.45; cursor:default; }
   .grille-actions .danger { color:#b3423a; }
   .grille-actions select { appearance:auto; font-size:16px; max-width:100%; }
+  .v-ordre {
+    display:flex; align-items:center; gap:8px; margin-bottom:8px;
+    font-size:0.7rem; color:var(--muted); font-weight:700;
+    letter-spacing:.1em; text-transform:uppercase;
+  }
+  .v-ordre span { flex:1; }
+  .v-ordre button {
+    border:none; cursor:pointer; font-family:inherit; background:var(--pressed);
+    color:var(--muted); width:34px; height:34px; border-radius:10px; font-size:0.7rem;
+    box-shadow: inset 1px 1px 3px var(--shadow-d), inset -1px -1px 3px var(--shadow-l);
+    transition: color .22s var(--ease-out), transform .16s var(--ease-out), opacity .22s var(--ease-out);
+  }
+  .v-ordre button:disabled { opacity:.35; cursor:default; }
+  .v-ordre button:not(:disabled):hover { color:var(--ink); }
+  .v-ordre button:not(:disabled):active { transform:scale(.94); }
   .cats button {
     border:none; cursor:pointer; font-family:inherit;
     padding:9px 14px; border-radius:999px; min-height:44px;
@@ -755,6 +770,8 @@
     box-shadow:0 -10px 24px -14px var(--shadow-d);
     display:flex; gap:10px; align-items:center;
   }
+  .btn.lien { flex:none; width:48px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
+  .btn.lien svg { width:18px; height:18px; }
   .btn {
     flex:1; min-height:48px; border:none; border-radius:999px; cursor:pointer;
     font-family:inherit; font-size:0.875rem; font-weight:700;
@@ -989,6 +1006,14 @@
       <div class="barre">
         <button class="btn" id="save" type="button">Enregistrer</button>
         <button class="btn ghost" id="fermer" type="button">Fermer</button>
+        <!-- Le geste qui CLÔT le travail : envoyer la galerie aux mariés.
+             Il manquait ici même — il fallait retourner dans la console
+             pour copier le lien (audit métier du 29/07, point n° 4). -->
+        <button class="btn ghost lien" id="copier-lien" type="button"
+                title="Copier le lien de la galerie" aria-label="Copier le lien de la galerie">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        </button>
       </div>
     </aside>
 
@@ -1496,6 +1521,12 @@
       const d = document.createElement('div');
       d.className = 'video-item';
       d.innerHTML = `
+        ${list.length > 1 ? `
+        <div class="v-ordre">
+          <span>${i + 1}ᵉ film</span>
+          <button type="button" class="v-monter" title="Monter ce film" aria-label="Monter ce film" ${i === 0 ? 'disabled' : ''}>▲</button>
+          <button type="button" class="v-descendre" title="Descendre ce film" aria-label="Descendre ce film" ${i === list.length - 1 ? 'disabled' : ''}>▼</button>
+        </div>` : ''}
         <input class="champ petit" data-k="title" placeholder="Titre (Le Film…)" value="${(v.title || '').replace(/"/g, '&quot;')}" />
         <div class="v-etat">${enLigne
           ? `<span class="v-ok">✓ Film en ligne</span>${v.hls ? '' : etatEncodage(v.key)}`
@@ -1527,6 +1558,21 @@
         v.title = e.target.value;
         pousser();                 // l'aperçu suit la frappe, sans re-rendre le panneau
       });
+
+      /* Ordre des films (audit métier, point n° 5) : le teaser passe
+         avant le film long. Jusqu'ici l'ordre était celui de l'ajout,
+         et la seule issue était retirer puis redéposer — avec
+         réencodage complet à la clé. Le changement vit dans le
+         brouillon : Enregistrer le persiste, comme le titre. */
+      const monter = d.querySelector('.v-monter');
+      const descendre = d.querySelector('.v-descendre');
+      const permuter = (j) => {
+        if (j < 0 || j >= list.length) return;
+        [list[i], list[j]] = [list[j], list[i]];
+        rendre();
+      };
+      if (monter) monter.addEventListener('click', () => permuter(i - 1));
+      if (descendre) descendre.addEventListener('click', () => permuter(i + 1));
 
       /* ── Vignette du film ───────────────────────────────────
          Rangée à part de la couverture de galerie (dossier
@@ -2757,6 +2803,25 @@
       bSave.textContent = 'Enregistrer';
     }
   });
+  /* Le lien que reçoivent les mariés : le sous-domaine de l'agence —
+     c'est l'adresse canonique, la seule que le portier accepte pour
+     cette marque. TimelessHouse garde son domaine historique. */
+  el('copier-lien').addEventListener('click', async () => {
+    const code = (qs.get('c') || '').trim().toLowerCase();
+    const slug = (base && base.agency && base.agency.slug) || '';
+    const lien = !slug ? `${location.origin}/galerie?c=${encodeURIComponent(code)}`
+      : slug === 'timelesshouse' ? `https://timelesshouse.org/galerie?c=${encodeURIComponent(code)}`
+      : `https://${slug}.laloge.house/galerie?c=${encodeURIComponent(code)}`;
+    try {
+      await navigator.clipboard.writeText(lien);
+      etat('Lien copié — envoyez-le à vos clients.', 'ok');
+    } catch (_) {
+      // Presse-papiers refusé (permission, vieux navigateur) : on MONTRE
+      // le lien, copiable à la main — jamais un échec muet.
+      etat(`Copie impossible ici. Le lien : ${lien}`, 'ko');
+    }
+  });
+
   el('fermer').addEventListener('click', () => {
     if (nonEnregistre() &&
         !confirm("Des réglages ne sont pas enregistrés.\n\nFermer quand même ? Ils seront perdus.")) return;

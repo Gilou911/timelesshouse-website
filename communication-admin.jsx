@@ -1186,8 +1186,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
           {enrolement && (
             <div className="mt-6 grid sm:grid-cols-[auto_1fr] gap-6 items-start">
+              {/* Supabase renvoie le QR DÉJÀ en data-URL : l'emballer une
+                  seconde fois rendait l'image illisible — on ne voyait que
+                  le texte de secours. On n'emballe que du SVG nu. */}
               <img alt="QR code à scanner avec votre application d'authentification"
-                src={'data:image/svg+xml;utf8,' + encodeURIComponent(enrolement.qr)}
+                src={enrolement.qr.startsWith('data:') ? enrolement.qr
+                  : 'data:image/svg+xml;utf8,' + encodeURIComponent(enrolement.qr)}
                 className="w-44 h-44 rounded-2xl bg-white p-2 shadow-sm" />
               <div className="min-w-0">
                 <ol className="text-[13px] text-stone-600 leading-relaxed list-decimal ml-4 space-y-1.5">

@@ -304,8 +304,14 @@ Deno.serve(async (req) => {
       return json(400, { error: "Seul l'upload simple est permis sur perso/." });
     }
     const size = Math.max(0, Number(body.size) || 0);
-    if (size > 26214400) {
-      return json(413, { error: "Image trop lourde (25 Mo maximum pour un bloc image)." });
+    // Deux plafonds : une vidéo de bloc peut peser (300 Mo), une image non.
+    const estVideo = String(body.contentType || "").startsWith("video/");
+    if (size > (estVideo ? 314572800 : 26214400)) {
+      return json(413, {
+        error: estVideo
+          ? "Vidéo trop lourde (300 Mo maximum pour un bloc vidéo)."
+          : "Image trop lourde (25 Mo maximum pour un bloc image).",
+      });
     }
     const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
     if (!token) return json(401, { error: "Session requise — reconnectez-vous." });

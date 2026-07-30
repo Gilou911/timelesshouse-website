@@ -35,6 +35,7 @@ import {
   AlertCircle, FileText, FilePlus, Heading1, Heading2, Pilcrow, List,
   ListOrdered, CheckSquare, Quote, Minus, Image as ImageIcon,
   ExternalLink, Send, KeyRound, Eye, EyeOff, Link2, Square, Menu, Table,
+  Play, Video,
 } from 'lucide-react';
 import { BaseEditeur, BaseLecture, nouvelleBase } from './base.jsx';
 
@@ -104,7 +105,11 @@ const DONNEES_DEMO = () => {
     pages: [
       r('a0000000-0000-4000-8000-000000000001', 'Santé & forme', '💪'),
       r('a0000000-0000-4000-8000-000000000002', 'Finances', '💳'),
-      r('a0000000-0000-4000-8000-000000000003', 'Projets', '🎬', [baseDemo]),
+      r('a0000000-0000-4000-8000-000000000003', 'Projets', '🎬', [
+        baseDemo,
+        { id: 'bloc-video-demo', type: 'video', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', legende: 'Référence 16:9' },
+        { id: 'bloc-shorts-demo', type: 'video', url: 'https://www.youtube.com/shorts/abcdefgHIJK', legende: 'Référence verticale' },
+      ]),
       r('a0000000-0000-4000-8000-000000000004', 'Études', '📚'),
       r('a0000000-0000-4000-8000-000000000005', 'Famille & amis', '🫶'),
       e('a0000000-0000-4000-8000-000000000006', 'a0000000-0000-4000-8000-000000000003', 'Tournages 2026', '🎥'),
@@ -242,9 +247,9 @@ const b2Put = (url, file, contentType, onProgress) => new Promise((resolve, reje
   xhr.send(file);
 });
 
-export async function televerserImage(file, racineId, onProgress) {
-  if (!file.type.startsWith('image/')) throw new Error('Choisissez une image.');
-  if (file.size > 25 * 1024 * 1024) throw new Error('Image trop lourde (25 Mo maximum).');
+async function televerserFichierPerso(file, racineId, onProgress, { prefixe, maxMo, quoi }) {
+  if (!file.type.startsWith(prefixe)) throw new Error(`Choisissez ${quoi}.`);
+  if (file.size > maxMo * 1024 * 1024) throw new Error(`Fichier trop lourd (${maxMo} Mo maximum).`);
   const contentType = file.type || 'application/octet-stream';
   const key = `perso/${racineId}/${Date.now()}-${b2SafeName(file.name)}`;
   const { url, publicUrl } = await b2Sign({ action: 'sign-put', key, contentType, size: file.size });
@@ -252,6 +257,92 @@ export async function televerserImage(file, racineId, onProgress) {
   try { await b2Put(url, file, contentType, onProgress); }
   catch { await b2Put(url, file, contentType, onProgress); }
   return publicUrl;
+}
+
+export const televerserImage = (file, racineId, onProgress) =>
+  televerserFichierPerso(file, racineId, onProgress, { prefixe: 'image/', maxMo: 25, quoi: 'une image' });
+
+const televerserVideo = (file, racineId, onProgress) =>
+  televerserFichierPerso(file, racineId, onProgress, { prefixe: 'video/', maxMo: 300, quoi: 'une vidéo' });
+
+/* ── Analyse d'un lien vidéo ──
+   D'où qu'il vienne, un lien devient { genre, src, ratio } :
+   · fichier (mp4/webm/mov… ou téléversé chez nous) → <video> natif,
+     qui épouse tout seul le format réel ;
+   · YouTube (Shorts en 9/16), Vimeo, Dailymotion, Instagram (reels
+     en 9/16) → iframe au bon ratio ;
+   · le reste (Pinterest exige son script externe — CSP maison) →
+     carte-lien élégante. */
+function analyserVideo(brut) {
+  const url = String(brut || '').trim();
+  if (!url) return null;
+  if (/\.(mp4|webm|mov|m4v|ogg)(\?|#|$)/i.test(url) || /\/perso\//.test(url)) {
+    return { genre: 'fichier', src: url };
+  }
+  let u;
+  try { u = new URL(url); } catch { return { genre: 'inconnu', src: url }; }
+  const hote = u.hostname.replace(/^www\./, '');
+
+  if (hote === 'youtu.be' || hote.endsWith('youtube.com') || hote.endsWith('youtube-nocookie.com')) {
+    const shorts = u.pathname.match(/\/shorts\/([A-Za-z0-9_-]{6,})/);
+    const embed = u.pathname.match(/\/embed\/([A-Za-z0-9_-]{6,})/);
+    const id = shorts?.[1] || embed?.[1]
+      || (hote === 'youtu.be' ? u.pathname.slice(1).split('/')[0] : u.searchParams.get('v'));
+    if (id) return {
+      genre: 'iframe',
+      src: `https://www.youtube-nocookie.com/embed/${id}`,
+      ratio: shorts ? '9 / 16' : '16 / 9',
+    };
+  }
+  if (hote === 'vimeo.com' || hote === 'player.vimeo.com') {
+    const id = u.pathname.match(/\/(?:video\/)?(\d{6,})/)?.[1];
+    if (id) return { genre: 'iframe', src: `https://player.vimeo.com/video/${id}`, ratio: '16 / 9' };
+  }
+  if (hote === 'dailymotion.com' || hote === 'dai.ly') {
+    const id = hote === 'dai.ly'
+      ? u.pathname.slice(1).split('/')[0]
+      : u.pathname.match(/\/video\/([A-Za-z0-9]+)/)?.[1];
+    if (id) return { genre: 'iframe', src: `https://www.dailymotion.com/embed/video/${id}`, ratio: '16 / 9' };
+  }
+  if (hote === 'instagram.com') {
+    const m = u.pathname.match(/\/(p|reel|reels|tv)\/([A-Za-z0-9_-]+)/);
+    if (m) return {
+      genre: 'iframe',
+      src: `https://www.instagram.com/${m[1] === 'reels' ? 'reel' : m[1]}/${m[2]}/embed/`,
+      ratio: m[1] === 'p' ? '4 / 5' : '9 / 16',
+    };
+  }
+  return { genre: 'inconnu', src: url };
+}
+
+/* Rendu partagé lecture/édition : le fichier épouse son propre format
+   (height auto), l'iframe reçoit le ratio déduit — les verticales
+   restent des colonnes, jamais des murs. */
+function RenduVideo({ bloc }) {
+  const v = analyserVideo(bloc.url);
+  if (!v) return null;
+  if (v.genre === 'fichier') {
+    return (
+      <video src={v.src} controls playsInline preload="metadata"
+        className="max-w-full h-auto rounded-2xl" style={{ ...neu.raisedSm, maxHeight: '75vh' }} />
+    );
+  }
+  if (v.genre === 'iframe') {
+    const vertical = v.ratio === '9 / 16';
+    return (
+      <iframe src={v.src} title={bloc.legende || 'Vidéo'} allowFullScreen
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        className={`w-full rounded-2xl border-0 ${vertical ? 'max-w-[340px]' : ''}`}
+        style={{ ...neu.raisedSm, aspectRatio: v.ratio }} loading="lazy" />
+    );
+  }
+  return (
+    <a href={v.src} target="_blank" rel="noopener noreferrer" style={neu.raisedXs}
+      className="inline-flex items-center gap-2.5 px-4 py-3 min-h-[44px] rounded-2xl text-[14px] font-medium text-stone-800 active:scale-[0.98] transition max-w-full">
+      <Play size={14} className="shrink-0 text-stone-500" />
+      <span className="truncate">{bloc.legende || v.src}</span>
+    </a>
+  );
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -447,6 +538,7 @@ const TYPES_BLOC = [
   { type: 'citation',   label: 'Citation',        icon: Quote,      hint: 'Un passage mis en avant' },
   { type: 'separateur', label: 'Séparateur',      icon: Minus,      hint: 'Une respiration' },
   { type: 'image',      label: 'Image',           icon: ImageIcon,  hint: 'Téléversée depuis l’appareil' },
+  { type: 'video',      label: 'Vidéo',           icon: Video,      hint: 'Téléversée, YouTube, Vimeo…' },
   { type: 'lien',       label: 'Lien',            icon: Link2,      hint: 'Vers un site, un document' },
   { type: 'base',       label: 'Base de données', icon: Table,      hint: 'Table, liste ou galerie' },
 ];
@@ -456,7 +548,7 @@ const nouveauBloc = (type) => {
   if (type === 'base') return { ...base, ...nouvelleBase() };
   if (type === 'puces' || type === 'numerotee') return { ...base, items: [''] };
   if (type === 'cases') return { ...base, items: [{ texte: '', coche: false }] };
-  if (type === 'image') return { ...base, url: '', legende: '' };
+  if (type === 'image' || type === 'video') return { ...base, url: '', legende: '' };
   if (type === 'lien') return { ...base, url: '', titre: '' };
   if (type === 'separateur') return base;
   return { ...base, texte: '' };
@@ -503,6 +595,15 @@ function RenduBloc({ bloc }) {
       <figure className="my-2">
         <img src={bloc.url} alt={bloc.legende || ''} loading="lazy"
           className="max-w-full rounded-2xl" style={neu.raisedSm} />
+        {bloc.legende && <figcaption className="text-[12.5px] text-stone-500 mt-2">{bloc.legende}</figcaption>}
+      </figure>
+    );
+  }
+  if (t === 'video') {
+    if (!bloc.url) return null;
+    return (
+      <figure className="my-2">
+        <RenduVideo bloc={bloc} />
         {bloc.legende && <figcaption className="text-[12.5px] text-stone-500 mt-2">{bloc.legende}</figcaption>}
       </figure>
     );
@@ -647,6 +748,57 @@ function BlocImageEditeur({ bloc, set, racineId }) {
   );
 }
 
+/* Bloc vidéo : téléversement direct vers B2 (300 Mo max) ou lien —
+   fichier mp4, YouTube, Vimeo, Dailymotion, Instagram… Le rendu
+   s'ajuste au format (Shorts et reels restent verticaux). */
+function BlocVideoEditeur({ bloc, set, racineId }) {
+  const fileRef = useRef(null);
+  const [pct, setPct] = useState(null);
+  const [erreur, setErreur] = useState('');
+
+  const surFichier = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setErreur(''); setPct(0);
+    try {
+      const url = await televerserVideo(file, racineId, (p) => setPct(Math.round(p * 100)));
+      set({ url });
+    } catch (err) {
+      setErreur(err?.message || "L'envoi a échoué — réessayez.");
+    }
+    setPct(null);
+  };
+
+  return (
+    <div className="space-y-3">
+      {bloc.url ? <RenduVideo bloc={bloc} /> : null}
+      <input ref={fileRef} type="file" accept="video/*" className="hidden" onChange={surFichier} />
+      {pct !== null ? (
+        <div className="space-y-1.5">
+          <div style={neu.pressedSm} className="rounded-full h-3 overflow-hidden"
+            role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Envoi de la vidéo">
+            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: neu.accent }} />
+          </div>
+          <div className="text-[11.5px] text-stone-500">Envoi… {pct}% — une vidéo peut prendre un moment</div>
+        </div>
+      ) : (
+        <Btn onClick={() => fileRef.current?.click()} icon={Video}>
+          {bloc.url ? 'Remplacer la vidéo' : 'Téléverser une vidéo'}
+        </Btn>
+      )}
+      {erreur && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]">
+          <AlertCircle size={14} className="shrink-0" /> {erreur}
+        </div>
+      )}
+      <Input type="url" inputMode="url" value={bloc.url || ''} onChange={(e) => set({ url: e.target.value.trim() })}
+        placeholder="… ou collez un lien (mp4, YouTube, Vimeo, Dailymotion, Instagram…)" />
+      <Input value={bloc.legende || ''} onChange={(e) => set({ legende: e.target.value })} placeholder="Légende (facultative)" />
+    </div>
+  );
+}
+
 function EditeurBloc({ bloc, onChange, racineId, onEntree, onEffacerVide }) {
   const t = bloc.type;
   const set = (patch) => onChange({ ...bloc, ...patch });
@@ -673,6 +825,7 @@ function EditeurBloc({ bloc, onChange, racineId, onEntree, onEffacerVide }) {
   if (t === 'puces' || t === 'numerotee') return <EditeurListe bloc={bloc} onChange={onChange} />;
   if (t === 'cases') return <EditeurListe bloc={bloc} onChange={onChange} cases />;
   if (t === 'image') return <BlocImageEditeur bloc={bloc} set={set} racineId={racineId} />;
+  if (t === 'video') return <BlocVideoEditeur bloc={bloc} set={set} racineId={racineId} />;
   if (t === 'lien') return (
     <div className="space-y-3">
       <Input type="url" inputMode="url" value={bloc.url || ''} onChange={(e) => set({ url: e.target.value.trim() })}

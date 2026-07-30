@@ -639,26 +639,27 @@ function EcranMfa({ onDone, onAbandon }) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [panne, setPanne] = useState(false);
+  const [panne, setPanne] = useState('');
 
   const trouverFacteur = useCallback(async () => {
-    setPanne(false);
-    // La liste locale du SDK est vide pour une session née d'un lien
-    // magique (l'utilisateur arrive sans ses facteurs) : on demande la
-    // liste réelle au serveur. Et quoi qu'il arrive, cet écran ne se
-    // DÉCONNECTE JAMAIS tout seul — un auto-signOut ici tuait la
-    // session de tous les onglets (flash d'une seconde puis retour à
-    // l'écran email, vidéo de Gil du 30/07). En cas de doute : on
-    // l'affiche, et c'est l'utilisateur qui décide.
-    const { data: fs } = await sb.auth.mfa.listFactors();
-    let f = (fs?.totp || []).find((x) => x.status === 'verified') || (fs?.totp || [])[0] || null;
+    setPanne('');
+    // Trois sources, de la plus fraîche à la plus locale — une session
+    // née d'un lien magique n'expose pas ses facteurs partout pareil.
+    // Et quoi qu'il arrive, cet écran ne se DÉCONNECTE JAMAIS tout
+    // seul — un auto-signOut ici tuait la session de tous les onglets
+    // (flash d'une seconde puis retour à l'écran email, 30/07).
+    const totpDe = (liste) => {
+      const totp = (liste || []).filter((x) => (x.factor_type ?? 'totp') === 'totp');
+      return totp.find((x) => x.status === 'verified') || totp[0] || null;
+    };
+    const { data: fs } = await sb.auth.mfa.listFactors().catch(() => ({ data: null }));
+    const { data: u } = await sb.auth.getUser().catch(() => ({ data: null }));
+    const { data: s } = await sb.auth.getSession().catch(() => ({ data: null }));
+    const f = totpDe(fs?.totp) || totpDe(u?.user?.factors) || totpDe(s?.session?.user?.factors);
     if (!f) {
-      const { data: u } = await sb.auth.getUser();
-      f = (u?.user?.factors || []).find(
-        (x) => x.factor_type === 'totp' && x.status === 'verified'
-      ) || null;
+      setPanne(`Aucun facteur de double vérification trouvé (sdk ${fs?.totp?.length ?? '?'} · serveur ${u?.user?.factors?.length ?? '?'} · session ${s?.session?.user?.factors?.length ?? '?'}).`);
+      return;
     }
-    if (!f) { setPanne(true); return; }
     setFactorId(f.id);
   }, []);
 
@@ -698,7 +699,7 @@ function EcranMfa({ onDone, onAbandon }) {
           <div className="space-y-4">
             <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 text-amber-800 text-[12.5px]">
               <AlertCircle size={14} className="shrink-0" />
-              Impossible de récupérer vos facteurs de double vérification — le réseau a peut-être toussé.
+              {panne}
             </div>
             <Btn kind="dark" full onClick={trouverFacteur} icon={RefreshCw}>Réessayer</Btn>
             <button type="button" onClick={onAbandon}

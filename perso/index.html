@@ -155,6 +155,58 @@
     .th-press { transition: transform 0.16s cubic-bezier(0.23, 1, 0.32, 1); }
     .th-press:active { transform: scale(0.985); }
 
+    /* ─── VOLET DE NAVIGATION (téléphone) ───
+       Le geste vient de « Concevoir la galerie » : un panneau de verre
+       flottant ancré À GAUCHE qui glisse depuis le bord, et se replie
+       plus vite qu'il n'arrive — on s'attarde sur ce qui entre, pas
+       sur ce qui s'en va. Mêmes courbes, mêmes rayons. */
+    :root { --ease-tiroir: cubic-bezier(0.32, 0.72, 0, 1); }
+    .th-scrim {
+      position: fixed; inset: 0; z-index: 40;
+      background: rgba(28, 25, 23, 0.28);
+      animation: th-fond 0.22s ease-out backwards;
+    }
+    .th-volet {
+      position: fixed; z-index: 41;
+      left: max(16px, env(safe-area-inset-left)); top: 16px; bottom: 16px;
+      width: min(340px, calc(100vw - 56px));
+      border-radius: 24px; overflow-y: auto; overscroll-behavior: contain;
+      display: flex; flex-direction: column;
+      background: color-mix(in srgb, #efeae0 94%, transparent);
+      -webkit-backdrop-filter: saturate(180%) blur(24px);
+      backdrop-filter: saturate(180%) blur(24px);
+      border: 1px solid rgba(42, 38, 32, 0.12);
+      box-shadow: 0 30px 80px -24px rgba(0, 0, 0, 0.5);
+      /* Keyframes plutôt que transitions : mêmes durées et courbes que
+         le panneau de « Concevoir », mais rejouées à chaque bascule de
+         classe — le glissement part toujours de l'état voulu. */
+      animation: th-volet-entre 0.36s var(--ease-tiroir) backwards;
+      scrollbar-width: thin;
+    }
+    [data-theme="dark"] .th-volet {
+      background: color-mix(in srgb, #22262d 90%, transparent);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+    .th-volet.ferme {
+      transform: translateX(calc(-100% - 30px)); opacity: 0; pointer-events: none;
+      animation: th-volet-sort 0.26s cubic-bezier(0.4, 0, 1, 1);
+    }
+    @keyframes th-volet-entre {
+      from { transform: translateX(calc(-100% - 30px)); opacity: 0; }
+      to   { transform: none; opacity: 1; }
+    }
+    @keyframes th-volet-sort {
+      from { transform: none; opacity: 1; }
+      to   { transform: translateX(calc(-100% - 30px)); opacity: 0; }
+    }
+    /* Au chargement le volet naît fermé : aucune animation à rejouer
+       tant qu'il n'a jamais été ouvert (sinon, flash de sortie). */
+    .th-volet.jamais-ouvert { animation: none; }
+    @supports not (backdrop-filter: blur(1px)) {
+      .th-volet { background: #efeae0; }
+      [data-theme="dark"] .th-volet { background: #22262d; }
+    }
+
     /* §16 — Respecter « réduire les animations ». */
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {

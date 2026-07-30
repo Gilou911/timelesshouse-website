@@ -34,7 +34,7 @@ import {
   Trash2, Share2, Copy, Check, RefreshCw, LogOut, ShieldCheck,
   AlertCircle, FileText, FilePlus, Heading1, Heading2, Pilcrow, List,
   ListOrdered, CheckSquare, Quote, Minus, Image as ImageIcon,
-  ExternalLink, Send, KeyRound, Eye, EyeOff, Link2, Square,
+  ExternalLink, Send, KeyRound, Eye, EyeOff, Link2, Square, Menu,
 } from 'lucide-react';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -74,6 +74,30 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Le jeton du lien secret, lu une fois : il fige le mode de l'app.
 const JETON_URL = new URLSearchParams(window.location.search).get('t') || '';
+
+/* Aperçu de mise en page — VITE DEV SEULEMENT (import.meta.env.DEV est
+   faux en production : Vite élimine tout ce code du bundle). ?demo=1
+   rend l'interface connectée avec des données factices, sans toucher
+   à Supabase — pour vérifier la maquette sans session. */
+const DEMO = import.meta.env.DEV && new URLSearchParams(window.location.search).has('demo');
+const DONNEES_DEMO = () => {
+  const r = (id, titre, icone) => ({ id, parent_id: null, racine_id: id, titre, icone, blocs: [], position: 0, created_at: id, updated_at: id });
+  const e = (id, parent, titre, icone) => ({ ...r(id, titre, icone), parent_id: parent, racine_id: parent });
+  return {
+    estProprio: true,
+    pages: [
+      r('a0000000-0000-4000-8000-000000000001', 'Santé & forme', '💪'),
+      r('a0000000-0000-4000-8000-000000000002', 'Finances', '💳'),
+      r('a0000000-0000-4000-8000-000000000003', 'Projets', '🎬'),
+      r('a0000000-0000-4000-8000-000000000004', 'Études', '📚'),
+      r('a0000000-0000-4000-8000-000000000005', 'Famille & amis', '🫶'),
+      e('a0000000-0000-4000-8000-000000000006', 'a0000000-0000-4000-8000-000000000003', 'Tournages 2026', '🎥'),
+      e('a0000000-0000-4000-8000-000000000007', 'a0000000-0000-4000-8000-000000000003', 'Idées de films', '💡'),
+    ],
+    roles: new Map(),
+    erreur: null,
+  };
+};
 
 /* ════════════════════════════════════════════════════════════
    🎨 TOKENS NÉOMORPHIQUES (canoniques — communication-admin.jsx)
@@ -124,6 +148,10 @@ const useDarkMode = () => {
   }, [isDark]);
   useEffect(() => {
     if (!mq) return;
+    // Rattrapage : certains environnements (webviews, navigateurs
+    // intégrés) mentent à l'initialisation puis n'émettent pas de
+    // « change » — on relit la vérité au montage. Sans effet ailleurs.
+    setIsDark((prev) => (mq.matches !== prev ? mq.matches : prev));
     const suivre = (e) => setIsDark(e.matches);
     if (mq.addEventListener) { mq.addEventListener('change', suivre); return () => mq.removeEventListener('change', suivre); }
     mq.addListener(suivre); return () => mq.removeListener(suivre);
@@ -401,7 +429,7 @@ const TYPES_BLOC = [
   { type: 'cases',      label: 'Liste à cocher',  icon: CheckSquare, hint: 'Des choses à faire' },
   { type: 'citation',   label: 'Citation',        icon: Quote,      hint: 'Un passage mis en avant' },
   { type: 'separateur', label: 'Séparateur',      icon: Minus,      hint: 'Une respiration' },
-  { type: 'image',      label: 'Image',           icon: ImageIcon,  hint: 'Par son adresse (URL)' },
+  { type: 'image',      label: 'Image',           icon: ImageIcon,  hint: 'Téléversée depuis l’appareil' },
   { type: 'lien',       label: 'Lien',            icon: Link2,      hint: 'Vers un site, un document' },
 ];
 
@@ -1486,20 +1514,8 @@ function VuePage({ pageId, pages, rolePour, recharger, estProprio }) {
 /* ════════════════════════════════════════════════════════════
    🏠 ACCUEIL — les arbres accessibles
    ════════════════════════════════════════════════════════════ */
-function Accueil({ pages, estProprio, rolePour, recharger }) {
+function Accueil({ pages, estProprio, rolePour, creerRacine, busyCreation }) {
   const racines = pages.filter(p => !p.parent_id).sort(trierPages);
-  const [busyCreation, setBusyCreation] = useState(false);
-
-  const creerRacine = async () => {
-    if (busyCreation) return;
-    setBusyCreation(true);
-    const position = racines.length ? Math.max(...racines.map(r => r.position)) + 1 : 0;
-    const { data, error } = await sb.from('perso_pages')
-      .insert({ titre: '', position })
-      .select('id').single();
-    setBusyCreation(false);
-    if (!error && data) { await recharger(); allerA(data.id); }
-  };
 
   if (racines.length === 0) {
     return estProprio ? (
@@ -1517,7 +1533,7 @@ function Accueil({ pages, estProprio, rolePour, recharger }) {
 
   return (
     <>
-      <div className="flex items-end justify-between gap-3 mb-6 flex-wrap">
+      <div className="flex items-end justify-between gap-3 mb-7 flex-wrap">
         <h1 className="text-[30px] sm:text-[36px] tracking-tight text-stone-900 leading-none" style={SERIF}>
           {estProprio ? 'Mes pages' : 'Partagé avec vous'}
         </h1>
@@ -1527,29 +1543,179 @@ function Accueil({ pages, estProprio, rolePour, recharger }) {
           </Btn>
         )}
       </div>
-      <div className="th-liste space-y-4">
+      {/* Grille de cartes façon « second cerveau » : la vignette en
+          creux porte l'emoji, le titre en serif — règle halo : cartes
+          raised espacées d'au moins 16 px. */}
+      <div className="th-liste grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-5">
         {racines.map((r) => {
           const nb = enfantsDe(pages, r.id).length;
           const role = rolePour(r.racine_id);
           return (
             <button key={r.id} type="button" onClick={() => allerA(r.id)} style={neu.raised}
-              className="th-press w-full px-5 sm:px-6 py-5 rounded-3xl flex items-center gap-4 text-left">
-              <span className="text-[26px] leading-none" aria-hidden="true">{r.icone || '📄'}</span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-[17px] font-medium text-stone-900 truncate" style={SERIF}>{titreDe(r)}</span>
-                <span className="block text-[12.5px] text-stone-500 mt-0.5">
+              className="th-press rounded-3xl p-5 text-left flex flex-col gap-3 min-h-[150px]">
+              <span style={neu.pressedSm} aria-hidden="true"
+                className="w-12 h-12 rounded-2xl flex items-center justify-center text-[22px] leading-none">
+                {r.icone || '📄'}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[16px] text-stone-900 leading-snug" style={SERIF}>{titreDe(r)}</span>
+                <span className="block text-[12px] text-stone-500 mt-1">
                   {nb === 0 ? 'Aucune sous-page' : nb === 1 ? '1 sous-page' : `${nb} sous-pages`}
                 </span>
               </span>
               {!estProprio && (
-                <span style={neu.pressedSm} className="px-3 py-1.5 rounded-full text-[11px] font-semibold text-stone-600 shrink-0">
+                <span style={neu.pressedSm}
+                  className="mt-auto self-start px-2.5 py-1 rounded-full text-[10.5px] font-semibold uppercase tracking-wider text-stone-600">
                   {role === 'editeur' ? 'Édition' : 'Lecture'}
                 </span>
               )}
-              <ChevronRight size={16} className="shrink-0 text-stone-400" />
             </button>
           );
         })}
+      </div>
+    </>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   🧭 NAVIGATION — barre latérale (desktop) et volet (téléphone)
+   ════════════════════════════════════════════════════════════
+   Structure inspirée d'un « second cerveau » Notion : l'arborescence
+   vit à gauche en permanence sur grand écran ; sur téléphone, le
+   volet de verre de « Concevoir la galerie », ancré à GAUCHE. */
+function ItemNav({ actif, profondeur = 0, onClick, icone, titre, aDesEnfants, ouvert, onBascule }) {
+  return (
+    <div className="flex items-center gap-1" style={{ paddingLeft: `${profondeur * 14}px` }}>
+      {aDesEnfants ? (
+        <button type="button" onClick={onBascule} aria-expanded={ouvert}
+          aria-label={ouvert ? 'Replier' : 'Déplier'}
+          className="w-7 h-7 tap-ext rounded-lg flex items-center justify-center text-stone-400 hover:text-stone-700 shrink-0 transition">
+          <ChevronRight size={13} className={`transition-transform ${ouvert ? 'rotate-90' : ''}`} />
+        </button>
+      ) : (
+        <span className="w-7 shrink-0" aria-hidden="true" />
+      )}
+      <button type="button" onClick={onClick} aria-current={actif ? 'page' : undefined}
+        style={actif ? neu.pressedSm : undefined}
+        className={`flex-1 min-w-0 min-h-[40px] px-3 rounded-xl flex items-center gap-2 text-left transition ${actif ? 'text-stone-900' : 'text-stone-600 hover:text-stone-900'}`}>
+        <span className="text-[15px] leading-none shrink-0" aria-hidden="true">{icone || '📄'}</span>
+        <span className="truncate text-[13.5px] font-medium">{titre}</span>
+      </button>
+    </div>
+  );
+}
+
+function BrancheNav({ page, pages, routeId, naviguer, profondeur, ouverts, bascule }) {
+  if (profondeur > 6) return null; // garde anti-cycle (parent_id forgé)
+  const enfants = enfantsDe(pages, page.id);
+  const ouvert = ouverts.has(page.id);
+  return (
+    <>
+      <ItemNav actif={routeId === page.id} profondeur={profondeur} icone={page.icone}
+        titre={titreDe(page)} aDesEnfants={enfants.length > 0} ouvert={ouvert}
+        onBascule={() => bascule(page.id)} onClick={() => naviguer(page.id)} />
+      {ouvert && enfants.map((e) => (
+        <BrancheNav key={e.id} page={e} pages={pages} routeId={routeId} naviguer={naviguer}
+          profondeur={profondeur + 1} ouverts={ouverts} bascule={bascule} />
+      ))}
+    </>
+  );
+}
+
+function SidebarContenu({ donnees, routeId, naviguer, creerRacine, busyCreation, email, onSecurite, onDeconnecter, onFermer }) {
+  const racines = donnees.pages.filter((p) => !p.parent_id).sort(trierPages);
+  // Les ancêtres de la page ouverte se déplient d'office : on doit
+  // toujours voir OÙ l'on est dans l'arbre.
+  const [ouverts, setOuverts] = useState(() => new Set(cheminVers(donnees.pages, routeId).map((p) => p.id)));
+  useEffect(() => {
+    if (!routeId) return;
+    setOuverts((prev) => {
+      const s = new Set(prev);
+      cheminVers(donnees.pages, routeId).forEach((p) => s.add(p.id));
+      return s;
+    });
+  }, [routeId, donnees.pages]);
+  const bascule = (id) => setOuverts((prev) => {
+    const s = new Set(prev);
+    if (s.has(id)) s.delete(id); else s.add(id);
+    return s;
+  });
+
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      <div className="flex items-center justify-between gap-2 px-4 pt-5 pb-2 shrink-0">
+        <button type="button" onClick={() => naviguer(null)}
+          className="min-h-[44px] tap-ext text-[12px] uppercase tracking-[0.2em] text-stone-500 font-semibold hover:text-stone-800 transition">
+          Espace perso
+        </button>
+        {onFermer && (
+          <button type="button" onClick={onFermer} aria-label="Fermer le menu" style={neu.raisedXs}
+            className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition shrink-0">
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
+      {donnees.estProprio && (
+        <div className="px-4 pb-1 shrink-0">
+          <button type="button" onClick={creerRacine} disabled={busyCreation}
+            className="w-full min-h-[44px] px-3 rounded-xl flex items-center gap-2 text-left text-stone-600 hover:text-stone-900 transition disabled:opacity-50">
+            {busyCreation ? <Loader2 size={15} className="animate-spin shrink-0" /> : <Plus size={15} className="shrink-0" />}
+            <span className="text-[13.5px] font-medium">Nouvelle page</span>
+          </button>
+        </div>
+      )}
+
+      <nav className="flex-1 min-h-0 overflow-y-auto px-4 pb-4" aria-label="Pages">
+        <div className="text-[11px] uppercase tracking-[0.14em] text-stone-500 font-semibold px-2 pt-3 pb-2">
+          {donnees.estProprio ? 'Mes pages' : 'Partagé avec vous'}
+        </div>
+        <div className="space-y-0.5">
+          {racines.map((r) => (
+            <BrancheNav key={r.id} page={r} pages={donnees.pages} routeId={routeId}
+              naviguer={naviguer} profondeur={0} ouverts={ouverts} bascule={bascule} />
+          ))}
+          {racines.length === 0 && (
+            <p className="px-2 py-3 text-[12.5px] text-stone-500">Aucune page pour l'instant.</p>
+          )}
+        </div>
+      </nav>
+
+      <div className="px-4 py-4 shrink-0" style={{ borderTop: '1px solid rgba(120,113,108,0.18)' }}>
+        <div className="text-[11.5px] text-stone-500 truncate px-2 mb-3">{email}</div>
+        <div className="flex items-center gap-3 px-1">
+          <IconBtn onClick={onSecurite} label="Double vérification" icon={ShieldCheck} />
+          <IconBtn onClick={onDeconnecter} label="Se déconnecter" icon={LogOut} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Le volet mobile : TOUJOURS monté, seule la classe bascule — c'est le
+   mécanisme du panneau de « Concevoir la galerie » (.masque), et le
+   seul qui garantisse que la transition parte du bon état peint. */
+function VoletNav({ ouvert, onFermer, children }) {
+  const aOuvertUneFois = useRef(false);
+  if (ouvert) aOuvertUneFois.current = true;
+  useEffect(() => {
+    if (!ouvert) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => { if (e.key === 'Escape') onFermer(); };
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, [ouvert, onFermer]);
+  return (
+    <>
+      {ouvert && <div className="th-scrim lg:hidden" onClick={onFermer} aria-hidden="true" />}
+      <div className={`th-volet lg:hidden ${ouvert ? '' : aOuvertUneFois.current ? 'ferme' : 'ferme jamais-ouvert'}`}
+        role="dialog" aria-modal={ouvert || undefined} aria-label="Navigation"
+        aria-hidden={ouvert ? undefined : true} inert={ouvert ? undefined : ''}>
+        {children}
       </div>
     </>
   );
@@ -1774,6 +1940,7 @@ function App() {
   };
 
   useEffect(() => {
+    if (DEMO) { setSession({ user: { id: 'demo', email: 'demo@exemple.com' } }); return; }
     if (JETON_URL) { setSession(null); return; } // mode jeton : pas d'auth
     (async () => {
       // Échange du lien magique (?lm=) contre une session — voir LM_BOOT.
@@ -1810,6 +1977,7 @@ function App() {
   }, []);
 
   const recharger = useCallback(async () => {
+    if (DEMO) { setDonnees(DONNEES_DEMO()); return; }
     try {
       const uid = sessionRef.current?.user?.id;
       if (!uid) return;
@@ -1838,6 +2006,24 @@ function App() {
 
   const deconnecter = async () => { await sb.auth.signOut(); allerA(null); };
 
+  const [voletOuvert, setVoletOuvert] = useState(false);
+  const naviguer = (id) => { allerA(id); setVoletOuvert(false); };
+
+  // La création d'une racine vit ici : la barre latérale, le volet et
+  // l'accueil déclenchent tous le même geste.
+  const [busyCreation, setBusyCreation] = useState(false);
+  const creerRacine = async () => {
+    if (busyCreation || !donnees) return;
+    setBusyCreation(true);
+    const racines = donnees.pages.filter((p) => !p.parent_id);
+    const position = racines.length ? Math.max(...racines.map((r) => r.position)) + 1 : 0;
+    const { data, error } = await sb.from('perso_pages')
+      .insert({ titre: '', position })
+      .select('id').single();
+    setBusyCreation(false);
+    if (!error && data) { await recharger(); naviguer(data.id); }
+  };
+
   // ── Mode jeton : il gagne même connecté (aperçu du lien) ──
   if (JETON_URL) return <VueJeton />;
 
@@ -1855,21 +2041,44 @@ function App() {
     return donnees?.roles.get(racineId) || 'lecteur';
   };
 
-  return (
-    <div className="min-h-screen" style={neu.base}>
-      <header className="max-w-3xl mx-auto px-5 sm:px-8 pt-6 flex items-center justify-between gap-3">
-        <button type="button" onClick={() => allerA(null)}
-          className="min-h-[44px] tap-ext text-[12px] uppercase tracking-[0.2em] text-stone-500 font-semibold hover:text-stone-800 transition">
-          Espace perso
-        </button>
-        <div className="flex items-center gap-3">
-          <span className="hidden sm:block text-[12px] text-stone-500 truncate max-w-[220px]">{session.user.email}</span>
-          <IconBtn onClick={() => setSecuriteOuverte(true)} label="Double vérification" icon={ShieldCheck} />
-          <IconBtn onClick={deconnecter} label="Se déconnecter" icon={LogOut} />
-        </div>
-      </header>
+  const contenuSidebar = donnees ? (
+    <SidebarContenu
+      donnees={donnees}
+      routeId={route.vue === 'page' ? route.id : null}
+      naviguer={naviguer}
+      creerRacine={creerRacine}
+      busyCreation={busyCreation}
+      email={session.user.email}
+      onSecurite={() => { setSecuriteOuverte(true); setVoletOuvert(false); }}
+      onDeconnecter={deconnecter}
+      onFermer={voletOuvert ? () => setVoletOuvert(false) : undefined}
+    />
+  ) : (
+    <div className="th-squelette p-5 space-y-3">
+      <div style={neu.pressedSm} className="h-10 rounded-xl" />
+      <div style={neu.pressedSm} className="h-10 rounded-xl" />
+      <div style={neu.pressedSm} className="h-10 rounded-xl" />
+    </div>
+  );
 
-      {securiteOuverte && <ModaleSecurite onClose={() => setSecuriteOuverte(false)} />}
+  return (
+    <div className="min-h-screen lg:flex" style={neu.base}>
+      {/* Barre latérale persistante — grand écran seulement */}
+      <aside className="hidden lg:flex lg:flex-col w-72 shrink-0 sticky top-0 h-screen"
+        style={{ borderRight: '1px solid rgba(120,113,108,0.16)' }}>
+        {contenuSidebar}
+      </aside>
+
+      <div className="flex-1 min-w-0">
+        {/* Barre haute — téléphone seulement : le menu vit dans le volet */}
+        <header className="lg:hidden max-w-3xl mx-auto px-5 sm:px-8 pt-6 flex items-center justify-between gap-3">
+          <IconBtn onClick={() => setVoletOuvert(true)} label="Ouvrir le menu" icon={Menu} />
+          <button type="button" onClick={() => naviguer(null)}
+            className="min-h-[44px] tap-ext text-[12px] uppercase tracking-[0.2em] text-stone-500 font-semibold hover:text-stone-800 transition">
+            Espace perso
+          </button>
+          <span className="w-10 shrink-0" aria-hidden="true" />
+        </header>
 
       <main key={`${route.vue}:${route.id || ''}`} className="th-vue max-w-3xl mx-auto px-5 sm:px-8 py-8 pb-24">
         {donnees === null ? (
@@ -1884,9 +2093,16 @@ function App() {
             recharger={recharger} estProprio={donnees.estProprio} />
         ) : (
           <Accueil pages={donnees.pages} estProprio={donnees.estProprio}
-            rolePour={rolePour} recharger={recharger} />
+            rolePour={rolePour} creerRacine={creerRacine} busyCreation={busyCreation} />
         )}
       </main>
+      </div>
+
+      <VoletNav ouvert={voletOuvert} onFermer={() => setVoletOuvert(false)}>
+        {contenuSidebar}
+      </VoletNav>
+
+      {securiteOuverte && <ModaleSecurite onClose={() => setSecuriteOuverte(false)} />}
     </div>
   );
 }

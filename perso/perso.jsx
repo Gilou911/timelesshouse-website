@@ -639,25 +639,30 @@ function EcranMfa({ onDone, onAbandon }) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [panne, setPanne] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      // La liste locale du SDK est vide pour une session née d'un lien
-      // magique (l'utilisateur arrive sans ses facteurs) : conclure là-
-      // dessus déconnectait Gil après un flash d'une seconde. On demande
-      // donc la liste réelle au serveur avant d'abandonner.
-      const { data: fs } = await sb.auth.mfa.listFactors();
-      let f = (fs?.totp || []).find((x) => x.status === 'verified') || (fs?.totp || [])[0] || null;
-      if (!f) {
-        const { data: u } = await sb.auth.getUser();
-        f = (u?.user?.factors || []).find(
-          (x) => x.factor_type === 'totp' && x.status === 'verified'
-        ) || null;
-      }
-      if (!f) { onAbandon(); return; }
-      setFactorId(f.id);
-    })();
+  const trouverFacteur = useCallback(async () => {
+    setPanne(false);
+    // La liste locale du SDK est vide pour une session née d'un lien
+    // magique (l'utilisateur arrive sans ses facteurs) : on demande la
+    // liste réelle au serveur. Et quoi qu'il arrive, cet écran ne se
+    // DÉCONNECTE JAMAIS tout seul — un auto-signOut ici tuait la
+    // session de tous les onglets (flash d'une seconde puis retour à
+    // l'écran email, vidéo de Gil du 30/07). En cas de doute : on
+    // l'affiche, et c'est l'utilisateur qui décide.
+    const { data: fs } = await sb.auth.mfa.listFactors();
+    let f = (fs?.totp || []).find((x) => x.status === 'verified') || (fs?.totp || [])[0] || null;
+    if (!f) {
+      const { data: u } = await sb.auth.getUser();
+      f = (u?.user?.factors || []).find(
+        (x) => x.factor_type === 'totp' && x.status === 'verified'
+      ) || null;
+    }
+    if (!f) { setPanne(true); return; }
+    setFactorId(f.id);
   }, []);
+
+  useEffect(() => { trouverFacteur(); }, [trouverFacteur]);
 
   const verifier = async (e) => {
     e.preventDefault();
@@ -689,6 +694,19 @@ function EcranMfa({ onDone, onAbandon }) {
           <h1 className="text-[34px] tracking-tight mt-1 leading-none" style={SERIF}>Votre code</h1>
           <p className="text-[13px] text-stone-500 mt-3">Ouvrez votre application d'authentification et saisissez le code à 6 chiffres.</p>
         </div>
+        {panne ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 text-amber-800 text-[12.5px]">
+              <AlertCircle size={14} className="shrink-0" />
+              Impossible de récupérer vos facteurs de double vérification — le réseau a peut-être toussé.
+            </div>
+            <Btn kind="dark" full onClick={trouverFacteur} icon={RefreshCw}>Réessayer</Btn>
+            <button type="button" onClick={onAbandon}
+              className="w-full min-h-[44px] text-[12.5px] text-stone-500 hover:text-stone-800">
+              Revenir à la connexion
+            </button>
+          </div>
+        ) : (
         <form onSubmit={verifier} className="space-y-4">
           <Field label="Code à 6 chiffres">
             <Input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -709,6 +727,7 @@ function EcranMfa({ onDone, onAbandon }) {
             Revenir à la connexion
           </button>
         </form>
+        )}
       </div>
     </div>
   );

@@ -80,8 +80,12 @@
     [data-theme="dark"] .text-stone-800 { color: #d4d6dc !important; }
     [data-theme="dark"] .text-stone-700 { color: #b6b9c0 !important; }
     [data-theme="dark"] .text-stone-600 { color: #969aa3 !important; }
-    [data-theme="dark"] .text-stone-500 { color: #7e828b !important; }
-    [data-theme="dark"] .text-stone-400 { color: #686c75 !important; }
+    /* Audit HIG 30/07/2026 (mesuré sur l'espace perso, mêmes fonds) :
+       sur une carte sombre #22262d, les anciennes valeurs tombaient à
+       3,9:1 (stone-500) et 2,9:1 (stone-400) — sous le plancher 4.5:1.
+       Relevées : 5,8 et 4,7 mesurés. */
+    [data-theme="dark"] .text-stone-500 { color: #9aa0a9 !important; }
+    [data-theme="dark"] .text-stone-400 { color: #8b909a !important; }
     [data-theme="dark"] .text-stone-300 { color: #4f535c !important; }
     [data-theme="dark"] .bg-white { background-color: #22262d !important; }
     [data-theme="dark"] .bg-stone-50 { background-color: #1d2025 !important; }
@@ -90,7 +94,7 @@
     [data-theme="dark"] .bg-stone-300 { background-color: rgba(232,216,190,0.18) !important; }
     [data-theme="dark"] .bg-stone-900 { background-color: #e8d8be !important; }
     [data-theme="dark"] .text-white { color: #1a1410 !important; }
-    [data-theme="dark"] .placeholder\:text-stone-400::placeholder { color: #686c75 !important; }
+    [data-theme="dark"] .placeholder\:text-stone-400::placeholder { color: #8b909a !important; }
     [data-theme="dark"] .border-stone-200 { border-color: rgba(255,255,255,0.07) !important; }
     [data-theme="dark"] .border-stone-300 { border-color: rgba(232,216,190,0.22) !important; }
     [data-theme="dark"] .border-stone-900 { border-color: #e8d8be !important; }
@@ -111,10 +115,13 @@
        stone-500 → 3.3:1, stone-400 → 2.2:1. Illisibles pour beaucoup
        de gens, surtout sur les libellés de 10-12 px. On assombrit
        sans toucher à la palette de marque. */
-    .text-stone-500 { color: #635c50 !important; }   /* 5.2:1 */
-    .text-stone-400 { color: #6b6357 !important; }   /* 4.7:1 */
+    .text-stone-500 { color: #635c50 !important; }   /* 5.2:1 sur crème */
+    /* L'ancienne valeur (#6b6357) tenait 4,7:1 sur la crème mais
+       tombait à 4,37:1 sur un champ en creux (#e3ddd0) — assombrie
+       pour repasser 4.5 partout (audit HIG 30/07/2026, mesuré). */
+    .text-stone-400 { color: #655d51 !important; }
     .placeholder\:text-stone-400::placeholder,
-    .placeholder\:text-stone-500::placeholder { color: #6b6357 !important; }
+    .placeholder\:text-stone-500::placeholder { color: #655d51 !important; }
 
     /* §16 — Le focus clavier doit toujours se voir. Plusieurs champs
        posent outline:none pour leur style « pressé » : sans ce

@@ -509,6 +509,7 @@ function RenduBloc({ bloc }) {
 function BoutonBloc({ onClick, label, icon: Icon, danger, disabled }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label}
+      onMouseDown={(e) => e.preventDefault()}
       className={`w-8 h-8 tap-ext rounded-full flex items-center justify-center bg-white ${danger ? 'text-rose-500' : 'text-stone-500'} disabled:opacity-30 active:scale-95 transition`}>
       <Icon size={14} />
     </button>
@@ -626,18 +627,25 @@ function BlocImageEditeur({ bloc, set, racineId }) {
   );
 }
 
-function EditeurBloc({ bloc, onChange, racineId }) {
+function EditeurBloc({ bloc, onChange, racineId, onEntree, onEffacerVide }) {
   const t = bloc.type;
   const set = (patch) => onChange({ ...bloc, ...patch });
+  /* Gestes Notion sur les blocs de texte : Entrée enchaîne sur un
+     nouveau paragraphe (Maj+Entrée pour un retour à la ligne),
+     Effacer dans un bloc vide le retire et remonte au précédent. */
+  const clavier = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && onEntree) { e.preventDefault(); onEntree(); return; }
+    if (e.key === 'Backspace' && !(bloc.texte || '') && onEffacerVide) { e.preventDefault(); onEffacerVide(); }
+  };
   if (t === 'separateur') return <hr className="border-stone-300 my-3" />;
   if (t === 'titre1' || t === 'titre2') return (
-    <TextareaAuto value={bloc.texte || ''} onChange={(e) => set({ texte: e.target.value })}
+    <TextareaAuto value={bloc.texte || ''} onChange={(e) => set({ texte: e.target.value })} onKeyDown={clavier}
       placeholder={t === 'titre1' ? 'Grand titre' : 'Sous-titre'}
       className="text-stone-900" style={t === 'titre1' ? STYLE_TITRE1 : STYLE_TITRE2} />
   );
   if (t === 'citation') return (
     <div className="border-l-2 border-stone-900 pl-4">
-      <TextareaAuto value={bloc.texte || ''} onChange={(e) => set({ texte: e.target.value })}
+      <TextareaAuto value={bloc.texte || ''} onChange={(e) => set({ texte: e.target.value })} onKeyDown={clavier}
         placeholder="Citation" className="italic text-stone-700 leading-relaxed" style={SERIF} />
     </div>
   );
@@ -652,8 +660,8 @@ function EditeurBloc({ bloc, onChange, racineId }) {
     </div>
   );
   return (
-    <TextareaAuto value={bloc.texte || ''} onChange={(e) => set({ texte: e.target.value })}
-      placeholder="Écrivez…" className="text-stone-800 leading-relaxed" />
+    <TextareaAuto value={bloc.texte || ''} onChange={(e) => set({ texte: e.target.value })} onKeyDown={clavier}
+      placeholder="" className="text-stone-800 leading-relaxed" />
   );
 }
 
@@ -682,7 +690,26 @@ function MenuTypes({ onPick, onClose }) {
 }
 
 function ListeBlocsEditeur({ blocs, onChange, racineId }) {
-  const [menuApres, setMenuApres] = useState(null); // index d'insertion, ou 'fin'
+  const [menuApres, setMenuApres] = useState(null); // index d'insertion après
+  const conteneurRef = useRef(null);
+
+  // Rend la main au champ du bloc visé (fin de texte). Le nœud peut ne
+  // pas être encore peint au premier souffle : on réessaie quelques
+  // trames plutôt que de perdre le curseur.
+  const focaliser = (id) => {
+    let essais = 0;
+    const tenter = () => {
+      const el = conteneurRef.current?.querySelector(`[data-bloc="${id}"] textarea, [data-bloc="${id}"] input`);
+      if (el) {
+        el.focus();
+        const n = el.value?.length ?? 0;
+        try { el.setSelectionRange(n, n); } catch (_) {}
+        return;
+      }
+      if (++essais < 5) requestAnimationFrame(tenter);
+    };
+    requestAnimationFrame(tenter);
+  };
 
   const setBloc = (i, next) => onChange(blocs.map((b, idx) => (idx === i ? next : b)));
   const retirer = (i) => onChange(blocs.filter((_, idx) => idx !== i));
@@ -693,23 +720,35 @@ function ListeBlocsEditeur({ blocs, onChange, racineId }) {
     [copie[i], copie[j]] = [copie[j], copie[i]];
     onChange(copie);
   };
-  const inserer = (type) => {
-    const b = nouveauBloc(type);
-    if (menuApres === 'fin' || menuApres === null) onChange([...blocs, b]);
-    else onChange([...blocs.slice(0, menuApres + 1), b, ...blocs.slice(menuApres + 1)]);
-    setMenuApres(null);
+  const insererApres = (i, type, texte = '') => {
+    const b = { ...nouveauBloc(type), ...(texte ? { texte } : {}) };
+    const idx = i === null || i >= blocs.length ? blocs.length : i + 1;
+    onChange([...blocs.slice(0, idx), b, ...blocs.slice(idx)]);
+    focaliser(b.id);
+  };
+
+  // Entrée dans un bloc de texte → paragraphe suivant ; Effacer un
+  // bloc vide → on remonte au précédent.
+  const surEntree = (i) => insererApres(i, 'paragraphe');
+  const surEffacerVide = (i) => {
+    const precedent = blocs[i - 1];
+    retirer(i);
+    if (precedent) focaliser(precedent.id);
   };
 
   return (
-    <div className="space-y-1">
+    <div ref={conteneurRef} className="space-y-0.5">
       {blocs.map((bloc, i) => (
-        <div key={bloc.id || i} className="group flex items-start gap-2">
-          <div className="flex-1 min-w-0 py-1.5">
-            <EditeurBloc bloc={bloc} onChange={(next) => setBloc(i, next)} racineId={racineId} />
+        <div key={bloc.id || i} data-bloc={bloc.id} className="group flex items-start gap-2">
+          <div className="flex-1 min-w-0 py-1">
+            <EditeurBloc bloc={bloc} onChange={(next) => setBloc(i, next)} racineId={racineId}
+              onEntree={() => surEntree(i)} onEffacerVide={() => surEffacerVide(i)} />
           </div>
-          {/* Grappe de commandes : toujours visible (le survol n'existe
-              pas au tactile), discrète (opacité), zone 44 px via tap-ext. */}
-          <div className="flex items-center gap-1 shrink-0 pt-1.5 opacity-60 focus-within:opacity-100 sm:group-hover:opacity-100 transition-opacity">
+          {/* Les commandes n'existent que pour le bloc qu'on regarde :
+              invisibles au repos (l'édition doit ressembler à la
+              lecture), révélées au survol OU dès qu'un champ du bloc a
+              le focus — le chemin tactile, là où le survol n'existe pas. */}
+          <div className="flex items-center gap-1 shrink-0 pt-1 opacity-0 pointer-events-none group-focus-within:opacity-100 group-focus-within:pointer-events-auto sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto transition-opacity">
             <BoutonBloc onClick={() => setMenuApres(i)} label="Insérer un bloc dessous" icon={Plus} />
             <BoutonBloc onClick={() => deplacer(i, -1)} label="Monter" icon={ChevronUp} disabled={i === 0} />
             <BoutonBloc onClick={() => deplacer(i, 1)} label="Descendre" icon={ChevronDown} disabled={i === blocs.length - 1} />
@@ -718,11 +757,31 @@ function ListeBlocsEditeur({ blocs, onChange, racineId }) {
         </div>
       ))}
 
-      <div className="pt-4">
-        <Btn onClick={() => setMenuApres('fin')} icon={Plus}>Ajouter un bloc</Btn>
+      {/* La ligne d'écriture : on tape, le paragraphe naît — comme dans
+          Notion. « / » ouvre le choix de bloc. Toujours là, jamais de
+          bouton à trouver pour commencer à écrire. */}
+      <div className="py-1">
+        <TextareaAuto
+          value=""
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val === '/') { setMenuApres(blocs.length - 1); return; }
+            if (val) insererApres(blocs.length - 1, 'paragraphe', val);
+          }}
+          placeholder={blocs.length === 0
+            ? 'Écrivez, ou tapez « / » pour choisir un type de bloc'
+            : 'Écrivez, « / » pour un bloc…'}
+          aria-label="Écrire un nouveau paragraphe"
+          className="text-stone-800 leading-relaxed"
+        />
       </div>
 
-      {menuApres !== null && <MenuTypes onPick={inserer} onClose={() => setMenuApres(null)} />}
+      {menuApres !== null && (
+        <MenuTypes
+          onPick={(type) => { insererApres(menuApres, type); setMenuApres(null); }}
+          onClose={() => setMenuApres(null)}
+        />
+      )}
     </div>
   );
 }

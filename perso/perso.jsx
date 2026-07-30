@@ -34,8 +34,9 @@ import {
   Trash2, Share2, Copy, Check, RefreshCw, LogOut, ShieldCheck,
   AlertCircle, FileText, FilePlus, Heading1, Heading2, Pilcrow, List,
   ListOrdered, CheckSquare, Quote, Minus, Image as ImageIcon,
-  ExternalLink, Send, KeyRound, Eye, EyeOff, Link2, Square, Menu,
+  ExternalLink, Send, KeyRound, Eye, EyeOff, Link2, Square, Menu, Table,
 } from 'lucide-react';
+import { BaseEditeur, BaseLecture, nouvelleBase } from './base.jsx';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -81,14 +82,29 @@ const JETON_URL = new URLSearchParams(window.location.search).get('t') || '';
    à Supabase — pour vérifier la maquette sans session. */
 const DEMO = import.meta.env.DEV && new URLSearchParams(window.location.search).has('demo');
 const DONNEES_DEMO = () => {
-  const r = (id, titre, icone) => ({ id, parent_id: null, racine_id: id, titre, icone, blocs: [], position: 0, created_at: id, updated_at: id });
+  const r = (id, titre, icone, blocs = []) => ({ id, parent_id: null, racine_id: id, titre, icone, blocs, position: 0, created_at: id, updated_at: id });
   const e = (id, parent, titre, icone) => ({ ...r(id, titre, icone), parent_id: parent, racine_id: parent });
+  const pTitre = 'p-titre', pStatut = 'p-statut', pDate = 'p-date', pFait = 'p-fait';
+  const baseDemo = {
+    id: 'bloc-base-demo', type: 'base', nom: 'Tournages', vue: 'table',
+    proprietes: [
+      { id: pTitre, nom: 'Nom', type: 'texte' },
+      { id: pStatut, nom: 'Statut', type: 'selection' },
+      { id: pDate, nom: 'Date', type: 'date' },
+      { id: pFait, nom: 'Livré', type: 'case' },
+    ],
+    lignes: [
+      { id: 'l1', valeurs: { [pTitre]: 'Mariage Eunice & Josué', [pStatut]: 'Montage', [pDate]: '2026-08-14', [pFait]: false } },
+      { id: 'l2', valeurs: { [pTitre]: 'Clip immobilier Vinci', [pStatut]: 'Tourné', [pDate]: '2026-07-02', [pFait]: true } },
+      { id: 'l3', valeurs: { [pTitre]: 'Teaser La Loge', [pStatut]: 'Écriture', [pDate]: '2026-09-01', [pFait]: false } },
+    ],
+  };
   return {
     estProprio: true,
     pages: [
       r('a0000000-0000-4000-8000-000000000001', 'Santé & forme', '💪'),
       r('a0000000-0000-4000-8000-000000000002', 'Finances', '💳'),
-      r('a0000000-0000-4000-8000-000000000003', 'Projets', '🎬'),
+      r('a0000000-0000-4000-8000-000000000003', 'Projets', '🎬', [baseDemo]),
       r('a0000000-0000-4000-8000-000000000004', 'Études', '📚'),
       r('a0000000-0000-4000-8000-000000000005', 'Famille & amis', '🫶'),
       e('a0000000-0000-4000-8000-000000000006', 'a0000000-0000-4000-8000-000000000003', 'Tournages 2026', '🎥'),
@@ -134,9 +150,10 @@ const NEU_DARK = {
 
 // Mutable pointer — réassigné par App() à chaque rendu (top-down :
 // tous les enfants lisent la bonne palette sans Context ni prop).
-let neu = NEU_LIGHT;
+// Exporté en liaison vivante ESM : base.jsx suit le thème sans Context.
+export let neu = NEU_LIGHT;
 
-const SERIF = { fontFamily: 'Instrument Serif, serif', fontWeight: 400 };
+export const SERIF = { fontFamily: 'Instrument Serif, serif', fontWeight: 400 };
 
 /* Thème piloté par l'appareil — pas de bascule (décision du 22/07). */
 const useDarkMode = () => {
@@ -162,7 +179,7 @@ const useDarkMode = () => {
 /* ════════════════════════════════════════════════════════════
    🛠 HELPERS
    ════════════════════════════════════════════════════════════ */
-const genId = () =>
+export const genId = () =>
   (crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random())).replace(/-/g, '').slice(0, 12);
 
 const genToken = () =>
@@ -225,7 +242,7 @@ const b2Put = (url, file, contentType, onProgress) => new Promise((resolve, reje
   xhr.send(file);
 });
 
-async function televerserImage(file, racineId, onProgress) {
+export async function televerserImage(file, racineId, onProgress) {
   if (!file.type.startsWith('image/')) throw new Error('Choisissez une image.');
   if (file.size > 25 * 1024 * 1024) throw new Error('Image trop lourde (25 Mo maximum).');
   const contentType = file.type || 'application/octet-stream';
@@ -241,7 +258,7 @@ async function televerserImage(file, racineId, onProgress) {
    🔧 ATOMS (au niveau module — jamais dans un composant, sinon
    chaque rendu REMONTE les champs contrôlés et le focus saute)
    ════════════════════════════════════════════════════════════ */
-const Btn = ({ kind = 'soft', onClick, children, type = 'button', disabled, full, icon: Icon, className = '' }) => {
+export const Btn = ({ kind = 'soft', onClick, children, type = 'button', disabled, full, icon: Icon, className = '' }) => {
   const styles = kind === 'dark' ? neu.dark : neu.raisedXs;
   const text = kind === 'dark' ? 'text-white' : 'text-stone-800';
   return (
@@ -273,14 +290,14 @@ const IconBtn = ({ onClick, label, icon: Icon, danger, busy, className = '' }) =
   </button>
 );
 
-const Field = ({ label, children }) => (
+export const Field = ({ label, children }) => (
   <div>
     <label className="text-[13px] text-stone-700 font-medium block mb-2 leading-snug">{label}</label>
     {children}
   </div>
 );
 
-const Input = (props) => (
+export const Input = (props) => (
   <input
     {...props}
     style={{ ...neu.pressedSm, ...(props.style || {}) }}
@@ -288,7 +305,7 @@ const Input = (props) => (
   />
 );
 
-const Select = ({ value, onChange, children, ...rest }) => (
+export const Select = ({ value, onChange, children, ...rest }) => (
   <select value={value} onChange={onChange} {...rest} style={neu.pressedSm}
     className="w-full px-4 py-3 rounded-xl bg-transparent text-[16px] sm:text-[14px]">
     {children}
@@ -348,7 +365,7 @@ const CopyButton = ({ value, label = 'Copier le lien' }) => {
   );
 };
 
-const Modal = ({ title, kicker, onClose, children, size = 'md' }) => {
+export const Modal = ({ title, kicker, onClose, children, size = 'md' }) => {
   const boxRef = useRef(null);
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -431,10 +448,12 @@ const TYPES_BLOC = [
   { type: 'separateur', label: 'Séparateur',      icon: Minus,      hint: 'Une respiration' },
   { type: 'image',      label: 'Image',           icon: ImageIcon,  hint: 'Téléversée depuis l’appareil' },
   { type: 'lien',       label: 'Lien',            icon: Link2,      hint: 'Vers un site, un document' },
+  { type: 'base',       label: 'Base de données', icon: Table,      hint: 'Table, liste ou galerie' },
 ];
 
 const nouveauBloc = (type) => {
   const base = { id: genId(), type };
+  if (type === 'base') return { ...base, ...nouvelleBase() };
   if (type === 'puces' || type === 'numerotee') return { ...base, items: [''] };
   if (type === 'cases') return { ...base, items: [{ texte: '', coche: false }] };
   if (type === 'image') return { ...base, url: '', legende: '' };
@@ -449,6 +468,7 @@ const STYLE_TITRE2 = { ...SERIF, fontSize: '21px', lineHeight: 1.3 };
 /* ── Rendu lecture seule (lecteur connecté et lien secret) ── */
 function RenduBloc({ bloc }) {
   const t = bloc?.type;
+  if (t === 'base') return <BaseLecture bloc={bloc} />;
   if (t === 'separateur') return <hr className="border-stone-300 my-2" />;
   if (t === 'titre1') return <h2 className="text-stone-900 mt-4" style={STYLE_TITRE1}>{bloc.texte}</h2>;
   if (t === 'titre2') return <h3 className="text-stone-900 mt-2" style={STYLE_TITRE2}>{bloc.texte}</h3>;
@@ -649,6 +669,7 @@ function EditeurBloc({ bloc, onChange, racineId, onEntree, onEffacerVide }) {
         placeholder="Citation" className="italic text-stone-700 leading-relaxed" style={SERIF} />
     </div>
   );
+  if (t === 'base') return <BaseEditeur bloc={bloc} onChange={onChange} racineId={racineId} />;
   if (t === 'puces' || t === 'numerotee') return <EditeurListe bloc={bloc} onChange={onChange} />;
   if (t === 'cases') return <EditeurListe bloc={bloc} onChange={onChange} cases />;
   if (t === 'image') return <BlocImageEditeur bloc={bloc} set={set} racineId={racineId} />;
@@ -1419,6 +1440,7 @@ function VuePage({ pageId, pages, rolePour, recharger, estProprio }) {
      updated_at — 0 ligne modifiée = la page a bougé ailleurs (autre
      onglet, autre éditeur) : on recharge au lieu d'écraser. */
   const sauver = useCallback(async () => {
+    if (DEMO) { setEtatSauvegarde('repos'); return; } // maquette : rien à écrire
     const b = brouillonRef.current;
     if (!b || sauvegardeEnCours.current) return;
     sauvegardeEnCours.current = true;
@@ -2166,4 +2188,12 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+/* Garde de montage : avec le cycle perso ⇄ base, le rechargement à
+   chaud de Vite ré-exécute ce module d'entrée — sans le garde, un
+   second createRoot sur le même nœud fait hurler React en dev.
+   Sans effet en production (une seule exécution). */
+const racineDom = document.getElementById('root');
+if (!racineDom.dataset.monte) {
+  racineDom.dataset.monte = '1';
+  ReactDOM.createRoot(racineDom).render(<App />);
+}

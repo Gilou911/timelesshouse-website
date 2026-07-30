@@ -319,11 +319,35 @@ function analyserVideo(brut) {
    (height auto), l'iframe reçoit le ratio déduit — les verticales
    restent des colonnes, jamais des murs. */
 function RenduVideo({ bloc }) {
+  const [illisible, setIllisible] = useState(false);
   const v = analyserVideo(bloc.url);
+  useEffect(() => { setIllisible(false); }, [v?.src]);
   if (!v) return null;
   if (v.genre === 'fichier') {
+    // Un fichier peut être bien servi et pourtant illisible ICI : le
+    // codec (AV1 d'un retéléchargement YouTube, ProRes…) dépend du
+    // navigateur. Safari répond par un play barré muet — on explique
+    // à sa place (constaté le 30/07 sur un mp4 AV1).
+    if (illisible) return (
+      <div style={neu.pressedSm} className="rounded-2xl p-4 space-y-3 max-w-[52ch]">
+        <div className="flex items-start gap-2 text-[12.5px] text-amber-800 leading-relaxed">
+          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+          <span>
+            Ce navigateur ne sait pas lire le codec de cette vidéo (souvent : AV1 d'un
+            fichier retéléchargé depuis YouTube, ou ProRes). Téléversez l'export
+            H.264 d'origine, ou collez le lien YouTube/Vimeo — leur lecteur s'adapte
+            à chaque appareil.
+          </span>
+        </div>
+        <a href={v.src} target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 min-h-[44px] text-[12.5px] font-semibold text-stone-700 hover:text-stone-900">
+          <ExternalLink size={13} /> Ouvrir le fichier quand même
+        </a>
+      </div>
+    );
     return (
       <video src={v.src} controls playsInline preload="metadata"
+        onError={() => setIllisible(true)}
         className="max-w-full h-auto rounded-2xl" style={{ ...neu.raisedSm, maxHeight: '75vh' }} />
     );
   }

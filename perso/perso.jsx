@@ -1464,6 +1464,173 @@ function Accueil({ pages, estProprio, rolePour, recharger }) {
 }
 
 /* ════════════════════════════════════════════════════════════
+   🛡 SÉCURITÉ — gérer sa double vérification depuis l'app
+   ════════════════════════════════════════════════════════════
+   Leçons du 30/07 appliquées : l'entrée s'appelle « Espace perso »
+   (deux facteurs nommés « Console » étaient indistinguables), et un
+   enrôlement abandonné est désenrôlé aussitôt — c'est un facteur
+   fantôme de ce genre qui a fait rejeter des codes justes. */
+function ModaleSecurite({ onClose }) {
+  const [facteurs, setFacteurs] = useState(null);
+  const [etape, setEtape] = useState('liste'); // liste | qr
+  const [enrole, setEnrole] = useState(null);  // { id, qr, secret }
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [confirmRetrait, setConfirmRetrait] = useState(null); // id à confirmer
+
+  const charger = useCallback(async () => {
+    const { data: u } = await sb.auth.getUser();
+    setFacteurs((u?.user?.factors || []).filter((f) => (f.factor_type ?? 'totp') === 'totp'));
+  }, []);
+  useEffect(() => { charger(); }, [charger]);
+
+  // Fermer en pleine activation = désenrôler le facteur en attente,
+  // sinon il resterait un fantôme « unverified » sur le compte.
+  const fermer = () => {
+    if (enrole && etape === 'qr') sb.auth.mfa.unenroll({ factorId: enrole.id }).catch(() => {});
+    onClose();
+  };
+
+  const activer = async () => {
+    if (busy) return;
+    setBusy(true); setMessage(null);
+    const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Espace perso' });
+    setBusy(false);
+    if (error || !data) {
+      setMessage({ ok: false, texte: error?.message || "L'activation a échoué — réessayez." });
+      return;
+    }
+    setEnrole({ id: data.id, qr: data.totp?.qr_code, secret: data.totp?.secret });
+    setEtape('qr'); setCode('');
+  };
+
+  const annulerActivation = async () => {
+    if (enrole) await sb.auth.mfa.unenroll({ factorId: enrole.id }).catch(() => {});
+    setEnrole(null); setEtape('liste'); setCode(''); setMessage(null);
+    await charger();
+  };
+
+  const confirmer = async (e) => {
+    e.preventDefault();
+    if (!enrole || busy) return;
+    setBusy(true); setMessage(null);
+    try {
+      const { data: ch, error: e1 } = await sb.auth.mfa.challenge({ factorId: enrole.id });
+      if (e1) throw e1;
+      const { error: e2 } = await sb.auth.mfa.verify({ factorId: enrole.id, challengeId: ch.id, code: code.trim() });
+      if (e2) throw e2;
+      setMessage({ ok: true, texte: "Double vérification activée — l'entrée s'appelle « Espace perso » dans votre application." });
+      setEtape('liste'); setEnrole(null); setCode('');
+      await charger();
+    } catch (err) {
+      setMessage({
+        ok: false,
+        texte: /invalid|expired/i.test(err?.message || '')
+          ? 'Code incorrect — attendez le code suivant et réessayez.'
+          : 'La vérification a échoué — réessayez.',
+      });
+    }
+    setBusy(false);
+  };
+
+  const retirer = async (f) => {
+    if (busy) return;
+    setBusy(true); setMessage(null);
+    const { error } = await sb.auth.mfa.unenroll({ factorId: f.id });
+    setBusy(false);
+    setConfirmRetrait(null);
+    if (error) {
+      setMessage({ ok: false, texte: error.message || 'Le retrait a échoué.' });
+      return;
+    }
+    await charger();
+  };
+
+  return (
+    <Modal title="Double vérification" kicker="Sécurité" onClose={fermer}>
+      {message && (
+        <div className={`flex items-center gap-2 p-3 rounded-xl text-[12.5px] mb-4 ${message.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+          {message.ok ? <Check size={14} className="shrink-0" /> : <AlertCircle size={14} className="shrink-0" />}
+          {message.texte}
+        </div>
+      )}
+
+      {etape === 'qr' && enrole ? (
+        <form onSubmit={confirmer} className="space-y-4">
+          <p className="text-[13.5px] text-stone-600 leading-relaxed">
+            Scannez ce code avec votre application d'authentification — une entrée
+            «&nbsp;Espace perso&nbsp;» va s'y ajouter — puis saisissez le code à 6 chiffres
+            qu'elle affiche.
+          </p>
+          {enrole.qr && (
+            <div className="bg-white rounded-2xl p-4 flex justify-center" style={neu.pressedSm}>
+              <img src={enrole.qr} alt="QR code d'enrôlement" className="w-44 h-44" />
+            </div>
+          )}
+          {enrole.secret && (
+            <p className="text-[11.5px] text-stone-500 break-all leading-relaxed">
+              Sans appareil photo : saisissez cette clé à la main — <span className="select-all font-mono">{enrole.secret}</span>
+            </p>
+          )}
+          <Field label="Code à 6 chiffres">
+            <Input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputMode="numeric" autoComplete="one-time-code" placeholder="123456" required
+              className="text-center tracking-[0.4em] font-semibold" />
+          </Field>
+          <Btn type="submit" kind="dark" full disabled={busy || code.length < 6} icon={busy ? Loader2 : ShieldCheck}>
+            {busy ? 'Vérification…' : 'Activer'}
+          </Btn>
+          <button type="button" onClick={annulerActivation}
+            className="w-full min-h-[44px] text-[12.5px] text-stone-500 hover:text-stone-800">
+            Annuler l'activation
+          </button>
+        </form>
+      ) : facteurs === null ? (
+        <div className="th-squelette space-y-3">
+          <div style={neu.pressedSm} className="h-14 rounded-2xl" />
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {facteurs.length === 0 ? (
+            <p className="text-[13.5px] text-stone-600 leading-relaxed">
+              Sans double vérification, le lien magique reçu par email est la seule
+              serrure de votre espace. Ajoutez un code à 6 chiffres pour verrouiller
+              davantage&nbsp;: il vous sera demandé à chaque connexion.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {facteurs.map((f) => (
+                <li key={f.id} style={neu.pressedSm} className="rounded-2xl px-4 py-3 flex items-center gap-3 flex-wrap">
+                  <ShieldCheck size={15} className={`shrink-0 ${f.status === 'verified' ? 'text-emerald-600' : 'text-amber-500'}`} />
+                  <span className="flex-1 min-w-[120px] text-[13.5px] font-medium text-stone-800 truncate">
+                    {f.friendly_name || 'Sans nom'}
+                  </span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-stone-500">
+                    {f.status === 'verified' ? 'Active' : 'Inachevée'}
+                  </span>
+                  {confirmRetrait === f.id ? (
+                    <button type="button" onClick={() => retirer(f)} disabled={busy}
+                      className="min-h-[40px] px-4 rounded-full bg-rose-600 text-white text-[12px] font-semibold active:scale-95 transition disabled:opacity-50">
+                      Confirmer le retrait
+                    </button>
+                  ) : (
+                    <IconBtn onClick={() => setConfirmRetrait(f.id)} label={`Retirer ${f.friendly_name || 'ce facteur'}`} icon={Trash2} danger />
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <Btn kind="dark" full onClick={activer} disabled={busy} icon={busy ? Loader2 : Plus}>
+            {facteurs.length === 0 ? 'Activer la double vérification' : 'Ajouter un facteur'}
+          </Btn>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
    🚪 APP
    ════════════════════════════════════════════════════════════ */
 function App() {
@@ -1475,6 +1642,7 @@ function App() {
   const [route, setRoute] = useState(lireRoute());
   const [donnees, setDonnees] = useState(null); // { estProprio, pages, roles }
   const [avisLien, setAvisLien] = useState(LIEN_EN_ERREUR);
+  const [securiteOuverte, setSecuriteOuverte] = useState(false);
   // Tant que l'échange ?lm= n'a pas conclu, les « session nulle » qui
   // arrivent entre-temps (INITIAL_SESSION…) ne doivent pas monter
   // l'écran de connexion : ils perdraient la course contre verifyOtp.
@@ -1604,9 +1772,12 @@ function App() {
         </button>
         <div className="flex items-center gap-3">
           <span className="hidden sm:block text-[12px] text-stone-500 truncate max-w-[220px]">{session.user.email}</span>
+          <IconBtn onClick={() => setSecuriteOuverte(true)} label="Double vérification" icon={ShieldCheck} />
           <IconBtn onClick={deconnecter} label="Se déconnecter" icon={LogOut} />
         </div>
       </header>
+
+      {securiteOuverte && <ModaleSecurite onClose={() => setSecuriteOuverte(false)} />}
 
       <main key={`${route.vue}:${route.id || ''}`} className="th-vue max-w-3xl mx-auto px-5 sm:px-8 py-8 pb-24">
         {donnees === null ? (

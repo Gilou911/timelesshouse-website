@@ -160,6 +160,55 @@ const appelPersoInvite = (payload, jwt) =>
     body: JSON.stringify(payload),
   });
 
+/* ── Upload B2 (v2, 30/07/2026) ──
+   Chemin simple uniquement (une image ≤ 25 Mo, pas de multipart) :
+   b2-sign signe un PUT sur perso/<racine_id>/<fichier> — réservé au
+   propriétaire et aux éditeurs de l'arbre —, le navigateur envoie
+   directement chez B2. XHR et non fetch : fetch ne sait pas suivre
+   la progression d'un envoi. */
+const b2SafeName = (name) => String(name || 'image')
+  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_{2,}/g, '_').slice(0, 120);
+
+async function b2Sign(payload) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session?.access_token) throw new Error('Session expirée — reconnectez-vous.');
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/b2-sign`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+    body: JSON.stringify(payload),
+  });
+  const corps = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(corps?.error || `Signature impossible (${res.status})`);
+  return corps;
+}
+
+const b2Put = (url, file, contentType, onProgress) => new Promise((resolve, reject) => {
+  const xhr = new XMLHttpRequest();
+  xhr.open('PUT', url);
+  xhr.setRequestHeader('Content-Type', contentType);
+  xhr.upload.onprogress = (e) => {
+    if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+  };
+  xhr.onload = () => (xhr.status >= 200 && xhr.status < 300)
+    ? resolve()
+    : reject(new Error(`Envoi refusé (${xhr.status})`));
+  xhr.onerror = () => reject(new Error("L'envoi a échoué — vérifiez votre connexion."));
+  xhr.send(file);
+});
+
+async function televerserImage(file, racineId, onProgress) {
+  if (!file.type.startsWith('image/')) throw new Error('Choisissez une image.');
+  if (file.size > 25 * 1024 * 1024) throw new Error('Image trop lourde (25 Mo maximum).');
+  const contentType = file.type || 'application/octet-stream';
+  const key = `perso/${racineId}/${Date.now()}-${b2SafeName(file.name)}`;
+  const { url, publicUrl } = await b2Sign({ action: 'sign-put', key, contentType, size: file.size });
+  // un réessai : les hoquets réseau sont fréquents sur téléphone
+  try { await b2Put(url, file, contentType, onProgress); }
+  catch { await b2Put(url, file, contentType, onProgress); }
+  return publicUrl;
+}
+
 /* ════════════════════════════════════════════════════════════
    🔧 ATOMS (au niveau module — jamais dans un composant, sinon
    chaque rendu REMONTE les champs contrôlés et le focus saute)
@@ -497,7 +546,59 @@ function EditeurListe({ bloc, onChange, cases }) {
   );
 }
 
-function EditeurBloc({ bloc, onChange }) {
+/* Bloc image : téléversement direct vers B2 (avec progression) ou
+   adresse collée — les deux chemins remplissent le même `url`. */
+function BlocImageEditeur({ bloc, set, racineId }) {
+  const fileRef = useRef(null);
+  const [pct, setPct] = useState(null); // null = repos
+  const [erreur, setErreur] = useState('');
+
+  const surFichier = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setErreur(''); setPct(0);
+    try {
+      const url = await televerserImage(file, racineId, (p) => setPct(Math.round(p * 100)));
+      set({ url });
+    } catch (err) {
+      setErreur(err?.message || "L'envoi a échoué — réessayez.");
+    }
+    setPct(null);
+  };
+
+  return (
+    <div className="space-y-3">
+      {bloc.url ? (
+        <img src={bloc.url} alt={bloc.legende || ''} loading="lazy" className="max-w-full rounded-2xl" style={neu.raisedSm} />
+      ) : null}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={surFichier} />
+      {pct !== null ? (
+        <div className="space-y-1.5">
+          <div style={neu.pressedSm} className="rounded-full h-3 overflow-hidden"
+            role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Envoi de l'image">
+            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: neu.accent }} />
+          </div>
+          <div className="text-[11.5px] text-stone-500">Envoi… {pct}%</div>
+        </div>
+      ) : (
+        <Btn onClick={() => fileRef.current?.click()} icon={ImageIcon}>
+          {bloc.url ? "Remplacer l'image" : 'Téléverser une image'}
+        </Btn>
+      )}
+      {erreur && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]">
+          <AlertCircle size={14} className="shrink-0" /> {erreur}
+        </div>
+      )}
+      <Input type="url" inputMode="url" value={bloc.url || ''} onChange={(e) => set({ url: e.target.value.trim() })}
+        placeholder="… ou collez une adresse (URL)" />
+      <Input value={bloc.legende || ''} onChange={(e) => set({ legende: e.target.value })} placeholder="Légende (facultative)" />
+    </div>
+  );
+}
+
+function EditeurBloc({ bloc, onChange, racineId }) {
   const t = bloc.type;
   const set = (patch) => onChange({ ...bloc, ...patch });
   if (t === 'separateur') return <hr className="border-stone-300 my-3" />;
@@ -514,16 +615,7 @@ function EditeurBloc({ bloc, onChange }) {
   );
   if (t === 'puces' || t === 'numerotee') return <EditeurListe bloc={bloc} onChange={onChange} />;
   if (t === 'cases') return <EditeurListe bloc={bloc} onChange={onChange} cases />;
-  if (t === 'image') return (
-    <div className="space-y-3">
-      {bloc.url ? (
-        <img src={bloc.url} alt={bloc.legende || ''} loading="lazy" className="max-w-full rounded-2xl" style={neu.raisedSm} />
-      ) : null}
-      <Input type="url" inputMode="url" value={bloc.url || ''} onChange={(e) => set({ url: e.target.value.trim() })}
-        placeholder="https://… (adresse de l'image)" />
-      <Input value={bloc.legende || ''} onChange={(e) => set({ legende: e.target.value })} placeholder="Légende (facultative)" />
-    </div>
-  );
+  if (t === 'image') return <BlocImageEditeur bloc={bloc} set={set} racineId={racineId} />;
   if (t === 'lien') return (
     <div className="space-y-3">
       <Input type="url" inputMode="url" value={bloc.url || ''} onChange={(e) => set({ url: e.target.value.trim() })}
@@ -561,7 +653,7 @@ function MenuTypes({ onPick, onClose }) {
   );
 }
 
-function ListeBlocsEditeur({ blocs, onChange }) {
+function ListeBlocsEditeur({ blocs, onChange, racineId }) {
   const [menuApres, setMenuApres] = useState(null); // index d'insertion, ou 'fin'
 
   const setBloc = (i, next) => onChange(blocs.map((b, idx) => (idx === i ? next : b)));
@@ -585,7 +677,7 @@ function ListeBlocsEditeur({ blocs, onChange }) {
       {blocs.map((bloc, i) => (
         <div key={bloc.id || i} className="group flex items-start gap-2">
           <div className="flex-1 min-w-0 py-1.5">
-            <EditeurBloc bloc={bloc} onChange={(next) => setBloc(i, next)} />
+            <EditeurBloc bloc={bloc} onChange={(next) => setBloc(i, next)} racineId={racineId} />
           </div>
           {/* Grappe de commandes : toujours visible (le survol n'existe
               pas au tactile), discrète (opacité), zone 44 px via tap-ext. */}
@@ -1359,7 +1451,7 @@ function VuePage({ pageId, pages, rolePour, recharger, estProprio }) {
               style={{ ...SERIF, fontSize: 'clamp(30px, 5vw, 36px)', lineHeight: 1.2 }} />
           </div>
           <div className="mt-6">
-            <ListeBlocsEditeur blocs={brouillon.blocs} onChange={(blocs) => marquer({ blocs })} />
+            <ListeBlocsEditeur blocs={brouillon.blocs} onChange={(blocs) => marquer({ blocs })} racineId={page.racine_id} />
           </div>
         </>
       ) : (

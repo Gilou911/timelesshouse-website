@@ -19,6 +19,10 @@
 //   ▸ Les chemins (key) sont validés : pas de "..", pas de "/",
 //     préfixes autorisés uniquement (media/, weddings/, invoices/,
 //     documents/, photobooth/, agencies/).
+//   ▸ perso/<racine_id>/<fichier> (30/07/2026) : branche À PART pour
+//     l'espace perso — propriétaire ou éditeur de l'arbre, sign-put
+//     seul, 25 Mo max, hors quota d'agence. Voir le bloc dédié dans
+//     le handler.
 //
 // ACTIONS (body JSON { action, ... }) :
 //   sign-put       { key, contentType }            → { url, publicUrl }
@@ -272,14 +276,73 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST")    return json(405, { error: "Méthode non autorisée" });
 
-  const caller = await requireAgencyMember(req);
-  if (!caller) return json(401, { error: "Session admin requise — reconnecte-toi." });
-
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json(400, { error: "JSON invalide" }); }
 
   const action = body.action as string;
   const key    = body.key;
+
+  // ── ESPACE PERSO (30/07/2026) — branche à part, retour anticipé ──
+  // perso/<racine_id>/<fichier> : images des blocs de
+  // perso.timelesshouse.org. Autorisée au PROPRIÉTAIRE de l'espace ou
+  // à un ÉDITEUR de l'arbre (jamais aux lecteurs) — l'appelant n'est
+  // pas membre d'agence, d'où ce chemin AVANT requireAgencyMember.
+  // Hors quota d'agence (c'est le bucket du studio), taille bornée :
+  // un bloc image n'est pas un dépôt de films. Upload simple
+  // uniquement — ni multipart, ni suppression.
+  if (typeof key === "string" && key.startsWith("perso/")) {
+    const parts = key.split("/");
+    const persoOk =
+      parts.length === 3 &&
+      UUID_RE.test(parts[1]) &&
+      /^[a-zA-Z0-9._-]{1,200}$/.test(parts[2]) &&
+      !key.includes("..") && !key.includes("//");
+    if (!persoOk) {
+      return json(400, { error: "Chemin perso invalide (perso/<racine>/<fichier>)" });
+    }
+    if (action !== "sign-put") {
+      return json(400, { error: "Seul l'upload simple est permis sur perso/." });
+    }
+    const size = Math.max(0, Number(body.size) || 0);
+    if (size > 26214400) {
+      return json(413, { error: "Image trop lourde (25 Mo maximum pour un bloc image)." });
+    }
+    const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    if (!token) return json(401, { error: "Session requise — reconnectez-vous." });
+    const { data: u, error: eU } = await sbAdmin.auth.getUser(token);
+    if (eU || !u?.user) return json(401, { error: "Session requise — reconnectez-vous." });
+    const racineId = parts[1];
+    const [proprio, editeur, racine] = await Promise.all([
+      sbAdmin.from("perso_proprietaires").select("user_id")
+        .eq("user_id", u.user.id).maybeSingle(),
+      sbAdmin.from("perso_membres").select("role").eq("racine_id", racineId)
+        .eq("user_id", u.user.id).eq("role", "editeur").maybeSingle(),
+      sbAdmin.from("perso_pages").select("id")
+        .eq("id", racineId).is("parent_id", null).maybeSingle(),
+    ]);
+    if (!racine.data) return json(403, { error: "Arbre introuvable." });
+    if (!proprio.data && !editeur.data) {
+      return json(403, { error: "Réservé au propriétaire ou aux éditeurs de cet arbre." });
+    }
+    try {
+      const url = await getSignedUrl(
+        s3,
+        new PutObjectCommand({
+          Bucket: B2_BUCKET,
+          Key: key,
+          ContentType: (body.contentType as string) || "application/octet-stream",
+        }),
+        { expiresIn: 3600 }
+      );
+      return json(200, { url, key, publicUrl: publicUrl(key) });
+    } catch (err) {
+      console.error(`[b2-sign] perso sign-put a échoué :`, err);
+      return json(500, { error: err instanceof Error ? err.message : "Erreur B2" });
+    }
+  }
+
+  const caller = await requireAgencyMember(req);
+  if (!caller) return json(401, { error: "Session admin requise — reconnecte-toi." });
 
   if (!validKey(key)) {
     return json(400, { error: "Chemin de fichier invalide (préfixes autorisés : media/, weddings/, invoices/, documents/, photobooth/, agencies/)" });

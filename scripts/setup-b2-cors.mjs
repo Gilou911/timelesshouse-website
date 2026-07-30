@@ -35,8 +35,11 @@ const DEFAULT_ORIGINS = [
   "https://laloge.app",
   "https://laloge.house",
   "https://*.laloge.house",
+  "https://perso.timelesshouse.org",                     // espace perso (blocs image)
+  "https://timelesshouse-perso.pages.dev",               // projet Pages (perso)
   "http://localhost:5173",                               // vite dev
   "http://localhost:4173",                               // vite preview
+  "http://localhost:4175",                               // vite dev (perso)
 ];
 
 const origins = process.argv.slice(2);

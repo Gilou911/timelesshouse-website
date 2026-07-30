@@ -48,8 +48,11 @@ const ORIGINS = [
   "https://timelesshouse-website.pages.dev",    // projet Pages (produit)
   "https://*.timelesshouse-website.pages.dev",  // déploiements de preview
   "https://timelesshouse-studio.pages.dev",     // projet Pages (studio)
+  "https://perso.timelesshouse.org",            // espace perso (blocs image, 30/07/2026)
+  "https://timelesshouse-perso.pages.dev",      // projet Pages (perso)
   "http://localhost:5173",                      // vite dev
   "http://localhost:4173",                      // vite preview
+  "http://localhost:4175",                      // vite dev (perso)
 ];
 
 // Upload = PUT signé S3 ; lecture HLS / téléchargement = GET (S3 ou natif).

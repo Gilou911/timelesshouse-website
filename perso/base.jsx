@@ -70,7 +70,7 @@ function SwitchVues({ vue, onVue }) {
         return (
           <button key={id} type="button" role="tab" aria-selected={actif} onClick={() => onVue(id)}
             style={actif ? neu.dark : undefined}
-            className={`th-onglet min-h-[36px] px-3.5 rounded-full flex items-center gap-1.5 text-[12px] font-semibold ${actif ? 'text-white' : 'text-stone-500'}`}>
+            className={`th-onglet min-h-[44px] px-3.5 rounded-full flex items-center gap-1.5 text-[12px] font-semibold ${actif ? 'text-white' : 'text-stone-500'}`}>
             <Icon size={13} />
             <span className="hidden sm:inline">{label}</span>
           </button>
@@ -119,7 +119,7 @@ function CelluleEdition({ prop, val, onVal, racineId, compact }) {
   if (prop.type === 'date') {
     return (
       <input type="date" value={val || ''} onChange={(e) => onVal(e.target.value)} aria-label={prop.nom}
-        className="bg-transparent text-[16px] sm:text-[13.5px] text-stone-800 w-full" style={{ minHeight: compact ? '36px' : undefined }} />
+        className="bg-transparent text-[16px] sm:text-[13.5px] text-stone-800 w-full min-h-[40px]" />
     );
   }
   if (prop.type === 'image') {
@@ -152,7 +152,7 @@ function CelluleEdition({ prop, val, onVal, racineId, compact }) {
       inputMode={prop.type === 'nombre' ? 'decimal' : undefined}
       aria-label={prop.nom}
       placeholder=""
-      className={`bg-transparent w-full text-[16px] sm:text-[13.5px] text-stone-800 ${prop.type === 'nombre' ? 'text-right tabular-nums' : ''}`}
+      className={`bg-transparent w-full py-2 text-[16px] sm:text-[13.5px] text-stone-800 ${prop.type === 'nombre' ? 'text-right tabular-nums' : ''}`}
     />
   );
 }
@@ -234,7 +234,10 @@ function ModaleProp({ prop, onMaj, onRetirer, onClose, estTitre }) {
 function VueTable({ base, edition, majLigne, ouvrirProp, ouvrirLigne, ajouterProp, racineId }) {
   return (
     <div style={neu.pressedSm} className="rounded-2xl overflow-hidden">
-      <div className="overflow-x-auto">
+      {/* tabIndex : la table défile horizontalement — le clavier doit
+          pouvoir y entrer pour la faire défiler (HIG §16). */}
+      <div className="overflow-x-auto" tabIndex={0} role="region"
+        aria-label={`Table ${base.nom || 'de la base'}`}>
         <table className="w-full border-collapse text-[13.5px]">
           <thead>
             <tr className="text-left">
@@ -243,7 +246,7 @@ function VueTable({ base, edition, majLigne, ouvrirProp, ouvrirLigne, ajouterPro
                   style={{ minWidth: i === 0 ? '190px' : '140px' }}>
                   {edition ? (
                     <button type="button" onClick={() => ouvrirProp(p.id)}
-                      className="min-h-[32px] inline-flex items-center gap-1.5 hover:text-stone-800 transition">
+                      className="min-h-[32px] tap-ext inline-flex items-center gap-1.5 hover:text-stone-800 transition">
                       {p.nom || 'Sans nom'} <Settings2 size={11} className="opacity-60" />
                     </button>
                   ) : (p.nom || 'Sans nom')}
@@ -403,11 +406,15 @@ export function BaseEditeur({ bloc, onChange, racineId }) {
 
   return (
     <div className="space-y-3 my-1">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      {/* Empilé sur téléphone : côte à côte, le rail écrasait le nom
+          à 12 px de large (audit 30/07). */}
+      <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <input value={bloc.nom || ''} onChange={(e) => maj({ nom: e.target.value })}
           placeholder="Nom de la base" aria-label="Nom de la base"
-          className="bg-transparent text-[19px] text-stone-900 min-w-0 flex-1" style={SERIF} />
-        <SwitchVues vue={bloc.vue} onVue={(vue) => maj({ vue })} />
+          className="bg-transparent text-[19px] text-stone-900 min-w-0 sm:flex-1 min-h-[44px]" style={SERIF} />
+        <div className="self-start sm:self-auto">
+          <SwitchVues vue={bloc.vue} onVue={(vue) => maj({ vue })} />
+        </div>
       </div>
 
       <Vue base={bloc} edition majLigne={majLigne} racineId={racineId}

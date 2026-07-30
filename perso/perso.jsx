@@ -972,7 +972,7 @@ function ListeBlocsEditeur({ blocs, onChange, racineId }) {
             ? 'Écrivez, ou tapez « / » pour choisir un type de bloc'
             : 'Écrivez, « / » pour un bloc…'}
           aria-label="Écrire un nouveau paragraphe"
-          className="text-stone-800 leading-relaxed"
+          className="text-stone-800 leading-relaxed py-2.5"
         />
       </div>
 
@@ -1729,13 +1729,16 @@ function VuePage({ pageId, pages, rolePour, recharger, estProprio }) {
 
       {peutEditer && brouillon ? (
         <>
+          {/* Le titre s'édite dans un textarea : un h1 hors écran garde
+              la hiérarchie pour les lecteurs d'écran (HIG §16). */}
+          <h1 className="sr-only">{titreDe(page)}</h1>
           <div className="flex items-start gap-3">
             <input value={brouillon.icone} onChange={(e) => marquer({ icone: e.target.value.slice(0, 4) })}
               placeholder="📄" aria-label="Emoji de la page"
-              className="w-14 shrink-0 bg-transparent text-[30px] sm:text-[36px] leading-tight text-center placeholder:opacity-40" />
+              className="w-14 min-h-[44px] shrink-0 bg-transparent text-[30px] sm:text-[36px] leading-tight text-center placeholder:opacity-40" />
             <TextareaAuto value={brouillon.titre} onChange={(e) => marquer({ titre: e.target.value.replace(/\n/g, '') })}
               placeholder="Sans titre" aria-label="Titre de la page"
-              className="text-stone-900 tracking-tight"
+              className="text-stone-900 tracking-tight min-h-[44px]"
               style={{ ...SERIF, fontSize: 'clamp(30px, 5vw, 36px)', lineHeight: 1.2 }} />
           </div>
           <div className="mt-6">
@@ -1849,15 +1852,15 @@ function ItemNav({ actif, profondeur = 0, onClick, icone, titre, aDesEnfants, ou
       {aDesEnfants ? (
         <button type="button" onClick={onBascule} aria-expanded={ouvert}
           aria-label={ouvert ? 'Replier' : 'Déplier'}
-          className="w-7 h-7 tap-ext rounded-lg flex items-center justify-center text-stone-400 hover:text-stone-700 shrink-0 transition">
+          className="w-8 h-8 tap-ext rounded-lg flex items-center justify-center text-stone-400 hover:text-stone-700 shrink-0 transition">
           <ChevronRight size={13} className={`transition-transform ${ouvert ? 'rotate-90' : ''}`} />
         </button>
       ) : (
-        <span className="w-7 shrink-0" aria-hidden="true" />
+        <span className="w-8 shrink-0" aria-hidden="true" />
       )}
       <button type="button" onClick={onClick} aria-current={actif ? 'page' : undefined}
         style={actif ? neu.pressedSm : undefined}
-        className={`flex-1 min-w-0 min-h-[40px] px-3 rounded-xl flex items-center gap-2 text-left transition ${actif ? 'text-stone-900' : 'text-stone-600 hover:text-stone-900'}`}>
+        className={`flex-1 min-w-0 min-h-[44px] px-3 rounded-xl flex items-center gap-2 text-left transition ${actif ? 'text-stone-900' : 'text-stone-600 hover:text-stone-900'}`}>
         <span className="text-[15px] leading-none shrink-0" aria-hidden="true">{icone || '📄'}</span>
         <span className="truncate text-[13.5px] font-medium">{titre}</span>
       </button>
@@ -1957,22 +1960,41 @@ function SidebarContenu({ donnees, routeId, naviguer, creerRacine, busyCreation,
    seul qui garantisse que la transition parte du bon état peint. */
 function VoletNav({ ouvert, onFermer, children }) {
   const aOuvertUneFois = useRef(false);
+  const voletRef = useRef(null);
   if (ouvert) aOuvertUneFois.current = true;
   useEffect(() => {
     if (!ouvert) return;
     const prev = document.body.style.overflow;
+    const origine = document.activeElement;
     document.body.style.overflow = 'hidden';
-    const onKey = (e) => { if (e.key === 'Escape') onFermer(); };
+    // HIG §12/§16 : le focus clavier vit DANS le volet tant qu'il est
+    // ouvert (audit 30/07 — Tab s'échappait derrière le scrim), et
+    // revient au bouton d'origine à la fermeture.
+    const focusables = () => [...(voletRef.current?.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ) || [])].filter((el) => el.offsetParent !== null);
+    focusables()[0]?.focus?.();
+    const onKey = (e) => {
+      if (e.key === 'Escape') { onFermer(); return; }
+      if (e.key !== 'Tab') return;
+      const f = focusables();
+      if (!f.length) return;
+      const debut = f[0], fin = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === debut) { e.preventDefault(); fin.focus(); }
+      else if (!e.shiftKey && document.activeElement === fin) { e.preventDefault(); debut.focus(); }
+    };
     document.addEventListener('keydown', onKey, true);
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener('keydown', onKey, true);
+      if (origine && origine.focus) origine.focus();
     };
   }, [ouvert, onFermer]);
   return (
     <>
       {ouvert && <div className="th-scrim lg:hidden" onClick={onFermer} aria-hidden="true" />}
-      <div className={`th-volet lg:hidden ${ouvert ? '' : aOuvertUneFois.current ? 'ferme' : 'ferme jamais-ouvert'}`}
+      <div ref={voletRef}
+        className={`th-volet lg:hidden ${ouvert ? '' : aOuvertUneFois.current ? 'ferme' : 'ferme jamais-ouvert'}`}
         role="dialog" aria-modal={ouvert || undefined} aria-label="Navigation"
         aria-hidden={ouvert ? undefined : true} inert={ouvert ? undefined : ''}>
         {children}

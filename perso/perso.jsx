@@ -642,9 +642,18 @@ function EcranMfa({ onDone, onAbandon }) {
 
   useEffect(() => {
     (async () => {
-      const { data: fs, error: e1 } = await sb.auth.mfa.listFactors();
-      if (e1) { onAbandon(); return; }
-      const f = (fs?.totp || []).find((x) => x.status === 'verified') || (fs?.totp || [])[0];
+      // La liste locale du SDK est vide pour une session née d'un lien
+      // magique (l'utilisateur arrive sans ses facteurs) : conclure là-
+      // dessus déconnectait Gil après un flash d'une seconde. On demande
+      // donc la liste réelle au serveur avant d'abandonner.
+      const { data: fs } = await sb.auth.mfa.listFactors();
+      let f = (fs?.totp || []).find((x) => x.status === 'verified') || (fs?.totp || [])[0] || null;
+      if (!f) {
+        const { data: u } = await sb.auth.getUser();
+        f = (u?.user?.factors || []).find(
+          (x) => x.factor_type === 'totp' && x.status === 'verified'
+        ) || null;
+      }
       if (!f) { onAbandon(); return; }
       setFactorId(f.id);
     })();

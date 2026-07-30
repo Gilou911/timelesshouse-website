@@ -635,52 +635,64 @@ const titreDe = (p) => (p?.titre?.trim() ? p.titre : 'Sans titre');
    🔐 CONNEXION (lien magique d'abord, mot de passe en repli, TOTP)
    ════════════════════════════════════════════════════════════ */
 function EcranMfa({ onDone, onAbandon }) {
-  const [factorId, setFactorId] = useState(null);
+  const [facteurs, setFacteurs] = useState(null); // null = recherche en cours
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [panne, setPanne] = useState('');
 
-  const trouverFacteur = useCallback(async () => {
+  const trouverFacteurs = useCallback(async () => {
     setPanne('');
     // Trois sources, de la plus fraîche à la plus locale — une session
     // née d'un lien magique n'expose pas ses facteurs partout pareil.
-    // Et quoi qu'il arrive, cet écran ne se DÉCONNECTE JAMAIS tout
-    // seul — un auto-signOut ici tuait la session de tous les onglets
-    // (flash d'une seconde puis retour à l'écran email, 30/07).
-    const totpDe = (liste) => {
-      const totp = (liste || []).filter((x) => (x.factor_type ?? 'totp') === 'totp');
-      return totp.find((x) => x.status === 'verified') || totp[0] || null;
-    };
+    // On garde TOUS les facteurs TOTP (vérifiés d'abord) : chaque
+    // configuration 2FA abandonnée laisse un fantôme, et challenger le
+    // seul « premier » faisait rejeter des codes pourtant justes
+    // (constaté le 30/07 : la console acceptait, l'espace perso non).
+    // Et quoi qu'il arrive, cet écran ne se déconnecte JAMAIS tout seul.
     const { data: fs } = await sb.auth.mfa.listFactors().catch(() => ({ data: null }));
     const { data: u } = await sb.auth.getUser().catch(() => ({ data: null }));
     const { data: s } = await sb.auth.getSession().catch(() => ({ data: null }));
-    const f = totpDe(fs?.totp) || totpDe(u?.user?.factors) || totpDe(s?.session?.user?.factors);
-    if (!f) {
+    const tous = new Map();
+    [...(fs?.totp || []), ...(u?.user?.factors || []), ...(s?.session?.user?.factors || [])]
+      .filter((x) => (x.factor_type ?? 'totp') === 'totp')
+      .forEach((x) => { if (!tous.has(x.id)) tous.set(x.id, x); });
+    const liste = [...tous.values()]
+      .sort((a, b) => (a.status === 'verified' ? 0 : 1) - (b.status === 'verified' ? 0 : 1));
+    if (!liste.length) {
       setPanne(`Aucun facteur de double vérification trouvé (sdk ${fs?.totp?.length ?? '?'} · serveur ${u?.user?.factors?.length ?? '?'} · session ${s?.session?.user?.factors?.length ?? '?'}).`);
+      setFacteurs([]);
       return;
     }
-    setFactorId(f.id);
+    setFacteurs(liste);
   }, []);
 
-  useEffect(() => { trouverFacteur(); }, [trouverFacteur]);
+  useEffect(() => { trouverFacteurs(); }, [trouverFacteurs]);
 
   const verifier = async (e) => {
     e.preventDefault();
-    if (!factorId || busy) return;
+    if (!facteurs?.length || busy) return;
     setBusy(true); setError('');
-    try {
-      const { data: ch, error: e1 } = await sb.auth.mfa.challenge({ factorId });
-      if (e1) throw e1;
-      const { error: e2 } = await sb.auth.mfa.verify({ factorId, challengeId: ch.id, code: code.trim() });
-      if (e2) throw e2;
-      onDone();
-    } catch (err) {
-      setError(/invalid|expired/i.test(err?.message || '')
-        ? 'Code incorrect ou expiré — regardez le nouveau code dans votre application.'
-        : 'La vérification a échoué — réessayez.');
-      setCode('');
+    // Le même code est essayé contre CHAQUE facteur : celui de ton
+    // application n'est juste que pour le facteur dont elle porte le
+    // secret — les fantômes des configurations passées échouent, le
+    // vrai répond.
+    let dernier = null;
+    for (const f of facteurs) {
+      try {
+        const { data: ch, error: e1 } = await sb.auth.mfa.challenge({ factorId: f.id });
+        if (e1) { dernier = e1; continue; }
+        const { error: e2 } = await sb.auth.mfa.verify({ factorId: f.id, challengeId: ch.id, code: code.trim() });
+        if (e2) { dernier = e2; continue; }
+        setBusy(false);
+        onDone();
+        return;
+      } catch (err) { dernier = err; }
     }
+    setError(/invalid|expired/i.test(dernier?.message || '')
+      ? 'Code incorrect ou expiré — regardez le nouveau code dans votre application.'
+      : 'La vérification a échoué — réessayez.');
+    setCode('');
     setBusy(false);
   };
 
@@ -701,7 +713,7 @@ function EcranMfa({ onDone, onAbandon }) {
               <AlertCircle size={14} className="shrink-0" />
               {panne}
             </div>
-            <Btn kind="dark" full onClick={trouverFacteur} icon={RefreshCw}>Réessayer</Btn>
+            <Btn kind="dark" full onClick={trouverFacteurs} icon={RefreshCw}>Réessayer</Btn>
             <button type="button" onClick={onAbandon}
               className="w-full min-h-[44px] text-[12.5px] text-stone-500 hover:text-stone-800">
               Revenir à la connexion

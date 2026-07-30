@@ -942,11 +942,13 @@ function ListeBlocsEditeur({ blocs, onChange, racineId }) {
             <EditeurBloc bloc={bloc} onChange={(next) => setBloc(i, next)} racineId={racineId}
               onEntree={() => surEntree(i)} onEffacerVide={() => surEffacerVide(i)} />
           </div>
-          {/* Les commandes n'existent que pour le bloc qu'on regarde :
-              invisibles au repos (l'édition doit ressembler à la
-              lecture), révélées au survol OU dès qu'un champ du bloc a
-              le focus — le chemin tactile, là où le survol n'existe pas. */}
-          <div className="flex items-center gap-1 shrink-0 pt-1 opacity-0 pointer-events-none group-focus-within:opacity-100 group-focus-within:pointer-events-auto sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto transition-opacity">
+          {/* Les commandes s'effacent seulement là où le survol existe
+              pour les rappeler : discrètes mais TOUJOURS actives au
+              tactile (audit HIG 30/07 — un séparateur n'a aucun champ à
+              focaliser, ses commandes devenaient inatteignables), et
+              pleines dès que le bloc a le focus. Interstice 12 px entre
+              pastilles (règle halo). */}
+          <div className="flex items-center gap-3 shrink-0 pt-1 opacity-60 sm:opacity-0 sm:pointer-events-none group-focus-within:opacity-100 group-focus-within:pointer-events-auto sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto transition-opacity">
             <BoutonBloc onClick={() => setMenuApres(i)} label="Insérer un bloc dessous" icon={Plus} />
             <BoutonBloc onClick={() => deplacer(i, -1)} label="Monter" icon={ChevronUp} disabled={i === 0} />
             <BoutonBloc onClick={() => deplacer(i, 1)} label="Descendre" icon={ChevronDown} disabled={i === blocs.length - 1} />

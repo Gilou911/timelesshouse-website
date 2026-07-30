@@ -273,7 +273,7 @@ function VueTable({ base, edition, majLigne, ouvrirProp, ouvrirLigne, ajouterPro
                 {edition && (
                   <td className="px-2 py-2 w-12">
                     <button type="button" onClick={() => ouvrirLigne(l.id)} aria-label="Ouvrir la fiche"
-                      className="w-8 h-8 tap-ext rounded-full flex items-center justify-center bg-white text-stone-500 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition active:scale-95">
+                      className="w-8 h-8 tap-ext rounded-full flex items-center justify-center bg-white text-stone-500 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition active:scale-95">
                       <Settings2 size={13} />
                     </button>
                   </td>

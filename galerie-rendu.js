@@ -394,7 +394,12 @@ function injectStyles() {
        480 — elle débordait en haut ET en bas, et les deux boutons
        devenaient inatteignables. Un flex centré coupe les débordements
        des deux côtés, sans jamais laisser défiler jusqu'à eux. */
-    display: flex; overflow-y: auto; overscroll-behavior: contain;
+    /* overflow-y SEUL ne suffit pas : la spec CSS bascule alors l'axe
+       resté visible en auto, et la modale se laissait tirer de côté au
+       doigt (HIG §3, constat de Gil le 29/07 sur le concepteur — le
+       même piège dormait ici, devant les invités). */
+    display: flex; overflow-y: auto; overflow-x: hidden; overflow-x: clip;
+    overscroll-behavior: contain;
     padding: 24px;
     background: color-mix(in srgb, var(--bg-deep, #000) 72%, transparent);
     -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
@@ -458,7 +463,9 @@ function injectStyles() {
     padding: clamp(20px, 5vw, 60px);
     padding-top: max(clamp(20px, 5vw, 60px), env(safe-area-inset-top));
     padding-bottom: max(clamp(20px, 5vw, 60px), env(safe-area-inset-bottom));
-    overflow-y: auto; overscroll-behavior: contain;
+    /* Même fermeture explicite de l'axe horizontal que pour .g-qui. */
+    overflow-y: auto; overflow-x: hidden; overflow-x: clip;
+    overscroll-behavior: contain;
     background: color-mix(in srgb, var(--bg-deep, var(--bg)) 94%, transparent);
     -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
     opacity: 0; visibility: hidden;

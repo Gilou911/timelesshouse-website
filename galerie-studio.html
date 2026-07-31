@@ -120,7 +120,22 @@
     left:16px; top:16px; bottom:16px;
     width:min(392px, calc(100vw - 32px));
     padding:0 18px;
-    border-radius:24px; overflow-y:auto;
+    border-radius:24px;
+    /* HIG §3 : JAMAIS de défilement horizontal. Déclarer `overflow-y`
+       seul ne suffit pas — la spec CSS transforme alors l'axe resté
+       `visible` en `auto`, et le panneau se laissait tirer de côté dès
+       qu'un pixel dépassait (capture de Gil sur iPhone, 29/07 : bande
+       de défilement horizontale, « CHANGER » et « Cadrée » coupés).
+       On ferme l'axe explicitement. `hidden` d'abord pour les
+       navigateurs anciens, `clip` ensuite : lui interdit AUSSI le
+       défilement par script, donc plus aucun mouvement latéral possible.
+       Les bandes qui débordent volontairement (marges -18px) s'arrêtent
+       pile au bord du rembourrage : rien d'elles n'est rogné. */
+    overflow-y:auto; overflow-x:hidden; overflow-x:clip;
+    overscroll-behavior-x:none;
+    /* Et pour que fermer l'axe ne COUPE jamais un mot : un nom de
+       catégorie ou un titre à rallonge se casse au lieu de pousser. */
+    overflow-wrap:anywhere;
     /* Colonne flex : depuis qu'on peut agrandir le panneau, il peut être
        plus haut que son contenu. La barre d'enregistrement est collante
        en bas, mais le collant ne tient QUE dans ce qui défile — sans rien

@@ -258,19 +258,20 @@
 
   /* Le rail de sections reste sous les yeux : épinglé juste sous la
      rangée d'actions, on change de section sans jamais remonter. */
-  /* ── Bandes épinglées : du VERRE, pas des dalles ────────────
-     Elles étaient à 94 % d'opacité, donc pleines : la bande tranchait
-     net les boutons qui passaient dessous (capture de Gil). Elles
-     descendent à 55 % avec un vrai flou — on devine le contenu qui
-     défile, comme les barres de la console.
-     C'est possible SANS perdre en lisibilité parce qu'aucun texte ne
-     repose sur ces bandes : le rail Photos/Vidéo, les pastilles et les
-     boutons d'enregistrement portent chacun leur propre fond. Le calcul
-     de contraste ne concerne donc que ces fonds-là, inchangés. */
+  /* ── Bandes épinglées : OPAQUES ─────────────────────────────
+     Elles ont été translucides un temps (55 % + flou) pour « deviner le
+     contenu qui défile ». Verdict de Gil sur photo, 29/07 : on voit les
+     réglages passer dessous et ça ressemble à un défaut d'affichage,
+     pas à une intention. Elles sont désormais pleines — rien ne
+     transparaît, le défilement se glisse proprement derrière.
+
+     Le fond REPREND celui du panneau (--verre-panneau sur --surface,
+     posé en dur) plutôt qu'un --surface pur : une bande plus claire que
+     le panneau qu'elle coiffe se serait vue comme un bandeau rapporté.
+     Le flou d'arrière-plan disparaît avec la transparence : sous une
+     couche opaque il ne produit rien et coûte du GPU à chaque défilement. */
   #bloc-sections, .panneau-actions, .poignee {
-    background:color-mix(in srgb, var(--surface) var(--verre-bande), transparent);
-    -webkit-backdrop-filter:saturate(180%) blur(22px);
-    backdrop-filter:saturate(180%) blur(22px);
+    background:color-mix(in srgb, var(--surface) var(--verre-panneau), var(--bg));
   }
   #bloc-sections {
     position:sticky; top:66px; z-index:5;
@@ -278,12 +279,14 @@
   }
   /* Bord de scroll : le contenu se DISSOUT sous la bande au lieu d'être
      coupé au couteau (§8 : préférer un dégradé progressif à une bordure
-     dure). C'est ce trait net qui donnait l'effet « dalle ». */
+     dure). Le dégradé part maintenant du fond PLEIN de la bande —
+     sinon un ressaut de transparence réapparaissait juste dessous,
+     exactement l'effet qu'on vient de supprimer. */
   #bloc-sections::after, .panneau-actions::after {
     content:''; position:absolute; left:0; right:0; top:100%; height:18px;
     pointer-events:none;
     background:linear-gradient(to bottom,
-      color-mix(in srgb, var(--surface) var(--verre-bande), transparent), transparent);
+      color-mix(in srgb, var(--surface) var(--verre-panneau), var(--bg)), transparent);
   }
   #bloc-sections, .panneau-actions { position:sticky; }
 
@@ -812,10 +815,10 @@
     position:sticky; bottom:0; z-index:6; margin:26px -18px 0; flex:none;
     padding:14px 18px calc(16px + env(safe-area-inset-bottom));
     border-radius:0 0 24px 24px;
-    /* Un peu plus dense que les autres bandes : elle porte l'action
-       d'enregistrement, qui ne doit jamais paraître flotter dans le vide. */
-    background:color-mix(in srgb, var(--surface) calc(var(--verre-bande) + 17%), transparent);
-    -webkit-backdrop-filter:saturate(180%) blur(22px); backdrop-filter:saturate(180%) blur(22px);
+    /* Opaque comme les bandes du haut : elle porte l'action
+       d'enregistrement, et voir les réglages défiler dessous donnait
+       le même effet de bogue (verdict de Gil, 29/07). */
+    background:color-mix(in srgb, var(--surface) var(--verre-panneau), var(--bg));
     box-shadow:0 -10px 24px -14px var(--shadow-d);
     display:flex; gap:10px; align-items:center;
   }

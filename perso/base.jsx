@@ -19,7 +19,7 @@
    SERIF), les atomes et l'éditeur de blocs viennent de perso.jsx
    en liaisons vivantes ESM (pas de base imbriquée dans une fiche).
    ════════════════════════════════════════════════════════════ */
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Table, List, LayoutGrid, Plus, Trash2, Square, CheckSquare,
   Loader2, Settings2, Image as ImageIcon, Columns3, CalendarDays,
@@ -125,7 +125,7 @@ function SwitchVues({ vue, onVue }) {
         return (
           <button key={id} type="button" role="tab" aria-selected={actif} onClick={() => onVue(id)}
             style={actif ? neu.dark : undefined}
-            className={`th-onglet min-h-[44px] px-3 rounded-full flex items-center gap-1.5 text-[12px] font-semibold shrink-0 ${actif ? 'text-white' : 'text-stone-500'}`}
+            className={`th-onglet min-h-[44px] px-4 rounded-full flex items-center gap-1.5 text-[12px] font-semibold shrink-0 ${actif ? 'text-white' : 'text-stone-500'}`}
             title={label} aria-label={label}>
             <Icon size={13} />
             <span className="hidden md:inline">{label}</span>
@@ -613,11 +613,34 @@ function VueTableau({ base, lignes, ouvrirLigne }) {
 const MOIS_LONGS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const JOURS_COURTS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
+/* En étroit (< 640), une case de calendrier fait ~34 px : des
+   pastilles-texte y deviennent illisibles ET intouchables (mesuré
+   8 px de large à 320 — audit 31/07). On applique donc le motif
+   d'Apple Calendrier : cases à POINTS + liste du jour choisi sous la
+   grille. En large, les pastilles restent dans les cases. */
+const useCompact = () => {
+  const mq = typeof window !== 'undefined' && window.matchMedia
+    ? window.matchMedia('(max-width: 639px)') : null;
+  const [compact, setCompact] = useState(() => !!(mq && mq.matches));
+  useEffect(() => {
+    if (!mq) return;
+    // Rattrapage au montage : certains environnements mentent à l'init
+    // sans jamais émettre « change » (même parade que useDarkMode).
+    setCompact((prev) => (mq.matches !== prev ? mq.matches : prev));
+    const suivre = (e) => setCompact(e.matches);
+    if (mq.addEventListener) { mq.addEventListener('change', suivre); return () => mq.removeEventListener('change', suivre); }
+    mq.addListener(suivre); return () => mq.removeListener(suivre);
+  }, [mq]);
+  return compact;
+};
+
 function VueCalendrier({ base, lignes, ouvrirLigne }) {
   const pDate = base.proprietes.find((p) => p.type === 'date');
+  const compact = useCompact();
   const aujourdhui = new Date();
   const [annee, setAnnee] = useState(aujourdhui.getFullYear());
   const [mois, setMois] = useState(aujourdhui.getMonth()); // 0-11
+  const [jourChoisi, setJourChoisi] = useState(null);      // iso
   if (!pDate) {
     return (
       <div style={neu.pressedSm} className="rounded-2xl p-5 text-[13px] text-stone-500 leading-relaxed">
@@ -629,6 +652,7 @@ function VueCalendrier({ base, lignes, ouvrirLigne }) {
   const bouger = (delta) => {
     const d = new Date(annee, mois + delta, 1);
     setAnnee(d.getFullYear()); setMois(d.getMonth());
+    setJourChoisi(null);
   };
   const cle = (a, m, j) => `${a}-${String(m + 1).padStart(2, '0')}-${String(j).padStart(2, '0')}`;
   const parJour = new Map();
@@ -641,6 +665,36 @@ function VueCalendrier({ base, lignes, ouvrirLigne }) {
   const nbJours = new Date(annee, mois + 1, 0).getDate();
   const cases = [...Array(decalage).fill(null), ...Array.from({ length: nbJours }, (_, i) => i + 1)];
   const estAujourdhui = (j) => j === aujourdhui.getDate() && mois === aujourdhui.getMonth() && annee === aujourdhui.getFullYear();
+  const entreesDu = (j) => parJour.get(cle(annee, mois, j)) || [];
+  const entreesChoisies = jourChoisi ? (parJour.get(jourChoisi) || []) : [];
+
+  const InterieurCase = ({ j }) => (
+    <>
+      <div className={`text-[11px] tabular-nums mb-0.5 ${estAujourdhui(j) ? 'font-bold text-stone-900' : 'text-stone-500'}`}>{j}</div>
+      {compact ? (
+        entreesDu(j).length > 0 && (
+          <span className="flex gap-1 px-0.5" aria-hidden="true">
+            {entreesDu(j).slice(0, 3).map((_, i) => (
+              <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: neu.accent }} />
+            ))}
+          </span>
+        )
+      ) : (
+        <>
+          {entreesDu(j).slice(0, 2).map((l) => (
+            <button key={l.id} type="button" onClick={() => ouvrirLigne(l.id)}
+              className="block w-full text-left text-[11px] leading-tight font-medium text-stone-800 bg-white rounded-md px-1 py-1 mb-0.5 truncate active:scale-95 transition"
+              title={titreDeLigne(base, l)}>
+              {titreDeLigne(base, l)}
+            </button>
+          ))}
+          {entreesDu(j).length > 2 && (
+            <div className="text-[11px] text-stone-500 px-1">+{entreesDu(j).length - 2}</div>
+          )}
+        </>
+      )}
+    </>
+  );
 
   return (
     <div style={neu.pressedSm} className="rounded-2xl p-3 sm:p-4">
@@ -657,28 +711,40 @@ function VueCalendrier({ base, lignes, ouvrirLigne }) {
       </div>
       <div className="grid grid-cols-7 gap-1">
         {JOURS_COURTS.map((j, i) => (
-          <div key={i} className="text-center text-[10.5px] font-semibold uppercase text-stone-400 pb-1" aria-hidden="true">{j}</div>
+          <div key={i} className="text-center text-[11px] font-semibold uppercase text-stone-400 pb-1" aria-hidden="true">{j}</div>
         ))}
-        {cases.map((j, i) => (
-          <div key={i} className={`min-h-[64px] sm:min-h-[76px] rounded-lg p-1 ${j ? 'bg-white/40' : ''} ${j && estAujourdhui(j) ? 'ring-1 ring-stone-900/40' : ''}`}>
-            {j && (
-              <>
-                <div className={`text-[10.5px] tabular-nums mb-0.5 ${estAujourdhui(j) ? 'font-bold text-stone-900' : 'text-stone-500'}`}>{j}</div>
-                {(parJour.get(cle(annee, mois, j)) || []).slice(0, 2).map((l) => (
-                  <button key={l.id} type="button" onClick={() => ouvrirLigne(l.id)}
-                    className="block w-full text-left text-[10.5px] leading-tight font-medium text-stone-800 bg-white rounded-md px-1 py-0.5 mb-0.5 truncate active:scale-95 transition"
-                    title={titreDeLigne(base, l)}>
-                    {titreDeLigne(base, l)}
-                  </button>
-                ))}
-                {(parJour.get(cle(annee, mois, j)) || []).length > 2 && (
-                  <div className="text-[9.5px] text-stone-500 px-1">+{(parJour.get(cle(annee, mois, j)) || []).length - 2}</div>
-                )}
-              </>
-            )}
-          </div>
-        ))}
+        {cases.map((j, i) => {
+          const contenu = j ? <InterieurCase j={j} /> : null;
+          const choisi = j && jourChoisi === cle(annee, mois, j);
+          const classes = `min-h-[52px] sm:min-h-[76px] rounded-lg p-1 text-left align-top ${j ? 'bg-white/40' : ''} ${j && estAujourdhui(j) ? 'ring-1 ring-stone-900/40' : ''} ${choisi ? 'ring-2 ring-stone-900/60' : ''}`;
+          // En étroit, LA CASE ENTIÈRE est la cible (≥ 44 px) : elle
+          // choisit le jour, la liste s'affiche dessous. Jamais de
+          // bouton dans un bouton : les pastilles n'existent qu'en large.
+          return compact && j ? (
+            <button key={i} type="button" onClick={() => setJourChoisi(choisi ? null : cle(annee, mois, j))}
+              aria-label={`${j} ${MOIS_LONGS[mois]}${entreesDu(j).length ? ` — ${entreesDu(j).length} entrée(s)` : ''}`}
+              aria-pressed={choisi || undefined}
+              className={`${classes} active:scale-95 transition`}>
+              {contenu}
+            </button>
+          ) : (
+            <div key={i} className={classes}>{contenu}</div>
+          );
+        })}
       </div>
+      {compact && jourChoisi && (
+        <div className="mt-3 space-y-2">
+          {entreesChoisies.length === 0 ? (
+            <p className="text-[12.5px] text-stone-500 px-1">Rien ce jour-là.</p>
+          ) : entreesChoisies.map((l) => (
+            <button key={l.id} type="button" onClick={() => ouvrirLigne(l.id)} style={neu.raisedXs}
+              className="w-full min-h-[48px] px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-left active:scale-[0.99] transition">
+              <span className="flex-1 min-w-0 text-[13.5px] font-medium text-stone-800 truncate">{titreDeLigne(base, l)}</span>
+              <ChevronRight size={14} className="shrink-0 text-stone-400" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

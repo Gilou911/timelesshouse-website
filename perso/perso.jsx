@@ -940,7 +940,10 @@ export function ListeBlocsEditeur({ blocs, onChange, racineId, typesExclus }) {
   return (
     <div ref={conteneurRef} className="space-y-0.5">
       {blocs.map((bloc, i) => (
-        <div key={bloc.id || i} data-bloc={bloc.id} className="group flex items-start gap-2">
+        // En étroit la grappe passe AU-DESSUS du bloc (col-reverse) :
+        // à côté, elle amputait la colonne à 108 px sur 280 (mesuré,
+        // audit responsive 31/07 — le calendrier était écrasé).
+        <div key={bloc.id || i} data-bloc={bloc.id} className="group flex flex-col-reverse sm:flex-row sm:items-start gap-1 sm:gap-2">
           <div className="flex-1 min-w-0 py-1">
             <EditeurBloc bloc={bloc} onChange={(next) => setBloc(i, next)} racineId={racineId}
               onEntree={() => surEntree(i)} onEffacerVide={() => surEffacerVide(i)} />
@@ -951,7 +954,7 @@ export function ListeBlocsEditeur({ blocs, onChange, racineId, typesExclus }) {
               focaliser, ses commandes devenaient inatteignables), et
               pleines dès que le bloc a le focus. Interstice 12 px entre
               pastilles (règle halo). */}
-          <div className="flex items-center gap-3 shrink-0 pt-1 opacity-60 sm:opacity-0 sm:pointer-events-none group-focus-within:opacity-100 group-focus-within:pointer-events-auto sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto transition-opacity">
+          <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto pt-1 opacity-60 sm:opacity-0 sm:pointer-events-none group-focus-within:opacity-100 group-focus-within:pointer-events-auto sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto transition-opacity">
             <BoutonBloc onClick={() => setMenuApres(i)} label="Insérer un bloc dessous" icon={Plus} />
             <BoutonBloc onClick={() => deplacer(i, -1)} label="Monter" icon={ChevronUp} disabled={i === 0} />
             <BoutonBloc onClick={() => deplacer(i, 1)} label="Descendre" icon={ChevronDown} disabled={i === blocs.length - 1} />
@@ -1813,7 +1816,7 @@ function Accueil({ pages, estProprio, rolePour, creerRacine, busyCreation }) {
       {/* Grille de cartes façon « second cerveau » : la vignette en
           creux porte l'emoji, le titre en serif — règle halo : cartes
           raised espacées d'au moins 16 px. */}
-      <div className="th-liste grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-5">
+      <div className="th-liste grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
         {racines.map((r) => {
           const nb = enfantsDe(pages, r.id).length;
           const role = rolePour(r.racine_id);
@@ -2366,7 +2369,9 @@ function App() {
           <span className="w-10 shrink-0" aria-hidden="true" />
         </header>
 
-      <main key={`${route.vue}:${route.id || ''}`} className="th-vue max-w-3xl mx-auto px-5 sm:px-8 py-8 pb-24">
+      {/* xl : la colonne s'élargit — un kanban ou une table y respire,
+          sans étirer la prose au-delà du lisible (audit responsive 31/07). */}
+      <main key={`${route.vue}:${route.id || ''}`} className="th-vue max-w-3xl xl:max-w-4xl mx-auto px-5 sm:px-8 py-8 pb-24">
         {donnees === null ? (
           <ChargementOuPanne onRetry={recharger} />
         ) : donnees.erreur ? (

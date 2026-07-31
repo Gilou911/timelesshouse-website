@@ -85,19 +85,22 @@ const DEMO = import.meta.env.DEV && new URLSearchParams(window.location.search).
 const DONNEES_DEMO = () => {
   const r = (id, titre, icone, blocs = []) => ({ id, parent_id: null, racine_id: id, titre, icone, blocs, position: 0, created_at: id, updated_at: id });
   const e = (id, parent, titre, icone) => ({ ...r(id, titre, icone), parent_id: parent, racine_id: parent });
-  const pTitre = 'p-titre', pStatut = 'p-statut', pDate = 'p-date', pFait = 'p-fait';
+  const pTitre = 'p-titre', pStatut = 'p-statut', pDate = 'p-date', pFait = 'p-fait', pTags = 'p-tags';
   const baseDemo = {
     id: 'bloc-base-demo', type: 'base', nom: 'Tournages', vue: 'table',
+    filtres: [], tri: null,
     proprietes: [
       { id: pTitre, nom: 'Nom', type: 'texte' },
       { id: pStatut, nom: 'Statut', type: 'selection' },
+      { id: pTags, nom: 'Étiquettes', type: 'etiquettes' },
       { id: pDate, nom: 'Date', type: 'date' },
       { id: pFait, nom: 'Livré', type: 'case' },
     ],
     lignes: [
-      { id: 'l1', valeurs: { [pTitre]: 'Mariage Eunice & Josué', [pStatut]: 'Montage', [pDate]: '2026-08-14', [pFait]: false } },
-      { id: 'l2', valeurs: { [pTitre]: 'Clip immobilier Vinci', [pStatut]: 'Tourné', [pDate]: '2026-07-02', [pFait]: true } },
-      { id: 'l3', valeurs: { [pTitre]: 'Teaser La Loge', [pStatut]: 'Écriture', [pDate]: '2026-09-01', [pFait]: false } },
+      { id: 'l1', valeurs: { [pTitre]: 'Mariage Eunice & Josué', [pStatut]: 'Montage', [pTags]: ['mariage', 'urgent'], [pDate]: '2026-07-31', [pFait]: false },
+        blocs: [{ id: 'ln1', type: 'paragraphe', texte: 'Brief : drone au golden hour, discours du père à isoler.' }] },
+      { id: 'l2', valeurs: { [pTitre]: 'Clip immobilier Vinci', [pStatut]: 'Tourné', [pTags]: ['immobilier'], [pDate]: '2026-07-02', [pFait]: true }, blocs: [] },
+      { id: 'l3', valeurs: { [pTitre]: 'Teaser La Loge', [pStatut]: 'Écriture', [pTags]: ['laloge'], [pDate]: '2026-07-18', [pFait]: false }, blocs: [] },
     ],
   };
   return {
@@ -582,7 +585,7 @@ const STYLE_TITRE1 = { ...SERIF, fontSize: '28px', lineHeight: 1.2 };
 const STYLE_TITRE2 = { ...SERIF, fontSize: '21px', lineHeight: 1.3 };
 
 /* ── Rendu lecture seule (lecteur connecté et lien secret) ── */
-function RenduBloc({ bloc }) {
+export function RenduBloc({ bloc }) {
   const t = bloc?.type;
   if (t === 'base') return <BaseLecture bloc={bloc} />;
   if (t === 'separateur') return <hr className="border-stone-300 my-2" />;
@@ -866,11 +869,11 @@ function EditeurBloc({ bloc, onChange, racineId, onEntree, onEffacerVide }) {
 /* Le menu des types — feuille en bas sur mobile, boîte en desktop.
    Une colonne (règle formulaire) : dix lignes se parcourent mieux
    qu'une grille au pouce. */
-function MenuTypes({ onPick, onClose }) {
+function MenuTypes({ onPick, onClose, typesExclus = [] }) {
   return (
     <Modal title="Ajouter un bloc" onClose={onClose}>
       <div className="space-y-2">
-        {TYPES_BLOC.map(({ type, label, icon: Icon, hint }) => (
+        {TYPES_BLOC.filter(({ type }) => !typesExclus.includes(type)).map(({ type, label, icon: Icon, hint }) => (
           <button key={type} type="button" onClick={() => onPick(type)} style={neu.raisedXs}
             className="w-full min-h-[52px] px-4 py-3 rounded-2xl flex items-center gap-3.5 text-left active:scale-[0.99] transition">
             <span style={neu.pressedSm} className="w-9 h-9 rounded-xl flex items-center justify-center text-stone-600 shrink-0">
@@ -887,7 +890,7 @@ function MenuTypes({ onPick, onClose }) {
   );
 }
 
-function ListeBlocsEditeur({ blocs, onChange, racineId }) {
+export function ListeBlocsEditeur({ blocs, onChange, racineId, typesExclus }) {
   const [menuApres, setMenuApres] = useState(null); // index d'insertion après
   const conteneurRef = useRef(null);
 
@@ -980,6 +983,7 @@ function ListeBlocsEditeur({ blocs, onChange, racineId }) {
         <MenuTypes
           onPick={(type) => { insererApres(menuApres, type); setMenuApres(null); }}
           onClose={() => setMenuApres(null)}
+          typesExclus={typesExclus}
         />
       )}
     </div>

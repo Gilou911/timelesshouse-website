@@ -19,7 +19,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       Loader2, MessageSquare, Bell, Send, CheckCircle2, RefreshCw, Link2,
       FolderOpen, Download, Upload,
       Maximize2, Monitor, Smartphone, ChevronDown, ChevronUp,
-      Lightbulb, Copy, Power, Building2, HelpCircle, Heart, ShieldCheck
+      Lightbulb, Copy, Power, Building2, HelpCircle, Heart, ShieldCheck,
+      UserPlus, UsersRound
     } from 'lucide-react';
     import AdminPortfolio from './admin-portfolio.jsx';
     import {
@@ -60,6 +61,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        plateforme) depuis n'importe quel composant, sans faire descendre
        l'agence par les props sur toute la profondeur de l'arbre. */
     const AGENCY = { id: null, slug: null, name: null, plan: null, maxClients: null, betaChat: false };
+
+    /* 👤 Mon rôle dans l'agence (owner / admin / membre) — rempli par
+       loadFeatures via equipe_agence(). `null` = inconnu (avant
+       chargement, ou migration non lancée) : on ne bride alors RIEN,
+       comme pour MES_METIERS. Sert à masquer ce qui ne regarde pas un
+       « membre » (les Revenus) — la vraie garde reste côté serveur. */
+    const MON_ROLE = { value: null };
 
     /* 💼 MÉTIERS de l'agence connectée (25/07/2026).
        Une loge se vend par métier : l'agence ne peut créer des espaces
@@ -1790,7 +1798,6 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [mois, setMois] = useState(() => { const d = new Date(); d.setDate(1); return d; });
       const [agenda, setAgenda] = useState(null);   // null = chargement
       const [err, setErr] = useState('');
-      const [equipe, setEquipe] = useState([]);
       const [nouveau, setNouveau] = useState(false);
       const [ouvert, setOuvert] = useState(null);   // post dont la fiche est ouverte
       const [tour, setTour] = useState(0);          // force le rechargement de la chaîne
@@ -1815,9 +1822,6 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setAgenda(data || { tournages: [], sorties: [] });
       };
       useEffect(() => { setAgenda(null); charger(); }, [mois]);
-      useEffect(() => {
-        sb.rpc('equipe_agence').then(({ data }) => setEquipe(data || [])).catch(() => {});
-      }, []);
 
       /* Ce qui n'attend pas le calendrier : les sorties à publier
          AUJOURD'HUI et celles dont l'heure est passée sans que
@@ -2021,7 +2025,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           <Pipeline clients={clients} rafraichir={tour}
             onOuvrir={(p2) => setOuvert(p2)} />
 
-          <MesTaches equipe={equipe} clients={clients} />
+          {/* Les tâches et l'équipe vivent dans l'onglet « Équipe »
+              (demande de Gil du 01/08/2026) — l'Agenda garde la grille
+              et la chaîne éditoriale. */}
 
           {nouveau && (
             <PostForm clients={clients} onClose={() => setNouveau(false)}
@@ -2525,6 +2531,273 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               })}
             </div>
           )}
+        </div>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       👥 ÉQUIPE — coéquipiers, rôles et tâches (01/08/2026)
+       ════════════════════════════════════════════════════════════
+       Son propre onglet (demande de Gil) : la gestion d'équipe n'a
+       rien à faire coincée sous le calendrier. Chaque coéquipier
+       (cadreur, monteur, CM…) a SON compte : il se connecte à la
+       console de l'agence, voit l'agenda et coche ses tâches. Les
+       invitations passent par l'edge function team-member — les
+       règles de rôles y sont scellées, l'interface n'est qu'une
+       politesse. Le mot de passe temporaire s'affiche UNE fois,
+       comme à la création d'une agence. */
+    const ROLES_EQUIPE = { owner: 'Propriétaire', admin: 'Admin', membre: 'Membre' };
+
+    function EquipeTab({ clients, user }) {
+      const [equipe, setEquipe] = useState(null);   // null = chargement
+      const [err, setErr] = useState('');
+      const [inviter, setInviter] = useState(false);
+      const [form, setForm] = useState({ email: '', display_name: '', metier: '', role: 'membre' });
+      const [busy, setBusy] = useState(false);
+      const [cree, setCree] = useState(null);       // identifiants — affichés UNE fois
+      const [copie, setCopie] = useState(false);
+      const [editId, setEditId] = useState(null);
+      const [edit, setEdit] = useState({ display_name: '', metier: '', role: 'membre' });
+      const [busyLigne, setBusyLigne] = useState(null);
+
+      const charger = async () => {
+        const { data, error } = await sb.rpc('equipe_agence');
+        if (error) {
+          setErr(/equipe_agence/.test(error.message || '')
+            ? "L'équipe n'est pas encore activée : exécutez files/migration-comm-calendrier.sql dans Supabase."
+            : humaniseErreur(error.message));
+          setEquipe([]); return;
+        }
+        setEquipe(data || []);
+      };
+      useEffect(() => { charger(); }, []);
+
+      const monRole = (equipe || []).find((m) => m.user_id === user?.id)?.role || MON_ROLE.value;
+      const patron = monRole === 'owner';
+      // Qui ai-je le droit de gérer ? (le serveur revérifie tout)
+      const gerable = (m) => m.user_id !== user?.id && m.role !== 'owner'
+        && (patron || m.role === 'membre');
+
+      const appel = async (corps) => {
+        const { data: { session } } = await sb.auth.getSession();
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/team-member`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify(corps),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || `Échec (${res.status})`);
+        return json;
+      };
+
+      const inviterMembre = async (e) => {
+        e.preventDefault();
+        if (busy || !form.email.trim()) return;
+        setBusy(true); setErr(''); setCree(null);
+        try {
+          const j = await appel({ action: 'invite', ...form });
+          setCree(j.member);
+          setForm({ email: '', display_name: '', metier: '', role: 'membre' });
+          setInviter(false);
+          charger();
+        } catch (e2) { setErr(e2.message); }
+        setBusy(false);
+      };
+
+      const ouvrirEdition = (m) => {
+        setEdit({
+          display_name: m.nom && !m.nom.includes('@') ? m.nom : '',
+          metier: m.metier || '',
+          role: m.role,
+        });
+        setEditId(m.user_id);
+      };
+
+      const enregistrerLigne = async (m) => {
+        setBusyLigne(m.user_id); setErr('');
+        try {
+          await appel({ action: 'update', user_id: m.user_id, ...edit });
+          setEditId(null);
+          charger();
+        } catch (e2) { setErr(e2.message); }
+        setBusyLigne(null);
+      };
+
+      const retirer = async (m) => {
+        if (!confirm(`Retirer ${m.nom} de l'équipe ?\n\nSes tâches restent visibles (non assignées à quelqu'un d'autre), et son compte n'est pas supprimé — seul son accès à cette agence s'arrête.`)) return;
+        setBusyLigne(m.user_id); setErr('');
+        try {
+          await appel({ action: 'remove', user_id: m.user_id });
+          charger();
+        } catch (e2) { setErr(e2.message); }
+        setBusyLigne(null);
+      };
+
+      const copierIds = () => {
+        try {
+          const porte = AGENCY.slug && AGENCY.slug !== 'timelesshouse'
+            ? `https://${AGENCY.slug}.laloge.house/communication-admin`
+            : 'https://app.timelesshouse.org/communication-admin';
+          navigator.clipboard.writeText(`Console : ${porte}\nEmail : ${cree.email}\nMot de passe temporaire : ${cree.temp_password}`);
+          setCopie(true); setTimeout(() => setCopie(false), 2000);
+        } catch (e2) {}
+      };
+
+      return (
+        <div className="space-y-5 lg:space-y-6">
+          {/* ─── Identifiants du coéquipier : affichés UNE fois ─── */}
+          {cree && (
+            <div style={neu.dark} className="rounded-3xl p-6 text-white">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+                <div className="text-[15px] font-semibold tracking-tight">
+                  {cree.existing_account ? 'Coéquipier rattaché' : 'Coéquipier invité'}
+                </div>
+              </div>
+              {cree.temp_password ? (
+                <>
+                  <div className="text-[12.5px] text-stone-300 mt-3 leading-relaxed">
+                    Transmettez-lui ces identifiants — le mot de passe ne sera <strong>plus jamais affiché</strong>.
+                    Il pourra le changer dans ses Paramètres.
+                  </div>
+                  <div className="mt-4 grid gap-2 text-[13.5px] font-mono bg-white/10 rounded-2xl p-4 break-all">
+                    <div>{cree.email}</div>
+                    <div className="tracking-wider">{cree.temp_password}</div>
+                  </div>
+                  <div className="mt-4">
+                    <Btn icon={Copy} onClick={copierIds}>{copie ? 'Copié ✓' : 'Copier les identifiants'}</Btn>
+                  </div>
+                </>
+              ) : (
+                <div className="text-[12.5px] text-stone-300 mt-3 leading-relaxed">
+                  <span className="font-mono">{cree.email}</span> avait déjà un compte : il est rattaché
+                  à votre équipe avec son mot de passe habituel.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── L'équipe ─── */}
+          <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>L'équipe</h2>
+                <p className="text-[12.5px] text-stone-500 mt-1.5 leading-relaxed">
+                  Chaque coéquipier a son propre compte : il voit l'agenda et coche ses tâches.
+                </p>
+              </div>
+              {(patron || monRole === 'admin') && (
+                <Btn kind={inviter ? 'soft' : 'dark'} icon={UserPlus} onClick={() => { setInviter(!inviter); setCree(null); }}>
+                  {inviter ? 'Annuler' : 'Inviter un coéquipier'}
+                </Btn>
+              )}
+            </div>
+
+            {inviter && (
+              <form onSubmit={inviterMembre} className="space-y-4 mt-5">
+                <Field label="Email *">
+                  <Input type="email" required value={form.email}
+                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                    placeholder="camille@studio.fr" />
+                </Field>
+                <Field label="Prénom (affiché dans les tâches)">
+                  <Input value={form.display_name}
+                    onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))}
+                    placeholder="Camille" />
+                </Field>
+                <Field label="Métier">
+                  <Input value={form.metier}
+                    onChange={(e) => setForm((f) => ({ ...f, metier: e.target.value }))}
+                    placeholder="Cadreur, monteur, community manager…" />
+                </Field>
+                {patron && (
+                  <Field label="Rôle">
+                    <div style={neu.pressedSm} className="rounded-xl">
+                      <select value={form.role}
+                        onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+                        className="w-full px-4 py-3 min-h-[44px] rounded-xl bg-transparent text-[16px] sm:text-[14px] appearance-none">
+                        <option value="membre">Membre — travaille, coche ses tâches</option>
+                        <option value="admin">Admin — gère aussi l'équipe et les clients</option>
+                      </select>
+                    </div>
+                  </Field>
+                )}
+                <Btn kind="dark" icon={busy ? Loader2 : UserPlus} disabled={busy || !form.email.trim()}
+                  onClick={inviterMembre}>
+                  {busy ? 'Invitation…' : 'Créer son compte'}
+                </Btn>
+              </form>
+            )}
+
+            {err && (
+              <div className="flex items-start gap-2 p-3 mt-4 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]">
+                <AlertCircle size={14} className="mt-0.5 shrink-0" /> {err}
+              </div>
+            )}
+
+            {equipe === null ? (
+              <div className="py-10 flex justify-center"><Loader2 size={16} className="animate-spin text-stone-400" /></div>
+            ) : (
+              <div className="space-y-2.5 mt-5">
+                {equipe.map((m) => (
+                  <div key={m.user_id} style={neu.pressedSm} className="rounded-2xl px-4 py-3.5">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="min-w-0">
+                        <div className="text-[13.5px] font-semibold truncate">
+                          {m.nom}{m.user_id === user?.id && <span className="text-stone-400 font-normal"> (vous)</span>}
+                        </div>
+                        <div className="text-[11px] text-stone-500 mt-0.5">
+                          {ROLES_EQUIPE[m.role] || m.role}{m.metier ? ` · ${m.metier}` : ''}
+                        </div>
+                      </div>
+                      {gerable(m) && editId !== m.user_id && (
+                        <div className="flex gap-2 shrink-0">
+                          <Btn onClick={() => ouvrirEdition(m)} disabled={busyLigne === m.user_id}>Modifier</Btn>
+                          <Btn icon={Trash2} onClick={() => retirer(m)} disabled={busyLigne === m.user_id}
+                            className="text-rose-600">{busyLigne === m.user_id ? '…' : 'Retirer'}</Btn>
+                        </div>
+                      )}
+                    </div>
+                    {editId === m.user_id && (
+                      <div className="space-y-3 mt-4">
+                        <Field label="Prénom">
+                          <Input value={edit.display_name}
+                            onChange={(e) => setEdit((v) => ({ ...v, display_name: e.target.value }))}
+                            placeholder="Camille" />
+                        </Field>
+                        <Field label="Métier">
+                          <Input value={edit.metier}
+                            onChange={(e) => setEdit((v) => ({ ...v, metier: e.target.value }))}
+                            placeholder="Cadreur, monteur…" />
+                        </Field>
+                        {patron && (
+                          <Field label="Rôle">
+                            <div style={neu.pressedSm} className="rounded-xl">
+                              <select value={edit.role}
+                                onChange={(e) => setEdit((v) => ({ ...v, role: e.target.value }))}
+                                className="w-full px-4 py-3 min-h-[44px] rounded-xl bg-transparent text-[16px] sm:text-[14px] appearance-none">
+                                <option value="membre">Membre</option>
+                                <option value="admin">Admin</option>
+                              </select>
+                            </div>
+                          </Field>
+                        )}
+                        <div className="flex gap-2 flex-wrap">
+                          <Btn kind="dark" onClick={() => enregistrerLigne(m)} disabled={busyLigne === m.user_id}>
+                            {busyLigne === m.user_id ? 'Enregistrement…' : 'Enregistrer'}
+                          </Btn>
+                          <Btn onClick={() => setEditId(null)} disabled={busyLigne === m.user_id}>Annuler</Btn>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ─── Les tâches — déménagées depuis l'Agenda ─── */}
+          <MesTaches equipe={equipe || []} clients={clients} />
         </div>
       );
     }
@@ -10341,6 +10614,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             if (encoreValide) MES_METIERS.push(m.universe);
           });
         } catch (_) { MES_METIERS.length = 0; MES_METIERS_DETAIL.length = 0; }
+        /* 👤 Mon rôle — même prudence : la RPC peut ne pas exister
+           (migration comm non lancée), et un échec ne bride rien. */
+        try {
+          const { data: eq } = await sb.rpc('equipe_agence');
+          MON_ROLE.value = (eq || []).find((m) => m.user_id === user?.id)?.role || null;
+        } catch (_) { MON_ROLE.value = null; }
         setMyAgency(data || null);
         // Titre de l'onglet : le studio, pas nous. L'onglet du navigateur
         // affichait « TimelessHouse — Admin » chez tous les locataires.
@@ -10388,6 +10667,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         overview: { t: `Bonjour`, s: 'Vue d\'ensemble de votre studio.' },
         clients:  { t: 'Mes clients', s: 'Tous les espaces que vous avez créés.' },
         agenda:   { t: 'Agenda', s: 'Ce que vous tournez et ce qui sort, sur la même grille.' },
+        equipe:   { t: 'Équipe', s: 'Vos coéquipiers, leurs rôles et leurs tâches.' },
         portfolio:{ t: 'Portfolio', s: 'Vitrine et espaces de prospection.' },
         agences:  { t: 'Agences', s: 'Les locataires de votre plateforme marque blanche.' },
         settings: { t: 'Paramètres', s: 'Votre marque, votre abonnement et la sécurité de votre compte.' },
@@ -10452,8 +10732,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                      il n'a rien à faire chez un photographe de mariage.
                      FEATURES.allUniverses = la plateforme, qui voit tout. */
                   ...(MES_METIERS.includes('communication') || FEATURES.allUniverses
-                    ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' }] : []),
-                  { id: 'revenus', icon: TrendingUp, label: 'Revenus' },
+                    ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' },
+                       { id: 'equipe', icon: UsersRound, label: 'Équipe' }] : []),
+                  /* Les Revenus ne regardent pas un « membre » (cadreur,
+                     monteur…) : c'est la comptabilité du studio. */
+                  ...(MON_ROLE.value === 'membre' ? [] : [{ id: 'revenus', icon: TrendingUp, label: 'Revenus' }]),
                   ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),
                   ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),
                 ].map(n => (
@@ -10514,6 +10797,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <SettingsView billing={overviewData.billing} agency={myAgency} refreshBrand={loadFeatures} />
               ) : section === 'agenda' ? (
                 <AgendaTab clients={clients} />
+              ) : section === 'equipe' ? (
+                <EquipeTab clients={clients} user={user} />
               ) : section === 'revenus' ? (
                 <RevenusTab user={user} onClients={() => setSection('clients')} />
               ) : section === 'portfolio' && FEATURES.portfolio ? (
@@ -10551,8 +10836,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                  sa naissance — un locataire Communication sur téléphone
                  n'avait AUCUN chemin vers son agenda. */
               ...(MES_METIERS.includes('communication') || FEATURES.allUniverses
-                ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' }] : []),
-              { id: 'revenus', icon: TrendingUp, label: 'Revenus' },
+                ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' },
+                   { id: 'equipe', icon: UsersRound, label: 'Équipe' }] : []),
+              ...(MON_ROLE.value === 'membre' ? [] : [{ id: 'revenus', icon: TrendingUp, label: 'Revenus' }]),
               ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),
               ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),
             ];

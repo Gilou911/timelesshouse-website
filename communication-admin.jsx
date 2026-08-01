@@ -652,7 +652,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           ref={boxRef}
           tabIndex={-1}
           style={neu.raised}
-          className={`th-modal-boite rounded-t-[28px] sm:rounded-[32px] p-5 sm:p-7 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-7 max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto overscroll-contain w-full ${size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
+          className={`th-modal-boite rounded-t-[28px] sm:rounded-[32px] p-5 sm:p-7 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-7 max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto overflow-x-hidden overscroll-contain w-full ${size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
           onClick={e => e.stopPropagation()}
         >
           {/* Drag handle mobile */}
@@ -1661,6 +1661,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [err, setErr] = useState('');
       const [equipe, setEquipe] = useState([]);
       const [nouveau, setNouveau] = useState(false);
+      const [ouvert, setOuvert] = useState(null);   // post dont la fiche est ouverte
+      const [tour, setTour] = useState(0);          // force le rechargement de la chaîne
 
       // Les bornes du mois affiché, en dates locales.
       const debut = useMemo(() => new Date(mois.getFullYear(), mois.getMonth(), 1), [mois]);
@@ -1810,11 +1812,352 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             )}
           </div>
 
+          <Pipeline clients={clients} rafraichir={tour}
+            onOuvrir={(p2) => setOuvert(p2)} />
+
           <MesTaches equipe={equipe} clients={clients} />
 
           {nouveau && (
             <PostForm clients={clients} onClose={() => setNouveau(false)}
-              onSaved={() => { setNouveau(false); charger(); }} />
+              onSaved={() => { setNouveau(false); charger(); setTour((t) => t + 1); }} />
+          )}
+          {ouvert && (
+            <PostDetail post={ouvert} clients={clients}
+              onClose={() => setOuvert(null)}
+              onSaved={() => { setOuvert(null); charger(); setTour((t) => t + 1); }} />
+          )}
+        </div>
+      );
+    }
+
+    /* ── L'état d'un post se DÉDUIT des faits ──────────────────────
+       Un statut qu'on change à la main ment le lendemain : on oublie de
+       le bouger, et le tableau raconte une histoire périmée. Ici l'état
+       découle de ce qui EXISTE — un tournage passé, un montage livré,
+       une validation client, une sortie datée puis publiée. La seule
+       décision qui reste humaine est « abandonné ».
+
+       `media.approval_status` fait foi pour la validation : c'est le
+       circuit qui tourne déjà, avec ses emails et ses commentaires. On
+       ne le double pas, on le lit. */
+    const etatDeduit = ({ shoot, media, sorties, statut }) => {
+      if (statut === 'abandonne') return 'abandonne';
+      if ((sorties || []).some((s) => s.publie_le)) return 'publie';
+      const valide = media && media.approval_status === 'approved';
+      if (valide && (sorties || []).some((s) => s.prevue_le)) return 'programme';
+      if (media && !valide) return 'validation';
+      /* Approuvé mais sans date : aucun des sept états ne dit
+         exactement « prêt, reste à dater ». Plutôt que d'inventer un
+         huitième (et une migration de plus), on le range dans
+         « Programmé » et la fiche AFFICHE « à dater » en ambre — le
+         tableau ne ment pas, il montre ce qui manque. */
+      if (media) return 'programme';
+      const auj = new Date();
+      const cleAujDeduit = `${auj.getFullYear()}-${String(auj.getMonth() + 1).padStart(2, '0')}-${String(auj.getDate()).padStart(2, '0')}`;
+      if (shoot && shoot.date_iso && shoot.date_iso <= cleAujDeduit) return 'montage';
+      if (shoot) return 'tournage';
+      return 'idee';
+    };
+
+    /* ── La fiche d'un post ────────────────────────────────────────
+       C'est ici qu'on RELIE : le tournage d'où vient l'image, le montage
+       livré, les sorties prévues. À chaque lien posé, l'étape se
+       recalcule et s'enregistre — la chaîne se remplit d'elle-même. */
+    function PostDetail({ post, clients, onClose, onSaved }) {
+      const [shoots, setShoots] = useState([]);
+      const [medias, setMedias] = useState([]);
+      const [sorties, setSorties] = useState([]);
+      const [shootId, setShootId] = useState(post.shoot_id || '');
+      const [mediaId, setMediaId] = useState(post.media_id || '');
+      const [brief, setBrief] = useState(post.brief || '');
+      const [busy, setBusy] = useState(false);
+      const [err, setErr] = useState('');
+      const [nouvReseau, setNouvReseau] = useState('instagram');
+      const [nouvJour, setNouvJour] = useState('');
+      const [nouvHeure, setNouvHeure] = useState('18:00');
+
+      const chargerSorties = async () => {
+        const { data } = await sb.from('post_sorties').select('*').eq('post_id', post.id).order('prevue_le');
+        setSorties(data || []);
+      };
+
+      useEffect(() => {
+        chargerSorties();
+        if (!post.client_id) { setShoots([]); setMedias([]); return; }
+        sb.from('shoots').select('id,title,date_iso,type').eq('client_id', post.client_id)
+          .order('date_iso', { ascending: false })
+          .then(({ data }) => setShoots(data || []));
+        sb.from('media').select('id,title,approval_status,date_iso').eq('client_id', post.client_id)
+          .order('created_at', { ascending: false })
+          .then(({ data }) => setMedias(data || []));
+      }, [post.id]);
+
+      const shoot = shoots.find((x) => x.id === shootId) || null;
+      const media = medias.find((x) => x.id === mediaId) || null;
+      const etat = etatDeduit({ shoot, media, sorties, statut: post.statut });
+
+      const enregistrer = async () => {
+        setBusy(true); setErr('');
+        const { error } = await sb.from('posts').update({
+          shoot_id: shootId || null,
+          media_id: mediaId || null,
+          brief: brief.trim() || null,
+          statut: etat,
+          updated_at: new Date().toISOString(),
+        }).eq('id', post.id);
+        setBusy(false);
+        if (error) { setErr(humaniseErreur(error.message)); return; }
+        onSaved();
+      };
+
+      const ajouterSortie = async () => {
+        if (!nouvJour) { setErr('Choisissez une date de sortie.'); return; }
+        setErr('');
+        const { error } = await sb.from('post_sorties').insert({
+          post_id: post.id, reseau: nouvReseau,
+          prevue_le: new Date(`${nouvJour}T${nouvHeure || '00:00'}`).toISOString(),
+        });
+        if (error) {
+          setErr(/duplicate|unique/i.test(error.message)
+            ? `Ce post a déjà une sortie sur ${RESEAUX[nouvReseau]?.l || nouvReseau}.`
+            : humaniseErreur(error.message));
+          return;
+        }
+        setNouvJour('');
+        chargerSorties();
+      };
+
+      const basculerPublie = async (x) => {
+        await sb.from('post_sorties')
+          .update({ publie_le: x.publie_le ? null : new Date().toISOString() }).eq('id', x.id);
+        chargerSorties();
+      };
+      const retirerSortie = async (x) => {
+        if (!confirm(`Retirer la sortie ${RESEAUX[x.reseau]?.l || x.reseau} ?`)) return;
+        await sb.from('post_sorties').delete().eq('id', x.id);
+        chargerSorties();
+      };
+
+      const supprimerPost = async () => {
+        if (!confirm(`Supprimer « ${post.title} » ?\n\nSes sorties programmées et ses tâches partent avec. Irréversible.`)) return;
+        await sb.from('posts').delete().eq('id', post.id);
+        onSaved();
+      };
+
+      const nomClient = (clients || []).find((c) => c.id === post.client_id)?.name;
+
+      return (
+        <Modal onClose={onClose} title={post.title} kicker={nomClient || 'Sans marque'} size="lg">
+          <div className="space-y-5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold bg-stone-900 text-white">
+                {STATUTS_POST[etat]}
+              </span>
+              {etat !== post.statut && (
+                <span className="text-[11.5px] text-amber-700">
+                  Nouvelle étape déduite — « Enregistrer » la confirme.
+                </span>
+              )}
+              {etat === 'programme' && !sorties.some((x) => x.prevue_le) && (
+                <span className="text-[11.5px] text-amber-700 font-semibold">Approuvé, reste à dater.</span>
+              )}
+            </div>
+
+            <Field label="Intention, script, angle">
+              <Textarea value={brief} onChange={(e) => setBrief(e.target.value)} rows={3} />
+            </Field>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Field label="Tournage d'origine">
+                <Select value={shootId} onChange={(e) => setShootId(e.target.value)}>
+                  <option value="">— aucun —</option>
+                  {shoots.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.date_iso ? isoToLabel(x.date_iso) + ' · ' : ''}{x.title}
+                    </option>
+                  ))}
+                </Select>
+                {!post.client_id && (
+                  <div className="text-[11px] text-stone-500 mt-1">
+                    Choisissez d'abord une marque pour ce post.
+                  </div>
+                )}
+              </Field>
+              <Field label="Montage livré">
+                <Select value={mediaId} onChange={(e) => setMediaId(e.target.value)}>
+                  <option value="">— pas encore —</option>
+                  {medias.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
+                </Select>
+                {media && (
+                  <div className="mt-1.5"><ApprovalBadge status={media.approval_status || 'pending'} /></div>
+                )}
+              </Field>
+            </div>
+
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold mb-2">Sorties</div>
+              {!sorties.length ? (
+                <p className="text-[12.5px] text-stone-500">Aucune sortie programmée.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {sorties.map((x) => (
+                    <div key={x.id} style={neu.pressedSm} className="rounded-xl p-2.5 flex items-center gap-3">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: RESEAUX[x.reseau]?.c }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px]">{RESEAUX[x.reseau]?.l || x.reseau}</div>
+                        <div className="text-[11px] text-stone-500">
+                          {x.publie_le ? `Publié le ${isoToLabel(String(x.publie_le).slice(0, 10))}`
+                            : x.prevue_le ? `Prévu ${isoToLabel(String(x.prevue_le).slice(0, 10))} à ${hhmm(x.prevue_le)}`
+                            : 'Sans date'}
+                        </div>
+                      </div>
+                      <Btn onClick={() => basculerPublie(x)}>{x.publie_le ? 'Annuler' : 'Publié'}</Btn>
+                      <button type="button" onClick={() => retirerSortie(x)} aria-label="Retirer la sortie"
+                        className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="grid sm:grid-cols-[1fr_1fr_auto_auto] gap-2 mt-3 items-end">
+                <Field label="Réseau">
+                  <Select value={nouvReseau} onChange={(e) => setNouvReseau(e.target.value)}>
+                    {Object.entries(RESEAUX).map(([id, r]) => <option key={id} value={id}>{r.l}</option>)}
+                  </Select>
+                </Field>
+                <Field label="Date">
+                  <Input type="date" value={nouvJour} onChange={(e) => setNouvJour(e.target.value)} />
+                </Field>
+                <Field label="Heure">
+                  <Input type="time" value={nouvHeure} onChange={(e) => setNouvHeure(e.target.value)} />
+                </Field>
+                <Btn onClick={ajouterSortie}>Ajouter</Btn>
+              </div>
+            </div>
+
+            {err && (
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]">
+                <AlertCircle size={14} className="mt-0.5 shrink-0" /> {err}
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-between items-center pt-1 flex-wrap">
+              <Btn onClick={supprimerPost} className="text-rose-600">Supprimer</Btn>
+              <div className="flex gap-2">
+                <Btn onClick={onClose}>Fermer</Btn>
+                <Btn kind="dark" onClick={enregistrer} disabled={busy}>
+                  {busy ? 'Enregistrement…' : 'Enregistrer'}
+                </Btn>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      );
+    }
+
+    /* ── La chaîne de production ───────────────────────────────────
+       Tous les posts, rangés par étape. C'est ici qu'une agence voit sa
+       charge : combien d'idées dorment, combien attendent le client,
+       combien sortent cette semaine. */
+    function Pipeline({ clients, onOuvrir, rafraichir }) {
+      const [posts, setPosts] = useState(null);
+      const [err, setErr] = useState('');
+
+      const charger = async () => {
+        setErr('');
+        /* select('*') plutôt qu'une liste de colonnes : la table est
+           neuve, elle grandira, et nommer les colonnes ici casserait la
+           requête ENTIÈRE au premier ajout non déployé. */
+        const [p, so] = await Promise.all([
+          sb.from('posts').select('*').order('created_at', { ascending: false }),
+          sb.from('post_sorties').select('*'),
+        ]);
+        if (p.error) {
+          setErr(/relation .*posts/.test(p.error.message || '')
+            ? "L'agenda n'est pas encore activé : exécutez files/migration-comm-calendrier.sql dans Supabase."
+            : humaniseErreur(p.error.message));
+          setPosts([]); return;
+        }
+        const parPost = {};
+        (so.data || []).forEach((x) => (parPost[x.post_id] = parPost[x.post_id] || []).push(x));
+        setPosts((p.data || []).map((x) => ({ ...x, sorties: parPost[x.id] || [] })));
+      };
+      useEffect(() => { charger(); }, [rafraichir]);
+
+      const ETAPES = ['idee', 'tournage', 'montage', 'validation', 'programme', 'publie'];
+      const nomClient = (id) => (clients || []).find((c) => c.id === id)?.name || '';
+
+      const groupes = useMemo(() => {
+        const g = {};
+        ETAPES.forEach((e) => (g[e] = []));
+        (posts || []).forEach((p2) => {
+          const e = p2.statut === 'abandonne' ? null : p2.statut;
+          if (e && g[e]) g[e].push(p2);
+        });
+        return g;
+      }, [posts]);
+
+      const total = (posts || []).filter((x) => x.statut !== 'abandonne').length;
+
+      return (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6 mt-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>La chaîne</h2>
+              <p className="text-[12.5px] text-stone-500 mt-1">
+                De l'idée à la publication. L'étape se déduit des faits — elle ne se décrète pas.
+              </p>
+            </div>
+            <span className="text-[11.5px] text-stone-500">{total} en cours</span>
+          </div>
+
+          {err && (
+            <div className="flex items-start gap-2 p-3 mt-4 rounded-xl bg-amber-50 text-amber-800 text-[12.5px]">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" /> {err}
+            </div>
+          )}
+
+          {posts === null ? (
+            <div className="py-8 flex justify-center"><Loader2 size={16} className="animate-spin text-stone-400" /></div>
+          ) : !total ? (
+            <p className="text-[12.5px] text-stone-500 mt-5">
+              Aucun contenu en cours. « Programmer un post » en crée un — et il avancera tout seul
+              à mesure que le tournage, le montage et la validation arrivent.
+            </p>
+          ) : (
+            <div className="mt-4 grid gap-3 lg:grid-cols-3">
+              {ETAPES.filter((e) => groupes[e].length).map((e) => (
+                <div key={e} style={neu.pressedSm} className="rounded-2xl p-3">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-[10px] uppercase tracking-wider text-stone-500 font-semibold">{STATUTS_POST[e]}</span>
+                    <span className="text-[11px] text-stone-400">{groupes[e].length}</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {groupes[e].map((p2) => {
+                      const dates = (p2.sorties || []).filter((x) => x.prevue_le);
+                      const aDater = e === 'programme' && !dates.length;
+                      return (
+                        <button key={p2.id} type="button" onClick={() => onOuvrir(p2)}
+                          style={neu.raisedXs}
+                          className="w-full text-left rounded-xl p-2.5 active:scale-[0.99] transition-transform">
+                          <div className="text-[13px] truncate">{p2.title}</div>
+                          <div className="text-[11px] text-stone-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                            {nomClient(p2.client_id) && <span className="truncate">{nomClient(p2.client_id)}</span>}
+                            {(p2.sorties || []).map((x) => (
+                              <span key={x.id} className="w-2 h-2 rounded-full shrink-0"
+                                style={{ background: RESEAUX[x.reseau]?.c || '#6b6357' }}
+                                title={RESEAUX[x.reseau]?.l || x.reseau} />
+                            ))}
+                            {aDater && <span className="text-amber-700 font-semibold">à dater</span>}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       );

@@ -395,6 +395,22 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return `${d} ${MOIS_FR_LONG[m - 1]} ${y}`;
     };
 
+    /* Lit un horaire écrit à la main — « 10 :00 », « 11:00 - 19:00 »,
+       « 09:00 — 16:00 ». Les tirets de toutes longueurs valent le même,
+       les espaces sautent, et ce qui ne ressemble pas à une heure ne
+       donne RIEN plutôt qu'une valeur inventée (« 14h-18h » → vide). */
+    const heuresDeTexte = (txt) => {
+      const t = String(txt || '').replace(/[—–]/g, '-').replace(/\s/g, '');
+      const [g, d] = t.split('-');
+      const lire = (x) => (String(x || '').match(/^\d{1,2}:\d{2}/) || [''])[0];
+      const pad = (x) => (x && x.length === 4 ? '0' + x : x);
+      return { debut: pad(lire(g)), fin: pad(lire(d)) };
+    };
+    /* Le texte affiché, reconstruit depuis les vraies heures : c'est lui
+       que lisent l'espace client, les emails et les factures. */
+    const texteHoraire = (debut, fin) =>
+      debut && fin ? `${debut} — ${fin}` : (debut || '');
+
     /** Convertit "2026-05-17" → { date_day: 17, month_label: 'Mai', year: 2026 } */
     const isoToShootParts = (iso) => {
       if (!iso) return {};
@@ -5739,7 +5755,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setLoading(true);
         const [m, s] = await Promise.all([
           sb.from('media').select('*').eq('client_id', clientId).order('date_iso', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }),
-          sb.from('shoots').select('*').eq('client_id', clientId).order('date_day'),
+          sb.from('shoots').select('*').eq('client_id', clientId).order('date_iso'),
         ]);
         const mediaItems = m.data || [];
         setItems(mediaItems);
@@ -6585,8 +6601,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         (async () => {
           const next = { shoots: [], strategies: [] };
           if (shoots) {
-            const { data } = await sb.from('shoots').select('id,title,type,date_day,month_label,year')
-              .eq('client_id', clientId).order('year', { ascending: false }).order('date_day', { ascending: false });
+            const { data } = await sb.from('shoots').select('id,title,type,date_day,month_label,year,date_iso')
+              .eq('client_id', clientId).order('date_iso', { ascending: false });
             next.shoots = data || [];
           }
           if (strategies) {
@@ -7710,7 +7726,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       const load = async () => {
         setLoading(true);
-        const { data } = await sb.from('shoots').select('*').eq('client_id', clientId).order('year').order('date_day');
+        /* Par date RÉELLE. Trier par (année, jour-du-mois) ignorait le
+           MOIS : « 21 mai » s'affichait après « 19 juin » et « 29 mai »
+           atterrissait après septembre (relevé sur les 7 tournages en
+           base le 29/07/2026). */
+        const { data } = await sb.from('shoots').select('*').eq('client_id', clientId).order('date_iso');
         setItems(data || []); setLoading(false);
       };
       useEffect(() => { load(); }, [clientId]);
@@ -7839,6 +7859,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         type:        existing?.type        || 'photo',
         date_iso:    existingISO || (existing ? '' : todayISO()),
         time_label:  existing?.time_label  || '',
+        /* Les heures viennent de la base ; à défaut on relit l'ancien
+           texte, pour qu'un tournage saisi avant la bascule s'ouvre
+           déjà rempli au lieu de paraître vide. */
+        start_time:  (existing?.start_time || '').slice(0, 5) || heuresDeTexte(existing?.time_label).debut,
+        end_time:    (existing?.end_time   || '').slice(0, 5) || heuresDeTexte(existing?.time_label).fin,
         location:    existing?.location    || '',
         notes:       existing?.notes       || '',
         strategy_id: existing?.strategy_id || initial?.strategy_id || '',
@@ -7896,6 +7921,17 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           month_label: parts.month_label || 'Jan',
           year:        parts.year || new Date().getFullYear(),
           date_iso:    form.date_iso || null,
+          /* Les heures font foi ; le texte en découle. L'inverse (saisir
+             le texte, deviner les heures) est ce qui nous a menés à
+             « 10 :00 » en base. */
+          start_time:  form.start_time || null,
+          end_time:    form.end_time || null,
+          /* Un horaire que le lecteur n'a pas su interpréter (« 14h-18h »)
+             serait effacé par la réécriture : on le CONSERVE tel quel.
+             On n'efface que ce qu'on savait représenter — donc ce que
+             l'utilisateur a vu dans les deux champs et vidé lui-même. */
+          time_label:  texteHoraire(form.start_time, form.end_time)
+                       || (heuresDeTexte(form.time_label).debut ? '' : (form.time_label || '')),
           strategy_id: form.strategy_id || null,
           concept_id:  form.strategy_id && form.concept_id !== '' ? parseInt(form.concept_id) : null,
         };
@@ -7944,8 +7980,23 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <Input required type="date" value={form.date_iso} onChange={e => setForm({...form, date_iso: e.target.value})} />
                 <div className="text-[11px] text-stone-500 mt-1">{form.date_iso ? isoToLabel(form.date_iso) : '—'}</div>
               </Field>
-              <Field label="Horaire">
-                <Input value={form.time_label} onChange={e => setForm({...form, time_label: e.target.value})} placeholder="09:00 — 16:00" />
+              {/* Deux VRAIES heures au lieu d'un texte libre. La saisie
+                  libre avait produit « 10 :00 », « 11:00 - 19:00 » et du
+                  vide — impossible d'en tirer un calendrier. time_label
+                  reste écrit, dérivé de ces deux champs : tout ce qui le
+                  lit déjà (espace client, emails, factures) continue. */}
+              <Field label="Début">
+                <Input type="time" value={form.start_time}
+                  onChange={e => setForm({ ...form, start_time: e.target.value })} />
+              </Field>
+              <Field label="Fin">
+                <Input type="time" value={form.end_time}
+                  onChange={e => setForm({ ...form, end_time: e.target.value })} />
+                <div className="text-[11px] text-stone-500 mt-1">
+                  {form.end_time && form.start_time && form.end_time < form.start_time
+                    ? 'Se termine après minuit — c’est accepté.'
+                    : 'Laissez vide si l’heure de fin n’est pas connue.'}
+                </div>
               </Field>
               <Field label="Lieu">
                 <Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} placeholder="Studio Bastille, Paris 11" />

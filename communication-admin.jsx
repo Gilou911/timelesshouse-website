@@ -1521,6 +1521,134 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       );
     }
 
+    /* ════════════════════════════════════════════════════════════
+       ⏰ RAPPELS AUTOMATIQUES (01/08/2026)
+       ════════════════════════════════════════════════════════════
+       Ce qui part tout seul, et à quelle heure. Les réglages vivent
+       dans agencies.rappels (jsonb) ; ABSENT = tout actif à 9 h — le
+       comportement d'hier, aucune agence existante ne change. Écrits
+       par la RPC update_my_agency_rappels (owner/admin), lus par le
+       cron scheduled-notifications : il passe toutes les heures et
+       envoie au premier passage À PARTIR de l'heure choisie — un
+       passage raté se rattrape à l'heure suivante, jamais de trou. */
+    function RappelsCard() {
+      const DEFAUTS = {
+        tournages: { actif: true, heure: 9 },
+        factures:  { actif: true, heure: 9 },
+        sorties:   { actif: true, heure: 9 },
+      };
+      const [regl, setRegl] = useState(null);   // null = chargement
+      const [busy, setBusy] = useState(false);
+      const [msg, setMsg] = useState(null);
+
+      useEffect(() => {
+        (async () => {
+          /* Colonne demandée À PART (motif beta_chat) : avant la
+             migration, PostgREST rejetterait la requête entière —
+             ici, au pire, la carte montre les valeurs par défaut. */
+          const { data, error } = await sb.from('agencies').select('rappels').limit(1).maybeSingle();
+          const r = (!error && data?.rappels && typeof data.rappels === 'object') ? data.rappels : {};
+          setRegl({
+            tournages: { ...DEFAUTS.tournages, ...(r.tournages || {}) },
+            factures:  { ...DEFAUTS.factures,  ...(r.factures  || {}) },
+            sorties:   { ...DEFAUTS.sorties,   ...(r.sorties   || {}) },
+          });
+        })();
+      }, []);
+
+      const LIGNES = [
+        { id: 'tournages', icon: Camera, titre: 'Tournages',
+          desc: 'Vos clients sont prévenus 7 jours puis 1 jour avant leur tournage.' },
+        { id: 'factures', icon: FileText, titre: 'Factures',
+          desc: "Vos clients sont relancés autour de l'échéance d'une facture impayée." },
+        ...(MES_METIERS.includes('communication') || FEATURES.allUniverses
+          ? [{ id: 'sorties', icon: Send, titre: 'Sorties à publier',
+              desc: 'Votre équipe reçoit la liste de ce qui doit sortir dans la journée.' }]
+          : []),
+      ];
+
+      const save = async () => {
+        setBusy(true); setMsg(null);
+        const { error } = await sb.rpc('update_my_agency_rappels', { p_rappels: regl });
+        setBusy(false);
+        if (error) {
+          return setMsg({ kind: 'err', text: /update_my_agency_rappels/.test(error.message || '')
+            ? 'Les réglages de rappels ne sont pas encore activés : exécutez files/migration-rappels-reglables.sql dans Supabase.'
+            : humaniseErreur(error.message) });
+        }
+        setMsg({ kind: 'ok', text: 'Rappels enregistrés — ils s’appliquent dès la prochaine tournée.' });
+      };
+
+      return (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
+          <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>Rappels automatiques</h2>
+          <p className="text-[12.5px] text-stone-500 mt-2 leading-relaxed">
+            Choisissez ce qui part tout seul, et à quelle heure.
+          </p>
+
+          {regl === null ? (
+            <div className="py-8 flex justify-center"><Loader2 size={16} className="animate-spin text-stone-400" /></div>
+          ) : (
+            <div className="space-y-2.5 mt-5">
+              {LIGNES.map(({ id, icon: Icone, titre, desc }) => {
+                const l = regl[id];
+                return (
+                  <div key={id} className="space-y-2">
+                    <button type="button"
+                      onClick={() => setRegl(r => ({ ...r, [id]: { ...r[id], actif: !r[id].actif } }))}
+                      style={l.actif ? neu.dark : neu.pressedSm}
+                      className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between gap-3 transition ${l.actif ? 'text-white' : 'text-stone-700'}`}>
+                      <div className="flex items-center gap-3 text-left min-w-0">
+                        <Icone size={17} className="shrink-0" />
+                        <div className="min-w-0">
+                          <div className="font-semibold text-[13px]">{titre}</div>
+                          <div className={`text-[10.5px] mt-0.5 ${l.actif ? 'text-stone-300' : 'text-stone-500'}`}>{desc}</div>
+                        </div>
+                      </div>
+                      <div className={`w-10 h-5.5 rounded-full p-0.5 transition shrink-0 ${l.actif ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                        <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${l.actif ? 'translate-x-4' : ''}`} />
+                      </div>
+                    </button>
+                    {l.actif && (
+                      <div className="flex items-center gap-2.5 pl-5">
+                        <Clock size={13} className="text-stone-400 shrink-0" />
+                        <label className="text-[12px] text-stone-500" htmlFor={`rappel-heure-${id}`}>Heure d'envoi</label>
+                        <select id={`rappel-heure-${id}`} value={l.heure}
+                          onChange={(e) => setRegl(r => ({ ...r, [id]: { ...r[id], heure: Number(e.target.value) } }))}
+                          style={neu.pressedSm}
+                          className="px-3.5 py-2.5 min-h-[44px] rounded-xl bg-transparent text-[16px] sm:text-[13.5px] appearance-none">
+                          {Array.from({ length: 24 }, (_, h) => (
+                            <option key={h} value={h}>{h} h</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <p className="text-[11.5px] text-stone-400 mt-4 leading-relaxed">
+            Le facteur passe toutes les heures : chaque rappel part au premier
+            passage à partir de l'heure choisie, jamais deux fois.
+          </p>
+
+          {msg && (
+            <div className={`flex items-center gap-2 mt-4 text-[12.5px] ${msg.kind === 'ok' ? 'text-emerald-700' : 'text-rose-600'}`}>
+              {msg.kind === 'ok' ? <CheckCircle2 size={14} className="shrink-0" /> : <AlertCircle size={14} className="shrink-0" />}
+              {msg.text}
+            </div>
+          )}
+          <div className="mt-5">
+            <Btn kind="dark" icon={busy ? Loader2 : Save} onClick={save} disabled={busy || regl === null}>
+              {busy ? 'Enregistrement…' : 'Enregistrer les rappels'}
+            </Btn>
+          </div>
+        </div>
+      );
+    }
+
     function SettingsView({ billing, agency, refreshBrand }) {
       return (
         <div className="space-y-5 lg:space-y-6">
@@ -1529,6 +1657,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
           {/* Métiers de la loge (vente par métier — 25/07/2026) */}
           <MetiersCard />
+
+          {/* Rappels automatiques — quoi, et à quelle heure */}
+          <RappelsCard />
 
           {/* Abonnement (SaaS B.3 — Stripe) + Se désabonner */}
           <BillingCard billing={billing} />
@@ -9176,7 +9307,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setBusyBeta(null);
       };
 
-      const empty = { name: '', owner_email: '', slug: '', contact_email: '', plan: 'fondateur', accent_color: '#2a2620', bg_color: '#e9e4d9', logo_url: '' };
+      /* `universes` : les métiers accordés à la loge dès sa naissance.
+         Le fondateur les choisit librement — contrairement au signup
+         public, qui ne vend que les métiers ouverts à la caisse. */
+      const empty = { name: '', owner_email: '', slug: '', contact_email: '', plan: 'fondateur', accent_color: '#2a2620', bg_color: '#e9e4d9', logo_url: '', universes: ['celebration'] };
       const [form, setForm] = useState(empty);
       const [busy, setBusy] = useState(false);
       const [error, setError] = useState('');
@@ -9310,6 +9444,33 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   className="w-full px-4 py-3 rounded-xl bg-transparent text-[16px] sm:text-[14px] appearance-none">
                   {Object.entries(PLAN_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
+              </Field>
+              <Field label="Métiers de la loge">
+                <div className="space-y-2">
+                  {METIERS.map((m) => {
+                    const actif = form.universes.includes(m.value);
+                    return (
+                      <button key={m.value} type="button"
+                        onClick={() => setForm(f => {
+                          const dedans = f.universes.includes(m.value);
+                          // Jamais zéro métier : une loge sans métier ne
+                          // pourrait créer aucun espace client.
+                          if (dedans && f.universes.length === 1) return f;
+                          return { ...f, universes: dedans ? f.universes.filter(v => v !== m.value) : [...f.universes, m.value] };
+                        })}
+                        style={actif ? neu.dark : neu.pressedSm}
+                        className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between gap-3 transition ${actif ? 'text-white' : 'text-stone-700'}`}>
+                        <div className="text-left min-w-0">
+                          <div className="font-semibold text-[13px]">{m.label}</div>
+                          <div className={`text-[10.5px] mt-0.5 ${actif ? 'text-stone-300' : 'text-stone-500'}`}>{m.hint}</div>
+                        </div>
+                        <div className={`w-10 h-5.5 rounded-full p-0.5 transition shrink-0 ${actif ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                          <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${actif ? 'translate-x-4' : ''}`} />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </Field>
               <Field label="Couleur accent">
                 <div className="flex items-center gap-3">

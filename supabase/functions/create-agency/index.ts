@@ -17,7 +17,8 @@
 //     l'admin (jamais stocké en clair, jamais loggé).
 //
 // BODY JSON : { name, owner_email, slug?, contact_email?,
-//               accent_color?, bg_color?, logo_url?, plan? }
+//               accent_color?, bg_color?, logo_url?, plan?,
+//               universes? }   ← métiers accordés (défaut : celebration)
 // RÉPONSE   : { agency, owner: { email, user_id, temp_password|null,
 //               existing_account } }
 //
@@ -64,6 +65,10 @@ const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,39}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 const PLANS = ["fondateur", "decouverte", "essentiel", "studio", "cinema", "prestige"];
+// Les métiers qu'une loge peut recevoir (univers.js est la référence).
+// Ici le FONDATEUR accorde librement — le signup public, lui, ne vend
+// que les métiers ouverts à la caisse (voir signup-agency, OUVERTS).
+const METIERS_VALIDES = ["celebration", "filmmaker", "communication", "neutre"];
 
 // Mot de passe temporaire lisible mais fort (~77 bits) : 4 blocs de 4
 // caractères sans ambiguïté (pas de 0/O, 1/l/I).
@@ -168,6 +173,12 @@ Deno.serve(async (req) => {
   const bgColor = String(body.bg_color || "#e9e4d9").trim();
   const logoUrl = String(body.logo_url || "").trim().slice(0, 500) || null;
   const plan = String(body.plan || "fondateur").trim();
+  // Métiers demandés : on ne garde que les valeurs connues, et jamais
+  // zéro — une loge sans métier ne pourrait créer aucun espace client.
+  const universes = [...new Set(
+    (Array.isArray(body.universes) ? body.universes : []).map(String).filter((u) => METIERS_VALIDES.includes(u)),
+  )];
+  if (!universes.length) universes.push("celebration");
 
   if (name.length < 2) return json(400, { error: "Nom d'agence trop court." });
   if (!EMAIL_RE.test(ownerEmail)) return json(400, { error: "Email du propriétaire invalide." });
@@ -218,6 +229,15 @@ Deno.serve(async (req) => {
     if (!existing && ownerId) await sbAdmin.auth.admin.deleteUser(ownerId).catch(() => {});
     return json(500, { error: `Rattachement du propriétaire impossible : ${mErr.message}` });
   }
+
+  // 💼 Métiers accordés à la naissance (01/08/2026). Best effort, comme
+  // dans signup-agency : sans la table (migration non lancée), la loge
+  // naît quand même — la console ne bride rien sans ces lignes.
+  try {
+    await sbAdmin.from("agency_universes").insert(
+      universes.map((u) => ({ agency_id: agency.id, universe: u, source: "inclus", status: "active" })),
+    );
+  } catch (_) { /* la console ne bride rien sans ces lignes */ }
 
   return json(200, {
     agency,

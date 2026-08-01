@@ -1,7 +1,8 @@
 // ════════════════════════════════════════════════════════════
 // ⏰  EDGE FUNCTION — scheduled-notifications
 // ════════════════════════════════════════════════════════════
-// Tourne 1× par jour (cron) et envoie automatiquement :
+// Tourne TOUTES LES HEURES (cron « 0 * * * * » — historiquement 1×/jour
+// à 9h UTC) et envoie automatiquement :
 //   • Rappels J-7 et J-1 avant un tournage         ← MIS À JOUR
 //   • Rappels de facture (3 j avant échéance / le jour J / J+7
 //     et J+14 si toujours impayée — max 4 emails par facture)
@@ -17,8 +18,18 @@
 // DÉPLOIEMENT :
 //   supabase functions deploy scheduled-notifications --no-verify-jwt
 //
-// CRON Supabase Dashboard (déjà configuré pour vous) :
-//   Integrations → Cron → "daily-notifications" → "0 9 * * *"
+// CRON Supabase (voir files/migration-rappels-reglables.sql) :
+//   Integrations → Cron → "daily-notifications" → "0 * * * *"
+//
+// RÉGLAGES PAR AGENCE (01/08/2026) — agencies.rappels (jsonb) :
+//   { tournages: {actif, heure}, factures: {actif, heure},
+//     sorties: {actif, heure} } — heure de PARIS. Absent = tout actif
+//   à 9 h. La règle d'envoi est « au premier passage À PARTIR de
+//   l'heure choisie » : sous l'ancien cron quotidien (11h Paris l'été),
+//   le comportement d'hier est conservé tel quel ; sous le cron
+//   horaire, chaque agence est servie à son heure, et un passage raté
+//   se rattrape à l'heure suivante. L'idempotence tient aux gardes
+//   existantes (flags reminded_*, dedupe_key, rappel_envoye_pour).
 // ════════════════════════════════════════════════════════════
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -105,6 +116,26 @@ serve(async (req) => {
   const today = todayISO();
   const log: any[] = [];
 
+  // ── Réglages de rappels, par agence ─────────────────────────
+  // hourCycle h23 : hour12:false rend « 24 » à minuit sur certains
+  // moteurs — h23 garantit 0-23, ce que la comparaison exige.
+  const heureParis = Number(new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Paris", hour: "2-digit", hourCycle: "h23",
+  }).format(new Date()));
+  // select('*') exprès : `rappels` n'existe pas avant la migration —
+  // la nommer ferait tomber TOUTE la tournée (règle PostgREST).
+  const { data: agLignes } = await sb.from("agencies").select("*");
+  const AGENCES = new Map<string, any>((agLignes || []).map((a: any) => [a.id, a]));
+  const rappelDe = (agencyId: string | null, genre: string) => {
+    const r = ((AGENCES.get(agencyId || "") || {}).rappels || {})[genre] || {};
+    return {
+      actif: r.actif !== false,
+      heure: Number.isInteger(r.heure) && r.heure >= 0 && r.heure <= 23 ? r.heure : 9,
+    };
+  };
+  // « C'est l'heure » = premier passage à partir de l'heure choisie.
+  const cestLheure = (r: { actif: boolean; heure: number }) => r.actif && heureParis >= r.heure;
+
   // Cibles tournages : aujourd'hui + 7 jours et + 1 jour
   const TARGETS = [
     { days: 7, iso: isoInDays(7), flag: "reminded_7d" as const },
@@ -114,7 +145,7 @@ serve(async (req) => {
   // 1️⃣ Récupérer tous les clients actifs avec un email
   const { data: clients, error: cErr } = await sb
     .from("clients")
-    .select("id, name, client_email, active")
+    .select("id, name, client_email, active, agency_id")
     .eq("active", true)
     .not("client_email", "is", null);
 
@@ -122,9 +153,15 @@ serve(async (req) => {
 
   for (const client of clients || []) {
     if (!client.client_email) continue;
+    // Les réglages de l'agence du client : coupé, ou pas encore l'heure
+    // → on passe. Les gardes anti-doublon rendent le rattrapage sûr.
+    const rTour = rappelDe(client.agency_id, "tournages");
+    const rFact = rappelDe(client.agency_id, "factures");
 
     // ─── 2) RAPPELS DE TOURNAGE (J-7 + J-1) ──────────────────
-    const { data: shoots } = await sb.from("shoots").select("*").eq("client_id", client.id);
+    const { data: shoots } = cestLheure(rTour)
+      ? await sb.from("shoots").select("*").eq("client_id", client.id)
+      : { data: [] as any[] };
     for (const shoot of shoots || []) {
       const iso = shootISO(shoot);
       if (!iso) continue;
@@ -168,7 +205,9 @@ serve(async (req) => {
     // ─── 3) RAPPELS DE FACTURE ───────────────────────────────
     // ⚠️ Inchangé. Note : ce bloc envoie `kind: "invoice_reminder"`,
     //    qui doit être implémenté dans notify-client pour fonctionner.
-    const { data: invoices } = await sb.from("invoices").select("*").eq("client_id", client.id).neq("status", "payée");
+    const { data: invoices } = cestLheure(rFact)
+      ? await sb.from("invoices").select("*").eq("client_id", client.id).neq("status", "payée")
+      : { data: [] as any[] };
     for (const inv of invoices || []) {
       if (!inv.due_date) continue;
 
@@ -199,13 +238,16 @@ serve(async (req) => {
   // La rétention Découverte coupe l'accès à 90 jours (brique 17,
   // client_beyond_retention). Personne n'était prévenu : ni le client
   // final (qui perdait son mariage sans un mot), ni le locataire.
-  // Anti-doublon : même principe que les factures — on ne tire QUE le
-  // jour exact (J-15 / J-3), le cron étant quotidien.
-  const { data: expClients } = await sb
+  // Anti-doublon : le jour exact (J-15 / J-3) désigne la cible, et un
+  // dedupe_key scelle chaque envoi — indispensable depuis que le cron
+  // passe toutes les heures (sans lui : 24 fois le même email). Ce
+  // garde-fou est de la PLATEFORME (il protège l'accès aux données du
+  // client final) : pas de réglage d'agence, heure fixe de 9 h.
+  const { data: expClients } = heureParis >= 9 ? await sb
     .from("clients")
     .select("id, name, client_email, created_at, agencies!inner(slug, plan)")
     .eq("active", true)
-    .eq("agencies.plan", "decouverte");
+    .eq("agencies.plan", "decouverte") : { data: [] as any[] };
 
   for (const c of expClients || []) {
     const expire = new Date(new Date(c.created_at).getTime() + 90 * 86400000);
@@ -225,6 +267,7 @@ serve(async (req) => {
     if (c.client_email) {
       const r1 = await callNotify({
         kind: "access_expiring", client_id: c.id,
+        dedupe_key: `exp:${c.id}:j${left}`,
         extra: { days: left, dateLabel },
       });
       log.push({ client: c.name, kind: "access_expiring", days: left,
@@ -234,6 +277,7 @@ serve(async (req) => {
     // b) Le locataire — toujours (c'est lui qui peut prolonger l'accès)
     const r2 = await callNotify({
       kind: "admin_client_expiring", client_id: c.id,
+      dedupe_key: `expadm:${c.id}:j${left}`,
       extra: { days: left, dateLabel, url: consoleUrl },
     });
     log.push({ client: c.name, kind: "admin_client_expiring", days: left,
@@ -294,6 +338,14 @@ serve(async (req) => {
     }
 
     for (const [agencyId, g] of parAgence) {
+      // Le réglage de l'agence : coupé → silence ; pas encore l'heure
+      // → on repassera (le cron est horaire, rien n'est perdu).
+      const rSort = rappelDe(agencyId, "sorties");
+      if (!rSort.actif) {
+        log.push({ kind: "admin_publish_today", agency: agencyId, result: "desactive" });
+        continue;
+      }
+      if (heureParis < rSort.heure) continue;
       const versExtra = (s: any) => ({
         heure:  heureParis(s.prevue_le),
         date:   jourParis(s.prevue_le),

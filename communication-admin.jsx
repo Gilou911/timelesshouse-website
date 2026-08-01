@@ -2975,6 +2975,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [envoi, setEnvoi] = useState(false);
       const [erreur, setErreur] = useState('');
       const [, setTic] = useState(0);                 // re-rendu après « lu »
+      const [fichiers, setFichiers] = useState(new Map());   // drive_id → fichier
+      const [montrerDrive, setMontrerDrive] = useState(false);
+      const [apercuFichier, setApercuFichier] = useState(null);
       const boiteRef = useRef(null);
       // Un écran large montre les deux volets : le fil ouvert est VU
       // même quand vueListe reste vraie (elle ne pilote que le mobile).
@@ -2994,6 +2997,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           setTous([]); return;
         }
         setErreur(''); setTous(data || []);
+        // Les fichiers du Drive référencés par ces messages, en une
+        // requête — la RLS de drive_items juge ce que je peux voir.
+        const ids = [...new Set((data || []).map((m) => m.drive_id).filter(Boolean))];
+        if (ids.length) {
+          const { data: fs } = await sb.from('drive_items').select('*').in('id', ids);
+          setFichiers(new Map((fs || []).map((f) => [f.id, f])));
+        } else setFichiers(new Map());
       };
       useEffect(() => {
         charger();
@@ -3081,6 +3091,35 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (!confirm('Effacer ce message ?')) return;
         await sb.from('team_messages').delete().eq('id', m.id);
         charger();
+      };
+
+      /* Partager un fichier du Drive : le message le PORTE (carte
+         cliquable). Le texte tapé accompagne ; sinon, l'annonce
+         toute simple. */
+      const partagerFichier = async (it) => {
+        setMontrerDrive(false);
+        const corps = texte.trim() || `A déposé « ${it.nom} » dans le Drive`;
+        const { error } = await sb.from('team_messages')
+          .insert({ agency_id: AGENCY.id, auteur_id: user.id, corps,
+                    dest_id: fil === 'equipe' ? null : fil, drive_id: it.id });
+        if (error) {
+          setErreur(/drive_id/.test(error.message || '')
+            ? "Le partage de fichiers n'est pas encore activé : exécutez files/migration-chat-fichiers.sql dans Supabase."
+            : humaniseErreur(error.message));
+          return;
+        }
+        setTexte(''); charger();
+      };
+
+      const telechargerFichier = (it) => {
+        try {
+          const u = new URL(it.url);
+          if (u.hostname === 'media.timelesshouse.org' && u.pathname.startsWith('/file/')) {
+            u.pathname = '/telecharger/' + u.pathname.slice('/file/'.length);
+            u.searchParams.set('nom', it.nom);
+          }
+          window.location.href = u.toString();
+        } catch (_) { window.location.href = it.url; }
       };
 
       const nomDe = (id) => (equipe.find((x) => x.user_id === id) || {}).nom || 'Ancien coéquipier';
@@ -3186,6 +3225,29 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                           <div className={`text-[10.5px] font-semibold mb-0.5 ${mien ? 'text-stone-300' : 'text-stone-500'}`}>
                             {!mien && fil === 'equipe' ? `${nomDe(m.auteur_id)} · ` : ''}{heureDe(m.created_at)}
                           </div>
+                          {m.drive_id && (() => {
+                            const f = fichiers.get(m.drive_id);
+                            return f ? (
+                              <button type="button" onClick={() => setApercuFichier(f)}
+                                className={`w-full flex items-center gap-2.5 rounded-xl p-2 mb-1.5 text-left ${mien ? 'bg-white/10' : 'bg-stone-900/5'}`}>
+                                <div className="w-10 h-10 rounded-lg overflow-hidden bg-stone-900/85 shrink-0 flex items-center justify-center text-stone-400">
+                                  {f.apercu_url ? <img src={f.apercu_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                                    : f.genre === 'video' ? <Video size={14} />
+                                    : f.genre === 'document' ? <FileText size={14} /> : <ImageIcon size={14} />}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className={`text-[12px] font-semibold truncate ${mien ? 'text-white' : ''}`}>{f.nom}</div>
+                                  <div className={`text-[10px] ${mien ? 'text-stone-300' : 'text-stone-500'}`}>
+                                    {f.genre === 'video' ? 'Vidéo' : f.genre === 'document' ? 'Document' : 'Photo'} · dans le Drive
+                                  </div>
+                                </div>
+                              </button>
+                            ) : (
+                              <div className={`text-[11px] italic mb-1 ${mien ? 'text-stone-300' : 'text-stone-500'}`}>
+                                Fichier retiré du Drive
+                              </div>
+                            );
+                          })()}
                           <div className="text-[13.5px] leading-relaxed whitespace-pre-wrap break-words">{m.corps}</div>
                           {mien && (
                             <button type="button" onClick={() => effacer(m)}
@@ -3203,6 +3265,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
             <form onSubmit={envoyer} className="flex gap-2 px-4 lg:px-5 py-3 items-center shrink-0"
               style={{ borderTop: '1px solid var(--divider, rgba(42,38,32,0.08))' }}>
+              <button type="button" onClick={() => setMontrerDrive(true)}
+                aria-label="Partager un fichier du Drive" title="Partager un fichier du Drive"
+                style={neu.raisedXs}
+                className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 shrink-0 active:scale-95 transition-transform">
+                <FolderOpen size={16} />
+              </button>
               <div className="flex-1">
                 <Input value={texte} onChange={(e) => setTexte(e.target.value)}
                   placeholder={fil === 'equipe' ? "Écrire à l'équipe…" : `Écrire à ${(enFace?.nom || 'ce coéquipier')}…`}
@@ -3213,6 +3281,50 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </Btn>
             </form>
           </div>
+
+          {montrerDrive && (
+            <DrivePicker genres={['photo', 'video', 'document']}
+              onChoisir={partagerFichier}
+              onClose={() => setMontrerDrive(false)} />
+          )}
+
+          {apercuFichier && (
+            <Modal title={apercuFichier.nom}
+              kicker={apercuFichier.genre === 'video' ? 'Vidéo' : apercuFichier.genre === 'document' ? 'Document' : 'Photo'}
+              onClose={() => setApercuFichier(null)} size="lg">
+              <div className="space-y-4">
+                {apercuFichier.genre === 'document' ? (
+                  (/pdf/i.test(apercuFichier.mime || '') || /\.pdf$/i.test(apercuFichier.nom)) ? (
+                    <iframe src={apercuFichier.url} title={apercuFichier.nom} className="w-full h-[60vh] rounded-xl bg-white" />
+                  ) : (
+                    <div style={neu.pressedSm} className="rounded-xl p-8 text-center">
+                      <FileText size={28} className="mx-auto text-stone-400 mb-3" />
+                      <div className="text-[13.5px] font-semibold">Pas d'aperçu pour ce type de fichier</div>
+                      <p className="text-[12px] text-stone-500 mt-1.5">Téléchargez-le pour l'ouvrir.</p>
+                    </div>
+                  )
+                ) : apercuFichier.genre === 'photo' ? (
+                  <img src={apercuFichier.leger_url || apercuFichier.url} alt={apercuFichier.nom}
+                    className="w-full max-h-[60vh] object-contain rounded-xl bg-stone-900/85" />
+                ) : apercuFichier.encodage === 'done' && apercuFichier.leger_url ? (
+                  <video controls autoPlay playsInline src={apercuFichier.leger_url}
+                    poster={apercuFichier.apercu_url || undefined} className="w-full max-h-[60vh] rounded-xl bg-black" />
+                ) : (
+                  <div style={neu.pressedSm} className="rounded-xl p-8 text-center">
+                    {apercuFichier.apercu_url && (
+                      <img src={apercuFichier.apercu_url} alt="" className="max-h-[35vh] mx-auto rounded-lg mb-3" />
+                    )}
+                    <div className="text-[13.5px] font-semibold">La version allégée se prépare</div>
+                    <p className="text-[12px] text-stone-500 mt-1.5">En attendant, l'original se télécharge.</p>
+                  </div>
+                )}
+                <div className="flex gap-2 justify-end flex-wrap">
+                  <Btn icon={Download} onClick={() => telechargerFichier(apercuFichier)}>Télécharger l'original</Btn>
+                  <Btn onClick={() => setApercuFichier(null)}>Fermer</Btn>
+                </div>
+              </div>
+            </Modal>
+          )}
         </div>
       );
     }
@@ -3441,10 +3553,30 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [destEnvoi, setDestEnvoi] = useState('documents');
       const [factMontant, setFactMontant] = useState('');
       const [factRef, setFactRef] = useState('');
+      const [okAnnonce, setOkAnnonce] = useState('');
       useEffect(() => {
-        setEnvoiClient(''); setOkEnvoi('');
+        setEnvoiClient(''); setOkEnvoi(''); setOkAnnonce('');
         setDestEnvoi('documents'); setFactMontant(''); setFactRef('');
       }, [gere?.id]);
+
+      /* « Je l'ai mis dans le Drive » — dit dans le fil d'équipe,
+         avec la carte du fichier. Ouvert à tous les rôles : le chat
+         est à tout le monde, et c'est exactement le geste du cadreur
+         qui vient de déposer ses rushes. */
+      const annoncerDansChat = async (it) => {
+        const { data: { user: moiU } } = await sb.auth.getUser();
+        const { error } = await sb.from('team_messages').insert({
+          agency_id: AGENCY.id, auteur_id: moiU?.id,
+          corps: `A déposé « ${it.nom} » dans le Drive`, drive_id: it.id,
+        });
+        if (error) {
+          setErr(/drive_id/.test(error.message || '')
+            ? "Le partage au chat n'est pas encore activé : exécutez files/migration-chat-fichiers.sql dans Supabase."
+            : humaniseErreur(error.message));
+          return;
+        }
+        setOkAnnonce('Annoncé dans le fil d’équipe — visible dans Messages.');
+      };
       useEffect(() => {
         setGalsClient(null); setGalChoisie('');
         if (!envoiClient || !clientChoisi || !isDelivery(clientChoisi.universe)) return;
@@ -4032,8 +4164,16 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   {gere.genre === 'video' && gere.encodage === 'error' && (
                     <Btn icon={RefreshCw} onClick={() => relancerEncodage(gere)}>Réessayer l'encodage</Btn>
                   )}
+                  {gere.genre !== 'dossier' && (
+                    <Btn icon={MessageSquare} onClick={() => annoncerDansChat(gere)}>Annoncer dans le chat</Btn>
+                  )}
                   <Btn icon={Trash2} onClick={() => supprimer(gere)} className="text-rose-600">Supprimer</Btn>
                 </div>
+                {okAnnonce && (
+                  <div className="text-[12px] text-emerald-700 flex items-center gap-1.5">
+                    <CheckCircle2 size={13} className="shrink-0" /> {okAnnonce}
+                  </div>
+                )}
                 <Field label="Déplacer vers">
                   <div className="flex gap-2 items-center">
                     <div className="flex-1">

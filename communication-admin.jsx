@@ -2178,6 +2178,33 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [moiId, setMoiId] = useState(null);
       useEffect(() => { sb.auth.getUser().then(({ data }) => setMoiId(data?.user?.id || null)); }, []);
 
+      /* ── Le fichier du Drive rattaché (rush, export) ─────────────
+         La matière INTERNE du post — à ne pas confondre avec le
+         « Montage livré » (media), qui est la livraison au client
+         avec son circuit de validation. Brouillon comme les autres
+         liens : « Enregistrer » confirme. */
+      const [driveId, setDriveId] = useState(post.drive_id || '');
+      const [fichierDrive, setFichierDrive] = useState(null);
+      const [montrerDrive, setMontrerDrive] = useState(false);
+      const [rechDrive, setRechDrive] = useState('');
+      const [listeDrive, setListeDrive] = useState(null);
+      useEffect(() => {
+        if (!driveId) { setFichierDrive(null); return; }
+        sb.from('drive_items').select('*').eq('id', driveId).maybeSingle()
+          .then(({ data }) => setFichierDrive(data || null));
+      }, [driveId]);
+      useEffect(() => {
+        if (!montrerDrive) return;
+        const t = setTimeout(async () => {
+          let q = sb.from('drive_items').select('*').neq('genre', 'dossier')
+            .order('created_at', { ascending: false }).limit(40);
+          if (rechDrive.trim()) q = q.ilike('nom', `%${rechDrive.trim()}%`);
+          const { data } = await q;
+          setListeDrive(data || []);
+        }, 300);
+        return () => clearTimeout(t);
+      }, [montrerDrive, rechDrive]);
+
       const chargerTaches = async () => {
         const { data } = await sb.from('tasks').select('*').eq('post_id', post.id)
           .order('fait_le', { nullsFirst: true }).order('due_on', { nullsFirst: false });
@@ -2231,6 +2258,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           brief: brief.trim() || null,
           statut: etat,
           updated_at: new Date().toISOString(),
+          /* `drive_id` seulement si la colonne existe (le rang vient
+             d'un select('*')) ou si un fichier vient d'être choisi :
+             la nommer avant la migration ferait échouer TOUT
+             l'enregistrement (règle PostgREST). */
+          ...(driveId || post.drive_id !== undefined ? { drive_id: driveId || null } : {}),
         }).eq('id', post.id);
         setBusy(false);
         if (error) { setErr(humaniseErreur(error.message)); return; }
@@ -2319,6 +2351,51 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   <div className="mt-1.5"><ApprovalBadge status={media.approval_status || 'pending'} /></div>
                 )}
               </Field>
+            </div>
+
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold mb-2">Fichier du Drive</div>
+              {fichierDrive ? (
+                <div style={neu.pressedSm} className="rounded-xl overflow-hidden">
+                  {fichierDrive.genre === 'photo' ? (
+                    <img src={fichierDrive.leger_url || fichierDrive.url} alt={fichierDrive.nom}
+                      className="w-full max-h-[280px] object-contain bg-stone-900/85" />
+                  ) : fichierDrive.encodage === 'done' && fichierDrive.leger_url ? (
+                    <video controls preload="none" playsInline src={fichierDrive.leger_url}
+                      poster={fichierDrive.apercu_url || undefined}
+                      className="w-full max-h-[280px] bg-black" />
+                  ) : (
+                    <div className="p-5 text-center">
+                      {fichierDrive.apercu_url && (
+                        <img src={fichierDrive.apercu_url} alt="" className="max-h-[160px] mx-auto rounded-lg mb-3" />
+                      )}
+                      <div className="text-[12px] text-amber-700 font-semibold">
+                        {fichierDrive.encodage === 'error' ? 'Version allégée en échec' : 'Version allégée en préparation…'}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-2 px-3 py-2.5 flex-wrap">
+                    <span className="text-[12px] font-medium truncate min-w-0">{fichierDrive.nom}</span>
+                    {peutPublier && (
+                      <span className="flex gap-2 shrink-0">
+                        <Btn onClick={() => { setRechDrive(''); setMontrerDrive(true); }}>Changer</Btn>
+                        <Btn onClick={() => setDriveId('')} className="text-rose-600">Retirer</Btn>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : peutPublier ? (
+                <div>
+                  <Btn icon={FolderOpen} onClick={() => { setRechDrive(''); setMontrerDrive(true); }}>
+                    Choisir dans le Drive
+                  </Btn>
+                  <div className="text-[11px] text-stone-500 mt-1.5">
+                    Le rush ou l'export du post, déposé par l'équipe — « Enregistrer » confirme.
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[12.5px] text-stone-500">Aucun fichier rattaché.</p>
+              )}
             </div>
 
             <div>
@@ -2431,6 +2508,44 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]">
                 <AlertCircle size={14} className="mt-0.5 shrink-0" /> {err}
               </div>
+            )}
+
+            {montrerDrive && (
+              <Modal title="Choisir dans le Drive" kicker="Fichier du post" onClose={() => setMontrerDrive(false)} size="lg">
+                <div className="space-y-3">
+                  <Input value={rechDrive} onChange={(e) => setRechDrive(e.target.value)}
+                    placeholder="Rechercher par nom…" aria-label="Rechercher un fichier du Drive" />
+                  {listeDrive === null ? (
+                    <div className="py-8 flex justify-center"><Loader2 size={16} className="animate-spin text-stone-400" /></div>
+                  ) : !listeDrive.length ? (
+                    <p className="text-[12.5px] text-stone-500 py-4 text-center">
+                      Rien trouvé — déposez d'abord le fichier dans l'onglet Drive.
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-[50vh] overflow-y-auto">
+                      {listeDrive.map((f) => (
+                        <button key={f.id} type="button"
+                          onClick={() => { setDriveId(f.id); setMontrerDrive(false); }}
+                          style={neu.raisedXs}
+                          className="w-full rounded-xl min-h-[56px] px-2.5 py-1.5 flex items-center gap-3 text-left">
+                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-stone-900/85 shrink-0 flex items-center justify-center text-stone-400">
+                            {f.apercu_url
+                              ? <img src={f.apercu_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                              : (f.genre === 'video' ? <Video size={15} /> : <ImageIcon size={15} />)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[13px] font-medium truncate">{f.nom}</div>
+                            <div className="text-[10.5px] text-stone-500 mt-0.5">
+                              {f.genre === 'video' ? 'Vidéo' : 'Photo'}
+                              {f.genre === 'video' && f.encodage !== 'done' ? ' · version allégée en préparation' : ''}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Modal>
             )}
 
             <div className="flex gap-2 justify-between items-center pt-1 flex-wrap">
@@ -2807,7 +2922,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        métadonnées du compte (motif ChatBeta) : il suit l'utilisateur
        d'un appareil à l'autre. On efface SES messages seulement — la
        base le garantit. */
-    function MessagesTab({ user }) {
+    function MessagesTab({ user, onLu }) {
       const [equipe, setEquipe] = useState([]);
       const [tous, setTous] = useState(null);         // tous mes messages visibles
       const [fil, setFil] = useState('equipe');       // 'equipe' | user_id
@@ -2871,6 +2986,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         const val = { ...(user?.user_metadata?.[LU_CLE] || {}), [k]: dernier.created_at };
         if (user?.user_metadata) user.user_metadata[LU_CLE] = val;   // écho local immédiat
         setTic((t) => t + 1);
+        onLu?.();                        // la pastille de l'onglet suit
         try { await sb.auth.updateUser({ data: { [LU_CLE]: val } }); } catch (_) {}
       };
       const nonLus = (k) => (parFil.get(k) || [])
@@ -3137,6 +3253,66 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const fmtOctets = (o) => !o ? '' : (o / 1048576) >= 1024
         ? `${(o / 1073741824).toFixed(1)} Go` : `${Math.max(1, Math.round(o / 1048576))} Mo`;
 
+      /* ── Recherche : dans TOUT le Drive, pas le dossier courant —
+         « où est ce fichier ? » est la vraie question. ── */
+      const [recherche, setRecherche] = useState('');
+      const [resultats, setResultats] = useState(null);   // null = pas de recherche
+      useEffect(() => {
+        const q = recherche.trim();
+        if (!q) { setResultats(null); return; }
+        const t = setTimeout(async () => {
+          const { data } = await sb.from('drive_items').select('*')
+            .ilike('nom', `%${q}%`).order('created_at', { ascending: false }).limit(60);
+          setResultats(data || []);
+        }, 300);
+        return () => clearTimeout(t);
+      }, [recherche]);
+      /* Ouvrir un dossier trouvé par la recherche : le fil d'Ariane se
+         reconstruit en remontant les parents (tous les dossiers sont
+         déjà chargés pour « Déplacer »). */
+      const ouvrirDossierTrouve = (d) => {
+        const parId = new Map(dossiers.map((x) => [x.id, x]));
+        const chaine = [];
+        let cur = d;
+        while (cur && chaine.length < 20) {
+          chaine.unshift({ id: cur.id, nom: cur.nom });
+          cur = cur.parent_id ? parId.get(cur.parent_id) : null;
+        }
+        setRecherche(''); setChemin(chaine);
+      };
+
+      /* ── Sélection multiple : déplacer et supprimer en lot ── */
+      const [selMode, setSelMode] = useState(false);
+      const [sels, setSels] = useState(new Set());
+      const [destLot, setDestLot] = useState('');
+      const basculerSel = (id) => setSels((s) => {
+        const n = new Set(s);
+        if (n.has(id)) n.delete(id); else n.add(id);
+        return n;
+      });
+      const finirSel = () => { setSelMode(false); setSels(new Set()); setDestLot(''); };
+      const deplacerLot = async () => {
+        if (!sels.size) return;
+        const { error } = await sb.from('drive_items')
+          .update({ parent_id: destLot || null }).in('id', [...sels]);
+        if (error) { setErr(humaniseErreur(error.message)); return; }
+        finirSel(); charger(); chargerDossiers();
+      };
+      const supprimerLot = async () => {
+        if (!sels.size) return;
+        if (!confirm(`Supprimer ${sels.size} élément${sels.size > 1 ? 's' : ''} ?\n\nLes dossiers partent avec leur contenu. Irréversible.`)) return;
+        const { data, error } = await sb.from('drive_items')
+          .delete().in('id', [...sels]).select('id');
+        if (error) { setErr(humaniseErreur(error.message)); return; }
+        if ((data || []).length < sels.size) {
+          setErr('Seuls vos propres dépôts ont été supprimés — le reste appartient à d’autres.');
+        }
+        finirSel(); charger(); chargerDossiers();
+      };
+
+      // Glisser-déposer : tout l'onglet est une zone de dépôt.
+      const [glisse, setGlisse] = useState(false);
+
       const charger = async () => {
         let q = sb.from('drive_items').select('*');
         q = dossier ? q.eq('parent_id', dossier) : q.is('parent_id', null);
@@ -3168,9 +3344,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       const majEnvoi = (cle, pct) => setEnvois((l) => l.map((e) => (e.cle === cle ? { ...e, pct } : e)));
 
-      const televerser = async (e) => {
+      const televerser = (e) => {
         const fichiers = Array.from(e.target.files || []);
         e.target.value = '';
+        traiterFichiers(fichiers);
+      };
+
+      const traiterFichiers = async (fichiers) => {
         for (const f of fichiers) {
           const estImage = /^image\//.test(f.type);
           const estVideo = /^video\//.test(f.type);
@@ -3266,11 +3446,24 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         const m = Math.floor(s / 60), r = s % 60;
         return `${m}:${String(r).padStart(2, '0')}`;
       };
-      const lesDossiers = (items || []).filter((i) => i.genre === 'dossier');
-      const lesFichiers = (items || []).filter((i) => i.genre !== 'dossier');
+      const enRecherche = resultats !== null;
+      const source = enRecherche ? resultats : (items || []);
+      const lesDossiers = source.filter((i) => i.genre === 'dossier');
+      const lesFichiers = source.filter((i) => i.genre !== 'dossier');
+
+      const Coche = ({ actif }) => (
+        <span aria-hidden="true"
+          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${actif ? 'bg-emerald-500 border-emerald-500' : 'border-stone-400 bg-white/70'}`}>
+          {actif && <Check size={11} className="text-white" />}
+        </span>
+      );
 
       return (
-        <div>
+        <div
+          onDragOver={(e) => { e.preventDefault(); setGlisse(true); }}
+          onDragLeave={() => setGlisse(false)}
+          onDrop={(e) => { e.preventDefault(); setGlisse(false); traiterFichiers(Array.from(e.dataTransfer?.files || [])); }}
+          className={glisse ? 'rounded-[24px] outline-dashed outline-2 outline-stone-400 outline-offset-4' : ''}>
           {/* ─── Fil d'Ariane + actions ─── */}
           <div className="flex items-center justify-between gap-3 flex-wrap mb-5">
             <div className="flex items-center gap-1.5 flex-wrap min-w-0 text-[13px]">
@@ -3315,12 +3508,45 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   </button>
                 </>
               )}
+              <Btn kind={selMode ? 'dark' : 'soft'} onClick={() => (selMode ? finirSel() : setSelMode(true))}>
+                {selMode ? 'Terminer' : 'Sélectionner'}
+              </Btn>
               <Btn icon={FolderOpen} onClick={creerDossier}>Nouveau dossier</Btn>
               <Btn kind="dark" icon={Upload} onClick={() => fichierRef.current?.click()}>Téléverser</Btn>
               <input ref={fichierRef} type="file" multiple accept="image/*,video/*"
                 className="hidden" onChange={televerser} />
             </div>
           </div>
+
+          {/* ─── Recherche : tout le Drive, où que l'on soit ─── */}
+          <div className="mb-4">
+            <Input value={recherche} onChange={(e) => setRecherche(e.target.value)}
+              placeholder="Rechercher dans tout le Drive…" aria-label="Rechercher dans le Drive" />
+            {enRecherche && (
+              <div className="text-[11.5px] text-stone-500 mt-1.5">
+                {source.length} résultat{source.length > 1 ? 's' : ''} dans tout le Drive — effacez la recherche pour revenir au dossier.
+              </div>
+            )}
+          </div>
+
+          {/* ─── Barre de lot (sélection multiple) ─── */}
+          {selMode && (
+            <div style={neu.raised} className="rounded-2xl p-3 mb-4 flex items-center gap-2 flex-wrap">
+              <span className="text-[12.5px] font-semibold px-1">
+                {sels.size} sélectionné{sels.size > 1 ? 's' : ''}
+              </span>
+              <div className="flex-1 min-w-[170px]">
+                <Select value={destLot} onChange={(e) => setDestLot(e.target.value)}>
+                  <option value="">Racine du Drive</option>
+                  {dossiers.filter((d) => !sels.has(d.id)).map((d) => (
+                    <option key={d.id} value={d.id}>{d.nom}</option>
+                  ))}
+                </Select>
+              </div>
+              <Btn kind="dark" onClick={deplacerLot} disabled={!sels.size}>Déplacer</Btn>
+              <Btn icon={Trash2} onClick={supprimerLot} disabled={!sels.size} className="text-rose-600">Supprimer</Btn>
+            </div>
+          )}
 
           {err && (
             <div className="flex items-start gap-2 p-3 mb-4 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]">
@@ -3345,17 +3571,20 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </div>
           )}
 
-          {items === null ? (
+          {items === null && !enRecherche ? (
             <div className="py-16 flex justify-center"><Loader2 size={18} className="animate-spin text-stone-400" /></div>
           ) : !lesDossiers.length && !lesFichiers.length && !envois.length ? (
             <div style={neu.pressed} className="rounded-[24px] p-10 text-center">
               <div style={neu.dark} className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center text-white mb-4">
                 <FolderOpen size={20} />
               </div>
-              <div className="text-[15px] font-semibold">Rien ici pour l'instant</div>
+              <div className="text-[15px] font-semibold">
+                {enRecherche ? `Rien pour « ${recherche.trim()} »` : "Rien ici pour l'instant"}
+              </div>
               <p className="text-[12.5px] text-stone-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
-                Déposez photos et vidéos, rangez-les en dossiers — toute l'équipe y accède.
-                Les vidéos reçoivent une version allégée, prête à regarder d'un clic.
+                {enRecherche
+                  ? 'Essayez un autre mot — la recherche parcourt les noms de tout le Drive.'
+                  : 'Déposez photos et vidéos, rangez-les en dossiers — toute l’équipe y accède. Les vidéos reçoivent une version allégée, prête à regarder d’un clic.'}
               </p>
             </div>
           ) : vue === 'liste' ? (
@@ -3363,22 +3592,29 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             <div className="space-y-1.5">
               {lesDossiers.map((d) => (
                 <div key={d.id} style={neu.raisedXs} className="rounded-xl flex items-center">
-                  <button type="button" onClick={() => setChemin([...chemin, { id: d.id, nom: d.nom }])}
+                  <button type="button"
+                    onClick={() => selMode ? basculerSel(d.id)
+                      : enRecherche ? ouvrirDossierTrouve(d)
+                      : setChemin([...chemin, { id: d.id, nom: d.nom }])}
                     className="flex-1 min-w-0 min-h-[52px] px-3 flex items-center gap-3 text-left">
+                    {selMode && <Coche actif={sels.has(d.id)} />}
                     <FolderOpen size={17} className="text-stone-500 shrink-0" />
                     <span className="text-[13px] font-semibold truncate">{d.nom}</span>
                   </button>
-                  <button type="button" onClick={() => { setGere(d); setDest(''); }}
-                    aria-label={`Options du dossier ${d.nom}`}
-                    className="w-11 min-h-[52px] flex items-center justify-center text-stone-400 hover:text-stone-700 shrink-0">
-                    ⋯
-                  </button>
+                  {!selMode && (
+                    <button type="button" onClick={() => { setGere(d); setDest(''); }}
+                      aria-label={`Options du dossier ${d.nom}`}
+                      className="w-11 min-h-[52px] flex items-center justify-center text-stone-400 hover:text-stone-700 shrink-0">
+                      ⋯
+                    </button>
+                  )}
                 </div>
               ))}
               {lesFichiers.map((f) => (
                 <div key={f.id} style={neu.raisedXs} className="rounded-xl flex items-center">
-                  <button type="button" onClick={() => setOuvert(f)}
+                  <button type="button" onClick={() => selMode ? basculerSel(f.id) : setOuvert(f)}
                     className="flex-1 min-w-0 min-h-[56px] px-2.5 py-1.5 flex items-center gap-3 text-left">
+                    {selMode && <Coche actif={sels.has(f.id)} />}
                     <div className="w-12 h-12 rounded-lg overflow-hidden bg-stone-900/85 shrink-0 relative">
                       {f.apercu_url ? (
                         <img src={f.apercu_url} alt="" loading="lazy" className="w-full h-full object-cover" />
@@ -3405,11 +3641,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       </div>
                     </div>
                   </button>
-                  <button type="button" onClick={() => { setGere(f); setDest(''); }}
-                    aria-label={`Options de ${f.nom}`}
-                    className="w-11 min-h-[56px] flex items-center justify-center text-stone-400 hover:text-stone-700 shrink-0">
-                    ⋯
-                  </button>
+                  {!selMode && (
+                    <button type="button" onClick={() => { setGere(f); setDest(''); }}
+                      aria-label={`Options de ${f.nom}`}
+                      className="w-11 min-h-[56px] flex items-center justify-center text-stone-400 hover:text-stone-700 shrink-0">
+                      ⋯
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -3419,16 +3657,22 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <div className={`grid ${colonnes} gap-3 mb-4`}>
                   {lesDossiers.map((d) => (
                     <div key={d.id} style={neu.raisedXs} className="rounded-2xl flex items-center">
-                      <button type="button" onClick={() => setChemin([...chemin, { id: d.id, nom: d.nom }])}
+                      <button type="button"
+                        onClick={() => selMode ? basculerSel(d.id)
+                          : enRecherche ? ouvrirDossierTrouve(d)
+                          : setChemin([...chemin, { id: d.id, nom: d.nom }])}
                         className="flex-1 min-w-0 min-h-[52px] px-3.5 flex items-center gap-2.5 text-left">
+                        {selMode && <Coche actif={sels.has(d.id)} />}
                         <FolderOpen size={17} className="text-stone-500 shrink-0" />
                         <span className="text-[13px] font-semibold truncate">{d.nom}</span>
                       </button>
-                      <button type="button" onClick={() => { setGere(d); setDest(''); }}
-                        aria-label={`Options du dossier ${d.nom}`}
-                        className="w-11 min-h-[52px] flex items-center justify-center text-stone-400 hover:text-stone-700 shrink-0">
-                        ⋯
-                      </button>
+                      {!selMode && (
+                        <button type="button" onClick={() => { setGere(d); setDest(''); }}
+                          aria-label={`Options du dossier ${d.nom}`}
+                          className="w-11 min-h-[52px] flex items-center justify-center text-stone-400 hover:text-stone-700 shrink-0">
+                          ⋯
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -3437,7 +3681,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <div className={`grid ${colonnes} gap-3`}>
                   {lesFichiers.map((f) => (
                     <div key={f.id} style={neu.raised} className="rounded-2xl overflow-hidden group relative">
-                      <button type="button" onClick={() => setOuvert(f)}
+                      <button type="button" onClick={() => selMode ? basculerSel(f.id) : setOuvert(f)}
                         className="block w-full text-left">
                         <div className="aspect-[4/3] bg-stone-900/85 relative">
                           {f.apercu_url ? (
@@ -3471,11 +3715,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                           </div>
                         </div>
                       </button>
-                      <button type="button" onClick={() => { setGere(f); setDest(''); }}
-                        aria-label={`Options de ${f.nom}`}
-                        className="absolute top-1.5 right-1.5 w-9 h-9 rounded-full bg-black/45 text-white flex items-center justify-center backdrop-blur-sm">
-                        ⋯
-                      </button>
+                      {selMode ? (
+                        <span className="absolute top-2 left-2"><Coche actif={sels.has(f.id)} /></span>
+                      ) : (
+                        <button type="button" onClick={() => { setGere(f); setDest(''); }}
+                          aria-label={`Options de ${f.nom}`}
+                          className="absolute top-1.5 right-1.5 w-9 h-9 rounded-full bg-black/45 text-white flex items-center justify-center backdrop-blur-sm">
+                          ⋯
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -11723,6 +11971,42 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (featuresReady && section === 'portfolio' && !FEATURES.portfolio) setSection('overview');
       }, [featuresReady, section]);
 
+      /* 🔴 Messages non lus — la pastille sur l'onglet. Sans elle, un
+         message reçu ne se voyait qu'en OUVRANT Messages : le même
+         défaut que l'agenda avant les rappels. Même arithmétique que
+         l'onglet lui-même (fils × dernière lecture en métadonnées),
+         nourrie par sondage 30 s + Realtime, et rafraîchie par
+         l'onglet quand il marque un fil comme lu. */
+      const [nonLusMsg, setNonLusMsg] = useState(0);
+      const chargerNonLus = async () => {
+        if (!(MES_METIERS.includes('communication') || FEATURES.allUniverses)) { setNonLusMsg(0); return; }
+        try {
+          const { data } = await sb.from('team_messages')
+            .select('auteur_id, dest_id, created_at')
+            .order('created_at', { ascending: false }).limit(300);
+          const lus = user?.user_metadata?.laloge_equipe_lu || {};
+          let n = 0;
+          (data || []).forEach((m) => {
+            if (m.auteur_id === user?.id) return;
+            const k = m.dest_id == null ? 'equipe' : m.auteur_id;
+            if (!lus[k] || m.created_at > lus[k]) n++;
+          });
+          setNonLusMsg(n);
+        } catch (_) { setNonLusMsg(0); }
+      };
+      useEffect(() => {
+        if (!user || !featuresReady) return;
+        chargerNonLus();
+        const id = setInterval(chargerNonLus, 30000);
+        let canal = null;
+        try {
+          canal = sb.channel('badge-messages')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'team_messages' }, chargerNonLus)
+            .subscribe();
+        } catch (_) {}
+        return () => { clearInterval(id); if (canal) sb.removeChannel(canal); };
+      }, [user, featuresReady]);
+
       /* Un « membre » n'atterrit jamais sur un écran qui ne le regarde
          pas : son monde, c'est l'agenda, l'équipe (ses tâches), les
          messages, ses réglages de compte — et les clients si le
@@ -11847,6 +12131,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     style={section === n.id && !selectedClient ? neu.pressedSm : {}}
                     className={`th-onglet w-full flex items-center gap-3.5 px-4 py-3.5 min-h-[48px] rounded-2xl text-left ${section === n.id && !selectedClient ? 'text-stone-900' : 'text-stone-500 hover:text-stone-800'}`}>
                     <n.icon size={18} /> <span className="text-[14px] font-medium tracking-tight">{n.label}</span>
+                    {n.id === 'messages' && nonLusMsg > 0 && (
+                      <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10.5px] font-bold flex items-center justify-center">
+                        {nonLusMsg > 99 ? '99+' : nonLusMsg}
+                      </span>
+                    )}
                   </button>
                 ))}
               </nav>
@@ -11901,7 +12190,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               ) : section === 'equipe' ? (
                 <EquipeTab clients={clients} user={user} />
               ) : section === 'messages' ? (
-                <MessagesTab user={user} />
+                <MessagesTab user={user} onLu={chargerNonLus} />
               ) : section === 'drive' ? (
                 <DriveTab />
               ) : section === 'revenus' ? (
@@ -12007,7 +12296,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       onClick={() => { setSection(n.id); setSelectedClient(null); }}
                       aria-current={active ? 'page' : undefined}
                       className={`th-onglet relative z-10 flex-1 flex flex-col items-center justify-center gap-1 min-h-[52px] py-2 px-1 rounded-2xl active:scale-95 ${active ? 'text-white' : 'text-stone-500'}`}>
-                      <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
+                      <span className="relative">
+                        <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
+                        {n.id === 'messages' && nonLusMsg > 0 && (
+                          <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9.5px] font-bold flex items-center justify-center">
+                            {nonLusMsg > 99 ? '99+' : nonLusMsg}
+                          </span>
+                        )}
+                      </span>
                       <span className="text-[10px] font-semibold tracking-tight leading-none">{n.label}</span>
                     </button>
                   );

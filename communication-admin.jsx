@@ -2687,6 +2687,136 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        comme à la création d'une agence. */
     const ROLES_EQUIPE = { owner: 'Propriétaire', admin: 'Admin', membre: 'Membre' };
 
+    /* ── Le fil de discussion de l'équipe ──────────────────────────
+       Cousin du chat bêta (mêmes motifs : sondage 10 s, corps borné),
+       mais tout le monde parle à égalité — le nom vient de l'équipe.
+       On peut effacer SON message (une maladresse entre collègues se
+       corrige), jamais celui d'un autre : la base le garantit.
+       Le défilement ne touche QUE la boîte du fil, jamais la page —
+       un sondage qui ferait sauter l'écran toutes les 10 s rendrait
+       l'onglet inutilisable. */
+    function ChatEquipe({ equipe, user }) {
+      const [messages, setMessages] = useState(null);   // null = chargement
+      const [texte, setTexte] = useState('');
+      const [envoi, setEnvoi] = useState(false);
+      const [erreur, setErreur] = useState('');
+      const boiteRef = useRef(null);
+
+      const charger = async () => {
+        const { data, error } = await sb.from('team_messages')
+          .select('*').order('created_at', { ascending: true }).limit(300);
+        if (error) {
+          setErreur(/team_messages/.test(error.message || '')
+            ? "Le chat d'équipe n'est pas encore activé : exécutez files/migration-chat-equipe.sql dans Supabase."
+            : humaniseErreur(error.message));
+          setMessages([]); return;
+        }
+        setErreur(''); setMessages(data || []);
+      };
+      useEffect(() => {
+        charger();
+        const id = setInterval(charger, 10000);
+        return () => clearInterval(id);
+      }, []);
+
+      // Toujours voir le dernier message — dans la boîte seulement.
+      const nMessages = (messages || []).length;
+      useEffect(() => {
+        const b = boiteRef.current;
+        if (b) b.scrollTop = b.scrollHeight;
+      }, [nMessages]);
+
+      const envoyer = async (e) => {
+        e.preventDefault();
+        const corps = texte.trim();
+        if (!corps || envoi) return;
+        setEnvoi(true);
+        const { error } = await sb.from('team_messages')
+          .insert({ agency_id: AGENCY.id, auteur_id: user.id, corps });
+        setEnvoi(false);
+        if (error) { setErreur(humaniseErreur(error.message)); return; }
+        setTexte(''); charger();
+      };
+
+      const effacer = async (m) => {
+        if (!confirm('Effacer ce message ?')) return;
+        await sb.from('team_messages').delete().eq('id', m.id);
+        charger();
+      };
+
+      const nomDe = (id) => (equipe.find((x) => x.user_id === id) || {}).nom || 'Ancien coéquipier';
+      const heureDe = (iso) => {
+        const d = new Date(iso);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      };
+      const jourDe = (iso) => new Date(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+      return (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
+          <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>La discussion</h2>
+          <p className="text-[12.5px] text-stone-500 mt-1.5 leading-relaxed">
+            Le fil de l'équipe — tout le monde le voit, personne d'autre.
+          </p>
+
+          {erreur && (
+            <div className="flex items-start gap-2 p-3 mt-4 rounded-xl bg-amber-50 text-amber-800 text-[12.5px]">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" /> {erreur}
+            </div>
+          )}
+
+          <div ref={boiteRef} style={neu.pressedSm}
+            className="rounded-2xl mt-4 h-[360px] overflow-y-auto overscroll-contain p-4 space-y-3">
+            {messages === null ? (
+              <div className="h-full flex items-center justify-center"><Loader2 size={16} className="animate-spin text-stone-400" /></div>
+            ) : !messages.length ? (
+              <div className="h-full flex items-center justify-center text-[12.5px] text-stone-500 text-center px-6">
+                Personne n'a encore rien dit. Lancez la conversation — toute l'équipe la verra.
+              </div>
+            ) : (
+              messages.map((m, i) => {
+                const mien = m.auteur_id === user?.id;
+                const nouveauJour = i === 0 || jourDe(m.created_at) !== jourDe(messages[i - 1].created_at);
+                return (
+                  <div key={m.id}>
+                    {nouveauJour && (
+                      <div className="text-[10.5px] uppercase tracking-[0.14em] text-stone-400 font-semibold text-center py-2 capitalize">
+                        {jourDe(m.created_at)}
+                      </div>
+                    )}
+                    <div className={`flex ${mien ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`group max-w-[85%] sm:max-w-[70%] rounded-2xl px-3.5 py-2.5 ${mien ? 'text-white' : ''}`}
+                        style={mien ? neu.darkSm : neu.raisedXs}>
+                        <div className={`text-[10.5px] font-semibold mb-0.5 ${mien ? 'text-stone-300' : 'text-stone-500'}`}>
+                          {mien ? 'Vous' : nomDe(m.auteur_id)} · {heureDe(m.created_at)}
+                        </div>
+                        <div className="text-[13.5px] leading-relaxed whitespace-pre-wrap break-words">{m.corps}</div>
+                        {mien && (
+                          <button type="button" onClick={() => effacer(m)}
+                            className="text-[10.5px] text-stone-400 hover:text-rose-400 mt-1 min-h-[24px]">
+                            Effacer
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <form onSubmit={envoyer} className="flex gap-2 mt-3 items-center">
+            <div className="flex-1">
+              <Input value={texte} onChange={(e) => setTexte(e.target.value)}
+                placeholder="Écrire à l'équipe…" aria-label="Message à l'équipe" maxLength={4000} />
+            </div>
+            <Btn kind="dark" type="submit" icon={envoi ? Loader2 : Send} disabled={envoi || !texte.trim()}>
+              <span className="hidden sm:inline">Envoyer</span>
+            </Btn>
+          </form>
+        </div>
+      );
+    }
+
     function EquipeTab({ clients, user }) {
       const [equipe, setEquipe] = useState(null);   // null = chargement
       const [err, setErr] = useState('');
@@ -2965,6 +3095,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </div>
             )}
           </div>
+
+          {/* ─── La discussion de l'équipe ─── */}
+          <ChatEquipe equipe={equipe || []} user={user} />
 
           {/* ─── Les tâches — déménagées depuis l'Agenda. `onChange`
               remonte : cocher une tâche rafraîchit la charge au-dessus. ─── */}

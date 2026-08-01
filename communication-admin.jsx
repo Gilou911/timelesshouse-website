@@ -2745,9 +2745,16 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
 
       const nomDe = (id) => (equipe.find((m) => m.user_id === id) || {}).nom || 'Non assignée';
+      /* « Que j'ai données » : les tâches que J'AI créées pour les
+         AUTRES — le patron voit d'un coup d'œil ce qu'il a distribué,
+         qui a fini, qui est en retard. (Les tâches d'avant la mémoire
+         du créateur — cree_par vide — n'y figurent pas.) */
       const visibles = (taches || []).filter((t) =>
         !peutDonner ? t.assigne_a === moi
-          : qui === 'tous' ? true : qui === 'moi' ? t.assigne_a === moi : t.assigne_a === qui);
+          : qui === 'tous' ? true
+          : qui === 'moi' ? t.assigne_a === moi
+          : qui === 'donnees' ? (t.cree_par === moi && t.assigne_a !== moi)
+          : t.assigne_a === qui);
       const aFaire = visibles.filter((t) => !t.fait_le);
       const faites = visibles.filter((t) => t.fait_le);
 
@@ -2771,6 +2778,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <div className="w-full sm:w-[190px]">
                 <Select value={qui} onChange={(e) => setQui(e.target.value)}>
                   <option value="moi">Mes tâches</option>
+                  <option value="donnees">Que j'ai données</option>
                   <option value="tous">Toute l'équipe</option>
                   {equipe.filter((m) => m.user_id !== moi).map((m) => (
                     <option key={m.user_id} value={m.user_id}>{m.nom}</option>
@@ -2806,11 +2814,26 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </div>
           )}
 
+          {/* Le bilan de ce que j'ai distribué : combien, fait, en retard. */}
+          {qui === 'donnees' && peutDonner && taches !== null && visibles.length > 0 && (() => {
+            const enRetard = aFaire.filter((t) => t.due_on && t.due_on < cleAuj).length;
+            return (
+              <div className="text-[12.5px] text-stone-600 mt-4">
+                <strong>{visibles.length}</strong> donnée{visibles.length > 1 ? 's' : ''}
+                {' · '}<span className="text-emerald-700 font-semibold">{faites.length} faite{faites.length > 1 ? 's' : ''}</span>
+                {' · '}{aFaire.length} en cours
+                {enRetard > 0 && <span className="text-rose-600 font-semibold"> · {enRetard} en retard</span>}
+              </div>
+            );
+          })()}
+
           {taches === null ? (
             <div className="py-8 flex justify-center"><Loader2 size={16} className="animate-spin text-stone-400" /></div>
           ) : !visibles.length ? (
             <p className="text-[12.5px] text-stone-500 mt-5">
-              {qui === 'moi' ? 'Rien ne vous est assigné. Profitez-en.' : 'Aucune tâche pour cette personne.'}
+              {qui === 'moi' ? 'Rien ne vous est assigné. Profitez-en.'
+                : qui === 'donnees' ? 'Rien de distribué pour l’instant — les tâches d’avant ce matin ne portent pas leur créateur.'
+                : 'Aucune tâche pour cette personne.'}
             </p>
           ) : (
             <div className="mt-4 space-y-1.5">

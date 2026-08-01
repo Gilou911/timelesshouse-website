@@ -1618,6 +1618,490 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       juillet:6, aout:7, août:7, septembre:8, octobre:9, novembre:10, decembre:11, décembre:11 };
     const eur = (n) => `${Math.round(n).toLocaleString('fr-FR')} €`;
 
+    /* ══════════════════════════════════════════════════════════════
+       AGENDA — le calendrier éditorial du métier Communication
+       ══════════════════════════════════════════════════════════════
+       Une seule grille où cohabitent ce qu'on FILME (les tournages) et
+       ce qui SORT (les publications programmées) : c'est la vue qu'une
+       agence veut le lundi matin. Les deux viennent d'un seul appel —
+       agenda_agence() les rend déjà triés, la page n'a rien à refondre
+       à chaque changement de mois. */
+    const RESEAUX = {
+      instagram: { l: 'Instagram', c: '#c13584' },
+      tiktok:    { l: 'TikTok',    c: '#0f0f10' },
+      linkedin:  { l: 'LinkedIn',  c: '#0a66c2' },
+      facebook:  { l: 'Facebook',  c: '#1877f2' },
+      youtube:   { l: 'YouTube',   c: '#c4302b' },
+      autre:     { l: 'Autre',     c: '#6b6357' },
+    };
+    const STATUTS_POST = {
+      idee:       'Idée',
+      tournage:   'À tourner',
+      montage:    'Au montage',
+      validation: 'Chez le client',
+      programme:  'Programmé',
+      publie:     'Publié',
+      abandonne:  'Abandonné',
+    };
+    const JOURS_COURTS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+    /* Clé de jour LOCALE. toISOString() bascule en UTC et décale d'un
+       jour tout ce qui tombe après 22h en été — une sortie du mardi 23h
+       se serait rangée au mercredi. */
+    const cleJour = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const hhmm = (iso) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    };
+
+    function AgendaTab({ clients }) {
+      const [mois, setMois] = useState(() => { const d = new Date(); d.setDate(1); return d; });
+      const [agenda, setAgenda] = useState(null);   // null = chargement
+      const [err, setErr] = useState('');
+      const [equipe, setEquipe] = useState([]);
+      const [nouveau, setNouveau] = useState(false);
+
+      // Les bornes du mois affiché, en dates locales.
+      const debut = useMemo(() => new Date(mois.getFullYear(), mois.getMonth(), 1), [mois]);
+      const fin   = useMemo(() => new Date(mois.getFullYear(), mois.getMonth() + 1, 0), [mois]);
+
+      const charger = async () => {
+        setErr('');
+        const { data, error } = await sb.rpc('agenda_agence', {
+          p_du: cleJour(debut), p_au: cleJour(fin),
+        });
+        if (error) {
+          setErr(/agenda_agence/.test(error.message || '')
+            ? "L'agenda n'est pas encore activé : exécutez files/migration-comm-calendrier.sql dans Supabase."
+            : humaniseErreur(error.message));
+          setAgenda({ tournages: [], sorties: [] });
+          return;
+        }
+        setAgenda(data || { tournages: [], sorties: [] });
+      };
+      useEffect(() => { setAgenda(null); charger(); }, [mois]);
+      useEffect(() => {
+        sb.rpc('equipe_agence').then(({ data }) => setEquipe(data || [])).catch(() => {});
+      }, []);
+
+      /* Les cases de la grille : on remonte au lundi qui précède le 1er
+         et on descend jusqu'au dimanche qui suit le dernier. Une grille
+         qui commencerait au 1er ferait glisser les colonnes de semaine
+         en semaine, et on ne lirait plus « tous mes mardis ». */
+      const cases = useMemo(() => {
+        const premier = new Date(debut);
+        const recul = (premier.getDay() + 6) % 7;          // 0 = lundi
+        premier.setDate(premier.getDate() - recul);
+        const liste = [];
+        for (let i = 0; i < 42; i++) {
+          const d = new Date(premier);
+          d.setDate(premier.getDate() + i);
+          liste.push(d);
+          if (i >= 34 && d >= fin && d.getDay() === 0) break;
+        }
+        return liste;
+      }, [debut, fin]);
+
+      // Rangement par jour, une seule passe.
+      const parJour = useMemo(() => {
+        const m = {};
+        const poser = (cle, item) => { (m[cle] = m[cle] || { tournages: [], sorties: [] })[item.genre].push(item); };
+        (agenda?.tournages || []).forEach((t) => poser(t.jour, { ...t, genre: 'tournages' }));
+        (agenda?.sorties || []).forEach((s) => {
+          if (s.prevue_le) poser(cleJour(new Date(s.prevue_le)), { ...s, genre: 'sorties' });
+        });
+        return m;
+      }, [agenda]);
+
+      const moisLabel = debut.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      const aujourdhui = cleJour(new Date());
+      const nTournages = (agenda?.tournages || []).length;
+      const nSorties = (agenda?.sorties || []).length;
+
+      return (
+        <div>
+          <div className="flex items-start justify-between gap-3 flex-wrap mb-6">
+            <div>
+              <h1 className="text-[26px] lg:text-[32px] tracking-tight" style={SERIF}>Agenda</h1>
+              <p className="text-[13px] text-stone-500 mt-1">
+                Ce que vous tournez et ce qui sort, sur la même grille.
+              </p>
+            </div>
+            <Btn kind="dark" icon={Plus} onClick={() => setNouveau(true)}>Programmer un post</Btn>
+          </div>
+
+          <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+            <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setMois(new Date(mois.getFullYear(), mois.getMonth() - 1, 1))}
+                  aria-label="Mois précédent" style={neu.raisedXs}
+                  className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-transform">
+                  <ChevronRight size={15} style={{ transform: 'rotate(180deg)' }} />
+                </button>
+                <div className="text-[15px] font-semibold min-w-[150px] text-center capitalize">{moisLabel}</div>
+                <button onClick={() => setMois(new Date(mois.getFullYear(), mois.getMonth() + 1, 1))}
+                  aria-label="Mois suivant" style={neu.raisedXs}
+                  className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-transform">
+                  <ChevronRight size={15} />
+                </button>
+                <Btn onClick={() => { const d = new Date(); d.setDate(1); setMois(d); }}>Ce mois-ci</Btn>
+              </div>
+              <div className="flex items-center gap-4 text-[11.5px] text-stone-500">
+                <span className="flex items-center gap-1.5"><Camera size={12} /> {nTournages} tournage{nTournages > 1 ? 's' : ''}</span>
+                <span className="flex items-center gap-1.5"><Send size={12} /> {nSorties} sortie{nSorties > 1 ? 's' : ''}</span>
+              </div>
+            </div>
+
+            {err && (
+              <div className="flex items-start gap-2 p-3 mb-4 rounded-xl bg-amber-50 text-amber-800 text-[12.5px]">
+                <AlertCircle size={14} className="mt-0.5 shrink-0" /> {err}
+              </div>
+            )}
+
+            {agenda === null ? (
+              <div className="py-16 flex justify-center"><Loader2 size={18} className="animate-spin text-stone-400" /></div>
+            ) : (
+              <>
+                <div className="grid grid-cols-7 gap-1.5 mb-1.5">
+                  {JOURS_COURTS.map((j) => (
+                    <div key={j} className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold text-center py-1">{j}</div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {cases.map((d) => {
+                    const cle = cleJour(d);
+                    const dedans = d.getMonth() === debut.getMonth();
+                    const jour = parJour[cle] || { tournages: [], sorties: [] };
+                    const cestAujourdhui = cle === aujourdhui;
+                    return (
+                      <div key={cle}
+                        style={jour.tournages.length || jour.sorties.length ? neu.pressedSm : undefined}
+                        className={`rounded-xl p-1.5 min-h-[84px] ${dedans ? '' : 'opacity-35'}`}>
+                        <div className={`text-[11px] font-semibold mb-1 flex items-center justify-center w-6 h-6 rounded-full ${cestAujourdhui ? 'bg-stone-900 text-white' : 'text-stone-500'}`}>
+                          {d.getDate()}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          {jour.tournages.map((t) => (
+                            <div key={t.id} title={`${t.titre}${t.lieu ? ' — ' + t.lieu : ''}${t.client ? ' · ' + t.client : ''}`}
+                              className="text-[9.5px] leading-tight rounded-md px-1.5 py-1 bg-stone-800 text-white truncate">
+                              {t.debut ? String(t.debut).slice(0, 5) + ' ' : ''}{t.type === 'video' ? '🎥' : '📸'} {t.titre}
+                            </div>
+                          ))}
+                          {jour.sorties.map((s) => (
+                            <div key={s.id} title={`${s.titre} · ${RESEAUX[s.reseau]?.l || s.reseau}${s.client ? ' · ' + s.client : ''}`}
+                              className="text-[9.5px] leading-tight rounded-md px-1.5 py-1 text-white truncate"
+                              style={{ background: RESEAUX[s.reseau]?.c || '#6b6357' }}>
+                              {hhmm(s.prevue_le)} {s.titre}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {!nTournages && !nSorties && !err && (
+                  <p className="text-[12.5px] text-stone-500 text-center mt-5 leading-relaxed">
+                    Rien de prévu ce mois-ci. Les tournages arrivent des fiches clients ;
+                    les publications se programment avec le bouton ci-dessus.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          <MesTaches equipe={equipe} clients={clients} />
+
+          {nouveau && (
+            <PostForm clients={clients} onClose={() => setNouveau(false)}
+              onSaved={() => { setNouveau(false); charger(); }} />
+          )}
+        </div>
+      );
+    }
+
+    /* ── Mes tâches ────────────────────────────────────────────────
+       Volontairement AUTONOMES : une tâche peut pendre à un post, à un
+       tournage, ou à rien (« relancer le client », « acheter une carte
+       SD »). Par défaut on montre CE QUI M'EST ASSIGNÉ — la question
+       du matin est « qu'est-ce que je fais aujourd'hui », pas « que
+       fait l'agence ». */
+    function MesTaches({ equipe, clients }) {
+      const [taches, setTaches] = useState(null);
+      const [qui, setQui] = useState('moi');        // moi · tous · un user_id
+      const [moi, setMoi] = useState(null);
+      const [err, setErr] = useState('');
+      const [titre, setTitre] = useState('');
+      const [pour, setPour] = useState('');
+      const [quand, setQuand] = useState('');
+      const [busy, setBusy] = useState(false);
+
+      useEffect(() => { sb.auth.getUser().then(({ data }) => setMoi(data?.user?.id || null)); }, []);
+
+      const charger = async () => {
+        setErr('');
+        const { data, error } = await sb.from('tasks')
+          .select('*').order('fait_le', { nullsFirst: true }).order('due_on', { nullsFirst: false });
+        if (error) {
+          setErr(/relation .*tasks/.test(error.message || '')
+            ? "Les tâches ne sont pas encore activées : exécutez files/migration-comm-calendrier.sql dans Supabase."
+            : humaniseErreur(error.message));
+          setTaches([]); return;
+        }
+        setTaches(data || []);
+      };
+      useEffect(() => { charger(); }, []);
+
+      const ajouter = async (e) => {
+        e.preventDefault();
+        if (!titre.trim() || busy) return;
+        setBusy(true);
+        const { error } = await sb.from('tasks').insert({
+          agency_id: AGENCY.id,
+          titre: titre.trim(),
+          assigne_a: pour || moi || null,
+          due_on: quand || null,
+        });
+        setBusy(false);
+        if (error) { setErr(humaniseErreur(error.message)); return; }
+        setTitre(''); setQuand('');
+        charger();
+      };
+
+      const basculer = async (t) => {
+        const { error } = await sb.from('tasks')
+          .update({ fait_le: t.fait_le ? null : new Date().toISOString() }).eq('id', t.id);
+        if (error) { setErr(humaniseErreur(error.message)); return; }
+        charger();
+      };
+
+      const supprimer = async (t) => {
+        if (!confirm(`Supprimer « ${t.titre} » ?`)) return;
+        await sb.from('tasks').delete().eq('id', t.id);
+        charger();
+      };
+
+      const nomDe = (id) => (equipe.find((m) => m.user_id === id) || {}).nom || 'Non assignée';
+      const visibles = (taches || []).filter((t) =>
+        qui === 'tous' ? true : qui === 'moi' ? t.assigne_a === moi : t.assigne_a === qui);
+      const aFaire = visibles.filter((t) => !t.fait_le);
+      const faites = visibles.filter((t) => t.fait_le);
+
+      /* En retard / aujourd'hui : la seule information qui fait AGIR.
+         Comparaison en chaînes ISO — jamais de Date() ici, un fuseau
+         mal placé décalerait « aujourd'hui » d'un jour. */
+      const auj = new Date();
+      const cleAuj = `${auj.getFullYear()}-${String(auj.getMonth() + 1).padStart(2, '0')}-${String(auj.getDate()).padStart(2, '0')}`;
+      const urgence = (t) => !t.due_on ? '' : t.due_on < cleAuj ? 'retard' : t.due_on === cleAuj ? 'auj' : '';
+
+      return (
+        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6 mt-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>Les tâches</h2>
+              <p className="text-[12.5px] text-stone-500 mt-1">Qui fait quoi, et pour quand.</p>
+            </div>
+            <div className="w-full sm:w-[190px]">
+              <Select value={qui} onChange={(e) => setQui(e.target.value)}>
+                <option value="moi">Mes tâches</option>
+                <option value="tous">Toute l'équipe</option>
+                {equipe.filter((m) => m.user_id !== moi).map((m) => (
+                  <option key={m.user_id} value={m.user_id}>{m.nom}</option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
+          <form onSubmit={ajouter} className="grid sm:grid-cols-[1fr_auto_auto_auto] gap-2 mt-4 items-end">
+            <Field label="Nouvelle tâche">
+              <Input value={titre} onChange={(e) => setTitre(e.target.value)}
+                placeholder="Monter le reel Era Étampes" />
+            </Field>
+            <Field label="Pour qui">
+              <Select value={pour} onChange={(e) => setPour(e.target.value)}>
+                <option value="">Moi</option>
+                {equipe.map((m) => <option key={m.user_id} value={m.user_id}>{m.nom}</option>)}
+              </Select>
+            </Field>
+            <Field label="Pour quand">
+              <Input type="date" value={quand} onChange={(e) => setQuand(e.target.value)} />
+            </Field>
+            <Btn kind="dark" type="submit" disabled={busy || !titre.trim()}>Ajouter</Btn>
+          </form>
+
+          {err && (
+            <div className="flex items-start gap-2 p-3 mt-4 rounded-xl bg-amber-50 text-amber-800 text-[12.5px]">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" /> {err}
+            </div>
+          )}
+
+          {taches === null ? (
+            <div className="py-8 flex justify-center"><Loader2 size={16} className="animate-spin text-stone-400" /></div>
+          ) : !visibles.length ? (
+            <p className="text-[12.5px] text-stone-500 mt-5">
+              {qui === 'moi' ? 'Rien ne vous est assigné. Profitez-en.' : 'Aucune tâche pour cette personne.'}
+            </p>
+          ) : (
+            <div className="mt-4 space-y-1.5">
+              {[...aFaire, ...faites].map((t) => {
+                const u = urgence(t);
+                return (
+                  <div key={t.id} style={neu.pressedSm}
+                    className={`rounded-xl p-3 flex items-center gap-3 ${t.fait_le ? 'opacity-55' : ''}`}>
+                    <button type="button" onClick={() => basculer(t)}
+                      aria-label={t.fait_le ? 'Rouvrir la tâche' : 'Marquer faite'}
+                      className="tap-ext w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 active:scale-90 transition-transform"
+                      style={{ borderColor: t.fait_le ? '#3f9c6d' : '#b9b2a5', background: t.fait_le ? '#3f9c6d' : 'transparent' }}>
+                      {t.fait_le && <Check size={12} className="text-white" />}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-[13.5px] ${t.fait_le ? 'line-through' : ''}`}>{t.titre}</div>
+                      <div className="text-[11px] text-stone-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                        <span>{nomDe(t.assigne_a)}</span>
+                        {t.due_on && (
+                          <span className={u === 'retard' ? 'text-rose-600 font-semibold'
+                            : u === 'auj' ? 'text-amber-700 font-semibold' : ''}>
+                            {u === 'retard' ? 'en retard — ' : u === 'auj' ? "aujourd'hui — " : ''}
+                            {isoToLabel(t.due_on)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => supprimer(t)} aria-label="Supprimer la tâche"
+                      className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    /* ── Programmer un post ────────────────────────────────────────
+       Un contenu, plusieurs SORTIES : le client ne valide qu'une fois,
+       les commentaires ne se dispersent pas, et le jour où Meta et
+       TikTok valideront les apps, chaque sortie saura se publier seule
+       sans qu'on touche au modèle. */
+    function PostForm({ clients, onClose, onSaved }) {
+      const [titre, setTitre] = useState('');
+      const [client, setClient] = useState('');
+      const [brief, setBrief] = useState('');
+      const [jour, setJour] = useState('');
+      const [heure, setHeure] = useState('18:00');
+      const [reseaux, setReseaux] = useState(['instagram']);
+      const [busy, setBusy] = useState(false);
+      const [err, setErr] = useState('');
+
+      const basculerReseau = (r) =>
+        setReseaux((l) => l.includes(r) ? l.filter((x) => x !== r) : [...l, r]);
+
+      const enregistrer = async (e) => {
+        e.preventDefault();
+        if (busy) return;
+        if (!titre.trim()) { setErr('Donnez un titre au post.'); return; }
+        if (!reseaux.length) { setErr('Choisissez au moins un réseau.'); return; }
+        setBusy(true); setErr('');
+        try {
+          const { data: post, error: e1 } = await sb.from('posts').insert({
+            agency_id: AGENCY.id,
+            client_id: client || null,
+            title: titre.trim(),
+            brief: brief.trim() || null,
+            /* Daté = programmé ; sans date, ce n'est encore qu'une idée.
+               L'état DIT la réalité, il ne la décrète pas. */
+            statut: jour ? 'programme' : 'idee',
+          }).select().single();
+          if (e1) throw e1;
+
+          if (jour) {
+            /* La date part en heure LOCALE : « mardi 18h » doit rester
+               mardi 18h. Un ISO construit à la main serait interprété
+               en UTC et décalerait la sortie de deux heures en été. */
+            const sorties = reseaux.map((r) => ({
+              post_id: post.id, reseau: r,
+              prevue_le: new Date(`${jour}T${heure || '00:00'}`).toISOString(),
+            }));
+            const { error: e2 } = await sb.from('post_sorties').insert(sorties);
+            if (e2) throw e2;
+          }
+          onSaved();
+        } catch (e2) {
+          setErr(/relation .*posts/.test(e2.message || '')
+            ? "L'agenda n'est pas encore activé : exécutez files/migration-comm-calendrier.sql dans Supabase."
+            : humaniseErreur(e2.message));
+          setBusy(false);
+        }
+      };
+
+      return (
+        <Modal onClose={onClose} title="Programmer un post">
+          <form onSubmit={enregistrer} className="space-y-4">
+            <Field label="Titre">
+              <Input value={titre} onChange={(e) => setTitre(e.target.value)}
+                placeholder="Reel — coulisses du tournage Era" required />
+            </Field>
+            <Field label="Pour quelle marque">
+              <Select value={client} onChange={(e) => setClient(e.target.value)}>
+                <option value="">— aucune en particulier —</option>
+                {(clients || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </Select>
+            </Field>
+            <Field label="Intention, script, angle">
+              <Textarea value={brief} onChange={(e) => setBrief(e.target.value)} rows={3}
+                placeholder="Ce qu'on raconte, et pourquoi." />
+            </Field>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Field label="Date de sortie">
+                <Input type="date" value={jour} onChange={(e) => setJour(e.target.value)} />
+                <div className="text-[11px] text-stone-500 mt-1">
+                  {jour ? 'Le post apparaîtra dans l’agenda.' : 'Sans date, il reste une idée — modifiable plus tard.'}
+                </div>
+              </Field>
+              <Field label="Heure">
+                <Input type="time" value={heure} onChange={(e) => setHeure(e.target.value)} disabled={!jour} />
+              </Field>
+            </div>
+
+            <Field label="Sur quels réseaux">
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(RESEAUX).map(([id, r]) => {
+                  const on = reseaux.includes(id);
+                  return (
+                    <button key={id} type="button" onClick={() => basculerReseau(id)}
+                      aria-pressed={on}
+                      className="min-h-[44px] px-4 rounded-full text-[12.5px] font-semibold transition active:scale-95"
+                      style={on
+                        ? { background: r.c, color: '#fff' }
+                        : { ...neu.raisedXs, color: '#57534e' }}>
+                      {r.l}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="text-[11px] text-stone-500 mt-2">
+                Un seul contenu, une sortie par réseau — le client ne valide qu'une fois.
+              </div>
+            </Field>
+
+            {err && (
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]">
+                <AlertCircle size={14} className="mt-0.5 shrink-0" /> {err}
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end pt-2">
+              <Btn onClick={onClose}>Annuler</Btn>
+              <Btn kind="dark" type="submit" disabled={busy}>{busy ? 'Enregistrement…' : 'Programmer'}</Btn>
+            </div>
+          </form>
+        </Modal>
+      );
+    }
+
     function RevenusTab({ user, onClients }) {
       const [factures, setFactures] = useState(null); // null = chargement
       const [err, setErr] = useState('');
@@ -9291,6 +9775,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 {[
                   { id: 'overview', icon: Home, label: 'Vue d\'ensemble' },
                   { id: 'clients', icon: Users, label: 'Clients' },
+                  /* L'agenda est l'outil du métier Communication & Marketing :
+                     il n'a rien à faire chez un photographe de mariage.
+                     FEATURES.allUniverses = la plateforme, qui voit tout. */
+                  ...(MES_METIERS.includes('communication') || FEATURES.allUniverses
+                    ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' }] : []),
                   { id: 'revenus', icon: TrendingUp, label: 'Revenus' },
                   ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),
                   ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),
@@ -9350,6 +9839,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <Overview clients={clients} {...overviewData} agency={myAgency} refreshBrand={loadFeatures} />
               ) : section === 'settings' ? (
                 <SettingsView billing={overviewData.billing} agency={myAgency} refreshBrand={loadFeatures} />
+              ) : section === 'agenda' ? (
+                <AgendaTab clients={clients} />
               ) : section === 'revenus' ? (
                 <RevenusTab user={user} onClients={() => setSection('clients')} />
               ) : section === 'portfolio' && FEATURES.portfolio ? (

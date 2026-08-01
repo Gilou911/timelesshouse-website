@@ -3207,6 +3207,62 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return { largeur: w, hauteur: h, apercu: await variante(640, 0.72), vue: await variante(1800, 0.8) };
     }
 
+    /* Sélecteur de fichier du Drive — partagé par les formulaires
+       Médias, Factures et Documents : au lieu de re-téléverser un
+       fichier que l'équipe a déjà déposé, on le pointe. `genres`
+       borne ce qui est proposé (une facture ne veut qu'un document). */
+    function DrivePicker({ genres, onChoisir, onClose }) {
+      const [rech, setRech] = useState('');
+      const [liste, setListe] = useState(null);
+      useEffect(() => {
+        const t = setTimeout(async () => {
+          let q = sb.from('drive_items').select('*').in('genre', genres)
+            .order('created_at', { ascending: false }).limit(40);
+          if (rech.trim()) q = q.ilike('nom', `%${rech.trim()}%`);
+          const { data } = await q;
+          setListe(data || []);
+        }, 250);
+        return () => clearTimeout(t);
+      }, [rech]);
+      return (
+        <Modal title="Choisir dans le Drive" kicker="Fichier de l'équipe" onClose={onClose} size="lg">
+          <div className="space-y-3">
+            <Input value={rech} onChange={(e) => setRech(e.target.value)}
+              placeholder="Rechercher par nom…" aria-label="Rechercher dans le Drive" />
+            {liste === null ? (
+              <div className="py-8 flex justify-center"><Loader2 size={16} className="animate-spin text-stone-400" /></div>
+            ) : !liste.length ? (
+              <p className="text-[12.5px] text-stone-500 py-4 text-center">
+                Rien trouvé — déposez d'abord le fichier dans l'onglet Drive.
+              </p>
+            ) : (
+              <div className="space-y-1.5 max-h-[50vh] overflow-y-auto">
+                {liste.map((f) => (
+                  <button key={f.id} type="button" onClick={() => onChoisir(f)}
+                    style={neu.raisedXs}
+                    className="w-full rounded-xl min-h-[56px] px-2.5 py-1.5 flex items-center gap-3 text-left">
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-stone-900/85 shrink-0 flex items-center justify-center text-stone-400">
+                      {f.apercu_url
+                        ? <img src={f.apercu_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                        : (f.genre === 'video' ? <Video size={15} />
+                           : f.genre === 'document' ? <FileText size={15} /> : <ImageIcon size={15} />)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-medium truncate">{f.nom}</div>
+                      <div className="text-[10.5px] text-stone-500 mt-0.5">
+                        {f.genre === 'video' ? 'Vidéo' : f.genre === 'document' ? 'Document' : 'Photo'}
+                        {f.taille ? ` · ${fmtSizeFR(f.taille)}` : ''}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </Modal>
+      );
+    }
+
     function DriveTab({ clients = [] }) {
       const [chemin, setChemin] = useState([]);        // [{id, nom}] — fil d'Ariane
       const dossier = chemin.length ? chemin[chemin.length - 1].id : null;
@@ -3334,7 +3390,17 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [okEnvoi, setOkEnvoi] = useState('');
       const clientChoisi = clients.find((c) => c.id === envoiClient) || null;
       const versLivraison = !!clientChoisi && isDelivery(clientChoisi.universe);
-      useEffect(() => { setEnvoiClient(''); setOkEnvoi(''); }, [gere?.id]);
+      /* Un DOCUMENT a deux destinations : les Documents du client, ou
+         une FACTURE toute neuve dont il devient le PDF (montant et
+         référence saisis ici — jamais pour un membre, les factures
+         sont l'affaire du studio). */
+      const [destEnvoi, setDestEnvoi] = useState('documents');
+      const [factMontant, setFactMontant] = useState('');
+      const [factRef, setFactRef] = useState('');
+      useEffect(() => {
+        setEnvoiClient(''); setOkEnvoi('');
+        setDestEnvoi('documents'); setFactMontant(''); setFactRef('');
+      }, [gere?.id]);
       useEffect(() => {
         setGalsClient(null); setGalChoisie('');
         if (!envoiClient || !clientChoisi || !isDelivery(clientChoisi.universe)) return;
@@ -3351,7 +3417,36 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (!it || !c || busyEnvoi) return;
         setBusyEnvoi(true); setErr(''); setOkEnvoi('');
         try {
-          if (!versLivraison) {
+          if (it.genre === 'document') {
+            if (destEnvoi === 'facture') {
+              const montant = parseFloat(String(factMontant).replace(',', '.'));
+              if (!(montant > 0)) throw new Error('Indiquez le montant de la facture.');
+              const { error } = await sb.from('invoices').insert({
+                client_id: c.id,
+                reference: factRef.trim() || null,
+                description: it.nom.replace(/\.[a-z0-9]+$/i, ''),
+                amount: montant,
+                date_label: isoToLabel(todayISO()),
+                due_date: in30DaysISO(),
+                status: 'en attente',
+                pdf_url: it.url,
+              });
+              if (error) throw new Error(humaniseErreur(error.message));
+              setOkEnvoi(`Facture créée pour ${c.name} (${montant.toLocaleString('fr-FR')} €) — le PDF du Drive y est joint.`);
+            } else {
+              const { error } = await sb.from('documents').insert({
+                client_id: c.id,
+                title: it.nom.replace(/\.[a-z0-9]+$/i, ''),
+                category: 'Autre',
+                file_url: it.url,
+                date_label: isoToLabel(todayISO()),
+                size_label: it.taille ? fmtSizeFR(it.taille) : null,
+                position: 0,
+              });
+              if (error) throw new Error(humaniseErreur(error.message));
+              setOkEnvoi(`Déposé dans les documents de ${c.name}.`);
+            }
+          } else if (!versLivraison) {
             const payload = {
               client_id: c.id,
               type: it.genre === 'video' ? 'video' : 'photo',
@@ -3440,10 +3535,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         for (const f of fichiers) {
           const estImage = /^image\//.test(f.type);
           const estVideo = /^video\//.test(f.type);
-          if (!estImage && !estVideo) {
-            setErr(`« ${f.name} » : seulement des photos et des vidéos.`);
-            continue;
-          }
+          // Tout le reste est un DOCUMENT : contrat, devis, brief,
+          // archive… — un disque commun n'a pas à trier à la porte.
           const cle = crypto.randomUUID();
           setEnvois((l) => [...l, { cle, nom: f.name, pct: 0 }]);
           try {
@@ -3459,11 +3552,19 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 apercu_url: apercuUrl, leger_url: vueUrl,
               });
               if (error) throw new Error(humaniseErreur(error.message));
-            } else {
+            } else if (estVideo) {
               const url = await b2UploadFile(f, `${base}/original-${b2SafeName(f.name)}`, (p) => majEnvoi(cle, p));
               const { error } = await sb.from('drive_items').insert({
                 agency_id: AGENCY.id, parent_id: dossier, genre: 'video', nom: f.name,
                 url, taille: f.size, mime: f.type, encodage: 'pending',
+              });
+              if (error) throw new Error(humaniseErreur(error.message));
+            } else {
+              // Document : l'original seul, pas de variante à fabriquer.
+              const url = await b2UploadFile(f, `${base}/original-${b2SafeName(f.name)}`, (p) => majEnvoi(cle, p));
+              const { error } = await sb.from('drive_items').insert({
+                agency_id: AGENCY.id, parent_id: dossier, genre: 'document', nom: f.name,
+                url, taille: f.size, mime: f.type || 'application/octet-stream',
               });
               if (error) throw new Error(humaniseErreur(error.message));
             }
@@ -3599,7 +3700,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </Btn>
               <Btn icon={FolderOpen} onClick={creerDossier}>Nouveau dossier</Btn>
               <Btn kind="dark" icon={Upload} onClick={() => fichierRef.current?.click()}>Téléverser</Btn>
-              <input ref={fichierRef} type="file" multiple accept="image/*,video/*"
+              <input ref={fichierRef} type="file" multiple
                 className="hidden" onChange={televerser} />
             </div>
           </div>
@@ -3706,7 +3807,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         <img src={f.apercu_url} alt="" loading="lazy" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-stone-400">
-                          {f.genre === 'video' ? <Video size={15} /> : <ImageIcon size={15} />}
+                          {f.genre === 'video' ? <Video size={15} />
+                            : f.genre === 'document' ? <FileText size={15} /> : <ImageIcon size={15} />}
                         </div>
                       )}
                       {f.genre === 'video' && (
@@ -3716,7 +3818,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-medium truncate">{f.nom}</div>
                       <div className="text-[10.5px] text-stone-500 mt-0.5">
-                        {f.genre === 'video' ? 'Vidéo' : 'Photo'}
+                        {f.genre === 'video' ? 'Vidéo' : f.genre === 'document' ? 'Document' : 'Photo'}
                         {f.taille ? ` · ${fmtOctets(f.taille)}` : ''}
                         {f.genre === 'video' && f.duree != null ? ` · ${fmtDuree(f.duree)}` : ''}
                         {f.genre === 'video' && f.encodage !== 'done' && (
@@ -3775,7 +3877,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                               className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-stone-400">
-                              {f.genre === 'video' ? <Video size={22} /> : <ImageIcon size={22} />}
+                              {f.genre === 'video' ? <Video size={22} />
+                                : f.genre === 'document' ? <FileText size={22} /> : <ImageIcon size={22} />}
                             </div>
                           )}
                           {f.genre === 'video' && (
@@ -3797,7 +3900,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         <div className="px-3 py-2.5">
                           <div className="text-[12.5px] font-medium truncate">{f.nom}</div>
                           <div className="text-[10.5px] text-stone-500 mt-0.5">
-                            {f.genre === 'video' ? 'Vidéo' : 'Photo'}{f.taille ? ` · ${fmtOctets(f.taille)}` : ''}
+                            {f.genre === 'video' ? 'Vidéo' : f.genre === 'document' ? 'Document' : 'Photo'}{f.taille ? ` · ${fmtOctets(f.taille)}` : ''}
                           </div>
                         </div>
                       </button>
@@ -3819,10 +3922,20 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
           {/* ─── Visionneuse ─── */}
           {ouvert && (
-            <Modal title={ouvert.nom} kicker={ouvert.genre === 'video' ? 'Vidéo' : 'Photo'}
+            <Modal title={ouvert.nom} kicker={ouvert.genre === 'video' ? 'Vidéo' : ouvert.genre === 'document' ? 'Document' : 'Photo'}
               onClose={() => setOuvert(null)} size="lg">
               <div className="space-y-4">
-                {ouvert.genre === 'photo' ? (
+                {ouvert.genre === 'document' ? (
+                  (/pdf/i.test(ouvert.mime || '') || /\.pdf$/i.test(ouvert.nom)) ? (
+                    <iframe src={ouvert.url} title={ouvert.nom} className="w-full h-[65vh] rounded-xl bg-white" />
+                  ) : (
+                    <div style={neu.pressedSm} className="rounded-xl p-8 text-center">
+                      <FileText size={28} className="mx-auto text-stone-400 mb-3" />
+                      <div className="text-[13.5px] font-semibold">Pas d'aperçu pour ce type de fichier</div>
+                      <p className="text-[12px] text-stone-500 mt-1.5">Téléchargez-le pour l'ouvrir.</p>
+                    </div>
+                  )
+                ) : ouvert.genre === 'photo' ? (
                   <img src={ouvert.leger_url || ouvert.url} alt={ouvert.nom}
                     className="w-full max-h-[65vh] object-contain rounded-xl bg-stone-900/85" />
                 ) : ouvert.encodage === 'done' && ouvert.leger_url ? (
@@ -3864,7 +3977,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
           {/* ─── Fiche ⋯ : renommer, déplacer, télécharger, supprimer ─── */}
           {gere && (
-            <Modal title={gere.nom} kicker={gere.genre === 'dossier' ? 'Dossier' : (gere.genre === 'video' ? 'Vidéo' : 'Photo')}
+            <Modal title={gere.nom} kicker={gere.genre === 'dossier' ? 'Dossier' : gere.genre === 'video' ? 'Vidéo' : gere.genre === 'document' ? 'Document' : 'Photo'}
               onClose={() => setGere(null)}>
               <div className="space-y-4">
                 <div className="flex gap-2 flex-wrap">
@@ -3900,7 +4013,26 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </Select>
-                      {clientChoisi && !versLivraison && (
+                      {clientChoisi && gere.genre === 'document' && (
+                        <>
+                          <Select value={destEnvoi} onChange={(e) => setDestEnvoi(e.target.value)}>
+                            <option value="documents">Dans ses Documents</option>
+                            {MON_ROLE.value !== 'membre' && (
+                              <option value="facture">En faire une facture (le PDF joint)</option>
+                            )}
+                          </Select>
+                          {destEnvoi === 'facture' && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <Input type="number" min="0" step="0.01" value={factMontant}
+                                onChange={(e) => setFactMontant(e.target.value)}
+                                placeholder="Montant (€) *" aria-label="Montant de la facture" />
+                              <Input value={factRef} onChange={(e) => setFactRef(e.target.value)}
+                                placeholder="Référence (FAC-2026-…)" aria-label="Référence de la facture" />
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {clientChoisi && !versLivraison && gere.genre !== 'document' && (
                         <div className="text-[11px] text-stone-500">
                           {gere.genre === 'video'
                             ? 'Ira dans ses Médias avec le circuit de validation — la qualité adaptative suivra toute seule.'
@@ -3929,7 +4061,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       )}
                       <Btn kind="dark" icon={busyEnvoi ? Loader2 : Send}
                         disabled={busyEnvoi || !clientChoisi
-                          || (versLivraison && (gere.genre !== 'photo' || !galChoisie))}
+                          || (gere.genre !== 'document' && versLivraison && (gere.genre !== 'photo' || !galChoisie))
+                          || (gere.genre === 'document' && destEnvoi === 'facture' && !(parseFloat(String(factMontant).replace(',', '.')) > 0))}
                         onClick={envoyerAuClient}>
                         {busyEnvoi ? 'Envoi…' : 'Envoyer'}
                       </Btn>
@@ -8930,6 +9063,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // ── Upload direct B2 (pipeline vidéo adaptatif) ──
       const [videoFile, setVideoFile]   = useState(null);
       const [photoFile, setPhotoFile]   = useState(null);   // locataire : photo uploadée (jamais d'URL à coller)
+      /* Fichier POINTÉ depuis le Drive : on ne re-téléverse pas ce que
+         l'équipe a déjà déposé — la fiche référencera son URL B2, et
+         une vidéo repartira dans la même file d'encodage adaptatif. */
+      const [driveVideo, setDriveVideo] = useState(null);
+      const [drivePhoto, setDrivePhoto] = useState(null);
+      const [montrerDrive, setMontrerDrive] = useState(false);
       const [thumbFile, setThumbFile]   = useState(null);
       const [upProgress, setUpProgress] = useState(null);  // { label, pct }
       const [encodeHint, setEncodeHint] = useState(null);  // { id, filename } après upload de l'original
@@ -9052,6 +9191,25 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               setUpProgress({ label: `Image — ${photoFile.name}`, pct: Math.round(p * 100) }));
             if (!form.size_label) patch.size_label = fmtSizeFR(photoFile.size);
           }
+          /* Fichier pointé depuis le Drive : aucune copie d'octets, la
+             fiche référence l'URL B2 déjà en ligne. La vidéo suit le
+             même chemin qu'un upload (masquée jusqu'à la première
+             qualité chez un locataire, file d'encodage plus bas). */
+          if (driveVideo && !videoFile) {
+            patch.url = driveVideo.url;
+            patch.source_size_bytes = driveVideo.taille || null;
+            patch.duration_seconds = driveVideo.duree || null;
+            if (!form.size_label && driveVideo.taille) patch.size_label = fmtSizeFR(driveVideo.taille);
+            if (!form.duration && driveVideo.duree) patch.duration = fmtDurationLabel(driveVideo.duree);
+            if (driveVideo.apercu_url && !capturedBlob && !thumbFile && !form.thumb_url) {
+              patch.thumb_url = driveVideo.apercu_url;
+            }
+            if (!FEATURES.allUniverses) patch.awaiting_encode = true;
+          }
+          if (drivePhoto && !photoFile) {
+            patch.url = drivePhoto.url;
+            if (!form.size_label && drivePhoto.taille) patch.size_label = fmtSizeFR(drivePhoto.taille);
+          }
           // Vignette : priorité à l'image capturée dans la vidéo, sinon fichier uploadé
           const thumbBlob = capturedBlob || thumbFile;
           if (thumbBlob) {
@@ -9067,16 +9225,16 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             if (error) throw new Error(error.message);
           }
 
-          if (videoFile && FEATURES.allUniverses) {
+          if ((videoFile || driveVideo) && FEATURES.allUniverses) {
             // Lecture adaptative pas encore générée → afficher la commande
             // (outillage local de la plateforme — jamais montré aux locataires,
             //  dont le MP4 progressif est déjà lisible tel quel)
-            setEncodeHint({ id: rowId, filename: videoFile.name });
+            setEncodeHint({ id: rowId, filename: videoFile ? videoFile.name : driveVideo.nom });
             setLoading(false);
           } else {
             // Locataire : le worker prendra le relais pour la qualité
             // adaptative (la vidéo est déjà lisible en attendant).
-            if (videoFile && patch.url) {
+            if ((videoFile || driveVideo) && patch.url) {
               await enqueueEncode({ kind: 'media', media_id: rowId, source_url: patch.url });
             }
             onSaved();
@@ -9164,6 +9322,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       💾 Le fichier part directement du navigateur vers B2 (rien ne transite par le site).
                     </div>
                   )}
+                  {driveVideo && !videoFile && (
+                    <div className="text-[11px] text-emerald-700 mt-1.5 truncate">🗂 Depuis le Drive : {driveVideo.nom}</div>
+                  )}
+                  <div className="mt-2">
+                    <Btn icon={FolderOpen} onClick={() => setMontrerDrive(true)}>Choisir dans le Drive</Btn>
+                  </div>
                 </Field>
 
                 {/* État de la lecture adaptative (HLS) — outillage plateforme.
@@ -9221,6 +9385,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 ) : (
                   <div className="text-[11px] text-stone-500 mt-1.5">💾 Le fichier part directement du navigateur vers le stockage.</div>
                 )}
+                {drivePhoto && !photoFile && (
+                  <div className="text-[11px] text-emerald-700 mt-1.5 truncate">🗂 Depuis le Drive : {drivePhoto.nom}</div>
+                )}
+                <div className="mt-2">
+                  <Btn icon={FolderOpen} onClick={() => setMontrerDrive(true)}>Choisir dans le Drive</Btn>
+                </div>
               </Field>
             )}
             </FormSection>
@@ -9353,6 +9523,22 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </Btn>
             </div>
           </form>
+          {montrerDrive && (
+            <DrivePicker genres={form.type === 'video' ? ['video'] : ['photo']}
+              onChoisir={(it) => {
+                if (it.genre === 'video') {
+                  setDriveVideo(it); setVideoFile(null);
+                  setForm(f => ({ ...f,
+                    size_label: it.taille ? fmtSizeFR(it.taille) : f.size_label,
+                    duration: it.duree ? fmtDurationLabel(it.duree) : f.duration }));
+                } else {
+                  setDrivePhoto(it); setPhotoFile(null);
+                  setForm(f => ({ ...f, size_label: it.taille ? fmtSizeFR(it.taille) : f.size_label }));
+                }
+                setMontrerDrive(false);
+              }}
+              onClose={() => setMontrerDrive(false)} />
+          )}
         </Modal>
       );
     }
@@ -9591,6 +9777,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [loading, setLoading] = useState(false);
       const [pdfFile, setPdfFile] = useState(null);   // PDF à uploader sur B2
       const [upPct, setUpPct]     = useState(null);   // progression upload
+      const [montrerDrive, setMontrerDrive] = useState(false);   // sélecteur Drive
       const { shoots } = useLinkLists(clientId, { shoots: true });
 
       // Quand on change la date d'émission via le date picker, auto-générer le libellé
@@ -9677,8 +9864,22 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <div className="text-[11px] text-stone-500 mt-1.5">Le PDF part directement du navigateur vers B2.</div>
               )}
               <Input value={form.pdf_url} onChange={e => setForm({...form, pdf_url: e.target.value})} placeholder="… ou coller une URL" style={{ marginTop: '8px' }} />
+              {/* Le PDF que l'équipe a déjà déposé au Drive : on le
+                  pointe, on ne le re-téléverse pas. */}
+              <div className="mt-2">
+                <Btn icon={FolderOpen} onClick={() => setMontrerDrive(true)}>Choisir dans le Drive</Btn>
+              </div>
             </Field>
             </FormSection>
+            {montrerDrive && (
+              <DrivePicker genres={['document']}
+                onChoisir={(it) => {
+                  setPdfFile(null);
+                  setForm(fm => ({ ...fm, pdf_url: it.url }));
+                  setMontrerDrive(false);
+                }}
+                onClose={() => setMontrerDrive(false)} />
+            )}
             {upPct !== null && (
               <div className="rounded-xl px-4 py-3" style={neu.pressedSm}>
                 <div className="flex justify-between text-[11.5px] font-semibold text-stone-600 mb-1.5"><span>☁️ Upload du PDF</span><span>{upPct}%</span></div>
@@ -9847,6 +10048,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [loading, setLoading] = useState(false);
       const [docFile, setDocFile] = useState(null);   // fichier à uploader sur B2
       const [upPct, setUpPct]     = useState(null);
+      const [montrerDrive, setMontrerDrive] = useState(false);   // sélecteur Drive
       const { shoots, strategies } = useLinkLists(clientId, { shoots: true, strategies: true });
 
       const handleDocDate = (iso) => {
@@ -9917,8 +10119,25 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <div className="text-[11px] text-stone-500 mt-1.5">Le fichier part directement du navigateur vers B2.</div>
               )}
               <Input value={form.file_url} onChange={e => setForm({...form, file_url: e.target.value})} placeholder="… ou coller une URL publique" style={{ marginTop: '8px' }} />
+              <div className="mt-2">
+                <Btn icon={FolderOpen} onClick={() => setMontrerDrive(true)}>Choisir dans le Drive</Btn>
+              </div>
             </Field>
             </FormSection>
+            {montrerDrive && (
+              <DrivePicker genres={['document', 'photo']}
+                onChoisir={(it) => {
+                  setDocFile(null);
+                  setForm(fm => ({
+                    ...fm,
+                    file_url: it.url,
+                    size_label: it.taille ? fmtSizeFR(it.taille) : fm.size_label,
+                    title: fm.title || it.nom.replace(/\.[a-z0-9]+$/i, ''),
+                  }));
+                  setMontrerDrive(false);
+                }}
+                onClose={() => setMontrerDrive(false)} />
+            )}
             {upPct !== null && (
               <div className="rounded-xl px-4 py-3" style={neu.pressedSm}>
                 <div className="flex justify-between text-[11.5px] font-semibold text-stone-600 mb-1.5"><span>☁️ Upload du fichier</span><span>{upPct}%</span></div>

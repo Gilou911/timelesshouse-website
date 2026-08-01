@@ -41,6 +41,10 @@ const json = (s: number, b: unknown) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// Les privilèges qu'un rôle « membre » peut recevoir (owner/admin ont
+// tout). Le rang plancher — liste vide — n'a que le chat, l'agenda et
+// ses tâches.
+const PRIVILEGES_VALIDES = ["clients"];
 
 // Même recette que create-agency : lisible mais fort (~77 bits).
 function tempPassword(): string {
@@ -73,6 +77,12 @@ Deno.serve(async (req) => {
 
   const displayName = String(body.display_name ?? "").trim().slice(0, 60) || null;
   const metier = String(body.metier ?? "").trim().slice(0, 60) || null;
+  // Privilèges demandés : seules les valeurs connues passent. `null`
+  // quand le corps n'en parle pas — un update qui ne touche pas aux
+  // privilèges ne doit pas les effacer.
+  const privilegesDemandes = Array.isArray(body.privileges)
+    ? [...new Set(body.privileges.map(String).filter((p) => PRIVILEGES_VALIDES.includes(p)))]
+    : null;
 
   // ── Inviter ─────────────────────────────────────────────────
   if (action === "invite") {
@@ -103,10 +113,20 @@ Deno.serve(async (req) => {
       userId = created.user.id;
     }
 
-    const { error: mErr } = await sbAdmin.from("agency_members").insert({
+    // Rang plancher par défaut : un membre naît sans privilège. Et si
+    // la colonne n'existe pas encore (migration non passée), on
+    // réessaie SANS — PostgREST rejette la requête entière sinon.
+    let { error: mErr } = await sbAdmin.from("agency_members").insert({
       agency_id: agencyId, user_id: userId, role,
       display_name: displayName, metier,
+      ...(privilegesDemandes ? { privileges: privilegesDemandes } : {}),
     });
+    if (mErr && privilegesDemandes && /privileges/.test(mErr.message || "")) {
+      ({ error: mErr } = await sbAdmin.from("agency_members").insert({
+        agency_id: agencyId, user_id: userId, role,
+        display_name: displayName, metier,
+      }));
+    }
     if (mErr) {
       // rollback : ne pas laisser un compte orphelin qu'on vient de créer
       if (!existing && userId) await sbAdmin.auth.admin.deleteUser(userId).catch(() => {});
@@ -139,12 +159,21 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
-    // update : le prénom et le métier pour tous les gestionnaires ;
-    // le RÔLE ne bouge que sous la main du propriétaire.
+    // update : le prénom, le métier et les PRIVILÈGES pour tous les
+    // gestionnaires (owner comme admin — accorder un privilège à un
+    // membre fait partie de gérer les membres) ; le RÔLE, lui, ne
+    // bouge que sous la main du propriétaire.
     const patch: Record<string, unknown> = { display_name: displayName, metier };
+    if (privilegesDemandes) patch.privileges = privilegesDemandes;
     if (patron && (body.role === "admin" || body.role === "membre")) patch.role = body.role;
-    const { error } = await sbAdmin.from("agency_members")
+    let { error } = await sbAdmin.from("agency_members")
       .update(patch).eq("agency_id", agencyId).eq("user_id", targetId);
+    // Colonne pas encore migrée : on garde le reste de la mise à jour.
+    if (error && privilegesDemandes && /privileges/.test(error.message || "")) {
+      delete patch.privileges;
+      ({ error } = await sbAdmin.from("agency_members")
+        .update(patch).eq("agency_id", agencyId).eq("user_id", targetId));
+    }
     if (error) return json(500, { error: error.message });
     return json(200, { ok: true });
   }

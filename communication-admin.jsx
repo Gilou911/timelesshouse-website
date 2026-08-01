@@ -68,6 +68,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        comme pour MES_METIERS. Sert à masquer ce qui ne regarde pas un
        « membre » (les Revenus) — la vraie garde reste côté serveur. */
     const MON_ROLE = { value: null };
+    /* Les privilèges du connecté quand il est « membre » (owner/admin
+       ont tout). Vide = rang plancher : chat, agenda, ses tâches.
+       Rempli par loadFeatures avec MON_ROLE — même prudence : inconnu
+       ne bride rien de PLUS que le rôle seul. */
+    const MES_PRIVILEGES = [];
 
     /* 💼 MÉTIERS de l'agence connectée (25/07/2026).
        Une loge se vend par métier : l'agence ne peut créer des espaces
@@ -2687,60 +2692,141 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        comme à la création d'une agence. */
     const ROLES_EQUIPE = { owner: 'Propriétaire', admin: 'Admin', membre: 'Membre' };
 
-    /* ── Le fil de discussion de l'équipe ──────────────────────────
-       Cousin du chat bêta (mêmes motifs : sondage 10 s, corps borné),
-       mais tout le monde parle à égalité — le nom vient de l'équipe.
-       On peut effacer SON message (une maladresse entre collègues se
-       corrige), jamais celui d'un autre : la base le garantit.
-       Le défilement ne touche QUE la boîte du fil, jamais la page —
-       un sondage qui ferait sauter l'écran toutes les 10 s rendrait
-       l'onglet inutilisable. */
-    function ChatEquipe({ equipe, user }) {
-      const [fil, setFil] = useState('equipe');         // 'equipe' | user_id (fil privé)
-      const [messages, setMessages] = useState(null);   // null = chargement
+    /* Le privilège « Espaces clients » d'un membre — l'interrupteur
+       maison. Sans lui, le rang plancher : chat, agenda, ses tâches.
+       Le serveur (team-member) et la base (policies restrictives)
+       tiennent la vraie garde ; cet écran accorde. */
+    function PrivilegeClients({ actif, onToggle }) {
+      return (
+        <button type="button" onClick={onToggle}
+          style={actif ? neu.dark : neu.pressedSm}
+          className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between gap-3 transition ${actif ? 'text-white' : 'text-stone-700'}`}>
+          <div className="flex items-center gap-3 text-left min-w-0">
+            <Users size={17} className="shrink-0" />
+            <div className="min-w-0">
+              <div className="font-semibold text-[13px]">Espaces clients</div>
+              <div className={`text-[10.5px] mt-0.5 ${actif ? 'text-stone-300' : 'text-stone-500'}`}>
+                Voir les clients et agir sur leurs espaces (jamais les factures).
+              </div>
+            </div>
+          </div>
+          <div className={`w-10 h-5.5 rounded-full p-0.5 transition shrink-0 ${actif ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+            <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${actif ? 'translate-x-4' : ''}`} />
+          </div>
+        </button>
+      );
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       💬 MESSAGES — la messagerie de l'équipe (01/08/2026)
+       ════════════════════════════════════════════════════════════
+       Son propre onglet, façon messagerie : à gauche les
+       conversations (le fil d'équipe + les fils privés), à droite le
+       fil ouvert. Sur téléphone : la liste, puis la conversation
+       plein écran avec retour. UN SEUL chargement porte tout — la
+       RLS ne rend que ce que j'ai le droit de voir, le rangement par
+       fil se fait ici. Temps réel par Realtime quand la base y est
+       abonnée, sondage de secours sinon. L'état « lu » vit dans les
+       métadonnées du compte (motif ChatBeta) : il suit l'utilisateur
+       d'un appareil à l'autre. On efface SES messages seulement — la
+       base le garantit. */
+    function MessagesTab({ user }) {
+      const [equipe, setEquipe] = useState([]);
+      const [tous, setTous] = useState(null);         // tous mes messages visibles
+      const [fil, setFil] = useState('equipe');       // 'equipe' | user_id
+      const [vueListe, setVueListe] = useState(true); // téléphone : la liste d'abord
       const [texte, setTexte] = useState('');
       const [envoi, setEnvoi] = useState(false);
       const [erreur, setErreur] = useState('');
+      const [, setTic] = useState(0);                 // re-rendu après « lu »
       const boiteRef = useRef(null);
+      // Un écran large montre les deux volets : le fil ouvert est VU
+      // même quand vueListe reste vraie (elle ne pilote que le mobile).
+      const grandEcran = useRef(typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
 
-      /* Qui peut ouvrir un fil privé avec qui ? Le PATRON avec chacun ;
-         un coéquipier avec le(s) patron(s) — c'est la demande de Gil
-         (01/08/2026). La base, elle, exige seulement que les deux
-         soient de la même agence : l'interface est la politesse, le
-         verrou est dans les policies. */
-      const monRole = (equipe.find((m) => m.user_id === user?.id) || {}).role;
-      const filsPrives = monRole === 'owner'
-        ? equipe.filter((m) => m.user_id !== user?.id)
-        : equipe.filter((m) => m.role === 'owner' && m.user_id !== user?.id);
-      const enFace = fil === 'equipe' ? null : (equipe.find((m) => m.user_id === fil) || null);
+      useEffect(() => {
+        sb.rpc('equipe_agence').then(({ data }) => setEquipe(data || [])).catch(() => {});
+      }, []);
 
       const charger = async () => {
-        let q = sb.from('team_messages').select('*');
-        q = fil === 'equipe'
-          ? q.is('dest_id', null)
-          : q.or(`and(auteur_id.eq.${user.id},dest_id.eq.${fil}),and(auteur_id.eq.${fil},dest_id.eq.${user.id})`);
-        const { data, error } = await q.order('created_at', { ascending: true }).limit(300);
+        const { data, error } = await sb.from('team_messages')
+          .select('*').order('created_at', { ascending: true }).limit(500);
         if (error) {
           setErreur(/team_messages|dest_id/.test(error.message || '')
-            ? "Le chat d'équipe n'est pas encore activé : exécutez files/migration-chat-prive.sql dans Supabase."
+            ? "La messagerie n'est pas encore activée : exécutez files/migration-chat-prive.sql dans Supabase."
             : humaniseErreur(error.message));
-          setMessages([]); return;
+          setTous([]); return;
         }
-        setErreur(''); setMessages(data || []);
+        setErreur(''); setTous(data || []);
       };
       useEffect(() => {
-        setMessages(null);
         charger();
-        const id = setInterval(charger, 10000);
-        return () => clearInterval(id);
-      }, [fil]);
+        const id = setInterval(charger, 15000);   // filet si Realtime dort
+        let canal = null;
+        try {
+          canal = sb.channel('fil-equipe')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages' }, charger)
+            .subscribe();
+        } catch (_) {}
+        return () => { clearInterval(id); if (canal) sb.removeChannel(canal); };
+      }, []);
 
-      // Toujours voir le dernier message — dans la boîte seulement.
-      const nMessages = (messages || []).length;
+      /* ── Rangement par conversation ─────────────────────────────── */
+      const filDe = (m) => m.dest_id == null ? 'equipe'
+        : (m.auteur_id === user?.id ? m.dest_id : m.auteur_id);
+      const parFil = useMemo(() => {
+        const map = new Map();
+        (tous || []).forEach((m) => {
+          const k = filDe(m);
+          if (!map.has(k)) map.set(k, []);
+          map.get(k).push(m);
+        });
+        return map;
+      }, [tous]);
+      const dernierDe = (k) => ((parFil.get(k) || []).slice(-1)[0] || null);
+
+      /* ── Lu / non lu — métadonnées du compte (motif ChatBeta) ───── */
+      const LU_CLE = 'laloge_equipe_lu';
+      const luLe = (k) => (user?.user_metadata?.[LU_CLE] || {})[k] || null;
+      const marquerLu = async (k) => {
+        const dernier = dernierDe(k);
+        if (!dernier || dernier.created_at === luLe(k)) return;
+        const val = { ...(user?.user_metadata?.[LU_CLE] || {}), [k]: dernier.created_at };
+        if (user?.user_metadata) user.user_metadata[LU_CLE] = val;   // écho local immédiat
+        setTic((t) => t + 1);
+        try { await sb.auth.updateUser({ data: { [LU_CLE]: val } }); } catch (_) {}
+      };
+      const nonLus = (k) => (parFil.get(k) || [])
+        .filter((m) => m.auteur_id !== user?.id && (!luLe(k) || m.created_at > luLe(k))).length;
+
+      // Le fil AFFICHÉ se marque lu : à l'ouverture, et à chaque
+      // message qui arrive pendant qu'on le regarde.
+      useEffect(() => {
+        if (grandEcran.current || !vueListe) marquerLu(fil);
+      }, [fil, vueListe, (parFil.get(fil) || []).length]);
+
+      /* ── Qui je peux contacter en privé ─────────────────────────── */
+      const monRole = (equipe.find((m) => m.user_id === user?.id) || {}).role;
+      const contacts = monRole === 'owner' || monRole === 'admin'
+        ? equipe.filter((m) => m.user_id !== user?.id)
+        : equipe.filter((m) => m.role === 'owner' && m.user_id !== user?.id);
+      const conversations = useMemo(() => ([
+        { cle: 'equipe', nom: "L'équipe" },
+        ...[...contacts].sort((a, b) => {
+          const da = dernierDe(a.user_id)?.created_at || '';
+          const db = dernierDe(b.user_id)?.created_at || '';
+          return db.localeCompare(da);
+        }).map((m) => ({ cle: m.user_id, nom: m.nom })),
+      ]), [contacts, parFil]);
+
+      const messages = parFil.get(fil) || [];
+      const enFace = equipe.find((m) => m.user_id === fil) || null;
+
+      // Toujours voir le dernier message — la boîte défile, pas la page.
       useEffect(() => {
         const b = boiteRef.current;
         if (b) b.scrollTop = b.scrollHeight;
-      }, [nMessages]);
+      }, [messages.length, fil, vueListe]);
 
       const envoyer = async (e) => {
         e.preventDefault();
@@ -2754,7 +2840,6 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (error) { setErreur(humaniseErreur(error.message)); return; }
         setTexte(''); charger();
       };
-
       const effacer = async (m) => {
         if (!confirm('Effacer ce message ?')) return;
         await sb.from('team_messages').delete().eq('id', m.id);
@@ -2767,88 +2852,130 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
       };
       const jourDe = (iso) => new Date(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+      const initialesDe = (nom) => ((nom || '?').replace(/@.*$/, '').split(/[\s._-]+/)
+        .map((p) => p.charAt(0)).join('').slice(0, 2).toUpperCase()) || '?';
+      const ouvrir = (cle) => { setFil(cle); setVueListe(false); };
 
       return (
-        <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div>
-              <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>La discussion</h2>
-              <p className="text-[12.5px] text-stone-500 mt-1.5 leading-relaxed">
-                {fil === 'equipe'
-                  ? "Le fil de l'équipe — tout le monde le voit, personne d'autre."
-                  : `En privé avec ${enFace?.nom || 'ce coéquipier'} — vous deux seulement.`}
-              </p>
+        <div style={neu.raised}
+          className="rounded-[24px] lg:rounded-[28px] overflow-hidden lg:grid lg:grid-cols-[280px_1fr] flex flex-col h-[calc(100dvh-320px)] lg:h-[calc(100dvh-220px)] min-h-[420px]">
+          {/* ─── Volet 1 : les conversations ─── */}
+          <div className={`${vueListe ? 'flex' : 'hidden'} lg:flex flex-col h-full min-h-0 lg:border-r`}
+            style={{ borderColor: 'var(--divider, rgba(42,38,32,0.08))' }}>
+            <div className="px-5 pt-5 pb-3">
+              <h2 className="text-[17px] tracking-tight" style={SERIF}>Conversations</h2>
             </div>
-            {filsPrives.length > 0 && (
-              <div className="w-full sm:w-[210px]">
-                <Select value={fil} onChange={(e) => setFil(e.target.value)} aria-label="Choisir le fil de discussion">
-                  <option value="equipe">L'équipe (tous)</option>
-                  {filsPrives.map((m) => (
-                    <option key={m.user_id} value={m.user_id}>En privé — {m.nom}</option>
-                  ))}
-                </Select>
+            {erreur && (
+              <div className="flex items-start gap-2 p-3 mx-3 mb-2 rounded-xl bg-amber-50 text-amber-800 text-[12px]">
+                <AlertCircle size={13} className="mt-0.5 shrink-0" /> {erreur}
               </div>
             )}
-          </div>
-
-          {erreur && (
-            <div className="flex items-start gap-2 p-3 mt-4 rounded-xl bg-amber-50 text-amber-800 text-[12.5px]">
-              <AlertCircle size={14} className="mt-0.5 shrink-0" /> {erreur}
-            </div>
-          )}
-
-          <div ref={boiteRef} style={neu.pressedSm}
-            className="rounded-2xl mt-4 h-[360px] overflow-y-auto overscroll-contain p-4 space-y-3">
-            {messages === null ? (
-              <div className="h-full flex items-center justify-center"><Loader2 size={16} className="animate-spin text-stone-400" /></div>
-            ) : !messages.length ? (
-              <div className="h-full flex items-center justify-center text-[12.5px] text-stone-500 text-center px-6">
-                {fil === 'equipe'
-                  ? "Personne n'a encore rien dit. Lancez la conversation — toute l'équipe la verra."
-                  : `Rien encore dans ce fil. Écrivez — ${enFace?.nom || 'ce coéquipier'} seul le verra.`}
-              </div>
-            ) : (
-              messages.map((m, i) => {
-                const mien = m.auteur_id === user?.id;
-                const nouveauJour = i === 0 || jourDe(m.created_at) !== jourDe(messages[i - 1].created_at);
+            <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 space-y-1">
+              {conversations.map((c) => {
+                const d = dernierDe(c.cle);
+                const n = nonLus(c.cle);
+                const actif = fil === c.cle;
                 return (
-                  <div key={m.id}>
-                    {nouveauJour && (
-                      <div className="text-[10.5px] uppercase tracking-[0.14em] text-stone-400 font-semibold text-center py-2 capitalize">
-                        {jourDe(m.created_at)}
+                  <button key={c.cle} type="button" onClick={() => ouvrir(c.cle)}
+                    style={actif ? neu.pressedSm : undefined}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 min-h-[56px] rounded-2xl text-left">
+                    <div style={neu.darkSm}
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[12px] font-semibold shrink-0">
+                      {c.cle === 'equipe' ? <UsersRound size={16} /> : initialesDe(c.nom)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className={`text-[13.5px] truncate ${n ? 'font-bold' : 'font-semibold'}`}>{c.nom}</span>
+                        {d && <span className="text-[10.5px] text-stone-400 shrink-0">{heureDe(d.created_at)}</span>}
                       </div>
-                    )}
-                    <div className={`flex ${mien ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`group max-w-[85%] sm:max-w-[70%] rounded-2xl px-3.5 py-2.5 ${mien ? 'text-white' : ''}`}
-                        style={mien ? neu.darkSm : neu.raisedXs}>
-                        <div className={`text-[10.5px] font-semibold mb-0.5 ${mien ? 'text-stone-300' : 'text-stone-500'}`}>
-                          {mien ? 'Vous' : nomDe(m.auteur_id)} · {heureDe(m.created_at)}
-                        </div>
-                        <div className="text-[13.5px] leading-relaxed whitespace-pre-wrap break-words">{m.corps}</div>
-                        {mien && (
-                          <button type="button" onClick={() => effacer(m)}
-                            className="text-[10.5px] text-stone-400 hover:text-rose-400 mt-1 min-h-[24px]">
-                            Effacer
-                          </button>
-                        )}
+                      <div className={`text-[12px] truncate ${n ? 'text-stone-700 font-medium' : 'text-stone-500'}`}>
+                        {d ? `${d.auteur_id === user?.id ? 'Vous : ' : ''}${d.corps}`
+                          : (c.cle === 'equipe' ? "Écrire à toute l'équipe" : 'Démarrer la conversation')}
                       </div>
                     </div>
-                  </div>
+                    {n > 0 && (
+                      <span style={neu.darkSm}
+                        className="min-w-[20px] h-5 px-1.5 rounded-full text-white text-[10.5px] font-bold flex items-center justify-center shrink-0">
+                        {n}
+                      </span>
+                    )}
+                  </button>
                 );
-              })
-            )}
+              })}
+            </div>
           </div>
 
-          <form onSubmit={envoyer} className="flex gap-2 mt-3 items-center">
-            <div className="flex-1">
-              <Input value={texte} onChange={(e) => setTexte(e.target.value)}
-                placeholder={fil === 'equipe' ? 'Écrire à l’équipe…' : `Écrire à ${enFace?.nom || 'ce coéquipier'}…`}
-                aria-label="Message" maxLength={4000} />
+          {/* ─── Volet 2 : le fil ouvert ─── */}
+          <div className={`${vueListe ? 'hidden' : 'flex'} lg:flex flex-col h-full min-h-0 flex-1`}>
+            <div className="flex items-center gap-2.5 px-4 lg:px-5 py-3 shrink-0"
+              style={{ borderBottom: '1px solid var(--divider, rgba(42,38,32,0.08))' }}>
+              <button type="button" onClick={() => setVueListe(true)} aria-label="Retour aux conversations"
+                className="lg:hidden tap-ext w-11 h-11 -ml-2 rounded-full flex items-center justify-center text-stone-600">
+                <ArrowLeft size={17} />
+              </button>
+              <div className="min-w-0">
+                <div className="text-[14.5px] font-semibold truncate">
+                  {fil === 'equipe' ? "L'équipe" : (enFace?.nom || 'Conversation')}
+                </div>
+                <div className="text-[11px] text-stone-500">
+                  {fil === 'equipe' ? 'tout le monde voit ce fil' : 'vous deux seulement'}
+                </div>
+              </div>
             </div>
-            <Btn kind="dark" type="submit" icon={envoi ? Loader2 : Send} disabled={envoi || !texte.trim()}>
-              <span className="hidden sm:inline">Envoyer</span>
-            </Btn>
-          </form>
+
+            <div ref={boiteRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 lg:px-5 py-4 space-y-2.5">
+              {tous === null ? (
+                <div className="h-full flex items-center justify-center"><Loader2 size={16} className="animate-spin text-stone-400" /></div>
+              ) : !messages.length ? (
+                <div className="h-full flex items-center justify-center text-[12.5px] text-stone-500 text-center px-8">
+                  {fil === 'equipe'
+                    ? "Personne n'a encore rien dit. Lancez la conversation — toute l'équipe la verra."
+                    : `Rien encore dans ce fil. Écrivez — ${(enFace?.nom || 'ce coéquipier')} seul le verra.`}
+                </div>
+              ) : (
+                messages.map((m, i) => {
+                  const mien = m.auteur_id === user?.id;
+                  const nouveauJour = i === 0 || jourDe(m.created_at) !== jourDe(messages[i - 1].created_at);
+                  return (
+                    <div key={m.id}>
+                      {nouveauJour && (
+                        <div className="text-[10.5px] uppercase tracking-[0.14em] text-stone-400 font-semibold text-center py-2 capitalize">
+                          {jourDe(m.created_at)}
+                        </div>
+                      )}
+                      <div className={`flex ${mien ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3.5 py-2.5 ${mien ? 'text-white' : ''}`}
+                          style={mien ? neu.darkSm : neu.raisedXs}>
+                          <div className={`text-[10.5px] font-semibold mb-0.5 ${mien ? 'text-stone-300' : 'text-stone-500'}`}>
+                            {!mien && fil === 'equipe' ? `${nomDe(m.auteur_id)} · ` : ''}{heureDe(m.created_at)}
+                          </div>
+                          <div className="text-[13.5px] leading-relaxed whitespace-pre-wrap break-words">{m.corps}</div>
+                          {mien && (
+                            <button type="button" onClick={() => effacer(m)}
+                              className="text-[10.5px] text-stone-400 hover:text-rose-400 mt-1 min-h-[24px]">
+                              Effacer
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <form onSubmit={envoyer} className="flex gap-2 px-4 lg:px-5 py-3 items-center shrink-0"
+              style={{ borderTop: '1px solid var(--divider, rgba(42,38,32,0.08))' }}>
+              <div className="flex-1">
+                <Input value={texte} onChange={(e) => setTexte(e.target.value)}
+                  placeholder={fil === 'equipe' ? "Écrire à l'équipe…" : `Écrire à ${(enFace?.nom || 'ce coéquipier')}…`}
+                  aria-label="Message" maxLength={4000} />
+              </div>
+              <Btn kind="dark" type="submit" icon={envoi ? Loader2 : Send} disabled={envoi || !texte.trim()}>
+                <span className="hidden sm:inline">Envoyer</span>
+              </Btn>
+            </form>
+          </div>
         </div>
       );
     }
@@ -2857,12 +2984,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [equipe, setEquipe] = useState(null);   // null = chargement
       const [err, setErr] = useState('');
       const [inviter, setInviter] = useState(false);
-      const [form, setForm] = useState({ email: '', display_name: '', metier: '', role: 'membre' });
+      const [form, setForm] = useState({ email: '', display_name: '', metier: '', role: 'membre', privileges: [] });
       const [busy, setBusy] = useState(false);
       const [cree, setCree] = useState(null);       // identifiants — affichés UNE fois
       const [copie, setCopie] = useState(false);
       const [editId, setEditId] = useState(null);
-      const [edit, setEdit] = useState({ display_name: '', metier: '', role: 'membre' });
+      const [edit, setEdit] = useState({ display_name: '', metier: '', role: 'membre', privileges: [] });
       const [busyLigne, setBusyLigne] = useState(null);
 
       const charger = async () => {
@@ -2919,7 +3046,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         try {
           const j = await appel({ action: 'invite', ...form });
           setCree(j.member);
-          setForm({ email: '', display_name: '', metier: '', role: 'membre' });
+          setForm({ email: '', display_name: '', metier: '', role: 'membre', privileges: [] });
           setInviter(false);
           charger();
         } catch (e2) { setErr(e2.message); }
@@ -2931,6 +3058,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           display_name: m.nom && !m.nom.includes('@') ? m.nom : '',
           metier: m.metier || '',
           role: m.role,
+          privileges: Array.isArray(m.privileges) ? m.privileges : [],
         });
         setEditId(m.user_id);
       };
@@ -3044,6 +3172,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     </div>
                   </Field>
                 )}
+                {form.role === 'membre' && (
+                  <Field label="Privilèges">
+                    <PrivilegeClients actif={form.privileges.includes('clients')}
+                      onToggle={() => setForm((f) => ({ ...f, privileges: f.privileges.includes('clients') ? [] : ['clients'] }))} />
+                  </Field>
+                )}
                 <Btn kind="dark" icon={busy ? Loader2 : UserPlus} disabled={busy || !form.email.trim()}
                   onClick={inviterMembre}>
                   {busy ? 'Invitation…' : 'Créer son compte'}
@@ -3070,6 +3204,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         </div>
                         <div className="text-[11px] text-stone-500 mt-0.5">
                           {ROLES_EQUIPE[m.role] || m.role}{m.metier ? ` · ${m.metier}` : ''}
+                          {m.role === 'membre' && (Array.isArray(m.privileges) && m.privileges.includes('clients')
+                            ? ' · accès clients'
+                            : ' · chat, agenda et tâches')}
                         </div>
                         {(() => {
                           const c = chargeDe(m.user_id);
@@ -3118,6 +3255,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                             </div>
                           </Field>
                         )}
+                        {edit.role === 'membre' && (
+                          <Field label="Privilèges">
+                            <PrivilegeClients actif={edit.privileges.includes('clients')}
+                              onToggle={() => setEdit((v) => ({ ...v, privileges: v.privileges.includes('clients') ? [] : ['clients'] }))} />
+                          </Field>
+                        )}
                         <div className="flex gap-2 flex-wrap">
                           <Btn kind="dark" onClick={() => enregistrerLigne(m)} disabled={busyLigne === m.user_id}>
                             {busyLigne === m.user_id ? 'Enregistrement…' : 'Enregistrer'}
@@ -3132,8 +3275,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             )}
           </div>
 
-          {/* ─── La discussion de l'équipe ─── */}
-          <ChatEquipe equipe={equipe || []} user={user} />
+          {/* La discussion vit dans l'onglet « Messages » (01/08/2026) —
+              une messagerie mérite un plein écran, pas un fond de page. */}
 
           {/* ─── Les tâches — déménagées depuis l'Agenda. `onChange`
               remonte : cocher une tâche rafraîchit la charge au-dessus. ─── */}
@@ -10966,8 +11109,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
            (migration comm non lancée), et un échec ne bride rien. */
         try {
           const { data: eq } = await sb.rpc('equipe_agence');
-          MON_ROLE.value = (eq || []).find((m) => m.user_id === user?.id)?.role || null;
-        } catch (_) { MON_ROLE.value = null; }
+          const moiEq = (eq || []).find((m) => m.user_id === user?.id);
+          MON_ROLE.value = moiEq?.role || null;
+          MES_PRIVILEGES.length = 0;
+          (Array.isArray(moiEq?.privileges) ? moiEq.privileges : []).forEach((p) => MES_PRIVILEGES.push(p));
+        } catch (_) { MON_ROLE.value = null; MES_PRIVILEGES.length = 0; }
         setMyAgency(data || null);
         // Titre de l'onglet : le studio, pas nous. L'onglet du navigateur
         // affichait « TimelessHouse — Admin » chez tous les locataires.
@@ -10988,6 +11134,17 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // droit, on ne laisse pas la section ouverte (lien direct, retour…)
       useEffect(() => {
         if (featuresReady && section === 'portfolio' && !FEATURES.portfolio) setSection('overview');
+      }, [featuresReady, section]);
+
+      /* Un « membre » n'atterrit jamais sur un écran qui ne le regarde
+         pas : son monde, c'est l'agenda, l'équipe (ses tâches), les
+         messages, ses réglages de compte — et les clients si le
+         privilège lui est accordé. Tout le reste ramène à l'agenda. */
+      useEffect(() => {
+        if (!featuresReady || MON_ROLE.value !== 'membre') return;
+        const permis = new Set(['agenda', 'equipe', 'messages', 'settings',
+          ...(MES_PRIVILEGES.includes('clients') ? ['clients'] : [])]);
+        if (!permis.has(section)) setSection('agenda');
       }, [featuresReady, section]);
 
       const logout = async () => { await sb.auth.signOut(); };
@@ -11016,6 +11173,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         clients:  { t: 'Mes clients', s: 'Tous les espaces que vous avez créés.' },
         agenda:   { t: 'Agenda', s: 'Ce que vous tournez et ce qui sort, sur la même grille.' },
         equipe:   { t: 'Équipe', s: 'Vos coéquipiers, leurs rôles et leurs tâches.' },
+        messages: { t: 'Messages', s: 'Le fil de l’équipe, et vos conversations privées.' },
         portfolio:{ t: 'Portfolio', s: 'Vitrine et espaces de prospection.' },
         agences:  { t: 'Agences', s: 'Les locataires de votre plateforme marque blanche.' },
         settings: { t: 'Paramètres', s: 'Votre marque, votre abonnement et la sécurité de votre compte.' },
@@ -11074,14 +11232,20 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
               <nav className="flex flex-col gap-1.5">
                 {[
-                  { id: 'overview', icon: Home, label: 'Vue d\'ensemble' },
-                  { id: 'clients', icon: Users, label: 'Clients' },
+                  /* Le RANG PLANCHER (membre sans privilège) ne voit que
+                     l'agenda, l'équipe (ses tâches) et les messages — la
+                     vue d'ensemble et les clients sont des affaires de
+                     studio, ou un privilège accordé. */
+                  ...(MON_ROLE.value === 'membre' ? [] : [{ id: 'overview', icon: Home, label: 'Vue d\'ensemble' }]),
+                  ...(MON_ROLE.value === 'membre' && !MES_PRIVILEGES.includes('clients')
+                    ? [] : [{ id: 'clients', icon: Users, label: 'Clients' }]),
                   /* L'agenda est l'outil du métier Communication & Marketing :
                      il n'a rien à faire chez un photographe de mariage.
                      FEATURES.allUniverses = la plateforme, qui voit tout. */
                   ...(MES_METIERS.includes('communication') || FEATURES.allUniverses
                     ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' },
-                       { id: 'equipe', icon: UsersRound, label: 'Équipe' }] : []),
+                       { id: 'equipe', icon: UsersRound, label: 'Équipe' },
+                       { id: 'messages', icon: MessageSquare, label: 'Messages' }] : []),
                   /* Les Revenus ne regardent pas un « membre » (cadreur,
                      monteur…) : c'est la comptabilité du studio. */
                   ...(MON_ROLE.value === 'membre' ? [] : [{ id: 'revenus', icon: TrendingUp, label: 'Revenus' }]),
@@ -11147,6 +11311,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <AgendaTab clients={clients} />
               ) : section === 'equipe' ? (
                 <EquipeTab clients={clients} user={user} />
+              ) : section === 'messages' ? (
+                <MessagesTab user={user} />
               ) : section === 'revenus' ? (
                 <RevenusTab user={user} onClients={() => setSection('clients')} />
               ) : section === 'portfolio' && FEATURES.portfolio ? (
@@ -11177,15 +11343,22 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           {/* Bottom nav — mobile uniquement, 52px tactile, verre dépoli translucide */}
           {(() => {
             const onglets = [
-              { id: 'overview', icon: Home, label: 'Aperçu' },
-              { id: 'clients', icon: Users, label: 'Clients' },
+              ...(MON_ROLE.value === 'membre' ? [] : [{ id: 'overview', icon: Home, label: 'Aperçu' }]),
+              ...(MON_ROLE.value === 'membre' && !MES_PRIVILEGES.includes('clients')
+                ? [] : [{ id: 'clients', icon: Users, label: 'Clients' }]),
               /* Même condition que le menu desktop : l'agenda éditorial
                  n'existe que pour le métier Communication. Oublié ici à
                  sa naissance — un locataire Communication sur téléphone
-                 n'avait AUCUN chemin vers son agenda. */
+                 n'avait AUCUN chemin vers son agenda.
+                 SUR LA PLATEFORME (Portfolio + Agences déjà là), Équipe
+                 et Messages restent au menu desktop : huit onglets
+                 feraient des cibles sous les 44 px du HIG. */
               ...(MES_METIERS.includes('communication') || FEATURES.allUniverses
                 ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' },
-                   { id: 'equipe', icon: UsersRound, label: 'Équipe' }] : []),
+                   ...(agencies !== null ? [] : [
+                     { id: 'equipe', icon: UsersRound, label: 'Équipe' },
+                     { id: 'messages', icon: MessageSquare, label: 'Messages' },
+                   ])] : []),
               ...(MON_ROLE.value === 'membre' ? [] : [{ id: 'revenus', icon: TrendingUp, label: 'Revenus' }]),
               ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),
               ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),

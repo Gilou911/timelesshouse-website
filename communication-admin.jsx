@@ -3207,7 +3207,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return { largeur: w, hauteur: h, apercu: await variante(640, 0.72), vue: await variante(1800, 0.8) };
     }
 
-    function DriveTab() {
+    function DriveTab({ clients = [] }) {
       const [chemin, setChemin] = useState([]);        // [{id, nom}] — fil d'Ariane
       const dossier = chemin.length ? chemin[chemin.length - 1].id : null;
       const [items, setItems] = useState(null);        // null = chargement
@@ -3312,6 +3312,92 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       // Glisser-déposer : tout l'onglet est une zone de dépôt.
       const [glisse, setGlisse] = useState(false);
+
+      /* ── Envoyer à un client — l'aiguillage intelligent ──────────
+         Selon le FICHIER et selon l'ESPACE du client :
+           · espace tableau de bord → fiche dans ses Médias (circuit
+             de validation) ; une vidéo y reçoit en plus la qualité
+             adaptative (même file d'encodage que MediaForm) ;
+           · espace livraison + photo → droit dans une de ses
+             galeries — les trois variantes existent déjà au Drive ;
+           · espace livraison + vidéo → refusé poliment : les films
+             passent par le concepteur (encodage cinéma, habillage).
+         AUCUNE copie d'octets : la fiche du client POINTE le fichier
+         du Drive (supprimer la ligne du Drive ne purge pas B2 — le
+         client ne perd jamais rien). Geste réservé au privilège
+         « Espaces clients », comme tout ce qui touche aux clients. */
+      const peutEnvoyer = MON_ROLE.value !== 'membre' || MES_PRIVILEGES.includes('clients');
+      const [envoiClient, setEnvoiClient] = useState('');
+      const [galsClient, setGalsClient] = useState(null);
+      const [galChoisie, setGalChoisie] = useState('');
+      const [busyEnvoi, setBusyEnvoi] = useState(false);
+      const [okEnvoi, setOkEnvoi] = useState('');
+      const clientChoisi = clients.find((c) => c.id === envoiClient) || null;
+      const versLivraison = !!clientChoisi && isDelivery(clientChoisi.universe);
+      useEffect(() => { setEnvoiClient(''); setOkEnvoi(''); }, [gere?.id]);
+      useEffect(() => {
+        setGalsClient(null); setGalChoisie('');
+        if (!envoiClient || !clientChoisi || !isDelivery(clientChoisi.universe)) return;
+        sb.from('galleries').select('id, title, kind').eq('client_id', envoiClient)
+          .in('kind', ['photos', 'mixte']).order('created_at')
+          .then(({ data }) => {
+            setGalsClient(data || []);
+            if ((data || []).length === 1) setGalChoisie(data[0].id);
+          });
+      }, [envoiClient]);
+
+      const envoyerAuClient = async () => {
+        const it = gere, c = clientChoisi;
+        if (!it || !c || busyEnvoi) return;
+        setBusyEnvoi(true); setErr(''); setOkEnvoi('');
+        try {
+          if (!versLivraison) {
+            const payload = {
+              client_id: c.id,
+              type: it.genre === 'video' ? 'video' : 'photo',
+              title: it.nom.replace(/\.[a-z0-9]+$/i, ''),
+              url: it.url,
+              thumb_url: it.apercu_url || null,
+              date_label: isoToLabel(todayISO()),
+              date_iso: todayISO(),
+              size_label: it.taille ? fmtSizeFR(it.taille) : null,
+              ...(it.genre === 'video' ? {
+                duration: it.duree ? fmtDurationLabel(it.duree) : null,
+                duration_seconds: it.duree || null,
+                source_size_bytes: it.taille || null,
+                awaiting_encode: !FEATURES.allUniverses,
+              } : {}),
+            };
+            const { data: m, error } = await sb.from('media').insert(payload).select('id').single();
+            if (error) throw new Error(humaniseErreur(error.message));
+            if (it.genre === 'video') {
+              await enqueueEncode({ kind: 'media', media_id: m.id, source_url: it.url });
+            }
+            setOkEnvoi(`Envoyé dans les médias de ${c.name}${it.genre === 'video' && !FEATURES.allUniverses
+              ? ' — la qualité adaptative arrive toute seule.' : '.'}`);
+          } else {
+            if (it.genre !== 'photo') throw new Error('Les films d’un espace livraison passent par le concepteur de galerie.');
+            if (!galChoisie) throw new Error('Choisissez une galerie.');
+            // La catégorie en usage dans cette galerie, sinon « Galerie ».
+            const { data: cats } = await sb.from('gallery_photos')
+              .select('category, position').eq('gallery_id', galChoisie)
+              .order('position', { ascending: false }).limit(1);
+            const { error } = await sb.from('gallery_photos').insert({
+              gallery_id: galChoisie,
+              category: cats?.[0]?.category || 'Galerie',
+              position: (cats?.[0]?.position ?? 0) + 1,
+              url_original: it.url,
+              url_view: it.leger_url || it.url,
+              url_grid: it.apercu_url || it.leger_url || it.url,
+              width: it.largeur || null,
+              height: it.hauteur || null,
+            });
+            if (error) throw new Error(humaniseErreur(error.message));
+            setOkEnvoi(`Ajoutée à la galerie de ${c.name} — visible chez lui dès maintenant.`);
+          }
+        } catch (e2) { setErr(e2.message); }
+        setBusyEnvoi(false);
+      };
 
       const charger = async () => {
         let q = sb.from('drive_items').select('*');
@@ -3804,6 +3890,57 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     <Btn kind="dark" onClick={() => deplacer(gere)}>Déplacer</Btn>
                   </div>
                 </Field>
+
+                {gere.genre !== 'dossier' && peutEnvoyer && (
+                  <Field label="Envoyer à un client">
+                    <div className="space-y-2">
+                      <Select value={envoiClient} onChange={(e) => { setEnvoiClient(e.target.value); setOkEnvoi(''); }}>
+                        <option value="">— choisir un espace client —</option>
+                        {clients.filter((c) => c.active !== false).map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </Select>
+                      {clientChoisi && !versLivraison && (
+                        <div className="text-[11px] text-stone-500">
+                          {gere.genre === 'video'
+                            ? 'Ira dans ses Médias avec le circuit de validation — la qualité adaptative suivra toute seule.'
+                            : 'Ira dans ses Médias, avec le circuit de validation.'}
+                        </div>
+                      )}
+                      {clientChoisi && versLivraison && gere.genre === 'photo' && (
+                        galsClient === null ? (
+                          <div className="text-[11px] text-stone-500">Ses galeries arrivent…</div>
+                        ) : !galsClient.length ? (
+                          <div className="text-[11px] text-amber-700">
+                            Cet espace n'a pas encore de galerie photos — créez-la d'abord dans le concepteur.
+                          </div>
+                        ) : (
+                          <Select value={galChoisie} onChange={(e) => setGalChoisie(e.target.value)}>
+                            <option value="">— choisir la galerie —</option>
+                            {galsClient.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
+                          </Select>
+                        )
+                      )}
+                      {clientChoisi && versLivraison && gere.genre === 'video' && (
+                        <div className="text-[11px] text-amber-700">
+                          Les films d'un espace livraison passent par le concepteur de galerie
+                          (encodage cinéma, habillage) — cet envoi ne couvre que les photos.
+                        </div>
+                      )}
+                      <Btn kind="dark" icon={busyEnvoi ? Loader2 : Send}
+                        disabled={busyEnvoi || !clientChoisi
+                          || (versLivraison && (gere.genre !== 'photo' || !galChoisie))}
+                        onClick={envoyerAuClient}>
+                        {busyEnvoi ? 'Envoi…' : 'Envoyer'}
+                      </Btn>
+                      {okEnvoi && (
+                        <div className="text-[12px] text-emerald-700 flex items-center gap-1.5">
+                          <CheckCircle2 size={13} className="shrink-0" /> {okEnvoi}
+                        </div>
+                      )}
+                    </div>
+                  </Field>
+                )}
               </div>
             </Modal>
           )}
@@ -12192,7 +12329,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               ) : section === 'messages' ? (
                 <MessagesTab user={user} onLu={chargerNonLus} />
               ) : section === 'drive' ? (
-                <DriveTab />
+                <DriveTab clients={clients} />
               ) : section === 'revenus' ? (
                 <RevenusTab user={user} onClients={() => setSection('clients')} />
               ) : section === 'portfolio' && FEATURES.portfolio ? (

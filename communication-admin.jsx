@@ -2245,6 +2245,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         chargerTaches();
       };
       const nomEquipier = (id) => (equipe.find((m) => m.user_id === id) || {}).nom || '—';
+      const donneeParPost = (t) => {
+        if (!t.cree_par || t.cree_par === t.assigne_a) return null;
+        const m = equipe.find((x) => x.user_id === t.cree_par);
+        if (!m) return 'donnée par un ancien coéquipier';
+        const fonction = m.metier || ROLES_EQUIPE[m.role] || '';
+        return `donnée par ${m.nom}${fonction ? ` (${fonction})` : ''}`;
+      };
 
       const shoot = shoots.find((x) => x.id === shootId) || null;
       const media = medias.find((x) => x.id === mediaId) || null;
@@ -2472,7 +2479,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       <div className="flex-1 min-w-0">
                         <div className={`text-[13px] ${t.fait_le ? 'line-through' : ''}`}>{t.titre}</div>
                         <div className="text-[11px] text-stone-500">
-                          {nomEquipier(t.assigne_a)}{t.due_on ? ` · pour ${isoToLabel(t.due_on)}` : ''}
+                          {nomEquipier(t.assigne_a)}
+                          {donneeParPost(t) ? ` · ${donneeParPost(t)}` : ''}
+                          {t.due_on ? ` · pour ${isoToLabel(t.due_on)}` : ''}
                         </div>
                       </div>
                       {(peutDonner || t.cree_par === moiId) && (
@@ -2745,6 +2754,17 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
 
       const nomDe = (id) => (equipe.find((m) => m.user_id === id) || {}).nom || 'Non assignée';
+      /* Qui a donné la tâche, et sa FONCTION (le métier saisi dans
+         l'équipe, sinon le rôle). Rien quand on se l'est notée
+         soi-même — « donnée par moi à moi » serait du bruit — ni sur
+         les tâches d'avant la mémoire du créateur. */
+      const donneePar = (t) => {
+        if (!t.cree_par || t.cree_par === t.assigne_a) return null;
+        const m = equipe.find((x) => x.user_id === t.cree_par);
+        if (!m) return 'donnée par un ancien coéquipier';
+        const fonction = m.metier || ROLES_EQUIPE[m.role] || '';
+        return `donnée par ${m.nom}${fonction ? ` (${fonction})` : ''}`;
+      };
       /* « Que j'ai données » : les tâches que J'AI créées pour les
          AUTRES — le patron voit d'un coup d'œil ce qu'il a distribué,
          qui a fini, qui est en retard. (Les tâches d'avant la mémoire
@@ -2852,6 +2872,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       <div className={`text-[13.5px] ${t.fait_le ? 'line-through' : ''}`}>{t.titre}</div>
                       <div className="text-[11px] text-stone-500 mt-0.5 flex items-center gap-2 flex-wrap">
                         <span>{nomDe(t.assigne_a)}</span>
+                        {donneePar(t) && <span className="text-stone-400">· {donneePar(t)}</span>}
                         {t.due_on && (
                           <span className={u === 'retard' ? 'text-rose-600 font-semibold'
                             : u === 'auj' ? 'text-amber-700 font-semibold' : ''}>

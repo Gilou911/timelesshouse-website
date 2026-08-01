@@ -1663,6 +1663,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [nouveau, setNouveau] = useState(false);
       const [ouvert, setOuvert] = useState(null);   // post dont la fiche est ouverte
       const [tour, setTour] = useState(0);          // force le rechargement de la chaîne
+      const [urgents, setUrgents] = useState(null); // sorties du jour + en retard
 
       // Les bornes du mois affiché, en dates locales.
       const debut = useMemo(() => new Date(mois.getFullYear(), mois.getMonth(), 1), [mois]);
@@ -1686,6 +1687,38 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       useEffect(() => {
         sb.rpc('equipe_agence').then(({ data }) => setEquipe(data || [])).catch(() => {});
       }, []);
+
+      /* Ce qui n'attend pas le calendrier : les sorties à publier
+         AUJOURD'HUI et celles dont l'heure est passée sans que
+         personne ne coche « publié ». Le calendrier est mensuel — une
+         sortie en retard du mois dernier en serait invisible : cette
+         requête-ci regarde tout le passé, quel que soit le mois
+         affiché. La RLS borne à l'agence, comme partout. */
+      const chargerUrgents = async () => {
+        const finJour = new Date(); finJour.setHours(23, 59, 59, 999);
+        const { data } = await sb.from('post_sorties')
+          .select('*, posts!inner(*)')
+          .is('publie_le', null)
+          .not('prevue_le', 'is', null)
+          .lte('prevue_le', finJour.toISOString())
+          .order('prevue_le')
+          .limit(30);
+        const auj = cleJour(new Date());
+        const vivantes = (data || []).filter((s) => s.posts?.statut !== 'abandonne');
+        setUrgents({
+          retard: vivantes.filter((s) => cleJour(new Date(s.prevue_le)) < auj),
+          jour:   vivantes.filter((s) => cleJour(new Date(s.prevue_le)) === auj),
+        });
+      };
+      useEffect(() => { chargerUrgents(); }, [tour]);
+
+      /* Cocher « publié » sans ouvrir la fiche : c'est LE geste que le
+         rappel du matin demande — il doit tenir en un tap. */
+      const cocherPubliee = async (s) => {
+        const { error } = await sb.from('post_sorties')
+          .update({ publie_le: new Date().toISOString() }).eq('id', s.id);
+        if (!error) { chargerUrgents(); setTour((t) => t + 1); }
+      };
 
       /* Les cases de la grille : on remonte au lundi qui précède le 1er
          et on descend jusqu'au dimanche qui suit le dernier. Une grille
@@ -1732,6 +1765,52 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </div>
             <Btn kind="dark" icon={Plus} onClick={() => setNouveau(true)}>Programmer un post</Btn>
           </div>
+
+          {urgents && (urgents.jour.length + urgents.retard.length) > 0 && (
+            <div style={neu.raised} className="rounded-[22px] lg:rounded-[24px] p-4 lg:p-5 mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Send size={14} className="text-stone-500" />
+                <h2 className="text-[15px] font-semibold">À publier</h2>
+                {urgents.retard.length > 0 && (
+                  <span className="text-[11.5px] text-rose-600 font-semibold">
+                    {urgents.retard.length} en retard
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                {[...urgents.retard.map((s) => ({ s, enRetard: true })),
+                  ...urgents.jour.map((s) => ({ s, enRetard: false }))].map(({ s, enRetard }) => {
+                  const nomClient = clients.find((c) => c.id === s.posts?.client_id)?.name || '';
+                  const quand = enRetard
+                    ? `${new Date(s.prevue_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} ${hhmm(s.prevue_le)}`
+                    : hhmm(s.prevue_le);
+                  return (
+                    <div key={s.id}
+                      className={`flex items-center gap-2 rounded-xl pl-3 pr-1.5 py-1 ${enRetard ? 'bg-rose-50' : ''}`}
+                      style={enRetard ? undefined : neu.pressedSm}>
+                      <button onClick={() => setOuvert(s.posts)}
+                        className="flex-1 min-w-0 min-h-[44px] flex items-center gap-2.5 text-left">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ background: RESEAUX[s.reseau]?.c || '#6b6357' }} />
+                        <span className={`text-[12.5px] font-semibold tabular-nums shrink-0 ${enRetard ? 'text-rose-700' : ''}`}>
+                          {quand}
+                        </span>
+                        <span className="text-[13px] truncate">{s.posts?.title}</span>
+                        {nomClient && (
+                          <span className="text-[11.5px] text-stone-500 truncate hidden sm:inline">· {nomClient}</span>
+                        )}
+                      </button>
+                      <button onClick={() => cocherPubliee(s)} style={neu.raisedXs}
+                        title={`Marquer la sortie ${RESEAUX[s.reseau]?.l || s.reseau} comme publiée`}
+                        className="min-h-[44px] px-3.5 rounded-full flex items-center gap-1.5 text-[12px] font-semibold shrink-0 active:scale-95 transition-transform">
+                        <Check size={13} /> Publié
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
             <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">

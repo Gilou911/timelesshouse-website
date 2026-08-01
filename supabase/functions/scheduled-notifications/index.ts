@@ -5,6 +5,9 @@
 //   • Rappels J-7 et J-1 avant un tournage         ← MIS À JOUR
 //   • Rappels de facture (3 j avant échéance / le jour J / J+7
 //     et J+14 si toujours impayée — max 4 emails par facture)
+//   • « À publier aujourd'hui » (métier Communication) : un email
+//     par agence listant les sorties du jour + celles d'hier jamais
+//     cochées « publié » (anti-doublon : post_sorties.rappel_envoye_pour)
 //
 // Anti-doublon :
 //   • Tournages   → colonnes shoots.reminded_7d / reminded_1d
@@ -235,6 +238,90 @@ serve(async (req) => {
     });
     log.push({ client: c.name, kind: "admin_client_expiring", days: left,
       result: r2?.ok ? "sent" : (r2?.skipped || "error"), error: r2?.error });
+  }
+
+  // ─── 5) SORTIES À PUBLIER (métier Communication) ────────────
+  // L'agenda éditorial ne vaut que s'il RÉVEILLE : chaque matin, UN
+  // email par agence liste ce qui doit sortir dans la journée — et,
+  // en seconde section, les sorties d'HIER jamais cochées « publié »
+  // (publiées mais pas cochées, ou vraiment manquées : un regard
+  // humain tranche). Anti-doublon à deux étages : la colonne
+  // post_sorties.rappel_envoye_pour (le jour POUR lequel on a déjà
+  // prévenu — une sortie déplacée redevient éligible d'elle-même),
+  // et le dedupe_key côté notify-client si le cron est rejoué.
+  // Le tout sous try : la tournée du matin (tournages, factures) ne
+  // doit jamais tomber pour un rappel de sortie.
+  try {
+    const hier = isoInDays(-1);
+    // Fenêtre large en UTC, tri fin en heure de Paris ensuite : les
+    // bornes exactes d'un jour civil parisien en UTC dépendent de
+    // l'heure d'été — autant ne pas jouer à ça dans la requête.
+    const depuis = new Date(Date.now() - 3 * 86400000).toISOString();
+    const jusqua = new Date(Date.now() + 2 * 86400000).toISOString();
+    const { data: sortiesDues, error: sErr } = await sb
+      .from("post_sorties")
+      .select("*, posts!inner(*)")
+      .is("publie_le", null)
+      .gte("prevue_le", depuis)
+      .lt("prevue_le", jusqua);
+    if (sErr) throw new Error(sErr.message);
+
+    const jourParis  = (iso: string) => new Date(iso).toLocaleDateString("fr-CA", { timeZone: "Europe/Paris" });
+    const heureParis = (iso: string) => new Date(iso).toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" });
+
+    // Rangement par agence : un matin, UN email — jamais un par sortie.
+    const parAgence = new Map<string, { jour: any[]; retard: any[] }>();
+    for (const s of sortiesDues || []) {
+      if (!s.prevue_le || s.posts?.statut === "abandonne") continue;
+      if (s.rappel_envoye_pour === today) continue;   // déjà prévenu ce matin
+      const j = jourParis(s.prevue_le);
+      const quand = j === today ? "jour" : j === hier ? "retard" : null;
+      if (!quand) continue;
+      const g = parAgence.get(s.posts.agency_id) || { jour: [], retard: [] };
+      g[quand].push(s);
+      parAgence.set(s.posts.agency_id, g);
+    }
+
+    // Les noms des clients concernés, en une seule requête.
+    const idsClients = [...new Set(
+      [...parAgence.values()].flatMap((g) => [...g.jour, ...g.retard])
+        .map((s) => s.posts.client_id).filter(Boolean),
+    )];
+    const nomClients = new Map<string, string>();
+    if (idsClients.length) {
+      const { data: cs } = await sb.from("clients").select("id, name").in("id", idsClients);
+      (cs || []).forEach((c: any) => nomClients.set(c.id, c.name));
+    }
+
+    for (const [agencyId, g] of parAgence) {
+      const versExtra = (s: any) => ({
+        heure:  heureParis(s.prevue_le),
+        date:   jourParis(s.prevue_le),
+        reseau: s.reseau,
+        titre:  s.posts.title,
+        client: nomClients.get(s.posts.client_id) || "",
+      });
+      const res = await callNotify({
+        kind:       "admin_publish_today",
+        agency_id:  agencyId,
+        dedupe_key: `sorties:${agencyId}:${today}`,
+        extra: { jour: g.jour.map(versExtra), retard: g.retard.map(versExtra) },
+      });
+      const sent = !!res?.ok && !res?.skipped;
+      if (sent) {
+        // Chaque sortie retient POUR QUEL JOUR elle a été rappelée :
+        // rejouer le cron ne renvoie rien, déplacer la sortie ré-arme.
+        const ids = [...g.jour, ...g.retard].map((s) => s.id);
+        await sb.from("post_sorties").update({ rappel_envoye_pour: today }).in("id", ids);
+      }
+      log.push({
+        kind: "admin_publish_today", agency: agencyId,
+        jour: g.jour.length, retard: g.retard.length,
+        result: sent ? "sent" : (res?.skipped || "error"), error: res?.error,
+      });
+    }
+  } catch (e) {
+    log.push({ kind: "admin_publish_today", result: "error", error: String((e as any)?.message || e) });
   }
 
   return new Response(JSON.stringify({ ok: true, date: today, processed: clients?.length || 0, log }), {

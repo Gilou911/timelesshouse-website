@@ -128,6 +128,16 @@ function esc(v) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
+/* Comparaison de jetons à durée constante : une égalité de chaînes
+   classique s'arrête au premier caractère différent et laisse deviner
+   le jeton, octet par octet, à qui mesure le temps de réponse. Sert
+   aux deux gardes (branche agence et branche client). */
+function memeJeton(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
 // ─────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────
@@ -831,6 +841,58 @@ function buildAdminSelectionDone(client, extra) {
   };
 }
 
+/* « À publier aujourd'hui » — le rappel de sortie du métier
+   Communication. Il s'adresse à l'AGENCE (c'est l'équipe qui publie),
+   jamais à un client : un même matin peut concerner trois clients à la
+   fois. Envoyé par le cron quotidien, une seule fois par agence et par
+   jour. Les sorties d'HIER jamais cochées « publié » font une seconde
+   section : publiées mais pas cochées, ou vraiment manquées — dans les
+   deux cas, il faut un regard humain. */
+function buildAdminPublishToday(brand, extra) {
+  /* Pseudo-client : la marque de l'agence + l'habillage Communication
+     (le thème neumorphique suit l'univers, et cet email EST du métier
+     Communication). brandOf pose aussi CURRENT_CONSOLE au bon domaine. */
+  brandOf({ __brand: brand, universe: "communication" });
+  const NOMS_RESEAUX = {
+    instagram: "Instagram", tiktok: "TikTok", linkedin: "LinkedIn",
+    facebook: "Facebook", youtube: "YouTube", autre: "Autre",
+  };
+  const jour = Array.isArray(extra.jour) ? extra.jour : [];
+  const retard = Array.isArray(extra.retard) ? extra.retard : [];
+  const ligne = (s, avecDate) => {
+    const heure = esc(s.heure || "");
+    const reseau = esc(NOMS_RESEAUX[s.reseau] || s.reseau || "");
+    const client = s.client ? ` <span style="opacity:.65">· ${esc(s.client)}</span>` : "";
+    const quand = avecDate && s.date
+      ? esc(new Date(`${s.date}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })) + " "
+      : "";
+    return `<li style="margin:0 0 8px"><strong>${quand}${heure}</strong> — ${reseau}&nbsp;: ${esc(s.titre || "Sans titre")}${client}</li>`;
+  };
+  const n = jour.length;
+  const sujet = n > 0
+    ? `À publier aujourd'hui — ${n} sortie${n > 1 ? "s" : ""}`
+    : `Sortie${retard.length > 1 ? "s" : ""} d'hier à vérifier`;
+  return {
+    subject: sujet,
+    html: layout(`
+      ${n > 0 ? `
+      <h2>À publier aujourd'hui</h2>
+      <p>Ce qui doit sortir dans la journée&nbsp;:</p>
+      <ul style="padding-left:18px;margin:0 0 16px">${jour.map((s) => ligne(s, false)).join("")}</ul>
+      ` : ""}
+      ${retard.length ? `
+      <h3 style="margin:18px 0 6px">Hier, jamais cochées «&nbsp;publié&nbsp;»</h3>
+      <ul style="padding-left:18px;margin:0 0 8px">${retard.map((s) => ligne(s, true)).join("")}</ul>
+      <p class="note">Publiées mais pas cochées&nbsp;? Un clic sur la sortie,
+         dans la fiche du post, la range — et le rappel s'arrête là.</p>
+      ` : ""}
+      <div style="text-align:center">
+        <a class="btn" href="${esc(CURRENT_CONSOLE)}">Ouvrir l'agenda</a>
+      </div>
+    `)
+  };
+}
+
 function buildAdminApproval(client, media, kind) {
   const B = brandOf(client);
   const approved = kind === "admin_media_approved";
@@ -1187,6 +1249,62 @@ serve(async (req)=>{
         }
       });
     }
+    // ── Emails vers l'AGENCE, sans client ──────────────────────────
+    // « À publier aujourd'hui » s'adresse à l'équipe qui publie, pas à
+    // un client — et un même matin peut en concerner plusieurs. Toute
+    // la suite du fichier exige un client réel : cette branche se règle
+    // donc ENTIÈREMENT ici. Aucune preuve « client » n'existe pour ce
+    // genre d'envoi ; le sésame est la clé interne (cron, worker), et
+    // elle seule — un appelant anonyme ou même un admin authentifié
+    // n'a aucune raison de déclencher le digest d'une agence à la main.
+    if (kind === "admin_publish_today") {
+      const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
+      if (!(bearer && (memeJeton(bearer, WORKER_TOKEN) || memeJeton(bearer, SB_KEY)))) {
+        return new Response(JSON.stringify({ error: "Réservé au planificateur interne." }), {
+          status: 403, headers: { ...CORS, "Content-Type": "application/json" },
+        });
+      }
+      const agence = body.agency_id ? await sbGet("agencies", body.agency_id) : null;
+      if (!agence) {
+        return new Response(JSON.stringify({ error: "agency_id manquant ou introuvable." }), {
+          status: 400, headers: { ...CORS, "Content-Type": "application/json" },
+        });
+      }
+      // Anti-doublon : le cron rejoué le même jour ne renvoie rien.
+      if (!body.dry_run && (await alreadySent(body.dedupe_key))) {
+        return new Response(JSON.stringify({ ok: true, skipped: "already_sent" }), {
+          status: 200, headers: { ...CORS, "Content-Type": "application/json" },
+        });
+      }
+      const brand = {
+        name: agence.name || DEFAULT_BRAND.name,
+        email: agence.contact_email || DEFAULT_BRAND.email,
+        accent: agence.accent_color || DEFAULT_BRAND.accent,
+        logo: /^https:\/\//i.test(agence.logo_url || "") ? agence.logo_url : null,
+        slug: agence.slug || null,
+        site: agence.slug === "timelesshouse" ? DEFAULT_BRAND.site : null,
+      };
+      // Sans adresse de contact, pas de boîte où frapper : on le dit
+      // au cron (qui le journalise) plutôt que d'échouer en silence.
+      const to = agence.contact_email || (agence.slug === "timelesshouse" ? ADMIN_EMAIL : null);
+      if (!to) {
+        return new Response(JSON.stringify({ ok: true, skipped: "no_agency_email" }), {
+          status: 200, headers: { ...CORS, "Content-Type": "application/json" },
+        });
+      }
+      const outgoing = { to, brand, ...buildAdminPublishToday(brand, extra ?? {}) };
+      if (body.dry_run) {
+        return new Response(JSON.stringify({
+          ok: true, dry_run: true, to: outgoing.to, subject: outgoing.subject,
+          from: `${brand.name} <${FROM_ADDR}>`,
+        }), { status: 200, headers: { ...CORS, "Content-Type": "application/json" } });
+      }
+      try { await sendEmail(outgoing); await logNotification(null, kind, body, true, outgoing); }
+      catch (e) { await logNotification(null, kind, body, false, outgoing, e?.message); throw e; }
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200, headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
     // Récupération du client + de son AGENCE (marque blanche)
     const client = client_id ? await sbGet("clients", client_id) : null;
     const agency = client?.agency_id ? await sbGet("agencies", client.agency_id) : null;
@@ -1234,15 +1352,8 @@ serve(async (req)=>{
          plus celle que le worker détient — 3 emails « votre film est
          prêt » refusés les 25 et 27/07, jamais un seul parti). Un secret
          que l'on pose soi-même ne se désynchronise pas tout seul.
-         Comparaison à durée constante : une égalité de chaînes classique
-         s'arrête au premier caractère différent et laisse deviner le
-         jeton, octet par octet, à qui mesure le temps de réponse. */
-      const memeJeton = (a, b) => {
-        if (!a || !b || a.length !== b.length) return false;
-        let d = 0;
-        for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
-        return d === 0;
-      };
+         La comparaison à durée constante (memeJeton) vit au niveau du
+         module : la garde « agence » plus haut s'en sert aussi. */
       if (bearer && (memeJeton(bearer, WORKER_TOKEN) || memeJeton(bearer, SB_KEY))) {
         autorise = true;
       } else {

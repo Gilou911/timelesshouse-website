@@ -20,7 +20,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       FolderOpen, Download, Upload,
       Maximize2, Monitor, Smartphone, ChevronDown, ChevronUp,
       Lightbulb, Copy, Power, Building2, HelpCircle, Heart, ShieldCheck,
-      UserPlus, UsersRound, List, LayoutGrid, ZoomIn, ZoomOut
+      UserPlus, UsersRound, List, LayoutGrid, ZoomIn, ZoomOut, ClipboardList
     } from 'lucide-react';
     import AdminPortfolio from './admin-portfolio.jsx';
     import {
@@ -4104,6 +4104,17 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       );
     }
 
+    /* L'onglet « Mes tâches » du membre : le MÊME bloc que dans
+       Équipe (une liste, un état, une urgence), servi seul — tout ce
+       qui lui est confié, sans le bruit de la gestion d'équipe. */
+    function MesTachesTab({ clients }) {
+      const [equipe, setEquipe] = useState([]);
+      useEffect(() => {
+        sb.rpc('equipe_agence').then(({ data }) => setEquipe(data || [])).catch(() => {});
+      }, []);
+      return <MesTaches equipe={equipe} clients={clients} />;
+    }
+
     function EquipeTab({ clients, user }) {
       const [equipe, setEquipe] = useState(null);   // null = chargement
       const [err, setErr] = useState('');
@@ -4407,8 +4418,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               une messagerie mérite un plein écran, pas un fond de page. */}
 
           {/* ─── Les tâches — déménagées depuis l'Agenda. `onChange`
-              remonte : cocher une tâche rafraîchit la charge au-dessus. ─── */}
-          <MesTaches equipe={equipe || []} clients={clients} onChange={chargerCharge} />
+              remonte : cocher une tâche rafraîchit la charge au-dessus.
+              Un MEMBRE a désormais SON onglet « Mes tâches » : ici, ce
+              serait un doublon — on ne montre le bloc qu'aux gérants. ─── */}
+          {MON_ROLE.value !== 'membre' && (
+            <MesTaches equipe={equipe || []} clients={clients} onChange={chargerCharge} />
+          )}
         </div>
       );
     }
@@ -12392,7 +12407,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
          privilège lui est accordé. Tout le reste ramène à l'agenda. */
       useEffect(() => {
         if (!featuresReady || MON_ROLE.value !== 'membre') return;
-        const permis = new Set(['agenda', 'equipe', 'messages', 'drive', 'settings',
+        const permis = new Set(['agenda', 'taches', 'equipe', 'messages', 'drive', 'settings',
           ...(MES_PRIVILEGES.includes('clients') ? ['clients'] : [])]);
         if (!permis.has(section)) setSection('agenda');
       }, [featuresReady, section]);
@@ -12423,6 +12438,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         clients:  { t: 'Mes clients', s: 'Tous les espaces que vous avez créés.' },
         agenda:   { t: 'Agenda', s: 'Ce que vous tournez et ce qui sort, sur la même grille.' },
         equipe:   { t: 'Équipe', s: 'Vos coéquipiers, leurs rôles et leurs tâches.' },
+        taches:   { t: 'Mes tâches', s: 'Tout ce qui vous est confié, et où ça en est.' },
         messages: { t: 'Messages', s: 'Le fil de l’équipe, et vos conversations privées.' },
         drive:    { t: 'Drive', s: 'Le disque commun de l’équipe : déposez, rangez, retrouvez.' },
         portfolio:{ t: 'Portfolio', s: 'Vitrine et espaces de prospection.' },
@@ -12495,6 +12511,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                      FEATURES.allUniverses = la plateforme, qui voit tout. */
                   ...(MES_METIERS.includes('communication') || FEATURES.allUniverses
                     ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' },
+                       /* L'onglet du MEMBRE : ses tâches en un seul
+                          endroit (demande de Gil) — le patron garde
+                          les siennes dans Équipe, avec la gestion. */
+                       ...(MON_ROLE.value === 'membre'
+                         ? [{ id: 'taches', icon: ClipboardList, label: 'Mes tâches' }] : []),
                        { id: 'equipe', icon: UsersRound, label: 'Équipe' },
                        { id: 'messages', icon: MessageSquare, label: 'Messages' },
                        { id: 'drive', icon: FolderOpen, label: 'Drive' }] : []),
@@ -12568,6 +12589,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <AgendaTab clients={clients} />
               ) : section === 'equipe' ? (
                 <EquipeTab clients={clients} user={user} />
+              ) : section === 'taches' ? (
+                <MesTachesTab clients={clients} />
               ) : section === 'messages' ? (
                 <MessagesTab user={user} onLu={chargerNonLus} />
               ) : section === 'drive' ? (
@@ -12620,6 +12643,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               ...(MES_METIERS.includes('communication') || FEATURES.allUniverses
                 ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' },
                    ...(agencies !== null ? [] : [
+                     ...(MON_ROLE.value === 'membre'
+                       ? [{ id: 'taches', icon: ClipboardList, label: 'Tâches' }] : []),
                      { id: 'equipe', icon: UsersRound, label: 'Équipe' },
                      { id: 'messages', icon: MessageSquare, label: 'Messages' },
                      /* 7 onglets locataire : 46,7 px la cible — au-dessus

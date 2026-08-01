@@ -20,7 +20,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       FolderOpen, Download, Upload,
       Maximize2, Monitor, Smartphone, ChevronDown, ChevronUp,
       Lightbulb, Copy, Power, Building2, HelpCircle, Heart, ShieldCheck,
-      UserPlus, UsersRound
+      UserPlus, UsersRound, List, LayoutGrid, ZoomIn, ZoomOut
     } from 'lucide-react';
     import AdminPortfolio from './admin-portfolio.jsx';
     import {
@@ -3103,6 +3103,40 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [dest, setDest] = useState('');            // destination « Déplacer »
       const fichierRef = useRef(null);
 
+      /* Vue et taille : le rangement est un goût personnel — retenus
+         sur CET appareil (localStorage), pas en base. */
+      const [vue, setVue] = useState(() => {
+        try { return localStorage.getItem('th_drive_vue') || 'grille'; } catch (_) { return 'grille'; }
+      });
+      const poserVue = (v) => { setVue(v); try { localStorage.setItem('th_drive_vue', v); } catch (_) {} };
+      const TAILLES = ['petit', 'moyen', 'grand'];
+      const [taille, setTaille] = useState(() => {
+        try { return TAILLES.includes(localStorage.getItem('th_drive_taille')) ? localStorage.getItem('th_drive_taille') : 'moyen'; }
+        catch (_) { return 'moyen'; }
+      });
+      const changerTaille = (dir) => setTaille((t) => {
+        const n = TAILLES[Math.min(TAILLES.length - 1, Math.max(0, TAILLES.indexOf(t) + dir))];
+        try { localStorage.setItem('th_drive_taille', n); } catch (_) {}
+        return n;
+      });
+      const colonnes = taille === 'petit'
+        ? 'grid-cols-3 sm:grid-cols-4 xl:grid-cols-6'
+        : taille === 'grand'
+          ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3'
+          : 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4';
+
+      /* Relancer une version allégée en échec : la vidéo repasse en
+         file, le worker la reprend au prochain tour (≤ 30 s). */
+      const relancerEncodage = async (it) => {
+        const { error } = await sb.from('drive_items')
+          .update({ encodage: 'pending', erreur: null }).eq('id', it.id);
+        if (error) { setErr(humaniseErreur(error.message)); return; }
+        setOuvert(null); setGere(null); charger();
+      };
+
+      const fmtOctets = (o) => !o ? '' : (o / 1048576) >= 1024
+        ? `${(o / 1073741824).toFixed(1)} Go` : `${Math.max(1, Math.round(o / 1048576))} Mo`;
+
       const charger = async () => {
         let q = sb.from('drive_items').select('*');
         q = dossier ? q.eq('parent_id', dossier) : q.is('parent_id', null);
@@ -3254,7 +3288,33 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 </span>
               ))}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center flex-wrap">
+              <button type="button" onClick={() => { charger(); chargerDossiers(); }}
+                aria-label="Actualiser" title="Actualiser" style={neu.raisedXs}
+                className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
+                <RefreshCw size={15} />
+              </button>
+              <button type="button" onClick={() => poserVue(vue === 'grille' ? 'liste' : 'grille')}
+                aria-label={vue === 'grille' ? 'Passer en liste' : 'Passer en grille'}
+                title={vue === 'grille' ? 'Passer en liste' : 'Passer en grille'}
+                style={neu.raisedXs}
+                className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
+                {vue === 'grille' ? <List size={15} /> : <LayoutGrid size={15} />}
+              </button>
+              {vue === 'grille' && (
+                <>
+                  <button type="button" onClick={() => changerTaille(-1)} disabled={taille === 'petit'}
+                    aria-label="Icônes plus petites" title="Icônes plus petites" style={neu.raisedXs}
+                    className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform disabled:opacity-35">
+                    <ZoomOut size={15} />
+                  </button>
+                  <button type="button" onClick={() => changerTaille(1)} disabled={taille === 'grand'}
+                    aria-label="Icônes plus grandes" title="Icônes plus grandes" style={neu.raisedXs}
+                    className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform disabled:opacity-35">
+                    <ZoomIn size={15} />
+                  </button>
+                </>
+              )}
               <Btn icon={FolderOpen} onClick={creerDossier}>Nouveau dossier</Btn>
               <Btn kind="dark" icon={Upload} onClick={() => fichierRef.current?.click()}>Téléverser</Btn>
               <input ref={fichierRef} type="file" multiple accept="image/*,video/*"
@@ -3298,10 +3358,65 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 Les vidéos reçoivent une version allégée, prête à regarder d'un clic.
               </p>
             </div>
+          ) : vue === 'liste' ? (
+            /* ─── Vue LISTE : une ligne par élément, vignette carrée ─── */
+            <div className="space-y-1.5">
+              {lesDossiers.map((d) => (
+                <div key={d.id} style={neu.raisedXs} className="rounded-xl flex items-center">
+                  <button type="button" onClick={() => setChemin([...chemin, { id: d.id, nom: d.nom }])}
+                    className="flex-1 min-w-0 min-h-[52px] px-3 flex items-center gap-3 text-left">
+                    <FolderOpen size={17} className="text-stone-500 shrink-0" />
+                    <span className="text-[13px] font-semibold truncate">{d.nom}</span>
+                  </button>
+                  <button type="button" onClick={() => { setGere(d); setDest(''); }}
+                    aria-label={`Options du dossier ${d.nom}`}
+                    className="w-11 min-h-[52px] flex items-center justify-center text-stone-400 hover:text-stone-700 shrink-0">
+                    ⋯
+                  </button>
+                </div>
+              ))}
+              {lesFichiers.map((f) => (
+                <div key={f.id} style={neu.raisedXs} className="rounded-xl flex items-center">
+                  <button type="button" onClick={() => setOuvert(f)}
+                    className="flex-1 min-w-0 min-h-[56px] px-2.5 py-1.5 flex items-center gap-3 text-left">
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-stone-900/85 shrink-0 relative">
+                      {f.apercu_url ? (
+                        <img src={f.apercu_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-stone-400">
+                          {f.genre === 'video' ? <Video size={15} /> : <ImageIcon size={15} />}
+                        </div>
+                      )}
+                      {f.genre === 'video' && (
+                        <span className="absolute inset-0 flex items-center justify-center text-white text-[10px]">▶</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-medium truncate">{f.nom}</div>
+                      <div className="text-[10.5px] text-stone-500 mt-0.5">
+                        {f.genre === 'video' ? 'Vidéo' : 'Photo'}
+                        {f.taille ? ` · ${fmtOctets(f.taille)}` : ''}
+                        {f.genre === 'video' && f.duree != null ? ` · ${fmtDuree(f.duree)}` : ''}
+                        {f.genre === 'video' && f.encodage !== 'done' && (
+                          <span className={f.encodage === 'error' ? 'text-rose-600 font-semibold' : 'text-amber-700'}>
+                            {f.encodage === 'error' ? ' · version allégée en échec' : ' · en préparation…'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => { setGere(f); setDest(''); }}
+                    aria-label={`Options de ${f.nom}`}
+                    className="w-11 min-h-[56px] flex items-center justify-center text-stone-400 hover:text-stone-700 shrink-0">
+                    ⋯
+                  </button>
+                </div>
+              ))}
+            </div>
           ) : (
             <>
               {lesDossiers.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 mb-4">
+                <div className={`grid ${colonnes} gap-3 mb-4`}>
                   {lesDossiers.map((d) => (
                     <div key={d.id} style={neu.raisedXs} className="rounded-2xl flex items-center">
                       <button type="button" onClick={() => setChemin([...chemin, { id: d.id, nom: d.nom }])}
@@ -3319,7 +3434,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 </div>
               )}
               {lesFichiers.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                <div className={`grid ${colonnes} gap-3`}>
                   {lesFichiers.map((f) => (
                     <div key={f.id} style={neu.raised} className="rounded-2xl overflow-hidden group relative">
                       <button type="button" onClick={() => setOuvert(f)}
@@ -3352,7 +3467,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         <div className="px-3 py-2.5">
                           <div className="text-[12.5px] font-medium truncate">{f.nom}</div>
                           <div className="text-[10.5px] text-stone-500 mt-0.5">
-                            {f.genre === 'video' ? 'Vidéo' : 'Photo'}{f.taille ? ` · ${(f.taille / 1048576) >= 1024 ? `${(f.taille / 1073741824).toFixed(1)} Go` : `${Math.max(1, Math.round(f.taille / 1048576))} Mo`}` : ''}
+                            {f.genre === 'video' ? 'Vidéo' : 'Photo'}{f.taille ? ` · ${fmtOctets(f.taille)}` : ''}
                           </div>
                         </div>
                       </button>
@@ -3394,11 +3509,18 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         ? (ouvert.erreur || 'Le fichier est peut-être illisible.') + ' L’original reste téléchargeable.'
                         : 'Quelques minutes après le dépôt — en attendant, l’original se télécharge.'}
                     </p>
+                    {ouvert.encodage === 'error' && (
+                      <div className="mt-4">
+                        <Btn kind="dark" icon={RefreshCw} onClick={() => relancerEncodage(ouvert)}>
+                          Réessayer l'encodage
+                        </Btn>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="flex gap-2 justify-end flex-wrap">
                   <Btn icon={Download} onClick={() => telechargerOriginal(ouvert)}>
-                    Télécharger l'original{ouvert.taille ? ` (${(ouvert.taille / 1048576) >= 1024 ? `${(ouvert.taille / 1073741824).toFixed(1)} Go` : `${Math.max(1, Math.round(ouvert.taille / 1048576))} Mo`})` : ''}
+                    Télécharger l'original{ouvert.taille ? ` (${fmtOctets(ouvert.taille)})` : ''}
                   </Btn>
                   <Btn onClick={() => setOuvert(null)}>Fermer</Btn>
                 </div>
@@ -3415,6 +3537,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   <Btn icon={Edit3} onClick={() => renommer(gere)}>Renommer</Btn>
                   {gere.genre !== 'dossier' && (
                     <Btn icon={Download} onClick={() => telechargerOriginal(gere)}>Télécharger l'original</Btn>
+                  )}
+                  {gere.genre === 'video' && gere.encodage === 'error' && (
+                    <Btn icon={RefreshCw} onClick={() => relancerEncodage(gere)}>Réessayer l'encodage</Btn>
                   )}
                   <Btn icon={Trash2} onClick={() => supprimer(gere)} className="text-rose-600">Supprimer</Btn>
                 </div>

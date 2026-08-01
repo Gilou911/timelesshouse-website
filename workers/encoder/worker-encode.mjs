@@ -20,7 +20,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, createWriteStream, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { appendFileSync, createReadStream, createWriteStream, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pipeline } from "node:stream/promises";

@@ -893,6 +893,31 @@ function buildAdminPublishToday(brand, extra) {
   };
 }
 
+/* « Nouvelle tâche pour vous » — l'assignation qui prévient. Sans cet
+   email, un coéquipier devait penser à ouvrir la console : le même
+   problème que l'agenda avant les rappels. Destinataire = un MEMBRE
+   de l'équipe (jamais un client, jamais une adresse libre). */
+function buildMemberTaskAssigned(brand, extra, parNom) {
+  brandOf({ __brand: brand, universe: "communication" });
+  const titre = esc(extra.titre || "Sans titre");
+  const client = extra.client ? esc(extra.client) : "";
+  const quand = extra.due_on
+    ? esc(new Date(`${extra.due_on}T12:00:00`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }))
+    : "";
+  return {
+    subject: `Nouvelle tâche — ${extra.titre || "Sans titre"}`,
+    html: layout(`
+      <h2>Nouvelle tâche pour vous</h2>
+      <p><strong>${titre}</strong>${client ? `&nbsp;· ${client}` : ""}</p>
+      ${quand ? `<p>À faire pour <strong>${quand}</strong>.</p>` : ""}
+      ${parNom ? `<p class="note">Assignée par ${esc(parNom)}.</p>` : ""}
+      <div style="text-align:center">
+        <a class="btn" href="${esc(CURRENT_CONSOLE)}">Voir mes tâches</a>
+      </div>
+    `)
+  };
+}
+
 function buildAdminApproval(client, media, kind) {
   const B = brandOf(client);
   const approved = kind === "admin_media_approved";
@@ -1293,6 +1318,91 @@ serve(async (req)=>{
         });
       }
       const outgoing = { to, brand, ...buildAdminPublishToday(brand, extra ?? {}) };
+      if (body.dry_run) {
+        return new Response(JSON.stringify({
+          ok: true, dry_run: true, to: outgoing.to, subject: outgoing.subject,
+          from: `${brand.name} <${FROM_ADDR}>`,
+        }), { status: 200, headers: { ...CORS, "Content-Type": "application/json" } });
+      }
+      try { await sendEmail(outgoing); await logNotification(null, kind, body, true, outgoing); }
+      catch (e) { await logNotification(null, kind, body, false, outgoing, e?.message); throw e; }
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200, headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
+    // ── « Nouvelle tâche pour vous » : email à un COÉQUIPIER ───────
+    // Ni un client, ni l'agence : un MEMBRE de l'équipe. Deux preuves
+    // acceptées — la clé interne (crons), ou le JWT d'un membre de la
+    // MÊME agence. Et la cible doit elle aussi être un coéquipier de
+    // cette agence : cette fonction ne relaiera jamais un email vers
+    // une adresse arbitraire.
+    if (kind === "member_task_assigned") {
+      const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
+      const agenceId = String(body.agency_id || "");
+      const cibleId = String(body.user_id || "");
+      if (!agenceId || !cibleId) {
+        return new Response(JSON.stringify({ error: "agency_id et user_id requis." }), {
+          status: 400, headers: { ...CORS, "Content-Type": "application/json" },
+        });
+      }
+      let autorise = !!bearer && (memeJeton(bearer, WORKER_TOKEN) || memeJeton(bearer, SB_KEY));
+      let parNom = null;
+      if (!autorise && bearer) {
+        const who = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: { apikey: SB_KEY, Authorization: `Bearer ${bearer}` },
+        }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+        if (who?.id) {
+          const rangs = await fetch(
+            `${SUPABASE_URL}/rest/v1/agency_members?user_id=eq.${encodeURIComponent(who.id)}&agency_id=eq.${encodeURIComponent(agenceId)}&select=display_name&limit=1`,
+            { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } },
+          ).then((r) => r.json()).catch(() => []);
+          if (Array.isArray(rangs) && rangs.length) {
+            autorise = true;
+            parNom = rangs[0].display_name || who.email || null;
+          }
+        }
+      }
+      if (!autorise) {
+        return new Response(JSON.stringify({ error: "Réservé à l'équipe de l'agence." }), {
+          status: 403, headers: { ...CORS, "Content-Type": "application/json" },
+        });
+      }
+      const cibleRang = await fetch(
+        `${SUPABASE_URL}/rest/v1/agency_members?user_id=eq.${encodeURIComponent(cibleId)}&agency_id=eq.${encodeURIComponent(agenceId)}&select=user_id&limit=1`,
+        { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } },
+      ).then((r) => r.json()).catch(() => []);
+      if (!Array.isArray(cibleRang) || !cibleRang.length) {
+        return new Response(JSON.stringify({ error: "Ce compte n'est pas dans l'équipe." }), {
+          status: 400, headers: { ...CORS, "Content-Type": "application/json" },
+        });
+      }
+      // Anti-doublon : ré-enregistrer une fiche ne re-prévient pas.
+      if (!body.dry_run && (await alreadySent(body.dedupe_key))) {
+        return new Response(JSON.stringify({ ok: true, skipped: "already_sent" }), {
+          status: 200, headers: { ...CORS, "Content-Type": "application/json" },
+        });
+      }
+      // L'email de la cible : l'endpoint admin DÉDIÉ, comme pour les
+      // facteurs 2FA (les listes de GoTrue sont paresseuses).
+      const compte = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${encodeURIComponent(cibleId)}`, {
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+      }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const to = compte?.email;
+      if (!to) {
+        return new Response(JSON.stringify({ ok: true, skipped: "no_member_email" }), {
+          status: 200, headers: { ...CORS, "Content-Type": "application/json" },
+        });
+      }
+      const agence = await sbGet("agencies", agenceId);
+      const brand = {
+        name: agence?.name || DEFAULT_BRAND.name,
+        email: agence?.contact_email || DEFAULT_BRAND.email,
+        accent: agence?.accent_color || DEFAULT_BRAND.accent,
+        logo: /^https:\/\//i.test(agence?.logo_url || "") ? agence.logo_url : null,
+        slug: agence?.slug || null,
+        site: agence?.slug === "timelesshouse" ? DEFAULT_BRAND.site : null,
+      };
+      const outgoing = { to, brand, ...buildMemberTaskAssigned(brand, extra ?? {}, parNom) };
       if (body.dry_run) {
         return new Response(JSON.stringify({
           ok: true, dry_run: true, to: outgoing.to, subject: outgoing.subject,

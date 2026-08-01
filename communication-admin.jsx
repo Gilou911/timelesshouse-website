@@ -95,6 +95,31 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        (aucun fichier ne transite par Supabase). Les fichiers > 4 Go
        (films de mariage) passent automatiquement en multipart.
        ════════════════════════════════════════════════════════════ */
+    /* 📬 « Nouvelle tâche pour vous » — prévient le coéquipier assigné.
+       Meilleur effort, JAMAIS bloquant : la tâche est déjà enregistrée,
+       l'email est un plus. On ne prévient que si l'assigné est
+       quelqu'un d'AUTRE que soi (s'auto-notifier serait du bruit).
+       L'anti-doublon (task:id:user) fait qu'un ré-enregistrement de la
+       même assignation ne renvoie rien — mais réassigner à quelqu'un
+       d'autre prévient bien le nouveau venu. */
+    async function signalerAssignation({ taskId, assigneA, titre, dueOn, clientNom }) {
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session || !assigneA || assigneA === session.user?.id || !AGENCY.id) return;
+        await fetch(`${SUPABASE_URL}/functions/v1/notify-client`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({
+            kind: 'member_task_assigned',
+            agency_id: AGENCY.id,
+            user_id: assigneA,
+            dedupe_key: `task:${taskId}:${assigneA}`,
+            extra: { titre: titre || '', due_on: dueOn || '', client: clientNom || '' },
+          }),
+        });
+      } catch (_) { /* le rappel est un plus, jamais un blocage */ }
+    }
+
     async function b2Sign(payload) {
       const { data: { session } } = await sb.auth.getSession();
       if (!session?.access_token) throw new Error('Session admin expirée — reconnecte-toi.');
@@ -1658,6 +1683,19 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     }
 
     function SettingsView({ billing, agency, refreshBrand }) {
+      /* Un « membre » ne règle que SON compte : mot de passe et double
+         vérification. La marque, l'abonnement, les métiers et les
+         rappels appartiennent au studio — le serveur le vérifie déjà
+         (RPC owner/admin), l'écran cesse simplement de proposer des
+         portes qui ne s'ouvrent pas. */
+      if (MON_ROLE.value === 'membre') {
+        return (
+          <div className="space-y-5 lg:space-y-6">
+            <PasswordCard />
+            <MfaCard />
+          </div>
+        );
+      }
       return (
         <div className="space-y-5 lg:space-y-6">
           {/* Ma marque (SaaS B.3) — l'agence règle sa propre identité */}
@@ -2104,6 +2142,58 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           .then(({ data }) => setMedias(data || []));
       }, [post.id]);
 
+      /* ── Les tâches du post : la chaîne distribue le travail ─────
+         « Tourner », « Monter », « Publier »… assignées ICI, là où le
+         contexte vit. Elles retombent dans l'onglet Équipe (post_id et
+         client_id posés), et l'assigné reçoit son email. */
+      const [equipe, setEquipe] = useState([]);
+      const [taches, setTaches] = useState(null);
+      const [tTitre, setTTitre] = useState('');
+      const [tPour, setTPour] = useState('');
+      const [tQuand, setTQuand] = useState('');
+      const [busyTache, setBusyTache] = useState(false);
+
+      const chargerTaches = async () => {
+        const { data } = await sb.from('tasks').select('*').eq('post_id', post.id)
+          .order('fait_le', { nullsFirst: true }).order('due_on', { nullsFirst: false });
+        setTaches(data || []);
+      };
+      useEffect(() => {
+        chargerTaches();
+        sb.rpc('equipe_agence').then(({ data }) => setEquipe(data || [])).catch(() => {});
+      }, [post.id]);
+
+      const ajouterTache = async () => {
+        if (!tTitre.trim() || busyTache) return;
+        setBusyTache(true); setErr('');
+        const { data: { user: moiU } } = await sb.auth.getUser();
+        const { data: saved, error } = await sb.from('tasks').insert({
+          agency_id: AGENCY.id, post_id: post.id, client_id: post.client_id || null,
+          titre: tTitre.trim(), assigne_a: tPour || moiU?.id || null, due_on: tQuand || null,
+        }).select().single();
+        setBusyTache(false);
+        if (error) { setErr(humaniseErreur(error.message)); return; }
+        if (saved) {
+          signalerAssignation({
+            taskId: saved.id, assigneA: saved.assigne_a, titre: saved.titre, dueOn: saved.due_on,
+            clientNom: (clients.find((c) => c.id === post.client_id) || {}).name,
+          });
+        }
+        setTTitre(''); setTQuand('');
+        chargerTaches();
+      };
+
+      const basculerTache = async (t) => {
+        await sb.from('tasks').update({ fait_le: t.fait_le ? null : new Date().toISOString() }).eq('id', t.id);
+        chargerTaches();
+      };
+      const retirerTache = async (t) => {
+        if (!confirm(`Supprimer « ${t.titre} » ?`)) return;
+        await sb.from('tasks').delete().eq('id', t.id);
+        chargerTaches();
+      };
+      const nomEquipier = (id) => (equipe.find((m) => m.user_id === id) || {}).nom || '—';
+
       const shoot = shoots.find((x) => x.id === shootId) || null;
       const media = medias.find((x) => x.id === mediaId) || null;
       const etat = etatDeduit({ shoot, media, sorties, statut: post.statut });
@@ -2248,6 +2338,51 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </div>
             </div>
 
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold mb-2">Qui fait quoi</div>
+              {taches === null ? null : !taches.length ? (
+                <p className="text-[12.5px] text-stone-500">Aucune tâche sur ce post.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {taches.map((t) => (
+                    <div key={t.id} style={neu.pressedSm} className={`rounded-xl p-2.5 flex items-center gap-3 ${t.fait_le ? 'opacity-55' : ''}`}>
+                      <button type="button" onClick={() => basculerTache(t)}
+                        aria-label={t.fait_le ? 'Rouvrir la tâche' : 'Marquer faite'}
+                        className="tap-ext w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 active:scale-90 transition-transform"
+                        style={{ borderColor: t.fait_le ? '#3f9c6d' : '#b9b2a5', background: t.fait_le ? '#3f9c6d' : 'transparent' }}>
+                        {t.fait_le && <Check size={12} className="text-white" />}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-[13px] ${t.fait_le ? 'line-through' : ''}`}>{t.titre}</div>
+                        <div className="text-[11px] text-stone-500">
+                          {nomEquipier(t.assigne_a)}{t.due_on ? ` · pour ${isoToLabel(t.due_on)}` : ''}
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => retirerTache(t)} aria-label="Supprimer la tâche"
+                        className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="grid sm:grid-cols-[1fr_auto_auto_auto] gap-2 mt-3 items-end">
+                <Field label="Nouvelle tâche">
+                  <Input value={tTitre} onChange={(e) => setTTitre(e.target.value)} placeholder="Monter le reel" />
+                </Field>
+                <Field label="Pour qui">
+                  <Select value={tPour} onChange={(e) => setTPour(e.target.value)}>
+                    <option value="">Moi</option>
+                    {equipe.map((m) => <option key={m.user_id} value={m.user_id}>{m.nom}</option>)}
+                  </Select>
+                </Field>
+                <Field label="Pour quand">
+                  <Input type="date" value={tQuand} onChange={(e) => setTQuand(e.target.value)} />
+                </Field>
+                <Btn onClick={ajouterTache} disabled={busyTache || !tTitre.trim()}>Ajouter</Btn>
+              </div>
+            </div>
+
             {err && (
               <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]">
                 <AlertCircle size={14} className="mt-0.5 shrink-0" /> {err}
@@ -2381,7 +2516,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        SD »). Par défaut on montre CE QUI M'EST ASSIGNÉ — la question
        du matin est « qu'est-ce que je fais aujourd'hui », pas « que
        fait l'agence ». */
-    function MesTaches({ equipe, clients }) {
+    function MesTaches({ equipe, clients, onChange }) {
       const [taches, setTaches] = useState(null);
       const [qui, setQui] = useState('moi');        // moi · tous · un user_id
       const [moi, setMoi] = useState(null);
@@ -2411,29 +2546,33 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         e.preventDefault();
         if (!titre.trim() || busy) return;
         setBusy(true);
-        const { error } = await sb.from('tasks').insert({
+        const { data: saved, error } = await sb.from('tasks').insert({
           agency_id: AGENCY.id,
           titre: titre.trim(),
           assigne_a: pour || moi || null,
           due_on: quand || null,
-        });
+        }).select().single();
         setBusy(false);
         if (error) { setErr(humaniseErreur(error.message)); return; }
+        // Prévenir l'assigné (email, meilleur effort) — jamais soi-même.
+        if (saved) {
+          signalerAssignation({ taskId: saved.id, assigneA: saved.assigne_a, titre: saved.titre, dueOn: saved.due_on });
+        }
         setTitre(''); setQuand('');
-        charger();
+        charger(); onChange?.();
       };
 
       const basculer = async (t) => {
         const { error } = await sb.from('tasks')
           .update({ fait_le: t.fait_le ? null : new Date().toISOString() }).eq('id', t.id);
         if (error) { setErr(humaniseErreur(error.message)); return; }
-        charger();
+        charger(); onChange?.();
       };
 
       const supprimer = async (t) => {
         if (!confirm(`Supprimer « ${t.titre} » ?`)) return;
         await sb.from('tasks').delete().eq('id', t.id);
-        charger();
+        charger(); onChange?.();
       };
 
       const nomDe = (id) => (equipe.find((m) => m.user_id === id) || {}).nom || 'Non assignée';
@@ -2571,6 +2710,23 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setEquipe(data || []);
       };
       useEffect(() => { charger(); }, []);
+
+      /* La CHARGE de chacun : ses tâches ouvertes, et ses retards —
+         la réponse d'un coup d'œil à « qui est libre jeudi ? ».
+         Rechargée quand le bloc des tâches (dessous) bouge. */
+      const [charge, setCharge] = useState([]);
+      const chargerCharge = async () => {
+        const { data } = await sb.from('tasks')
+          .select('assigne_a, due_on, fait_le').is('fait_le', null);
+        setCharge(data || []);
+      };
+      useEffect(() => { chargerCharge(); }, []);
+      const cleAujE = (() => { const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+      const chargeDe = (id) => {
+        const miennes = charge.filter((t) => t.assigne_a === id);
+        return { enCours: miennes.length, retard: miennes.filter((t) => t.due_on && t.due_on < cleAujE).length };
+      };
 
       const monRole = (equipe || []).find((m) => m.user_id === user?.id)?.role || MON_ROLE.value;
       const patron = monRole === 'owner';
@@ -2749,6 +2905,20 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         <div className="text-[11px] text-stone-500 mt-0.5">
                           {ROLES_EQUIPE[m.role] || m.role}{m.metier ? ` · ${m.metier}` : ''}
                         </div>
+                        {(() => {
+                          const c = chargeDe(m.user_id);
+                          if (!c.enCours) return (
+                            <div className="text-[11px] text-stone-400 mt-1">Aucune tâche en cours</div>
+                          );
+                          return (
+                            <div className="text-[11px] mt-1">
+                              <span className="text-stone-500">{c.enCours} tâche{c.enCours > 1 ? 's' : ''} en cours</span>
+                              {c.retard > 0 && (
+                                <span className="text-rose-600 font-semibold"> · {c.retard} en retard</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                       {gerable(m) && editId !== m.user_id && (
                         <div className="flex gap-2 shrink-0">
@@ -2796,8 +2966,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             )}
           </div>
 
-          {/* ─── Les tâches — déménagées depuis l'Agenda ─── */}
-          <MesTaches equipe={equipe || []} clients={clients} />
+          {/* ─── Les tâches — déménagées depuis l'Agenda. `onChange`
+              remonte : cocher une tâche rafraîchit la charge au-dessus. ─── */}
+          <MesTaches equipe={equipe || []} clients={clients} onChange={chargerCharge} />
         </div>
       );
     }
@@ -3314,7 +3485,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             {/* Offre Découverte : 1 espace client. On désactive le bouton
                 AVANT le clic et on dit quoi faire (HIG §10 : l'erreur est
                 formulée en solution) — la base refuse de toute façon. */}
-            {quotaAtteint ? (
+            {/* Ouvrir ou fermer un espace client engage le studio : pas
+                pour un « membre » (le rabot des rôles, 01/08/2026). */}
+            {MON_ROLE.value !== 'membre' && (quotaAtteint ? (
               <div style={neu.pressedSm} className="rounded-2xl px-4 py-3 text-[12.5px] text-stone-600 leading-relaxed w-full sm:w-auto sm:max-w-sm">
                 Votre offre Découverte comprend 1 espace client.{' '}
                 <a href="/offres" target="_blank" rel="noopener" className="font-semibold underline underline-offset-2">
@@ -3326,7 +3499,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <Btn kind="dark" icon={Plus} onClick={() => setShowNew(true)} full={false} className="w-full sm:w-auto">
                 Nouveau client
               </Btn>
-            )}
+            ))}
           </div>
 
           {/* Grille clients — `th-liste` fait entrer les cartes l'une
@@ -3363,7 +3536,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             {/* Même action, même nom que le bouton du haut (HIG §15 : un
                 concept = un mot). Et elle disparaît au plafond de l'offre,
                 comme le bouton — sinon le clic menait droit à une erreur. */}
-            {!quotaAtteint && (
+            {!quotaAtteint && MON_ROLE.value !== 'membre' && (
               <button onClick={() => setShowNew(true)} style={neu.pressed} className="rounded-[22px] lg:rounded-[24px] p-6 flex flex-col items-center justify-center text-center min-h-[200px] hover:scale-[1.01] active:scale-[0.99] transition-transform">
                 <div style={neu.dark} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-4">
                   <Plus size={20} />
@@ -3763,7 +3936,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // galeries — la règle vaut pour TOUT espace de livraison, pas seulement
       // pour les couples.
       const mediaOn    = !isDelivery(client.universe) && client.media_enabled !== false;
-      const invoicesOn = client.invoices_enabled !== false;
+      /* Les factures sont la comptabilité du studio : un « membre »
+         (cadreur, monteur…) n'a pas à les voir (rabot des rôles). */
+      const invoicesOn = client.invoices_enabled !== false && MON_ROLE.value !== 'membre';
       const shootsOn   = client.shoots_enabled   !== false;
       const documentsOn = client.documents_enabled !== false;
       // Stratégies : onglet réservé à la plateforme tant que le module
@@ -3865,7 +4040,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   </Btn>
                 )}
                 <Btn icon={Edit3} onClick={() => setEditClient(true)}>Modifier</Btn>
-                <Btn icon={Trash2} onClick={() => setConfirmDelete(true)} className="text-rose-600">Supprimer</Btn>
+                {/* Supprimer un espace client est irréversible : le geste
+                    appartient au studio, pas à un « membre ». */}
+                {MON_ROLE.value !== 'membre' && (
+                  <Btn icon={Trash2} onClick={() => setConfirmDelete(true)} className="text-rose-600">Supprimer</Btn>
+                )}
               </div>
             </div>
 

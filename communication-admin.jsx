@@ -1887,13 +1887,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       return (
         <div>
-          <div className="flex items-start justify-between gap-3 flex-wrap mb-6">
-            <div>
-              <h1 className="text-[26px] lg:text-[32px] tracking-tight" style={SERIF}>Agenda</h1>
-              <p className="text-[13px] text-stone-500 mt-1">
-                Ce que vous tournez et ce qui sort, sur la même grille.
-              </p>
-            </div>
+          {/* Le titre « Agenda » vit dans l'en-tête général (titles),
+              comme pour toutes les sections — ici, seulement l'action. */}
+          <div className="flex justify-end mb-5">
             <Btn kind="dark" icon={Plus} onClick={() => setNouveau(true)}>Programmer un post</Btn>
           </div>
 
@@ -10382,9 +10378,16 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         return <PendingScreen agency={myAgency} onLogout={logout} />;
       }
 
+      /* ⚠️ CHAQUE section du menu DOIT avoir son entrée ici : l'en-tête
+         lisait `titles[section].t` sans filet, et l'Agenda (ajouté au
+         menu sans son titre) blanchissait TOUTE la console d'un clic —
+         trouvé par Gil le 01/08/2026 sur VisonMike. L'accès est
+         désormais défensif en plus : une entrée oubliée coûte un titre
+         vide, plus jamais l'écran. */
       const titles = {
         overview: { t: `Bonjour`, s: 'Vue d\'ensemble de votre studio.' },
         clients:  { t: 'Mes clients', s: 'Tous les espaces que vous avez créés.' },
+        agenda:   { t: 'Agenda', s: 'Ce que vous tournez et ce qui sort, sur la même grille.' },
         portfolio:{ t: 'Portfolio', s: 'Vitrine et espaces de prospection.' },
         agences:  { t: 'Agences', s: 'Les locataires de votre plateforme marque blanche.' },
         settings: { t: 'Paramètres', s: 'Votre marque, votre abonnement et la sécurité de votre compte.' },
@@ -10498,8 +10501,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             <main key={`${section}:${selectedClient?.id || ''}`} className="th-vue flex-1 min-w-0">
               {!selectedClient && (
                 <div className="mb-6 lg:mb-8 pt-4 lg:pt-0">
-                  <h1 className="text-[28px] lg:text-[34px] tracking-tight leading-[1.05]" style={SERIF}>{titles[section].t}</h1>
-                  <div className="text-[13px] text-stone-500 mt-1.5 leading-relaxed">{titles[section].s}</div>
+                  <h1 className="text-[28px] lg:text-[34px] tracking-tight leading-[1.05]" style={SERIF}>{titles[section]?.t || ''}</h1>
+                  <div className="text-[13px] text-stone-500 mt-1.5 leading-relaxed">{titles[section]?.s || ''}</div>
                 </div>
               )}
 
@@ -10543,6 +10546,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             const onglets = [
               { id: 'overview', icon: Home, label: 'Aperçu' },
               { id: 'clients', icon: Users, label: 'Clients' },
+              /* Même condition que le menu desktop : l'agenda éditorial
+                 n'existe que pour le métier Communication. Oublié ici à
+                 sa naissance — un locataire Communication sur téléphone
+                 n'avait AUCUN chemin vers son agenda. */
+              ...(MES_METIERS.includes('communication') || FEATURES.allUniverses
+                ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' }] : []),
               { id: 'revenus', icon: TrendingUp, label: 'Revenus' },
               ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),
               ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),

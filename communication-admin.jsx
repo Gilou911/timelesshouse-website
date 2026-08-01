@@ -2696,28 +2696,44 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        un sondage qui ferait sauter l'écran toutes les 10 s rendrait
        l'onglet inutilisable. */
     function ChatEquipe({ equipe, user }) {
+      const [fil, setFil] = useState('equipe');         // 'equipe' | user_id (fil privé)
       const [messages, setMessages] = useState(null);   // null = chargement
       const [texte, setTexte] = useState('');
       const [envoi, setEnvoi] = useState(false);
       const [erreur, setErreur] = useState('');
       const boiteRef = useRef(null);
 
+      /* Qui peut ouvrir un fil privé avec qui ? Le PATRON avec chacun ;
+         un coéquipier avec le(s) patron(s) — c'est la demande de Gil
+         (01/08/2026). La base, elle, exige seulement que les deux
+         soient de la même agence : l'interface est la politesse, le
+         verrou est dans les policies. */
+      const monRole = (equipe.find((m) => m.user_id === user?.id) || {}).role;
+      const filsPrives = monRole === 'owner'
+        ? equipe.filter((m) => m.user_id !== user?.id)
+        : equipe.filter((m) => m.role === 'owner' && m.user_id !== user?.id);
+      const enFace = fil === 'equipe' ? null : (equipe.find((m) => m.user_id === fil) || null);
+
       const charger = async () => {
-        const { data, error } = await sb.from('team_messages')
-          .select('*').order('created_at', { ascending: true }).limit(300);
+        let q = sb.from('team_messages').select('*');
+        q = fil === 'equipe'
+          ? q.is('dest_id', null)
+          : q.or(`and(auteur_id.eq.${user.id},dest_id.eq.${fil}),and(auteur_id.eq.${fil},dest_id.eq.${user.id})`);
+        const { data, error } = await q.order('created_at', { ascending: true }).limit(300);
         if (error) {
-          setErreur(/team_messages/.test(error.message || '')
-            ? "Le chat d'équipe n'est pas encore activé : exécutez files/migration-chat-equipe.sql dans Supabase."
+          setErreur(/team_messages|dest_id/.test(error.message || '')
+            ? "Le chat d'équipe n'est pas encore activé : exécutez files/migration-chat-prive.sql dans Supabase."
             : humaniseErreur(error.message));
           setMessages([]); return;
         }
         setErreur(''); setMessages(data || []);
       };
       useEffect(() => {
+        setMessages(null);
         charger();
         const id = setInterval(charger, 10000);
         return () => clearInterval(id);
-      }, []);
+      }, [fil]);
 
       // Toujours voir le dernier message — dans la boîte seulement.
       const nMessages = (messages || []).length;
@@ -2732,7 +2748,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (!corps || envoi) return;
         setEnvoi(true);
         const { error } = await sb.from('team_messages')
-          .insert({ agency_id: AGENCY.id, auteur_id: user.id, corps });
+          .insert({ agency_id: AGENCY.id, auteur_id: user.id, corps,
+                    dest_id: fil === 'equipe' ? null : fil });
         setEnvoi(false);
         if (error) { setErreur(humaniseErreur(error.message)); return; }
         setTexte(''); charger();
@@ -2753,10 +2770,26 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       return (
         <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-6 lg:p-7">
-          <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>La discussion</h2>
-          <p className="text-[12.5px] text-stone-500 mt-1.5 leading-relaxed">
-            Le fil de l'équipe — tout le monde le voit, personne d'autre.
-          </p>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>La discussion</h2>
+              <p className="text-[12.5px] text-stone-500 mt-1.5 leading-relaxed">
+                {fil === 'equipe'
+                  ? "Le fil de l'équipe — tout le monde le voit, personne d'autre."
+                  : `En privé avec ${enFace?.nom || 'ce coéquipier'} — vous deux seulement.`}
+              </p>
+            </div>
+            {filsPrives.length > 0 && (
+              <div className="w-full sm:w-[210px]">
+                <Select value={fil} onChange={(e) => setFil(e.target.value)} aria-label="Choisir le fil de discussion">
+                  <option value="equipe">L'équipe (tous)</option>
+                  {filsPrives.map((m) => (
+                    <option key={m.user_id} value={m.user_id}>En privé — {m.nom}</option>
+                  ))}
+                </Select>
+              </div>
+            )}
+          </div>
 
           {erreur && (
             <div className="flex items-start gap-2 p-3 mt-4 rounded-xl bg-amber-50 text-amber-800 text-[12.5px]">
@@ -2770,7 +2803,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <div className="h-full flex items-center justify-center"><Loader2 size={16} className="animate-spin text-stone-400" /></div>
             ) : !messages.length ? (
               <div className="h-full flex items-center justify-center text-[12.5px] text-stone-500 text-center px-6">
-                Personne n'a encore rien dit. Lancez la conversation — toute l'équipe la verra.
+                {fil === 'equipe'
+                  ? "Personne n'a encore rien dit. Lancez la conversation — toute l'équipe la verra."
+                  : `Rien encore dans ce fil. Écrivez — ${enFace?.nom || 'ce coéquipier'} seul le verra.`}
               </div>
             ) : (
               messages.map((m, i) => {
@@ -2807,7 +2842,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           <form onSubmit={envoyer} className="flex gap-2 mt-3 items-center">
             <div className="flex-1">
               <Input value={texte} onChange={(e) => setTexte(e.target.value)}
-                placeholder="Écrire à l'équipe…" aria-label="Message à l'équipe" maxLength={4000} />
+                placeholder={fil === 'equipe' ? 'Écrire à l’équipe…' : `Écrire à ${enFace?.nom || 'ce coéquipier'}…`}
+                aria-label="Message" maxLength={4000} />
             </div>
             <Btn kind="dark" type="submit" icon={envoi ? Loader2 : Send} disabled={envoi || !texte.trim()}>
               <span className="hidden sm:inline">Envoyer</span>

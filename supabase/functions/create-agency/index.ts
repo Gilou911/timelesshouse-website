@@ -120,6 +120,49 @@ Deno.serve(async (req) => {
     return json(200, { ok: true, agency: ag });
   }
 
+  // ── Modifier les MÉTIERS d'une loge existante (01/08/2026) ──
+  // Le fondateur accorde et retire les métiers « inclus ». Les lignes
+  // Stripe (source option) et les sursis (status cancelling) ne se
+  // touchent JAMAIS ici : l'abonnement les gère, un retrait manuel
+  // écraserait une période déjà réglée.
+  if (body.action === "set-universes") {
+    const agencyId = String(body.agency_id || "");
+    if (!agencyId) return json(400, { error: "agency_id manquant" });
+    const demande = [...new Set(
+      (Array.isArray(body.universes) ? body.universes : []).map(String).filter((u) => METIERS_VALIDES.includes(u)),
+    )];
+    const { data: lignes, error: lErr } = await sbAdmin
+      .from("agency_universes").select("*").eq("agency_id", agencyId);
+    if (lErr) return json(500, { error: lErr.message });
+
+    const intouchables = (lignes || []).filter((l: any) => l.source !== "inclus" || l.status !== "active");
+    const inclus = (lignes || []).filter((l: any) => l.source === "inclus" && l.status === "active");
+    const garde = new Set(intouchables.map((l: any) => l.universe));
+
+    // Jamais zéro métier au total : une loge sans métier ne pourrait
+    // plus créer aucun espace client.
+    if (demande.length + intouchables.length === 0) {
+      return json(400, { error: "Une loge doit garder au moins un métier." });
+    }
+
+    const aAjouter = demande.filter((u) =>
+      !inclus.some((l: any) => l.universe === u) && !garde.has(u));
+    const aRetirer = inclus.filter((l: any) => !demande.includes(l.universe)).map((l: any) => l.universe);
+
+    if (aAjouter.length) {
+      const { error } = await sbAdmin.from("agency_universes").insert(
+        aAjouter.map((u) => ({ agency_id: agencyId, universe: u, source: "inclus", status: "active" })),
+      );
+      if (error) return json(500, { error: error.message });
+    }
+    if (aRetirer.length) {
+      const { error } = await sbAdmin.from("agency_universes").delete()
+        .eq("agency_id", agencyId).eq("source", "inclus").in("universe", aRetirer);
+      if (error) return json(500, { error: error.message });
+    }
+    return json(200, { ok: true, ajoutes: aAjouter, retires: aRetirer });
+  }
+
   // ── Validation / suspension d'une loge en attente (SaaS B.3) ──
   if (body.action === "approve" || body.action === "suspend") {
     const agencyId = String(body.agency_id || "");

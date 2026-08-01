@@ -9256,6 +9256,50 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       useEffect(() => { chargerBeta(); }, [agencies]);
 
       const [busy2fa, setBusy2fa] = useState(null);
+
+      /* 💼 Édition des métiers d'une loge existante. On n'édite que les
+         métiers « inclus » actifs : les options Stripe et les sursis
+         sont montrés verrouillés — l'abonnement les gère, pas ce
+         panneau. Le serveur (create-agency, action set-universes)
+         applique exactement la même règle. */
+      const [editMetiers, setEditMetiers] = useState(null);   // id d'agence ouverte
+      const [selMetiers, setSelMetiers] = useState([]);
+      const [busyMetiers, setBusyMetiers] = useState(false);
+
+      const verrousDe = (a) => (METIERS_PAR_AGENCE[a.id] || [])
+        .filter((m) => m.source !== 'inclus' || m.status !== 'active');
+
+      const ouvrirMetiers = (a) => {
+        setSelMetiers((METIERS_PAR_AGENCE[a.id] || [])
+          .filter((m) => m.source === 'inclus' && m.status === 'active')
+          .map((m) => m.universe));
+        setEditMetiers(a.id);
+      };
+
+      const enregistrerMetiers = async (a) => {
+        const avant = (METIERS_PAR_AGENCE[a.id] || [])
+          .filter((m) => m.source === 'inclus' && m.status === 'active')
+          .map((m) => m.universe);
+        const retires = avant.filter((u) => !selMetiers.includes(u));
+        if (retires.length && !confirm(
+          `Retirer ${retires.map((u) => (metierOf(u) || {}).label || u).join(', ')} de « ${a.name} » ?\n\n`
+          + `Ses espaces clients existants continuent de fonctionner, mais l'agence ne pourra plus `
+          + `créer de nouveaux espaces dans ce métier.`)) return;
+        setBusyMetiers(true); setError('');
+        try {
+          const { data: { session } } = await sb.auth.getSession();
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/create-agency`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ action: 'set-universes', agency_id: a.id, universes: selMetiers }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json.error || `Échec (${res.status})`);
+          setEditMetiers(null);
+          refresh();
+        } catch (e) { setError(e.message); }
+        setBusyMetiers(false);
+      };
       /* Retire tous les facteurs 2FA du patron de l'agence — le geste de
          secours du téléphone perdu. Plusieurs propriétaires : on demande
          lequel. Le compte repasse en mot de passe seul, et son détenteur
@@ -9611,6 +9655,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     <Btn icon={ShieldCheck} onClick={() => retirer2fa(a)} disabled={busy2fa === a.id}>
                       {busy2fa === a.id ? '…' : 'Retirer la 2FA'}
                     </Btn>
+                    {/* Accorder / retirer des métiers à cette loge */}
+                    <Btn icon={Building2}
+                      kind={editMetiers === a.id ? 'dark' : 'soft'}
+                      onClick={() => (editMetiers === a.id ? setEditMetiers(null) : ouvrirMetiers(a))}
+                      disabled={busyMetiers && editMetiers === a.id}>
+                      Métiers
+                    </Btn>
                     {/* Upgrade/downgrade manuel de l'offre (sans Stripe) */}
                     <select
                       value={a.plan || 'decouverte'}
@@ -9622,6 +9673,42 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     >
                       {Object.entries(PLAN_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
+                  </div>
+                )}
+                {a.slug !== 'timelesshouse' && editMetiers === a.id && (
+                  <div className="mt-3 space-y-2">
+                    {METIERS.map((m) => {
+                      const verrou = verrousDe(a).find((v) => v.universe === m.value);
+                      const actif = verrou ? true : selMetiers.includes(m.value);
+                      return (
+                        <button key={m.value} type="button" disabled={!!verrou || busyMetiers}
+                          onClick={() => setSelMetiers((s) => s.includes(m.value)
+                            ? s.filter((v) => v !== m.value) : [...s, m.value])}
+                          style={actif ? neu.dark : neu.pressedSm}
+                          className={`w-full px-4 py-3 rounded-2xl flex items-center justify-between gap-3 transition ${actif ? 'text-white' : 'text-stone-700'} ${verrou ? 'opacity-70' : ''}`}>
+                          <div className="text-left min-w-0">
+                            <div className="font-semibold text-[12.5px]">{m.label}</div>
+                            {verrou && (
+                              <div className={`text-[10px] mt-0.5 ${actif ? 'text-stone-300' : 'text-stone-500'}`}>
+                                {verrou.source === 'option'
+                                  ? "Option payée — gérée par l'abonnement Stripe"
+                                  : `En sursis${verrou.valid_until ? ` jusqu'au ${new Date(verrou.valid_until).toLocaleDateString('fr-FR')}` : ''}`}
+                              </div>
+                            )}
+                          </div>
+                          <div className={`w-10 h-5.5 rounded-full p-0.5 transition shrink-0 ${actif ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                            <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${actif ? 'translate-x-4' : ''}`} />
+                          </div>
+                        </button>
+                      );
+                    })}
+                    <div className="flex gap-2 pt-1 flex-wrap">
+                      <Btn kind="dark" onClick={() => enregistrerMetiers(a)}
+                        disabled={busyMetiers || (!selMetiers.length && !verrousDe(a).length)}>
+                        {busyMetiers ? 'Enregistrement…' : 'Enregistrer les métiers'}
+                      </Btn>
+                      <Btn onClick={() => setEditMetiers(null)} disabled={busyMetiers}>Annuler</Btn>
+                    </div>
                   </div>
                 )}
               </div>

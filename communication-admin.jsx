@@ -3057,6 +3057,387 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       );
     }
 
+    /* ════════════════════════════════════════════════════════════
+       🗂 DRIVE — le disque commun de l'équipe (01/08/2026)
+       ════════════════════════════════════════════════════════════
+       Dossiers et fichiers dans UNE table (drive_items, le parent
+       fait l'arborescence). Tout le monde dépose et range — c'est le
+       but, demande explicite de Gil pour les membres — mais on
+       n'efface que SES dépôts (owner/admin : tout). Les photos
+       montent avec deux variantes fabriquées ICI (vignette + grande
+       vue) ; les vidéos montent en original et le worker fabrique la
+       VERSION ALLÉGÉE 720p + l'affiche — c'est elle qu'on regarde au
+       clic, l'original ne bouge que pour un téléchargement. */
+    async function variantesImage(file) {
+      let src;
+      try { src = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+      catch (_) {
+        src = await new Promise((res, rej) => {
+          const im = new Image();
+          im.onload = () => res(im);
+          im.onerror = () => rej(new Error('Image illisible'));
+          im.src = URL.createObjectURL(file);
+        });
+      }
+      const w = src.width || src.naturalWidth, h = src.height || src.naturalHeight;
+      const variante = (maxW, q) => new Promise((res, rej) => {
+        const r = Math.min(1, maxW / w);
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(w * r));
+        c.height = Math.max(1, Math.round(h * r));
+        c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+        c.toBlob((b) => (b ? res(b) : rej(new Error('Variante impossible'))), 'image/jpeg', q);
+      });
+      return { largeur: w, hauteur: h, apercu: await variante(640, 0.72), vue: await variante(1800, 0.8) };
+    }
+
+    function DriveTab() {
+      const [chemin, setChemin] = useState([]);        // [{id, nom}] — fil d'Ariane
+      const dossier = chemin.length ? chemin[chemin.length - 1].id : null;
+      const [items, setItems] = useState(null);        // null = chargement
+      const [dossiers, setDossiers] = useState([]);    // tous les dossiers (« Déplacer »)
+      const [err, setErr] = useState('');
+      const [envois, setEnvois] = useState([]);        // [{cle, nom, pct}]
+      const [ouvert, setOuvert] = useState(null);      // visionneuse
+      const [gere, setGere] = useState(null);          // fiche ⋯ d'un élément
+      const [dest, setDest] = useState('');            // destination « Déplacer »
+      const fichierRef = useRef(null);
+
+      const charger = async () => {
+        let q = sb.from('drive_items').select('*');
+        q = dossier ? q.eq('parent_id', dossier) : q.is('parent_id', null);
+        const { data, error } = await q.order('genre').order('nom');
+        if (error) {
+          setErr(/drive_items/.test(error.message || '')
+            ? "Le Drive n'est pas encore activé : exécutez files/migration-drive.sql dans Supabase."
+            : humaniseErreur(error.message));
+          setItems([]); return;
+        }
+        setErr(''); setItems(data || []);
+      };
+      const chargerDossiers = async () => {
+        const { data } = await sb.from('drive_items')
+          .select('id, nom, parent_id').eq('genre', 'dossier').order('nom');
+        setDossiers(data || []);
+      };
+      useEffect(() => { setItems(null); charger(); }, [dossier]);
+      useEffect(() => { chargerDossiers(); }, []);
+
+      // Des versions allégées se préparent ? On repasse voir.
+      const enPreparation = (items || []).some((i) => i.genre === 'video'
+        && (i.encodage === 'pending' || i.encodage === 'processing'));
+      useEffect(() => {
+        if (!enPreparation) return;
+        const id = setInterval(charger, 15000);
+        return () => clearInterval(id);
+      }, [enPreparation, dossier]);
+
+      const majEnvoi = (cle, pct) => setEnvois((l) => l.map((e) => (e.cle === cle ? { ...e, pct } : e)));
+
+      const televerser = async (e) => {
+        const fichiers = Array.from(e.target.files || []);
+        e.target.value = '';
+        for (const f of fichiers) {
+          const estImage = /^image\//.test(f.type);
+          const estVideo = /^video\//.test(f.type);
+          if (!estImage && !estVideo) {
+            setErr(`« ${f.name} » : seulement des photos et des vidéos.`);
+            continue;
+          }
+          const cle = crypto.randomUUID();
+          setEnvois((l) => [...l, { cle, nom: f.name, pct: 0 }]);
+          try {
+            const base = `agencies/${AGENCY.slug}/drive/${cle}`;
+            if (estImage) {
+              const v = await variantesImage(f);
+              const url = await b2UploadFile(f, `${base}/original-${b2SafeName(f.name)}`, (p) => majEnvoi(cle, p * 0.7));
+              const vueUrl = await b2UploadFile(v.vue, `${base}/vue.jpg`, (p) => majEnvoi(cle, 0.7 + p * 0.2));
+              const apercuUrl = await b2UploadFile(v.apercu, `${base}/apercu.jpg`, (p) => majEnvoi(cle, 0.9 + p * 0.1));
+              const { error } = await sb.from('drive_items').insert({
+                agency_id: AGENCY.id, parent_id: dossier, genre: 'photo', nom: f.name,
+                url, taille: f.size, mime: f.type, largeur: v.largeur, hauteur: v.hauteur,
+                apercu_url: apercuUrl, leger_url: vueUrl,
+              });
+              if (error) throw new Error(humaniseErreur(error.message));
+            } else {
+              const url = await b2UploadFile(f, `${base}/original-${b2SafeName(f.name)}`, (p) => majEnvoi(cle, p));
+              const { error } = await sb.from('drive_items').insert({
+                agency_id: AGENCY.id, parent_id: dossier, genre: 'video', nom: f.name,
+                url, taille: f.size, mime: f.type, encodage: 'pending',
+              });
+              if (error) throw new Error(humaniseErreur(error.message));
+            }
+          } catch (e2) { setErr(`« ${f.name} » : ${e2.message}`); }
+          setEnvois((l) => l.filter((x) => x.cle !== cle));
+          charger();
+        }
+      };
+
+      const creerDossier = async () => {
+        const nom = prompt('Nom du dossier ?');
+        if (!nom || !nom.trim()) return;
+        const { error } = await sb.from('drive_items').insert({
+          agency_id: AGENCY.id, parent_id: dossier, genre: 'dossier', nom: nom.trim().slice(0, 200),
+        });
+        if (error) { setErr(humaniseErreur(error.message)); return; }
+        charger(); chargerDossiers();
+      };
+
+      const renommer = async (it) => {
+        const nom = prompt('Nouveau nom ?', it.nom);
+        if (!nom || !nom.trim() || nom.trim() === it.nom) return;
+        const { error } = await sb.from('drive_items')
+          .update({ nom: nom.trim().slice(0, 200) }).eq('id', it.id);
+        if (error) { setErr(humaniseErreur(error.message)); return; }
+        setGere(null); charger(); chargerDossiers();
+      };
+
+      const deplacer = async (it) => {
+        const cible = dest || null;
+        if (cible === it.id) return;
+        const { error } = await sb.from('drive_items')
+          .update({ parent_id: cible }).eq('id', it.id);
+        if (error) { setErr(humaniseErreur(error.message)); return; }
+        setGere(null); setDest(''); charger(); chargerDossiers();
+      };
+
+      const supprimer = async (it) => {
+        const avert = it.genre === 'dossier'
+          ? `Supprimer le dossier « ${it.nom} » ?\n\nTOUT son contenu part avec. Irréversible.`
+          : `Supprimer « ${it.nom} » ?\n\nIrréversible.`;
+        if (!confirm(avert)) return;
+        const { error } = await sb.from('drive_items').delete().eq('id', it.id);
+        if (error) {
+          setErr(/policy|row-level/i.test(error.message || '')
+            ? 'Seuls vos propres dépôts se suppriment — demandez au patron pour le reste.'
+            : humaniseErreur(error.message));
+          return;
+        }
+        setGere(null); setOuvert(null); charger(); chargerDossiers();
+      };
+
+      const telechargerOriginal = (it) => {
+        try {
+          const u = new URL(it.url);
+          if (u.hostname === 'media.timelesshouse.org' && u.pathname.startsWith('/file/')) {
+            u.pathname = '/telecharger/' + u.pathname.slice('/file/'.length);
+            u.searchParams.set('nom', it.nom);
+          }
+          window.location.href = u.toString();
+        } catch (_) { window.location.href = it.url; }
+      };
+
+      const fmtDuree = (s) => {
+        if (!s && s !== 0) return '';
+        const m = Math.floor(s / 60), r = s % 60;
+        return `${m}:${String(r).padStart(2, '0')}`;
+      };
+      const lesDossiers = (items || []).filter((i) => i.genre === 'dossier');
+      const lesFichiers = (items || []).filter((i) => i.genre !== 'dossier');
+
+      return (
+        <div>
+          {/* ─── Fil d'Ariane + actions ─── */}
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-5">
+            <div className="flex items-center gap-1.5 flex-wrap min-w-0 text-[13px]">
+              <button type="button" onClick={() => setChemin([])}
+                className={`min-h-[44px] px-2 font-semibold ${chemin.length ? 'text-stone-500 hover:text-stone-800' : ''}`}>
+                Drive
+              </button>
+              {chemin.map((c, i) => (
+                <span key={c.id} className="flex items-center gap-1.5 min-w-0">
+                  <ChevronRight size={12} className="text-stone-400 shrink-0" />
+                  <button type="button" onClick={() => setChemin(chemin.slice(0, i + 1))}
+                    className={`min-h-[44px] px-1 truncate max-w-[140px] ${i === chemin.length - 1 ? 'font-semibold' : 'text-stone-500 hover:text-stone-800'}`}>
+                    {c.nom}
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Btn icon={FolderOpen} onClick={creerDossier}>Nouveau dossier</Btn>
+              <Btn kind="dark" icon={Upload} onClick={() => fichierRef.current?.click()}>Téléverser</Btn>
+              <input ref={fichierRef} type="file" multiple accept="image/*,video/*"
+                className="hidden" onChange={televerser} />
+            </div>
+          </div>
+
+          {err && (
+            <div className="flex items-start gap-2 p-3 mb-4 rounded-xl bg-rose-50 text-rose-700 text-[12.5px]">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" /> {err}
+            </div>
+          )}
+
+          {/* ─── Téléversements en cours ─── */}
+          {envois.length > 0 && (
+            <div style={neu.raised} className="rounded-2xl p-4 mb-4 space-y-2.5">
+              {envois.map((e2) => (
+                <div key={e2.cle}>
+                  <div className="flex justify-between text-[12px] mb-1">
+                    <span className="truncate">{e2.nom}</span>
+                    <span className="text-stone-500 tabular-nums shrink-0">{Math.round((e2.pct || 0) * 100)} %</span>
+                  </div>
+                  <div style={neu.pressedSm} className="h-2 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full bg-stone-800 transition-all" style={{ width: `${Math.round((e2.pct || 0) * 100)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {items === null ? (
+            <div className="py-16 flex justify-center"><Loader2 size={18} className="animate-spin text-stone-400" /></div>
+          ) : !lesDossiers.length && !lesFichiers.length && !envois.length ? (
+            <div style={neu.pressed} className="rounded-[24px] p-10 text-center">
+              <div style={neu.dark} className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center text-white mb-4">
+                <FolderOpen size={20} />
+              </div>
+              <div className="text-[15px] font-semibold">Rien ici pour l'instant</div>
+              <p className="text-[12.5px] text-stone-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
+                Déposez photos et vidéos, rangez-les en dossiers — toute l'équipe y accède.
+                Les vidéos reçoivent une version allégée, prête à regarder d'un clic.
+              </p>
+            </div>
+          ) : (
+            <>
+              {lesDossiers.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 mb-4">
+                  {lesDossiers.map((d) => (
+                    <div key={d.id} style={neu.raisedXs} className="rounded-2xl flex items-center">
+                      <button type="button" onClick={() => setChemin([...chemin, { id: d.id, nom: d.nom }])}
+                        className="flex-1 min-w-0 min-h-[52px] px-3.5 flex items-center gap-2.5 text-left">
+                        <FolderOpen size={17} className="text-stone-500 shrink-0" />
+                        <span className="text-[13px] font-semibold truncate">{d.nom}</span>
+                      </button>
+                      <button type="button" onClick={() => { setGere(d); setDest(''); }}
+                        aria-label={`Options du dossier ${d.nom}`}
+                        className="w-11 min-h-[52px] flex items-center justify-center text-stone-400 hover:text-stone-700 shrink-0">
+                        ⋯
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {lesFichiers.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {lesFichiers.map((f) => (
+                    <div key={f.id} style={neu.raised} className="rounded-2xl overflow-hidden group relative">
+                      <button type="button" onClick={() => setOuvert(f)}
+                        className="block w-full text-left">
+                        <div className="aspect-[4/3] bg-stone-900/85 relative">
+                          {f.apercu_url ? (
+                            <img src={f.apercu_url} alt={f.nom} loading="lazy"
+                              className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-stone-400">
+                              {f.genre === 'video' ? <Video size={22} /> : <ImageIcon size={22} />}
+                            </div>
+                          )}
+                          {f.genre === 'video' && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="w-11 h-11 rounded-full bg-black/55 text-white flex items-center justify-center backdrop-blur-sm">▶</span>
+                            </div>
+                          )}
+                          {f.genre === 'video' && f.duree != null && (
+                            <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/60 text-white text-[10.5px] tabular-nums">
+                              {fmtDuree(f.duree)}
+                            </span>
+                          )}
+                          {f.genre === 'video' && f.encodage !== 'done' && (
+                            <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/60 text-amber-300 text-[10px]">
+                              {f.encodage === 'error' ? 'version allégée en échec' : 'en préparation…'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="px-3 py-2.5">
+                          <div className="text-[12.5px] font-medium truncate">{f.nom}</div>
+                          <div className="text-[10.5px] text-stone-500 mt-0.5">
+                            {f.genre === 'video' ? 'Vidéo' : 'Photo'}{f.taille ? ` · ${(f.taille / 1048576) >= 1024 ? `${(f.taille / 1073741824).toFixed(1)} Go` : `${Math.max(1, Math.round(f.taille / 1048576))} Mo`}` : ''}
+                          </div>
+                        </div>
+                      </button>
+                      <button type="button" onClick={() => { setGere(f); setDest(''); }}
+                        aria-label={`Options de ${f.nom}`}
+                        className="absolute top-1.5 right-1.5 w-9 h-9 rounded-full bg-black/45 text-white flex items-center justify-center backdrop-blur-sm">
+                        ⋯
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ─── Visionneuse ─── */}
+          {ouvert && (
+            <Modal title={ouvert.nom} kicker={ouvert.genre === 'video' ? 'Vidéo' : 'Photo'}
+              onClose={() => setOuvert(null)} size="lg">
+              <div className="space-y-4">
+                {ouvert.genre === 'photo' ? (
+                  <img src={ouvert.leger_url || ouvert.url} alt={ouvert.nom}
+                    className="w-full max-h-[65vh] object-contain rounded-xl bg-stone-900/85" />
+                ) : ouvert.encodage === 'done' && ouvert.leger_url ? (
+                  <video controls autoPlay playsInline src={ouvert.leger_url} poster={ouvert.apercu_url || undefined}
+                    className="w-full max-h-[65vh] rounded-xl bg-black" />
+                ) : (
+                  <div style={neu.pressedSm} className="rounded-xl p-8 text-center">
+                    {ouvert.apercu_url && (
+                      <img src={ouvert.apercu_url} alt="" className="max-h-[40vh] mx-auto rounded-lg mb-4" />
+                    )}
+                    <div className="text-[13.5px] font-semibold">
+                      {ouvert.encodage === 'error'
+                        ? 'La version allégée a échoué'
+                        : 'La version allégée se prépare'}
+                    </div>
+                    <p className="text-[12px] text-stone-500 mt-1.5 leading-relaxed">
+                      {ouvert.encodage === 'error'
+                        ? (ouvert.erreur || 'Le fichier est peut-être illisible.') + ' L’original reste téléchargeable.'
+                        : 'Quelques minutes après le dépôt — en attendant, l’original se télécharge.'}
+                    </p>
+                  </div>
+                )}
+                <div className="flex gap-2 justify-end flex-wrap">
+                  <Btn icon={Download} onClick={() => telechargerOriginal(ouvert)}>
+                    Télécharger l'original{ouvert.taille ? ` (${(ouvert.taille / 1048576) >= 1024 ? `${(ouvert.taille / 1073741824).toFixed(1)} Go` : `${Math.max(1, Math.round(ouvert.taille / 1048576))} Mo`})` : ''}
+                  </Btn>
+                  <Btn onClick={() => setOuvert(null)}>Fermer</Btn>
+                </div>
+              </div>
+            </Modal>
+          )}
+
+          {/* ─── Fiche ⋯ : renommer, déplacer, télécharger, supprimer ─── */}
+          {gere && (
+            <Modal title={gere.nom} kicker={gere.genre === 'dossier' ? 'Dossier' : (gere.genre === 'video' ? 'Vidéo' : 'Photo')}
+              onClose={() => setGere(null)}>
+              <div className="space-y-4">
+                <div className="flex gap-2 flex-wrap">
+                  <Btn icon={Edit3} onClick={() => renommer(gere)}>Renommer</Btn>
+                  {gere.genre !== 'dossier' && (
+                    <Btn icon={Download} onClick={() => telechargerOriginal(gere)}>Télécharger l'original</Btn>
+                  )}
+                  <Btn icon={Trash2} onClick={() => supprimer(gere)} className="text-rose-600">Supprimer</Btn>
+                </div>
+                <Field label="Déplacer vers">
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1">
+                      <Select value={dest} onChange={(e) => setDest(e.target.value)}>
+                        <option value="">Racine du Drive</option>
+                        {dossiers.filter((d) => d.id !== gere.id && d.id !== gere.parent_id).map((d) => (
+                          <option key={d.id} value={d.id}>{d.nom}</option>
+                        ))}
+                      </Select>
+                    </div>
+                    <Btn kind="dark" onClick={() => deplacer(gere)}>Déplacer</Btn>
+                  </div>
+                </Field>
+              </div>
+            </Modal>
+          )}
+        </div>
+      );
+    }
+
     function EquipeTab({ clients, user }) {
       const [equipe, setEquipe] = useState(null);   // null = chargement
       const [err, setErr] = useState('');
@@ -11223,7 +11604,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
          privilège lui est accordé. Tout le reste ramène à l'agenda. */
       useEffect(() => {
         if (!featuresReady || MON_ROLE.value !== 'membre') return;
-        const permis = new Set(['agenda', 'equipe', 'messages', 'settings',
+        const permis = new Set(['agenda', 'equipe', 'messages', 'drive', 'settings',
           ...(MES_PRIVILEGES.includes('clients') ? ['clients'] : [])]);
         if (!permis.has(section)) setSection('agenda');
       }, [featuresReady, section]);
@@ -11255,6 +11636,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         agenda:   { t: 'Agenda', s: 'Ce que vous tournez et ce qui sort, sur la même grille.' },
         equipe:   { t: 'Équipe', s: 'Vos coéquipiers, leurs rôles et leurs tâches.' },
         messages: { t: 'Messages', s: 'Le fil de l’équipe, et vos conversations privées.' },
+        drive:    { t: 'Drive', s: 'Le disque commun de l’équipe : déposez, rangez, retrouvez.' },
         portfolio:{ t: 'Portfolio', s: 'Vitrine et espaces de prospection.' },
         agences:  { t: 'Agences', s: 'Les locataires de votre plateforme marque blanche.' },
         settings: { t: 'Paramètres', s: 'Votre marque, votre abonnement et la sécurité de votre compte.' },
@@ -11326,7 +11708,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   ...(MES_METIERS.includes('communication') || FEATURES.allUniverses
                     ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' },
                        { id: 'equipe', icon: UsersRound, label: 'Équipe' },
-                       { id: 'messages', icon: MessageSquare, label: 'Messages' }] : []),
+                       { id: 'messages', icon: MessageSquare, label: 'Messages' },
+                       { id: 'drive', icon: FolderOpen, label: 'Drive' }] : []),
                   /* Les Revenus ne regardent pas un « membre » (cadreur,
                      monteur…) : c'est la comptabilité du studio. */
                   ...(MON_ROLE.value === 'membre' ? [] : [{ id: 'revenus', icon: TrendingUp, label: 'Revenus' }]),
@@ -11394,6 +11777,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <EquipeTab clients={clients} user={user} />
               ) : section === 'messages' ? (
                 <MessagesTab user={user} />
+              ) : section === 'drive' ? (
+                <DriveTab />
               ) : section === 'revenus' ? (
                 <RevenusTab user={user} onClients={() => setSection('clients')} />
               ) : section === 'portfolio' && FEATURES.portfolio ? (
@@ -11444,6 +11829,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                    ...(agencies !== null ? [] : [
                      { id: 'equipe', icon: UsersRound, label: 'Équipe' },
                      { id: 'messages', icon: MessageSquare, label: 'Messages' },
+                     /* 7 onglets locataire : 46,7 px la cible — au-dessus
+                        du plancher HIG de 44 px, vérifié au calcul. */
+                     { id: 'drive', icon: FolderOpen, label: 'Drive' },
                    ])] : []),
               ...(MON_ROLE.value === 'membre' ? [] : [{ id: 'revenus', icon: TrendingUp, label: 'Revenus' }]),
               ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),

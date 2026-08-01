@@ -25,6 +25,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pipeline } from "node:stream/promises";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import {
@@ -596,7 +597,7 @@ async function menageArchives() {
    de Go. Balayés au démarrage, jamais pendant — un job en cours écrit
    dans le sien. */
 function balayerDossiersOrphelins() {
-  for (const base of ["tmp-hls", "tmp-zip"]) {
+  for (const base of ["tmp-hls", "tmp-zip", "tmp-drive"]) {
     const racine = join(ROOT, base);
     let noms = [];
     try { noms = readdirSync(racine); } catch (_) { continue; }
@@ -617,6 +618,100 @@ async function claimZip() {
   const { data, error } = await sb.rpc("claim_zip_job");
   if (error) return null;                 // table absente : migration pas passée
   return data && data.id ? data : null;
+}
+
+/* ════════════════════════════════════════════════════════════
+   Drive : versions allégées (01/08/2026)
+   ════════════════════════════════════════════════════════════
+   Les vidéos déposées dans le Drive d'une agence reçoivent une
+   version 720p légère et une affiche : c'est ELLE qu'on regarde au
+   clic — l'original ne bouge que pour un téléchargement. Priorité
+   la plus basse : un client qui attend son film passe toujours
+   avant le rangement interne d'une équipe. */
+async function claimDriveProxy() {
+  try {
+    const { data: cand } = await sb.from("drive_items")
+      .select("id, agency_id, nom, url")
+      .eq("genre", "video").eq("encodage", "pending")
+      .order("created_at").limit(1);
+    const c = cand?.[0];
+    if (!c) return null;
+    // Réclamation optimiste : un seul worker tourne, la condition
+    // d'égalité suffit à ne jamais prendre deux fois le même.
+    const { data: pris } = await sb.from("drive_items")
+      .update({ encodage: "processing" })
+      .eq("id", c.id).eq("encodage", "pending").select("id");
+    return pris?.length ? c : null;
+  } catch (_) { return null; }            // table absente : migration pas passée
+}
+
+async function putDriveFile(localPath, key, contentType) {
+  const up = new Upload({
+    client: s3,
+    params: {
+      Bucket: BUCKET, Key: key,
+      Body: createReadStream(localPath),
+      ContentType: contentType,
+    },
+    queueSize: 4, partSize: 100 * 1024 * 1024,
+  });
+  await up.done();
+  return `${PUBLIC_BASE}/${key}`;
+}
+
+async function processDriveProxy(item) {
+  log(`▶ drive ${item.id} — version allégée de « ${item.nom} »`);
+  const key = keyFromPublicUrl(item.url);
+  if (!key) throw new Error("source hors du bucket");
+  const { data: ag } = await sb.from("agencies").select("slug").eq("id", item.agency_id).maybeSingle();
+  if (!ag?.slug) throw new Error("agence introuvable");
+
+  const workDir = join(ROOT, "tmp-drive", `drive-${item.id}`);
+  const srcPath = join(workDir, "source");
+  try {
+    await downloadSource(key, srcPath);   // garde d'espace incluse (AttenteError)
+    const meta = probeVideo(srcPath);
+
+    // 720p au maximum (jamais agrandie), H.264 rapide, prête au clic.
+    const proxyPath = join(workDir, "leger.mp4");
+    execFileSync("ffmpeg", ["-y", "-i", srcPath,
+      "-vf", "scale=w=-2:h='min(720,ih)'",
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "26",
+      "-c:a", "aac", "-b:a", "128k",
+      "-movflags", "+faststart",
+      proxyPath], { stdio: ["ignore", "ignore", "ignore"] });
+
+    // L'affiche : une image nette prise après la première seconde.
+    const posterPath = join(workDir, "affiche.jpg");
+    execFileSync("ffmpeg", ["-y",
+      "-ss", String(Math.min(1, Math.max(0, meta.durationSeconds - 1))),
+      "-i", srcPath, "-frames:v", "1",
+      "-vf", "scale=w=-2:h='min(540,ih)'",
+      posterPath], { stdio: ["ignore", "ignore", "ignore"] });
+
+    const base = `agencies/${ag.slug}/drive/${item.id}`;
+    const legerUrl = await putDriveFile(proxyPath, `${base}/leger.mp4`, "video/mp4");
+    const apercuUrl = await putDriveFile(posterPath, `${base}/affiche.jpg`, "image/jpeg");
+    const octets = statSync(proxyPath).size + statSync(posterPath).size;
+
+    await sb.from("drive_items").update({
+      leger_url: legerUrl, apercu_url: apercuUrl,
+      duree: meta.durationSeconds, encodage: "done", erreur: null,
+    }).eq("id", item.id);
+
+    // Le compteur de stockage suit (best effort, comme partout).
+    try {
+      const { error } = await sb.rpc("bump_storage", { p_agency: item.agency_id, p_delta: octets });
+      if (error) throw error;
+    } catch (_) { /* le scan nocturne rattrape */ }
+
+    log(`  ✓ version allégée en ligne (${fmtSize(octets)}, ${meta.durationSeconds}s)`);
+  } finally {
+    // Non fatal, comme les autres files : un verrou résiduel ne doit
+    // jamais transformer un encodage réussi en échec (leçon ENOTEMPTY).
+    try { rmSync(workDir, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 }); }
+    catch (e) { log(`  ⚠ ménage ${workDir} : ${e.message}`); }
+  }
 }
 
 async function claim() {
@@ -643,6 +738,10 @@ async function requeueOrphans() {
     const { data: z } = await sb.from("zip_jobs")
       .update({ status: "pending" }).eq("status", "processing").select("id");
     if (z?.length) log(`↺ ${z.length} archive(s) orpheline(s) remise(s) en file`);
+    // Les versions allégées du Drive ont la même fragilité.
+    const { data: d } = await sb.from("drive_items")
+      .update({ encodage: "pending" }).eq("encodage", "processing").select("id");
+    if (d?.length) log(`↺ ${d.length} version(s) allégée(s) orpheline(s) remise(s) en file`);
   } catch (e) { log(`⚠ requeue des orphelins : ${e.message}`); }
 }
 
@@ -704,6 +803,29 @@ while (!stopping) {
           status: err instanceof PermanentError || zip.attempts >= 3 ? "error" : "pending",
           erreur: String(err.message).slice(0, 400),
         }).eq("id", zip.id);
+      } catch (_) {}
+    }
+    finally { autoriserSommeil(); }
+    busy = false;
+    if (ONCE) break;
+    continue;
+  }
+
+  /* Le Drive passe en DERNIER : le rangement interne d'une équipe
+     n'a jamais la priorité sur un client qui attend. */
+  const proxy = await claimDriveProxy();
+  if (proxy) {
+    busy = true;
+    empecherSommeil();
+    try { await processDriveProxy(proxy); }
+    catch (err) {
+      log(`✗ drive ${proxy.id} : ${err.message}`);
+      try {
+        await sb.from("drive_items").update(
+          err instanceof AttenteError
+            ? { encodage: "pending" }   // disque plein : on repassera
+            : { encodage: "error", erreur: String(err.message).slice(0, 400) },
+        ).eq("id", proxy.id);
       } catch (_) {}
     }
     finally { autoriserSommeil(); }

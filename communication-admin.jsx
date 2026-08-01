@@ -615,8 +615,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       />
     );
 
-    const Select = ({ value, onChange, children }) => (
-      <select value={value} onChange={onChange} style={neu.pressedSm} className="w-full px-4 py-3 rounded-xl bg-transparent text-[16px] sm:text-[14px]">
+    const Select = ({ value, onChange, children, disabled }) => (
+      <select value={value} onChange={onChange} disabled={disabled} style={neu.pressedSm}
+        className="w-full px-4 py-3 rounded-xl bg-transparent text-[16px] sm:text-[14px] disabled:opacity-60">
         {children}
       </select>
     );
@@ -1898,6 +1899,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (!error) { chargerUrgents(); setTour((t) => t + 1); }
       };
 
+      /* L'éditorial est un privilège (audit du 01/08/2026) : un
+         plancher LIT l'agenda — programmer et cocher appartiennent
+         aux privilégiés, et la base tient la même règle. */
+      const peutPublier = MON_ROLE.value !== 'membre' || MES_PRIVILEGES.includes('posts');
+
       /* Les cases de la grille : on remonte au lundi qui précède le 1er
          et on descend jusqu'au dimanche qui suit le dernier. Une grille
          qui commencerait au 1er ferait glisser les colonnes de semaine
@@ -1937,7 +1943,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           {/* Le titre « Agenda » vit dans l'en-tête général (titles),
               comme pour toutes les sections — ici, seulement l'action. */}
           <div className="flex justify-end mb-5">
-            <Btn kind="dark" icon={Plus} onClick={() => setNouveau(true)}>Programmer un post</Btn>
+            {peutPublier && (
+              <Btn kind="dark" icon={Plus} onClick={() => setNouveau(true)}>Programmer un post</Btn>
+            )}
           </div>
 
           {urgents && (urgents.jour.length + urgents.retard.length) > 0 && (
@@ -1974,11 +1982,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                           <span className="text-[11.5px] text-stone-500 truncate hidden sm:inline">· {nomClient}</span>
                         )}
                       </button>
-                      <button onClick={() => cocherPubliee(s)} style={neu.raisedXs}
-                        title={`Marquer la sortie ${RESEAUX[s.reseau]?.l || s.reseau} comme publiée`}
-                        className="min-h-[44px] px-3.5 rounded-full flex items-center gap-1.5 text-[12px] font-semibold shrink-0 active:scale-95 transition-transform">
-                        <Check size={13} /> Publié
-                      </button>
+                      {peutPublier && (
+                        <button onClick={() => cocherPubliee(s)} style={neu.raisedXs}
+                          title={`Marquer la sortie ${RESEAUX[s.reseau]?.l || s.reseau} comme publiée`}
+                          className="min-h-[44px] px-3.5 rounded-full flex items-center gap-1.5 text-[12px] font-semibold shrink-0 active:scale-95 transition-transform">
+                          <Check size={13} /> Publié
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -2157,6 +2167,16 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [tPour, setTPour] = useState('');
       const [tQuand, setTQuand] = useState('');
       const [busyTache, setBusyTache] = useState(false);
+      /* Audit du 01/08/2026 : un plancher ouvrait cette fiche et
+         pouvait tout y faire — reprogrammer, supprimer le post,
+         distribuer des tâches. Deux privilèges tranchent : `posts`
+         (l'éditorial) et `taches` (la distribution). Sans eux, la
+         fiche se LIT — l'agenda du plancher doit montrer, pas offrir
+         des portes que la base refuse. */
+      const peutPublier = MON_ROLE.value !== 'membre' || MES_PRIVILEGES.includes('posts');
+      const peutDonner = MON_ROLE.value !== 'membre' || MES_PRIVILEGES.includes('taches');
+      const [moiId, setMoiId] = useState(null);
+      useEffect(() => { sb.auth.getUser().then(({ data }) => setMoiId(data?.user?.id || null)); }, []);
 
       const chargerTaches = async () => {
         const { data } = await sb.from('tasks').select('*').eq('post_id', post.id)
@@ -2271,12 +2291,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </div>
 
             <Field label="Intention, script, angle">
-              <Textarea value={brief} onChange={(e) => setBrief(e.target.value)} rows={3} />
+              <Textarea value={brief} onChange={(e) => setBrief(e.target.value)} rows={3} disabled={!peutPublier} />
             </Field>
 
             <div className="grid sm:grid-cols-2 gap-3">
               <Field label="Tournage d'origine">
-                <Select value={shootId} onChange={(e) => setShootId(e.target.value)}>
+                <Select value={shootId} onChange={(e) => setShootId(e.target.value)} disabled={!peutPublier}>
                   <option value="">— aucun —</option>
                   {shoots.map((x) => (
                     <option key={x.id} value={x.id}>
@@ -2291,7 +2311,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 )}
               </Field>
               <Field label="Montage livré">
-                <Select value={mediaId} onChange={(e) => setMediaId(e.target.value)}>
+                <Select value={mediaId} onChange={(e) => setMediaId(e.target.value)} disabled={!peutPublier}>
                   <option value="">— pas encore —</option>
                   {medias.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
                 </Select>
@@ -2318,29 +2338,35 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                             : 'Sans date'}
                         </div>
                       </div>
-                      <Btn onClick={() => basculerPublie(x)}>{x.publie_le ? 'Annuler' : 'Publié'}</Btn>
-                      <button type="button" onClick={() => retirerSortie(x)} aria-label="Retirer la sortie"
-                        className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500">
-                        <Trash2 size={13} />
-                      </button>
+                      {peutPublier && (
+                        <>
+                          <Btn onClick={() => basculerPublie(x)}>{x.publie_le ? 'Annuler' : 'Publié'}</Btn>
+                          <button type="button" onClick={() => retirerSortie(x)} aria-label="Retirer la sortie"
+                            className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500">
+                            <Trash2 size={13} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
-              <div className="grid sm:grid-cols-[1fr_1fr_auto_auto] gap-2 mt-3 items-end">
-                <Field label="Réseau">
-                  <Select value={nouvReseau} onChange={(e) => setNouvReseau(e.target.value)}>
-                    {Object.entries(RESEAUX).map(([id, r]) => <option key={id} value={id}>{r.l}</option>)}
-                  </Select>
-                </Field>
-                <Field label="Date">
-                  <Input type="date" value={nouvJour} onChange={(e) => setNouvJour(e.target.value)} />
-                </Field>
-                <Field label="Heure">
-                  <Input type="time" value={nouvHeure} onChange={(e) => setNouvHeure(e.target.value)} />
-                </Field>
-                <Btn onClick={ajouterSortie}>Ajouter</Btn>
-              </div>
+              {peutPublier && (
+                <div className="grid sm:grid-cols-[1fr_1fr_auto_auto] gap-2 mt-3 items-end">
+                  <Field label="Réseau">
+                    <Select value={nouvReseau} onChange={(e) => setNouvReseau(e.target.value)}>
+                      {Object.entries(RESEAUX).map(([id, r]) => <option key={id} value={id}>{r.l}</option>)}
+                    </Select>
+                  </Field>
+                  <Field label="Date">
+                    <Input type="date" value={nouvJour} onChange={(e) => setNouvJour(e.target.value)} />
+                  </Field>
+                  <Field label="Heure">
+                    <Input type="time" value={nouvHeure} onChange={(e) => setNouvHeure(e.target.value)} />
+                  </Field>
+                  <Btn onClick={ajouterSortie}>Ajouter</Btn>
+                </div>
+              )}
             </div>
 
             <div>
@@ -2351,36 +2377,49 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <div className="space-y-1.5">
                   {taches.map((t) => (
                     <div key={t.id} style={neu.pressedSm} className={`rounded-xl p-2.5 flex items-center gap-3 ${t.fait_le ? 'opacity-55' : ''}`}>
-                      <button type="button" onClick={() => basculerTache(t)}
-                        aria-label={t.fait_le ? 'Rouvrir la tâche' : 'Marquer faite'}
-                        className="tap-ext w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 active:scale-90 transition-transform"
-                        style={{ borderColor: t.fait_le ? '#3f9c6d' : '#b9b2a5', background: t.fait_le ? '#3f9c6d' : 'transparent' }}>
-                        {t.fait_le && <Check size={12} className="text-white" />}
-                      </button>
+                      {/* Cocher : les privilégiés partout, un plancher
+                          SES tâches — même règle que la base. */}
+                      {(peutDonner || t.assigne_a === moiId) ? (
+                        <button type="button" onClick={() => basculerTache(t)}
+                          aria-label={t.fait_le ? 'Rouvrir la tâche' : 'Marquer faite'}
+                          className="tap-ext w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 active:scale-90 transition-transform"
+                          style={{ borderColor: t.fait_le ? '#3f9c6d' : '#b9b2a5', background: t.fait_le ? '#3f9c6d' : 'transparent' }}>
+                          {t.fait_le && <Check size={12} className="text-white" />}
+                        </button>
+                      ) : (
+                        <span aria-hidden="true" className="w-6 h-6 rounded-full border-2 shrink-0 flex items-center justify-center"
+                          style={{ borderColor: t.fait_le ? '#3f9c6d' : '#b9b2a5', background: t.fait_le ? '#3f9c6d' : 'transparent' }}>
+                          {t.fait_le && <Check size={12} className="text-white" />}
+                        </span>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className={`text-[13px] ${t.fait_le ? 'line-through' : ''}`}>{t.titre}</div>
                         <div className="text-[11px] text-stone-500">
                           {nomEquipier(t.assigne_a)}{t.due_on ? ` · pour ${isoToLabel(t.due_on)}` : ''}
                         </div>
                       </div>
-                      <button type="button" onClick={() => retirerTache(t)} aria-label="Supprimer la tâche"
-                        className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500">
-                        <Trash2 size={13} />
-                      </button>
+                      {(peutDonner || t.cree_par === moiId) && (
+                        <button type="button" onClick={() => retirerTache(t)} aria-label="Supprimer la tâche"
+                          className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500">
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
-              <div className="grid sm:grid-cols-[1fr_auto_auto_auto] gap-2 mt-3 items-end">
-                <Field label="Nouvelle tâche">
+              <div className={`grid ${peutDonner ? 'sm:grid-cols-[1fr_auto_auto_auto]' : 'sm:grid-cols-[1fr_auto_auto]'} gap-2 mt-3 items-end`}>
+                <Field label={peutDonner ? 'Nouvelle tâche' : 'Me noter une tâche'}>
                   <Input value={tTitre} onChange={(e) => setTTitre(e.target.value)} placeholder="Monter le reel" />
                 </Field>
-                <Field label="Pour qui">
-                  <Select value={tPour} onChange={(e) => setTPour(e.target.value)}>
-                    <option value="">Moi</option>
-                    {equipe.map((m) => <option key={m.user_id} value={m.user_id}>{m.nom}</option>)}
-                  </Select>
-                </Field>
+                {peutDonner && (
+                  <Field label="Pour qui">
+                    <Select value={tPour} onChange={(e) => setTPour(e.target.value)}>
+                      <option value="">Moi</option>
+                      {equipe.map((m) => <option key={m.user_id} value={m.user_id}>{m.nom}</option>)}
+                    </Select>
+                  </Field>
+                )}
                 <Field label="Pour quand">
                   <Input type="date" value={tQuand} onChange={(e) => setTQuand(e.target.value)} />
                 </Field>
@@ -2395,12 +2434,16 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             )}
 
             <div className="flex gap-2 justify-between items-center pt-1 flex-wrap">
-              <Btn onClick={supprimerPost} className="text-rose-600">Supprimer</Btn>
+              {peutPublier ? (
+                <Btn onClick={supprimerPost} className="text-rose-600">Supprimer</Btn>
+              ) : <span />}
               <div className="flex gap-2">
                 <Btn onClick={onClose}>Fermer</Btn>
-                <Btn kind="dark" onClick={enregistrer} disabled={busy}>
-                  {busy ? 'Enregistrement…' : 'Enregistrer'}
-                </Btn>
+                {peutPublier && (
+                  <Btn kind="dark" onClick={enregistrer} disabled={busy}>
+                    {busy ? 'Enregistrement…' : 'Enregistrer'}
+                  </Btn>
+                )}
               </div>
             </div>
           </div>
@@ -2533,6 +2576,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       useEffect(() => { sb.auth.getUser().then(({ data }) => setMoi(data?.user?.id || null)); }, []);
 
+      /* « Donner des tâches » est un privilège (audit du 01/08/2026) :
+         sans lui, un membre ne voit que SES tâches, n'en crée que pour
+         lui-même, et n'efface que ce qu'il a créé. La base tient la
+         même règle (policies) — l'écran cesse d'offrir l'impossible. */
+      const peutDonner = MON_ROLE.value !== 'membre' || MES_PRIVILEGES.includes('taches');
+
       const charger = async () => {
         setErr('');
         const { data, error } = await sb.from('tasks')
@@ -2582,7 +2631,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       const nomDe = (id) => (equipe.find((m) => m.user_id === id) || {}).nom || 'Non assignée';
       const visibles = (taches || []).filter((t) =>
-        qui === 'tous' ? true : qui === 'moi' ? t.assigne_a === moi : t.assigne_a === qui);
+        !peutDonner ? t.assigne_a === moi
+          : qui === 'tous' ? true : qui === 'moi' ? t.assigne_a === moi : t.assigne_a === qui);
       const aFaire = visibles.filter((t) => !t.fait_le);
       const faites = visibles.filter((t) => t.fait_le);
 
@@ -2598,30 +2648,37 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <h2 className="text-[18px] lg:text-[20px] tracking-tight" style={SERIF}>Les tâches</h2>
-              <p className="text-[12.5px] text-stone-500 mt-1">Qui fait quoi, et pour quand.</p>
+              <p className="text-[12.5px] text-stone-500 mt-1">
+                {peutDonner ? 'Qui fait quoi, et pour quand.' : 'Vos tâches, et où elles en sont.'}
+              </p>
             </div>
-            <div className="w-full sm:w-[190px]">
-              <Select value={qui} onChange={(e) => setQui(e.target.value)}>
-                <option value="moi">Mes tâches</option>
-                <option value="tous">Toute l'équipe</option>
-                {equipe.filter((m) => m.user_id !== moi).map((m) => (
-                  <option key={m.user_id} value={m.user_id}>{m.nom}</option>
-                ))}
-              </Select>
-            </div>
+            {peutDonner && (
+              <div className="w-full sm:w-[190px]">
+                <Select value={qui} onChange={(e) => setQui(e.target.value)}>
+                  <option value="moi">Mes tâches</option>
+                  <option value="tous">Toute l'équipe</option>
+                  {equipe.filter((m) => m.user_id !== moi).map((m) => (
+                    <option key={m.user_id} value={m.user_id}>{m.nom}</option>
+                  ))}
+                </Select>
+              </div>
+            )}
           </div>
 
-          <form onSubmit={ajouter} className="grid sm:grid-cols-[1fr_auto_auto_auto] gap-2 mt-4 items-end">
-            <Field label="Nouvelle tâche">
+          <form onSubmit={ajouter}
+            className={`grid ${peutDonner ? 'sm:grid-cols-[1fr_auto_auto_auto]' : 'sm:grid-cols-[1fr_auto_auto]'} gap-2 mt-4 items-end`}>
+            <Field label={peutDonner ? 'Nouvelle tâche' : 'Me noter une tâche'}>
               <Input value={titre} onChange={(e) => setTitre(e.target.value)}
                 placeholder="Monter le reel Era Étampes" />
             </Field>
-            <Field label="Pour qui">
-              <Select value={pour} onChange={(e) => setPour(e.target.value)}>
-                <option value="">Moi</option>
-                {equipe.map((m) => <option key={m.user_id} value={m.user_id}>{m.nom}</option>)}
-              </Select>
-            </Field>
+            {peutDonner && (
+              <Field label="Pour qui">
+                <Select value={pour} onChange={(e) => setPour(e.target.value)}>
+                  <option value="">Moi</option>
+                  {equipe.map((m) => <option key={m.user_id} value={m.user_id}>{m.nom}</option>)}
+                </Select>
+              </Field>
+            )}
             <Field label="Pour quand">
               <Input type="date" value={quand} onChange={(e) => setQuand(e.target.value)} />
             </Field>
@@ -2666,10 +2723,16 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         )}
                       </div>
                     </div>
-                    <button type="button" onClick={() => supprimer(t)} aria-label="Supprimer la tâche"
-                      className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500">
-                      <Trash2 size={13} />
-                    </button>
+                    {/* Effacer : les privilégiés effacent tout, un
+                        plancher seulement CE QU'IL A CRÉÉ (cree_par) —
+                        la corbeille sur la tâche du patron, vue sur la
+                        capture de Gil, n'avait rien à faire là. */}
+                    {(peutDonner || t.cree_par === moi) && (
+                      <button type="button" onClick={() => supprimer(t)} aria-label="Supprimer la tâche"
+                        className="w-9 h-9 tap-ext rounded-full flex items-center justify-center text-stone-400 hover:text-rose-500">
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -2692,28 +2755,42 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        comme à la création d'une agence. */
     const ROLES_EQUIPE = { owner: 'Propriétaire', admin: 'Admin', membre: 'Membre' };
 
-    /* Le privilège « Espaces clients » d'un membre — l'interrupteur
-       maison. Sans lui, le rang plancher : chat, agenda, ses tâches.
-       Le serveur (team-member) et la base (policies restrictives)
-       tiennent la vraie garde ; cet écran accorde. */
-    function PrivilegeClients({ actif, onToggle }) {
+    /* Les privilèges d'un membre — trois interrupteurs maison. Sans
+       rien, le rang plancher : chat, agenda, ses tâches. Le serveur
+       (team-member) et la base (policies restrictives) tiennent la
+       vraie garde ; cet écran accorde. */
+    const PRIVILEGES_MEMBRE = [
+      { id: 'clients', icon: Users, titre: 'Espaces clients',
+        desc: 'Voir les clients et agir sur leurs espaces (jamais les factures).' },
+      { id: 'posts', icon: Send, titre: 'Publications',
+        desc: 'Programmer des posts, gérer les sorties, cocher « publié ».' },
+      { id: 'taches', icon: CheckCircle2, titre: 'Donner des tâches',
+        desc: 'Assigner aux autres et gérer leurs tâches — sans lui : les siennes seulement.' },
+    ];
+    function PrivilegesMembre({ valeurs, onChange }) {
       return (
-        <button type="button" onClick={onToggle}
-          style={actif ? neu.dark : neu.pressedSm}
-          className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between gap-3 transition ${actif ? 'text-white' : 'text-stone-700'}`}>
-          <div className="flex items-center gap-3 text-left min-w-0">
-            <Users size={17} className="shrink-0" />
-            <div className="min-w-0">
-              <div className="font-semibold text-[13px]">Espaces clients</div>
-              <div className={`text-[10.5px] mt-0.5 ${actif ? 'text-stone-300' : 'text-stone-500'}`}>
-                Voir les clients et agir sur leurs espaces (jamais les factures).
-              </div>
-            </div>
-          </div>
-          <div className={`w-10 h-5.5 rounded-full p-0.5 transition shrink-0 ${actif ? 'bg-emerald-400' : 'bg-stone-300'}`}>
-            <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${actif ? 'translate-x-4' : ''}`} />
-          </div>
-        </button>
+        <div className="space-y-2">
+          {PRIVILEGES_MEMBRE.map(({ id, icon: Icone, titre, desc }) => {
+            const actif = valeurs.includes(id);
+            return (
+              <button key={id} type="button"
+                onClick={() => onChange(actif ? valeurs.filter((v) => v !== id) : [...valeurs, id])}
+                style={actif ? neu.dark : neu.pressedSm}
+                className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between gap-3 transition ${actif ? 'text-white' : 'text-stone-700'}`}>
+                <div className="flex items-center gap-3 text-left min-w-0">
+                  <Icone size={17} className="shrink-0" />
+                  <div className="min-w-0">
+                    <div className="font-semibold text-[13px]">{titre}</div>
+                    <div className={`text-[10.5px] mt-0.5 ${actif ? 'text-stone-300' : 'text-stone-500'}`}>{desc}</div>
+                  </div>
+                </div>
+                <div className={`w-10 h-5.5 rounded-full p-0.5 transition shrink-0 ${actif ? 'bg-emerald-400' : 'bg-stone-300'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${actif ? 'translate-x-4' : ''}`} />
+                </div>
+              </button>
+            );
+          })}
+        </div>
       );
     }
 
@@ -3174,8 +3251,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 )}
                 {form.role === 'membre' && (
                   <Field label="Privilèges">
-                    <PrivilegeClients actif={form.privileges.includes('clients')}
-                      onToggle={() => setForm((f) => ({ ...f, privileges: f.privileges.includes('clients') ? [] : ['clients'] }))} />
+                    <PrivilegesMembre valeurs={form.privileges}
+                      onChange={(p) => setForm((f) => ({ ...f, privileges: p }))} />
                   </Field>
                 )}
                 <Btn kind="dark" icon={busy ? Loader2 : UserPlus} disabled={busy || !form.email.trim()}
@@ -3204,9 +3281,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         </div>
                         <div className="text-[11px] text-stone-500 mt-0.5">
                           {ROLES_EQUIPE[m.role] || m.role}{m.metier ? ` · ${m.metier}` : ''}
-                          {m.role === 'membre' && (Array.isArray(m.privileges) && m.privileges.includes('clients')
-                            ? ' · accès clients'
-                            : ' · chat, agenda et tâches')}
+                          {m.role === 'membre' && (() => {
+                            const p = Array.isArray(m.privileges) ? m.privileges : [];
+                            const noms = [p.includes('clients') && 'accès clients',
+                                          p.includes('posts') && 'publications',
+                                          p.includes('taches') && 'donne des tâches'].filter(Boolean);
+                            return ` · ${noms.length ? noms.join(', ') : 'chat, agenda et tâches'}`;
+                          })()}
                         </div>
                         {(() => {
                           const c = chargeDe(m.user_id);
@@ -3257,8 +3338,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         )}
                         {edit.role === 'membre' && (
                           <Field label="Privilèges">
-                            <PrivilegeClients actif={edit.privileges.includes('clients')}
-                              onToggle={() => setEdit((v) => ({ ...v, privileges: v.privileges.includes('clients') ? [] : ['clients'] }))} />
+                            <PrivilegesMembre valeurs={edit.privileges}
+                              onChange={(p) => setEdit((v) => ({ ...v, privileges: p }))} />
                           </Field>
                         )}
                         <div className="flex gap-2 flex-wrap">
@@ -11335,7 +11416,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
           {/* Chat bêta — Gil le voit toujours (c'est sa boîte de réception) ;
               un locataire seulement s'il est labellisé bêta-testeur. */}
-          {featuresReady && user && (FEATURES.allUniverses ? agencies !== null : AGENCY.betaChat) && (
+          {/* Le fil bêta parle À LA PLATEFORME au nom de l'agence : une
+              affaire d'owner/admin, pas d'un membre (audit 01/08/2026 —
+              la bulle apparaissait chez le plancher, capture de Gil). */}
+          {featuresReady && user && (FEATURES.allUniverses
+            ? agencies !== null
+            : AGENCY.betaChat && MON_ROLE.value !== 'membre') && (
             <ChatBeta user={user} estPlateforme={agencies !== null}
                       agencyId={AGENCY.id} agencyNom={AGENCY.name} />
           )}

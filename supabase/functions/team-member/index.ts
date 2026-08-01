@@ -43,8 +43,10 @@ const json = (s: number, b: unknown) =>
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 // Les privilèges qu'un rôle « membre » peut recevoir (owner/admin ont
 // tout). Le rang plancher — liste vide — n'a que le chat, l'agenda et
-// ses tâches.
-const PRIVILEGES_VALIDES = ["clients"];
+// ses tâches. `clients` = voir/agir sur les espaces clients ;
+// `posts` = programmer les publications et leurs sorties ;
+// `taches` = donner des tâches aux autres et gérer les leurs.
+const PRIVILEGES_VALIDES = ["clients", "posts", "taches"];
 
 // Même recette que create-agency : lisible mais fort (~77 bits).
 function tempPassword(): string {

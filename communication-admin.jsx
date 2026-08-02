@@ -9331,11 +9331,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       const submit = async (e) => {
         e.preventDefault();
-        // ⚠️ Avertissement si vidéo sans aucune source de lecture ni fichier
-        if (form.type === 'video' && !form.preview_url.trim() && !form.url.trim() && !videoFile) {
+        // ⚠️ Avertissement si vidéo sans aucune source de lecture ni
+        // fichier — un fichier POINTÉ depuis le Drive est une source
+        // comme une autre (le dialogue criait à tort, capture de Gil
+        // du 02/08).
+        if (form.type === 'video' && !form.preview_url.trim() && !form.url.trim() && !videoFile && !driveVideo) {
           if (!window.confirm('⚠️ Aucun fichier ni URL renseigné.\n\nLa vidéo sera invisible pour le client.\n\nVoulez-vous quand même enregistrer ?')) return;
         }
-        if (form.type === 'photo' && !form.url.trim() && !photoFile) {
+        if (form.type === 'photo' && !form.url.trim() && !photoFile && !drivePhoto) {
           if (!window.confirm('⚠️ Aucune image sélectionnée.\n\nLe média sera invisible pour le client.\n\nVoulez-vous quand même enregistrer ?')) return;
         }
         setLoading(true);
@@ -9715,10 +9718,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             <div className="flex gap-3 pt-2">
               <Btn onClick={onClose} full disabled={loading}>Annuler</Btn>
               <Btn kind="dark" type="submit" full disabled={loading} icon={loading ? Loader2 : Save}
-                style={form.type === 'video' && !form.preview_url && !videoFile && !form.url ? { background: 'linear-gradient(135deg,#92400e,#b45309)', boxShadow: '0 0 0 2px rgba(245,158,11,0.4)' } : {}}>
+                style={form.type === 'video' && !form.preview_url && !videoFile && !driveVideo && !form.url ? { background: 'linear-gradient(135deg,#92400e,#b45309)', boxShadow: '0 0 0 2px rgba(245,158,11,0.4)' } : {}}>
                 {loading
                   ? (upProgress ? 'Upload en cours…' : 'Enregistrement…')
-                  : ((form.type === 'video' && !form.preview_url && !videoFile && !form.url ? '⚠️ ' : '') + (existing ? 'Mettre à jour' : (videoFile ? 'Ajouter et uploader' : 'Ajouter')))}
+                  : ((form.type === 'video' && !form.preview_url && !videoFile && !driveVideo && !form.url ? '⚠️ ' : '') + (existing ? 'Mettre à jour' : (videoFile ? 'Ajouter et uploader' : 'Ajouter')))}
               </Btn>
             </div>
           </form>

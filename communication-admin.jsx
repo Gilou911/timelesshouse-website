@@ -1813,7 +1813,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       instagram: { l: 'Instagram', c: '#c13584' },
       tiktok:    { l: 'TikTok',    c: '#0f0f10' },
       linkedin:  { l: 'LinkedIn',  c: '#0a66c2' },
-      facebook:  { l: 'Facebook',  c: '#1877f2' },
+      facebook:  { l: 'Facebook',  c: '#1259c4' },   // 6,5:1 sous texte blanc (le bleu officiel tombait à 4,2)
       youtube:   { l: 'YouTube',   c: '#c4302b' },
       autre:     { l: 'Autre',     c: '#6b6357' },
     };
@@ -2466,9 +2466,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       {(peutDonner || t.assigne_a === moiId) ? (
                         <button type="button" onClick={() => basculerTache(t)}
                           aria-label={t.fait_le ? 'Rouvrir la tâche' : 'Marquer faite'}
-                          className="tap-ext w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 active:scale-90 transition-transform"
-                          style={{ borderColor: t.fait_le ? '#3f9c6d' : '#b9b2a5', background: t.fait_le ? '#3f9c6d' : 'transparent' }}>
-                          {t.fait_le && <Check size={12} className="text-white" />}
+                          className="w-11 h-11 -m-2.5 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-transform">
+                          <span aria-hidden="true" className="w-6 h-6 rounded-full border-2 flex items-center justify-center"
+                            style={{ borderColor: t.fait_le ? '#3f9c6d' : '#b9b2a5', background: t.fait_le ? '#3f9c6d' : 'transparent' }}>
+                            {t.fait_le && <Check size={12} className="text-white" />}
+                          </span>
                         </button>
                       ) : (
                         <span aria-hidden="true" className="w-6 h-6 rounded-full border-2 shrink-0 flex items-center justify-center"
@@ -2862,11 +2864,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 return (
                   <div key={t.id} style={neu.pressedSm}
                     className={`rounded-xl p-3 flex items-center gap-3 ${t.fait_le ? 'opacity-55' : ''}`}>
+                    {/* HIG §4 : la coche visait 36 px effectifs — l'enveloppe
+                        fait 44, le visuel ne bouge pas (marge négative). */}
                     <button type="button" onClick={() => basculer(t)}
                       aria-label={t.fait_le ? 'Rouvrir la tâche' : 'Marquer faite'}
-                      className="tap-ext w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 active:scale-90 transition-transform"
-                      style={{ borderColor: t.fait_le ? '#3f9c6d' : '#b9b2a5', background: t.fait_le ? '#3f9c6d' : 'transparent' }}>
-                      {t.fait_le && <Check size={12} className="text-white" />}
+                      className="w-11 h-11 -m-2.5 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-transform">
+                      <span aria-hidden="true" className="w-6 h-6 rounded-full border-2 flex items-center justify-center"
+                        style={{ borderColor: t.fait_le ? '#3f9c6d' : '#b9b2a5', background: t.fait_le ? '#3f9c6d' : 'transparent' }}>
+                        {t.fait_le && <Check size={12} className="text-white" />}
+                      </span>
                     </button>
                     <div className="flex-1 min-w-0">
                       <div className={`text-[13.5px] ${t.fait_le ? 'line-through' : ''}`}>{t.titre}</div>
@@ -3248,10 +3254,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                               </div>
                             );
                           })()}
-                          <div className="text-[13.5px] leading-relaxed whitespace-pre-wrap break-words">{m.corps}</div>
+                          <div className="text-[16px] sm:text-[13.5px] leading-relaxed whitespace-pre-wrap break-words">{m.corps}</div>
                           {mien && (
                             <button type="button" onClick={() => effacer(m)}
-                              className="text-[10.5px] text-stone-400 hover:text-rose-400 mt-1 min-h-[24px]">
+                              className="tap-ext inline-flex items-center text-[10.5px] text-stone-400 hover:text-rose-400 mt-1 min-h-[32px]">
                               Effacer
                             </button>
                           )}
@@ -4085,7 +4091,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       ) : (
                         <button type="button" onClick={() => { setGere(f); setDest(''); }}
                           aria-label={`Options de ${f.nom}`}
-                          className="absolute top-1.5 right-1.5 w-9 h-9 rounded-full bg-black/45 text-white flex items-center justify-center backdrop-blur-sm">
+                          className="absolute top-1.5 right-1.5 tap-ext w-9 h-9 rounded-full bg-black/45 text-white flex items-center justify-center backdrop-blur-sm">
                           ⋯
                         </button>
                       )}
@@ -12701,7 +12707,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     className={`th-onglet w-full flex items-center gap-3.5 px-4 py-3.5 min-h-[48px] rounded-2xl text-left ${section === n.id && !selectedClient ? 'text-stone-900' : 'text-stone-500 hover:text-stone-800'}`}>
                     <n.icon size={18} /> <span className="text-[14px] font-medium tracking-tight">{n.label}</span>
                     {n.id === 'messages' && nonLusMsg > 0 && (
-                      <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10.5px] font-bold flex items-center justify-center">
+                      <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10.5px] font-bold flex items-center justify-center">
                         {nonLusMsg > 99 ? '99+' : nonLusMsg}
                       </span>
                     )}
@@ -12872,7 +12878,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       <span className="relative">
                         <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
                         {n.id === 'messages' && nonLusMsg > 0 && (
-                          <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9.5px] font-bold flex items-center justify-center">
+                          <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white text-[9.5px] font-bold flex items-center justify-center">
                             {nonLusMsg > 99 ? '99+' : nonLusMsg}
                           </span>
                         )}

@@ -99,6 +99,22 @@
     [data-theme="dark"] .border-stone-300 { border-color: rgba(232,216,190,0.22) !important; }
     [data-theme="dark"] .border-stone-900 { border-color: #e8d8be !important; }
     [data-theme="dark"] hr { border-color: rgba(255,255,255,0.07) !important; }
+    /* Teintes d'ÉTAT en thème sombre (audit HIG 02/08/2026) : bandeaux
+       d'erreur, retards et chips restaient des pavés CLAIRS posés sur
+       le graphite. Fond = teinte translucide sur la carte, texte
+       éclairci — tout mesuré entre 7,9:1 et 12:1 sur #22262d. */
+    [data-theme="dark"] .bg-rose-50, [data-theme="dark"] .bg-rose-100 { background-color: rgba(244,63,94,0.16) !important; }
+    [data-theme="dark"] .text-rose-700, [data-theme="dark"] .text-rose-600, [data-theme="dark"] .text-rose-500 { color: #f9a8b4 !important; }
+    [data-theme="dark"] .bg-amber-50, [data-theme="dark"] .bg-amber-100 { background-color: rgba(245,158,11,0.15) !important; }
+    [data-theme="dark"] .text-amber-800, [data-theme="dark"] .text-amber-700, [data-theme="dark"] .text-amber-600 { color: #f2c469 !important; }
+    [data-theme="dark"] .text-amber-300 { color: #f7d489 !important; }
+    [data-theme="dark"] .bg-emerald-100 { background-color: rgba(16,185,129,0.18) !important; }
+    [data-theme="dark"] .text-emerald-700, [data-theme="dark"] .text-emerald-600 { color: #7fdcab !important; }
+    [data-theme="dark"] .bg-violet-100 { background-color: rgba(139,92,246,0.18) !important; }
+    [data-theme="dark"] .text-violet-700 { color: #c4b0fa !important; }
+    /* Le badge de non-lus s'ÉCLAIRCIT en sombre (l'encre y devient
+       sombre via .text-white) : 4,97:1 mesuré. */
+    [data-theme="dark"] .bg-rose-600 { background-color: #f43f5e !important; }
 
     /* Smooth theme transitions — only on direct theme-relevant containers,
        NOT on every single DOM element (that caused massive layout thrashing

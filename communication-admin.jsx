@@ -1633,7 +1633,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 const l = regl[id];
                 return (
                   <div key={id} className="space-y-2">
-                    <button type="button"
+                    <button type="button" role="switch" aria-checked={l.actif}
                       onClick={() => setRegl(r => ({ ...r, [id]: { ...r[id], actif: !r[id].actif } }))}
                       style={l.actif ? neu.dark : neu.pressedSm}
                       className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between gap-3 transition ${l.actif ? 'text-white' : 'text-stone-700'}`}>
@@ -2938,7 +2938,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           {PRIVILEGES_MEMBRE.map(({ id, icon: Icone, titre, desc }) => {
             const actif = valeurs.includes(id);
             return (
-              <button key={id} type="button"
+              <button key={id} type="button" role="switch" aria-checked={actif}
                 onClick={() => onChange(actif ? valeurs.filter((v) => v !== id) : [...valeurs, id])}
                 style={actif ? neu.dark : neu.pressedSm}
                 className={`w-full px-5 py-3.5 rounded-2xl flex items-center justify-between gap-3 transition ${actif ? 'text-white' : 'text-stone-700'}`}>
@@ -3159,6 +3159,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 const actif = fil === c.cle;
                 return (
                   <button key={c.cle} type="button" onClick={() => ouvrir(c.cle)}
+                    aria-current={actif ? 'true' : undefined}
                     style={actif ? neu.pressedSm : undefined}
                     className="w-full flex items-center gap-3 px-3 py-2.5 min-h-[56px] rounded-2xl text-left">
                     <div style={neu.darkSm}
@@ -3965,6 +3966,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     onClick={() => selMode ? basculerSel(d.id)
                       : enRecherche ? ouvrirDossierTrouve(d)
                       : setChemin([...chemin, { id: d.id, nom: d.nom }])}
+                    aria-pressed={selMode ? sels.has(d.id) : undefined}
                     className="flex-1 min-w-0 min-h-[52px] px-3 flex items-center gap-3 text-left">
                     {selMode && <Coche actif={sels.has(d.id)} />}
                     <FolderOpen size={17} className="text-stone-500 shrink-0" />
@@ -3982,6 +3984,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               {lesFichiers.map((f) => (
                 <div key={f.id} style={neu.raisedXs} className="rounded-xl flex items-center">
                   <button type="button" onClick={() => selMode ? basculerSel(f.id) : setOuvert(f)}
+                    aria-pressed={selMode ? sels.has(f.id) : undefined}
                     className="flex-1 min-w-0 min-h-[56px] px-2.5 py-1.5 flex items-center gap-3 text-left">
                     {selMode && <Coche actif={sels.has(f.id)} />}
                     <div className="w-12 h-12 rounded-lg overflow-hidden bg-stone-900/85 shrink-0 relative">
@@ -4031,6 +4034,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         onClick={() => selMode ? basculerSel(d.id)
                           : enRecherche ? ouvrirDossierTrouve(d)
                           : setChemin([...chemin, { id: d.id, nom: d.nom }])}
+                        aria-pressed={selMode ? sels.has(d.id) : undefined}
                         className="flex-1 min-w-0 min-h-[52px] px-3.5 flex items-center gap-2.5 text-left">
                         {selMode && <Coche actif={sels.has(d.id)} />}
                         <FolderOpen size={17} className="text-stone-500 shrink-0" />
@@ -4052,6 +4056,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   {lesFichiers.map((f) => (
                     <div key={f.id} style={neu.raised} className="rounded-2xl overflow-hidden group relative">
                       <button type="button" onClick={() => selMode ? basculerSel(f.id) : setOuvert(f)}
+                        aria-pressed={selMode ? sels.has(f.id) : undefined}
                         className="block w-full text-left">
                         <div className="aspect-[4/3] bg-stone-900/85 relative">
                           {f.apercu_url ? (
@@ -4212,7 +4217,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                             )}
                           </Select>
                           {destEnvoi === 'facture' && (
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-2">
                               <Input type="number" min="0" step="0.01" value={factMontant}
                                 onChange={(e) => setFactMontant(e.target.value)}
                                 placeholder="Montant (€) *" aria-label="Montant de la facture" />
@@ -11653,7 +11658,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   {METIERS.map((m) => {
                     const actif = form.universes.includes(m.value);
                     return (
-                      <button key={m.value} type="button"
+                      <button key={m.value} type="button" role="switch" aria-checked={actif}
                         onClick={() => setForm(f => {
                           const dedans = f.universes.includes(m.value);
                           // Jamais zéro métier : une loge sans métier ne
@@ -11841,6 +11846,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       const actif = verrou ? true : selMetiers.includes(m.value);
                       return (
                         <button key={m.value} type="button" disabled={!!verrou || busyMetiers}
+                          role="switch" aria-checked={actif}
                           onClick={() => setSelMetiers((s) => s.includes(m.value)
                             ? s.filter((v) => v !== m.value) : [...s, m.value])}
                           style={actif ? neu.dark : neu.pressedSm}

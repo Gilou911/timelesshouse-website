@@ -12650,7 +12650,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
           <div className="flex gap-5 px-4 pb-28 lg:p-5 lg:pb-5 min-h-screen">
             {/* Sidebar — desktop uniquement */}
-            <aside style={neu.raised} className="hidden lg:flex w-[230px] h-[calc(100vh-40px)] sticky top-5 flex-col rounded-[32px] p-5 shrink-0">
+            {/* `dvh` et non `vh` : sur iPad, 100vh compte les barres de
+                Safari repliées — la carte dépassait l'écran. Et le menu
+                DÉFILE dans sa carte quand il manque de place : huit
+                onglets plus le pied, sur un écran bas, débordaient du
+                fond arrondi (capture de Gil du 02/08). */}
+            <aside style={neu.raised} className="hidden lg:flex w-[230px] h-[calc(100dvh-40px)] sticky top-5 flex-col rounded-[32px] p-5 shrink-0 overflow-y-auto overscroll-contain">
               <div className="px-2 pt-2 pb-6">
                 {/* MARQUE BLANCHE : le nom du STUDIO connecté, jamais le nôtre.
                     Un locataire lisait « TimelessHouse » dans sa propre console

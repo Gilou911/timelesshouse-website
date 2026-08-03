@@ -3090,7 +3090,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           .insert({ agency_id: AGENCY.id, auteur_id: user.id, corps,
                     dest_id: fil === 'equipe' ? null : fil });
         setEnvoi(false);
-        if (error) { setErreur(humaniseErreur(error.message)); return; }
+        if (error) {
+          /* Un refus RLS ici n'a RIEN à voir avec l'offre (le
+             traducteur maison le suppose par défaut) : c'est le
+             juge des fils privés qui manque. On le dit vrai. */
+          setErreur(/row-level|permission denied|violates/i.test(error.message || '')
+            ? "Ce fil privé n'est pas encore activé : exécutez files/migration-chat-prive-fix.sql dans Supabase."
+            : humaniseErreur(error.message));
+          return;
+        }
         setTexte(''); charger();
       };
       const effacer = async (m) => {
@@ -3111,6 +3119,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (error) {
           setErreur(/drive_id/.test(error.message || '')
             ? "Le partage de fichiers n'est pas encore activé : exécutez files/migration-chat-fichiers.sql dans Supabase."
+            : /row-level|permission denied|violates/i.test(error.message || '')
+            ? "Ce fil privé n'est pas encore activé : exécutez files/migration-chat-prive-fix.sql dans Supabase."
             : humaniseErreur(error.message));
           return;
         }

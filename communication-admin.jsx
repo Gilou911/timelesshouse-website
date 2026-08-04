@@ -506,7 +506,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const lumiere = melange(bg, '#ffffff', 0.92);
       const o = (a) => hexVersRgba(ombre, a);
       const l = (a) => hexVersRgba(lumiere, a);
-      return {
+      const clair = {
         base:      { backgroundColor: bg },
         raised:    { backgroundColor: carte, boxShadow: `7px 7px 14px ${o(0.38)}, -7px -7px 14px ${l(0.92)}` },
         raisedSm:  { backgroundColor: carte, boxShadow: `5px 5px 12px ${o(0.26)}, -5px -5px 12px ${l(0.88)}` },
@@ -518,6 +518,41 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         accent,
         accentText: encre,
       };
+
+      /* ── LE SOMBRE S'ADAPTE AUSSI (demande de Gil, 02/08) ──────
+         Même harmonie, lue de nuit : la base graphite se TEINTE de
+         la famille du fond harmonisé (jamais un noir neutre — la
+         règle « jamais de gris pur » vaut aussi la nuit), et la
+         pilule accent devient un TINT éclairci de leur accent,
+         éclairci pas à pas jusqu'à porter l'encre sombre à 4,5:1
+         (en sombre, .text-white bascule vers l'encre #1a1410 — le
+         mécanisme maison ne change pas). Un accent neutre garde la
+         pilule crème de la maison. */
+      const sFond = borne(B.s, 0.08, 0.2);
+      const baseS = depuisHsl({ h: B.h, s: sFond, l: 0.105 });
+      const carteS = depuisHsl({ h: B.h, s: sFond, l: 0.155 });
+      const creuxS = depuisHsl({ h: B.h, s: sFond, l: 0.082 });
+      const lumiereS = depuisHsl({ h: B.h, s: sFond, l: 0.3 });
+      const ls = (a) => hexVersRgba(lumiereS, a);
+      let pilule = accentNeutre ? '#e8d8be'
+        : depuisHsl({ h: A.h, s: borne(A.s, 0.25, 0.6), l: 0.76 });
+      for (let i = 0; i < 10 && contraste(pilule, '#1a1410') < 4.5; i++) {
+        pilule = melange(pilule, '#ffffff', 0.12);
+      }
+      const gp = (a) => hexVersRgba(pilule, a);
+      const sombre = {
+        base:      { backgroundColor: baseS },
+        raised:    { backgroundColor: carteS, boxShadow: `7px 7px 14px rgba(0,0,0,0.6), -5px -5px 12px ${ls(0.3)}` },
+        raisedSm:  { backgroundColor: carteS, boxShadow: `5px 5px 12px rgba(0,0,0,0.48), -3px -3px 8px ${ls(0.22)}` },
+        raisedXs:  { backgroundColor: carteS, boxShadow: `3px 3px 7px rgba(0,0,0,0.42), -2px -2px 5px ${ls(0.18)}`, zIndex: 2 },
+        pressed:   { backgroundColor: creuxS, boxShadow: `inset 5px 5px 10px rgba(0,0,0,0.55), inset -3px -3px 8px ${ls(0.2)}` },
+        pressedSm: { backgroundColor: creuxS, boxShadow: `inset 3px 3px 6px rgba(0,0,0,0.48), inset -2px -2px 5px ${ls(0.15)}` },
+        dark:      { backgroundColor: pilule, boxShadow: `4px 4px 9px rgba(0,0,0,0.68), -2px -2px 6px ${ls(0.22)}, inset 1px 1px 2px rgba(255,255,255,0.18), 0 0 0 1px ${gp(0.35)}, 0 0 12px ${gp(0.22)}` },
+        darkSm:    { backgroundColor: pilule, boxShadow: `4px 4px 10px rgba(0,0,0,0.55), -2px -2px 6px ${ls(0.18)}, 0 0 0 1px ${gp(0.3)}, 0 0 16px ${gp(0.2)}` },
+        accent:    pilule,
+        accentText:'#1a1410',
+      };
+      return { clair, sombre };
     }
 
     /* ---------- Thème : PILOTÉ PAR L'APPAREIL ----------
@@ -12515,10 +12550,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // Reassign the module-level mutable neu pointer.
       // Thème clair : la palette de la LOGE si elle a personnalisé sa
       // marque ; thème sombre : le graphite maison, toujours.
-      neu = isDark ? NEU_DARK : (NEU_TENANT || NEU_LIGHT);
+      neu = isDark
+        ? ((NEU_TENANT && NEU_TENANT.sombre) || NEU_DARK)
+        : ((NEU_TENANT && NEU_TENANT.clair) || NEU_LIGHT);
       // Le fond du document suit (zones d'overscroll, derrière les coins).
       useEffect(() => {
-        document.body.style.backgroundColor = isDark ? '' : neu.base.backgroundColor;
+        document.body.style.backgroundColor = neu.base.backgroundColor;
         return () => { document.body.style.backgroundColor = ''; };
       }, [isDark, neu]);
 
@@ -12812,7 +12849,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           <header
             className="lg:hidden flex items-center justify-between px-5 py-3.5 sticky top-0 z-30"
             style={{
-              backgroundColor: isDark ? 'rgba(34,38,45,0.85)' : hexVersRgba(neu.raised.backgroundColor, 0.85),
+              backgroundColor: hexVersRgba(neu.raised.backgroundColor, 0.85),
               backdropFilter: 'saturate(180%) blur(20px)',
               WebkitBackdropFilter: 'saturate(180%) blur(20px)',
               borderBottom: isDark ? '0.5px solid rgba(255,255,255,0.06)' : '0.5px solid rgba(0,0,0,0.06)',
@@ -13064,7 +13101,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 className="lg:hidden fixed bottom-4 left-4 right-4 z-30 rounded-[28px] px-2 py-2 flex items-center justify-around"
                 style={{
                   boxShadow: neu.raised.boxShadow,
-                  background: isDark ? 'rgba(34,38,45,0.5)' : hexVersRgba(neu.raised.backgroundColor, 0.5),
+                  background: hexVersRgba(neu.raised.backgroundColor, 0.5),
                   border: isDark ? '0.5px solid rgba(255,255,255,0.06)' : '0.5px solid rgba(255,255,255,0.55)',
                   backdropFilter: 'saturate(180%) blur(22px)',
                   WebkitBackdropFilter: 'saturate(180%) blur(22px)',

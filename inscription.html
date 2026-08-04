@@ -261,11 +261,18 @@
        de soumission, l'écouteur ne se serait activé qu'à l'envoi du
        formulaire — donc jamais au moment utile. */
     const metierChoisi = () => (el('metier') || {}).value || 'celebration';
+    const HINTS = {
+      celebration: 'Galeries photos et films livrés à des couples et des familles.',
+      filmmaker: 'Films de marque, clips, documentaires.',
+      communication: 'Tableau de bord complet, avec analyses réseaux sociaux.',
+    };
     /* Arrivée depuis /metiers ou /offres : le métier choisi en amont
        est présélectionné (jamais une option fermée). L'aide est mise à
        jour DIRECTEMENT : tirer `change` ici partait avant que
        l'écouteur ne soit posé — l'aide décrivait le métier d'à côté
-       (vu à l'écran, audit du 03/08). */
+       (vu à l'écran, audit du 03/08) — et sa première version
+       référençait HINTS avant sa déclaration (zone morte du const,
+       exception avalée par le try) : le bloc vit désormais APRÈS. */
     try {
       const voulu = new URLSearchParams(location.search).get('metier');
       const sel = el('metier');
@@ -276,11 +283,6 @@
         if (h) h.textContent = HINTS[voulu] || '';
       }
     } catch (_) {}
-    const HINTS = {
-      celebration: 'Galeries photos et films livrés à des couples et des familles.',
-      filmmaker: 'Films de marque, clips, documentaires.',
-      communication: 'Tableau de bord complet, avec analyses réseaux sociaux.',
-    };
     el('metier')?.addEventListener('change', () => {
       const h = el('metier-hint');
       if (h) h.textContent = HINTS[metierChoisi()] || '';

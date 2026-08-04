@@ -453,6 +453,38 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
     let NEU_TENANT = null;   // palette claire dérivée de la marque, posée par loadFeatures
 
+    /* Normalise un couple (fond, accent) vers CE QUI S'AFFICHERA —
+       la même harmonie que la palette, en SOURCE UNIQUE : les
+       sélecteurs de couleurs l'appliquent EN DIRECT (on ne peut
+       choisir que des couleurs affichables — demande de Gil du
+       02/08, contre la frustration du « j'ai choisi néon, je vois
+       forêt »). Idempotente : renormaliser ne change plus rien. */
+    function normaliseMarque(bgBrut, accentBrut) {
+      const bgOk = hexVersRgb(bgBrut) ? String(bgBrut).toLowerCase() : '#e9e4d9';
+      const accentOk = hexVersRgb(accentBrut) ? String(accentBrut).toLowerCase() : '#2a2620';
+      const A = versHsl(accentOk);
+      const accentNeutre = A.s < 0.10;
+      if (!accentNeutre) {
+        A.s = borne(A.s, 0.18, 0.82);
+        A.l = borne(A.l, 0.24, 0.46);
+      }
+      const B = versHsl(bgOk);
+      B.l = borne(B.l, 0.87, 0.93);
+      B.s = Math.min(B.s, 0.24);
+      if (B.s < 0.06) {
+        B.h = accentNeutre ? 40 : A.h;
+        B.s = 0.12;
+      } else if (!accentNeutre) {
+        const d = distanceTeinte(B.h, A.h);
+        if (d > 45 && Math.abs(d - 180) > 25) B.h = A.h;
+      }
+      let accent = depuisHsl(A);
+      for (let i = 0; i < 10 && contraste(accent, '#ffffff') < 4.5; i++) {
+        accent = melange(accent, '#000000', 0.12);
+      }
+      return { bg: depuisHsl(B), accent, B, A, accentNeutre };
+    }
+
     function paletteDepuisMarque(bgBrut, accentBrut, slug) {
       if (!slug || slug === 'timelesshouse') return null;
       const bgBrutOk = hexVersRgb(bgBrut) ? bgBrut.toLowerCase() : '#e9e4d9';
@@ -476,29 +508,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
            (le clash) ramène le fond dans la FAMILLE de l'accent
            (monochrome — le calme gagne toujours). Un fond gris est
            biaisé vers la teinte de l'accent : jamais de gris pur. */
-      const A = versHsl(accentBrutOk);
-      const accentNeutre = A.s < 0.10;
-      if (!accentNeutre) {
-        A.s = borne(A.s, 0.18, 0.82);
-        A.l = borne(A.l, 0.24, 0.46);
-      }
-      const B = versHsl(bgBrutOk);
-      B.l = borne(B.l, 0.87, 0.93);
-      B.s = Math.min(B.s, 0.24);
-      if (B.s < 0.06) {
-        B.h = accentNeutre ? 40 : A.h;      // gris → biaisé (chaud, ou famille de l'accent)
-        B.s = 0.12;
-      } else if (!accentNeutre) {
-        const d = distanceTeinte(B.h, A.h);
-        if (d > 45 && Math.abs(d - 180) > 25) B.h = A.h;
-      }
-      const bg = depuisHsl(B);
-      let accent = depuisHsl(A);
-      /* Toute la console écrit en BLANC sur les surfaces accent :
-         assombri pas à pas jusqu'à 4,5:1 — la dernière garde. */
-      for (let i = 0; i < 10 && contraste(accent, '#ffffff') < 4.5; i++) {
-        accent = melange(accent, '#000000', 0.12);
-      }
+      const { bg, accent, B, A, accentNeutre } = normaliseMarque(bgBrutOk, accentBrutOk);
       const encre = '#ffffff';
       const carte = melange(bg, '#ffffff', 0.35);
       const creux = melange(bg, '#000000', 0.035);
@@ -1503,6 +1513,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       if (!agency) return null;
       const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
+      /* Le sélecteur ne rend QUE des couleurs affichables : chaque
+         choix passe par la même harmonie que la console — la pastille
+         montre déjà la couleur corrigée, l'aperçu montre le rendu. */
+      const poserCouleurs = (bg, accent) => {
+        const nrm = normaliseMarque(bg, accent);
+        setForm((f) => ({ ...f, bg_color: nrm.bg, accent_color: nrm.accent }));
+      };
+      const ACCENTS_SUGGERES = ['#8a4b2f', '#a72a71', '#1259c4', '#0f766e', '#6d28d9', '#b45309', '#be123c', '#2a2620'];
+
       // Logo ≤ 2 Mo, uploadé sous agencies/<slug>/logo/… (préfixe
       // vérifié par b2-sign : membre de l'agence du slug uniquement).
       const uploadLogo = async (e) => {
@@ -1575,17 +1594,55 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             </Field>
             <Field label="Couleur accent">
               <div className="flex items-center gap-3">
-                <input type="color" value={HEX_RE.test(form.accent_color) ? form.accent_color : '#2a2620'} onChange={set('accent_color')} aria-label="Couleur accent"
+                <input type="color" value={HEX_RE.test(form.accent_color) ? form.accent_color : '#2a2620'}
+                  onChange={(e) => poserCouleurs(form.bg_color, e.target.value)} aria-label="Couleur accent"
                   className="w-11 h-11 rounded-xl border-0 bg-transparent cursor-pointer shrink-0" style={neu.pressedSm} />
-                <Input value={form.accent_color} onChange={set('accent_color')} className="font-mono" />
+                <Input value={form.accent_color} onChange={set('accent_color')}
+                  onBlur={() => poserCouleurs(form.bg_color, form.accent_color)} className="font-mono" />
+              </div>
+              <div className="flex gap-2 flex-wrap mt-2.5">
+                {ACCENTS_SUGGERES.map((c) => (
+                  <button key={c} type="button" onClick={() => poserCouleurs(form.bg_color, c)}
+                    aria-label={`Accent suggéré ${c}`} title={c}
+                    className={`w-9 h-9 tap-ext rounded-full border-2 active:scale-90 transition-transform ${form.accent_color === c ? 'border-stone-900' : 'border-white/60'}`}
+                    style={{ background: c }} />
+                ))}
               </div>
             </Field>
             <Field label="Couleur de fond">
               <div className="flex items-center gap-3">
-                <input type="color" value={HEX_RE.test(form.bg_color) ? form.bg_color : '#e9e4d9'} onChange={set('bg_color')} aria-label="Couleur de fond"
+                <input type="color" value={HEX_RE.test(form.bg_color) ? form.bg_color : '#e9e4d9'}
+                  onChange={(e) => poserCouleurs(e.target.value, form.accent_color)} aria-label="Couleur de fond"
                   className="w-11 h-11 rounded-xl border-0 bg-transparent cursor-pointer shrink-0" style={neu.pressedSm} />
-                <Input value={form.bg_color} onChange={set('bg_color')} className="font-mono" />
+                <Input value={form.bg_color} onChange={set('bg_color')}
+                  onBlur={() => poserCouleurs(form.bg_color, form.accent_color)} className="font-mono" />
               </div>
+              <div className="text-[11px] text-stone-500 mt-1.5">
+                Chaque choix est ajusté en direct vers sa version harmonieuse et lisible —
+                la pastille montre exactement ce qui s'affichera.
+              </div>
+            </Field>
+            <Field label="Aperçu">
+              {(() => {
+                const nrm = normaliseMarque(form.bg_color, form.accent_color);
+                const carte = melange(nrm.bg, '#ffffff', 0.35);
+                const ombre = hexVersRgba(melange(nrm.bg, '#000000', 0.38), 0.3);
+                const lumiere = hexVersRgba(melange(nrm.bg, '#ffffff', 0.92), 0.9);
+                return (
+                  <div className="rounded-2xl p-4 flex items-center gap-3 flex-wrap"
+                    style={{ background: nrm.bg }}>
+                    <span className="rounded-xl px-4 py-3 text-[12.5px] font-medium"
+                      style={{ background: carte, color: '#3d382f', boxShadow: `3px 3px 7px ${ombre}, -3px -3px 7px ${lumiere}` }}>
+                      Carte
+                    </span>
+                    <span className="rounded-full px-4 py-3 text-[12.5px] font-semibold"
+                      style={{ background: nrm.accent, color: '#ffffff' }}>
+                      Bouton
+                    </span>
+                    <span className="text-[12.5px]" style={{ color: '#635c50' }}>Texte courant</span>
+                  </div>
+                );
+              })()}
             </Field>
             <div>
               <Field label="Logo (URL https, optionnel)">
@@ -12050,6 +12107,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
 
       const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+      // Mêmes couleurs affichables qu'en « Ma marque » : normalisées au choix.
+      const poserCouleurs = (bg, accent) => {
+        const nrm = normaliseMarque(bg, accent);
+        setForm((f) => ({ ...f, bg_color: nrm.bg, accent_color: nrm.accent }));
+      };
       const autoSlug = form.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
         .replace(/&/g, ' ').trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
 
@@ -12164,16 +12226,23 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </Field>
               <Field label="Couleur accent">
                 <div className="flex items-center gap-3">
-                  <input type="color" value={form.accent_color} onChange={set('accent_color')} aria-label="Couleur accent"
+                  <input type="color" value={form.accent_color}
+                    onChange={(e) => poserCouleurs(form.bg_color, e.target.value)} aria-label="Couleur accent"
                     className="w-11 h-11 rounded-xl border-0 bg-transparent cursor-pointer shrink-0" style={neu.pressedSm} />
-                  <Input value={form.accent_color} onChange={set('accent_color')} className="font-mono" />
+                  <Input value={form.accent_color} onChange={set('accent_color')}
+                    onBlur={() => poserCouleurs(form.bg_color, form.accent_color)} className="font-mono" />
                 </div>
               </Field>
               <Field label="Couleur de fond">
                 <div className="flex items-center gap-3">
-                  <input type="color" value={form.bg_color} onChange={set('bg_color')} aria-label="Couleur de fond"
+                  <input type="color" value={form.bg_color}
+                    onChange={(e) => poserCouleurs(e.target.value, form.accent_color)} aria-label="Couleur de fond"
                     className="w-11 h-11 rounded-xl border-0 bg-transparent cursor-pointer shrink-0" style={neu.pressedSm} />
-                  <Input value={form.bg_color} onChange={set('bg_color')} className="font-mono" />
+                  <Input value={form.bg_color} onChange={set('bg_color')}
+                    onBlur={() => poserCouleurs(form.bg_color, form.accent_color)} className="font-mono" />
+                </div>
+                <div className="text-[11px] text-stone-500 mt-1.5">
+                  Ajustées en direct vers leur version harmonieuse et lisible.
                 </div>
               </Field>
               <Field label="Email de contact (sinon celui du propriétaire)">

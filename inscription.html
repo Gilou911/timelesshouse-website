@@ -261,12 +261,19 @@
        formulaire — donc jamais au moment utile. */
     const metierChoisi = () => (el('metier') || {}).value || 'celebration';
     /* Arrivée depuis /metiers ou /offres : le métier choisi en amont
-       est présélectionné (jamais une option fermée). */
+       est présélectionné (jamais une option fermée). L'aide est mise à
+       jour DIRECTEMENT : tirer `change` ici partait avant que
+       l'écouteur ne soit posé — l'aide décrivait le métier d'à côté
+       (vu à l'écran, audit du 03/08). */
     try {
       const voulu = new URLSearchParams(location.search).get('metier');
       const sel = el('metier');
       const opt = voulu && sel && sel.querySelector(`option[value="${voulu}"]:not([disabled])`);
-      if (opt) { sel.value = voulu; sel.dispatchEvent(new Event('change')); }
+      if (opt) {
+        sel.value = voulu;
+        const h = el('metier-hint');
+        if (h) h.textContent = HINTS[voulu] || '';
+      }
     } catch (_) {}
     const HINTS = {
       celebration: 'Galeries photos et films livrés à des couples et des familles.',

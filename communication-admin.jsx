@@ -464,7 +464,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const accentOk = hexVersRgb(accentBrut) ? String(accentBrut).toLowerCase() : '#2a2620';
       const A = versHsl(accentOk);
       const accentNeutre = A.s < 0.10;
-      if (!accentNeutre) {
+      const accentMaison = accentOk === '#2a2620';   // le graphite maison passe tel quel
+      if (!accentNeutre && !accentMaison) {
         A.s = borne(A.s, 0.18, 0.82);
         A.l = borne(A.l, 0.24, 0.46);
       }
@@ -1521,6 +1522,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setForm((f) => ({ ...f, bg_color: nrm.bg, accent_color: nrm.accent }));
       };
       const ACCENTS_SUGGERES = ['#8a4b2f', '#a72a71', '#1259c4', '#0f766e', '#6d28d9', '#b45309', '#be123c', '#2a2620'];
+      const [estSombre] = useDarkMode();   // l'aperçu suit le thème de l'appareil
 
       // Logo ≤ 2 Mo, uploadé sous agencies/<slug>/logo/… (préfixe
       // vérifié par b2-sign : membre de l'agence du slug uniquement).
@@ -1621,25 +1623,36 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 Chaque choix est ajusté en direct vers sa version harmonieuse et lisible —
                 la pastille montre exactement ce qui s'affichera.
               </div>
+              <div className="mt-2.5">
+                <Btn icon={RefreshCw}
+                  onClick={() => setForm((f) => ({ ...f, bg_color: '#e9e4d9', accent_color: '#2a2620' }))}>
+                  Par défaut
+                </Btn>
+              </div>
             </Field>
-            <Field label="Aperçu">
+            <Field label={`Aperçu — thème ${estSombre ? 'sombre' : 'clair'} (suit votre appareil)`}>
               {(() => {
-                const nrm = normaliseMarque(form.bg_color, form.accent_color);
-                const carte = melange(nrm.bg, '#ffffff', 0.35);
-                const ombre = hexVersRgba(melange(nrm.bg, '#000000', 0.38), 0.3);
-                const lumiere = hexVersRgba(melange(nrm.bg, '#ffffff', 0.92), 0.9);
+                /* La VRAIE palette (les deux moitiés), celle que la
+                   console peindra — pas une approximation. Sur les
+                   valeurs par défaut, la maison telle quelle. */
+                const pal = paletteDepuisMarque(form.bg_color, form.accent_color, 'apercu')
+                  || { clair: NEU_LIGHT, sombre: NEU_DARK };
+                const p = estSombre ? pal.sombre : pal.clair;
+                const encreBouton = estSombre ? '#1a1410' : '#ffffff';
                 return (
                   <div className="rounded-2xl p-4 flex items-center gap-3 flex-wrap"
-                    style={{ background: nrm.bg }}>
+                    style={{ background: p.base.backgroundColor }}>
                     <span className="rounded-xl px-4 py-3 text-[12.5px] font-medium"
-                      style={{ background: carte, color: '#3d382f', boxShadow: `3px 3px 7px ${ombre}, -3px -3px 7px ${lumiere}` }}>
+                      style={{ ...p.raised, color: estSombre ? '#d4d6dc' : '#3d382f' }}>
                       Carte
                     </span>
                     <span className="rounded-full px-4 py-3 text-[12.5px] font-semibold"
-                      style={{ background: nrm.accent, color: '#ffffff' }}>
+                      style={{ ...p.dark, color: encreBouton }}>
                       Bouton
                     </span>
-                    <span className="text-[12.5px]" style={{ color: '#635c50' }}>Texte courant</span>
+                    <span className="text-[12.5px]" style={{ color: estSombre ? '#9aa0a9' : '#635c50' }}>
+                      Texte courant
+                    </span>
                   </div>
                 );
               })()}

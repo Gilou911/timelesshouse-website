@@ -421,21 +421,81 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const rgb = hexVersRgb(hex);
       return rgb ? `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})` : hex;
     };
+    const versHsl = (hex) => {
+      const rgb = hexVersRgb(hex);
+      if (!rgb) return null;
+      const [r, g, b] = rgb.map((v) => v / 255);
+      const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+      let h = 0;
+      if (d) {
+        if (max === r) h = ((g - b) / d) % 6;
+        else if (max === g) h = (b - r) / d + 2;
+        else h = (r - g) / d + 4;
+        h = (h * 60 + 360) % 360;
+      }
+      const l = (max + min) / 2;
+      const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+      return { h, s, l };
+    };
+    const depuisHsl = ({ h, s, l }) => {
+      const c = (1 - Math.abs(2 * l - 1)) * s;
+      const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+      const m = l - c / 2;
+      const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x]
+        : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+      return rgbVersHex([(r + m) * 255, (g + m) * 255, (b + m) * 255]);
+    };
+    const borne = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    const distanceTeinte = (a, b) => {
+      const d = Math.abs(a - b) % 360;
+      return d > 180 ? 360 - d : d;
+    };
 
     let NEU_TENANT = null;   // palette claire dérivée de la marque, posée par loadFeatures
 
     function paletteDepuisMarque(bgBrut, accentBrut, slug) {
       if (!slug || slug === 'timelesshouse') return null;
-      const bgOk = hexVersRgb(bgBrut) && luminance(bgBrut) >= 0.5;
-      const accentOk = !!hexVersRgb(accentBrut);
-      const bg = bgOk ? bgBrut.toLowerCase() : '#e9e4d9';
-      let accent = accentOk ? accentBrut.toLowerCase() : '#2a2620';
+      const bgBrutOk = hexVersRgb(bgBrut) ? bgBrut.toLowerCase() : '#e9e4d9';
+      const accentBrutOk = hexVersRgb(accentBrut) ? accentBrut.toLowerCase() : '#2a2620';
       // Rien de personnalisé → la maison telle quelle (zéro recalcul).
-      if (bg === '#e9e4d9' && accent === '#2a2620') return null;
-      /* Toute la console écrit en BLANC sur les surfaces accent
-         (classe text-white, partout) : l'accent est donc assombri pas
-         à pas jusqu'à porter le blanc à 4,5:1 — un accent pastel
-         devient sa version profonde, et rien ne casse nulle part. */
+      if (bgBrutOk === '#e9e4d9' && accentBrutOk === '#2a2620') return null;
+
+      /* ── HARMONISATION (théorie des couleurs, 02/08/2026) ──────
+         Trois règles, tirées de la roue chromatique et validées par
+         Gil (« je t'autorise à les limiter ») :
+         ① VALEUR ET SATURATION AVANT LA TEINTE PURE — on garde leur
+           teinte, on borne l'intensité. L'accent devient un SHADE
+           profond (jamais néon, jamais boue) ; le fond devient un
+           VOILE clair (jamais un aplat saturé) : n'importe quel
+           marine choisi donne un bleu pâle crémeux, pas un mur.
+         ② PROPORTIONS 90/10 — le fond domine, l'accent ponctue.
+           C'est ce ratio qui rend même une paire complémentaire
+           confortable.
+         ③ HARMONIE DE TEINTES — analogues (≤ 45°) ou complémentaires
+           (180° ± 25°) : on respecte leur choix. Tout autre écart
+           (le clash) ramène le fond dans la FAMILLE de l'accent
+           (monochrome — le calme gagne toujours). Un fond gris est
+           biaisé vers la teinte de l'accent : jamais de gris pur. */
+      const A = versHsl(accentBrutOk);
+      const accentNeutre = A.s < 0.10;
+      if (!accentNeutre) {
+        A.s = borne(A.s, 0.18, 0.82);
+        A.l = borne(A.l, 0.24, 0.46);
+      }
+      const B = versHsl(bgBrutOk);
+      B.l = borne(B.l, 0.87, 0.93);
+      B.s = Math.min(B.s, 0.24);
+      if (B.s < 0.06) {
+        B.h = accentNeutre ? 40 : A.h;      // gris → biaisé (chaud, ou famille de l'accent)
+        B.s = 0.12;
+      } else if (!accentNeutre) {
+        const d = distanceTeinte(B.h, A.h);
+        if (d > 45 && Math.abs(d - 180) > 25) B.h = A.h;
+      }
+      const bg = depuisHsl(B);
+      let accent = depuisHsl(A);
+      /* Toute la console écrit en BLANC sur les surfaces accent :
+         assombri pas à pas jusqu'à 4,5:1 — la dernière garde. */
       for (let i = 0; i < 10 && contraste(accent, '#ffffff') < 4.5; i++) {
         accent = melange(accent, '#000000', 0.12);
       }

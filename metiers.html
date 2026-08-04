@@ -87,23 +87,81 @@
     .hero h1 em { font-style: italic; }
     .hero p.sub { max-width: 52ch; margin: 20px auto 0; font-size: 16.5px; color: var(--muted); }
 
-    /* ── Les métiers ── */
-    .metiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
-               gap: 20px; padding: 34px 0 26px; }
+    /* ── Les métiers — le VISUEL d'abord (demande de Gil : « plus
+       d'images ») : la photo réelle pour le mariage, une vignette-
+       produit fabriquée pour la communication, un cadre cinéma pour
+       le filmmaker. Le texte vient ensuite. ── */
+    .metiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+               gap: 22px; padding: 34px 0 26px; }
     .metier {
-      display: flex; flex-direction: column; gap: 12px; text-align: left;
-      background: var(--surface); border-radius: 26px; padding: 30px 28px 26px;
+      display: flex; flex-direction: column; text-align: left; overflow: hidden;
+      background: var(--surface); border-radius: 26px; padding: 0;
       box-shadow: 9px 9px 22px var(--shadow-d), -9px -9px 22px var(--shadow-l);
       text-decoration: none; transition: transform 0.28s var(--ease-out);
     }
+    .metier .corps { display: flex; flex-direction: column; gap: 12px; flex: 1;
+                     padding: 22px 26px 24px; }
     @media (hover: hover) and (pointer: fine) { .metier:hover { transform: translateY(-4px); } }
     .metier:active { transform: scale(0.99); }
-    .metier .ico {
-      width: 48px; height: 48px; border-radius: 15px;
-      display: inline-flex; align-items: center; justify-content: center; color: var(--ink);
-      box-shadow: inset 2px 2px 5px var(--shadow-d), inset -2px -2px 6px var(--shadow-l);
+
+    /* Le visuel de tête */
+    .visu { position: relative; height: 210px; overflow: hidden; display: block; }
+    .visu img { width: 100%; height: 100%; object-fit: cover; display: block;
+                transition: transform 0.6s var(--ease-out); }
+    @media (hover: hover) and (pointer: fine) { .metier:hover .visu img { transform: scale(1.04); } }
+    .visu::after { content: ""; position: absolute; inset: 0;
+                   background: linear-gradient(to top, rgba(26,20,16,0.34), transparent 46%); }
+    .visu .flotte {
+      position: absolute; left: 14px; bottom: 12px; z-index: 2;
+      display: inline-flex; align-items: center; gap: 7px;
+      background: rgba(255,253,247,0.92); color: var(--ink);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border-radius: 999px; padding: 7px 13px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.01em;
+      box-shadow: 0 4px 14px rgba(26,20,16,0.22);
     }
-    .metier .ico svg { width: 24px; height: 24px; }
+    .visu .flotte .pt { width: 7px; height: 7px; border-radius: 999px; background: var(--warm); }
+
+    /* Vignette COMMUNICATION : un mini-agenda fabriqué — la grille du
+       mois, les sorties aux couleurs des réseaux. Décoratif (aria-hidden),
+       le texte de la carte porte le sens. */
+    .visu.comm { background:
+        radial-gradient(120% 120% at 80% -10%, #4a4238 0%, #2a2620 55%, #1d1a16 100%); }
+    .agenda-mini {
+      position: absolute; inset: 18px 18px auto; margin: 0 auto; max-width: 300px;
+      background: rgba(255,253,247,0.96); border-radius: 16px; padding: 13px 14px 14px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+    }
+    .agenda-mini .am-tete { display: flex; justify-content: space-between; align-items: center;
+      font-size: 10.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 9px; }
+    .agenda-mini .am-grille { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+    .agenda-mini .am-j { height: 9px; border-radius: 4px; background: var(--pressed); }
+    .agenda-mini .am-j.ev1 { background: #1259c4; }
+    .agenda-mini .am-j.ev2 { background: #c13584; }
+    .agenda-mini .am-j.ev3 { background: #b08968; }
+    .agenda-mini .am-j.auj { background: var(--ink); }
+    .agenda-mini .am-ligne { display: flex; align-items: center; gap: 7px; margin-top: 10px;
+      font-size: 11.5px; font-weight: 700; color: var(--ink); }
+    .agenda-mini .am-ligne .pt { width: 8px; height: 8px; border-radius: 999px; background: #c13584; }
+    .agenda-mini .am-ligne .ok { margin-left: auto; color: var(--ok, #3a7350); font-size: 11px; }
+
+    /* Vignette FILMMAKER : le cadre cinéma, en attente. */
+    .visu.film { background:
+        linear-gradient(160deg, #23201b 0%, #14120f 70%),
+        #14120f; display: flex; align-items: center; justify-content: center; }
+    .cine { position: relative; width: 78%; aspect-ratio: 21 / 9; border-radius: 10px;
+      background: linear-gradient(120% 100% at 30% 0%, #3b352d 0%, #1d1a16 60%);
+      box-shadow: 0 16px 36px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,253,247,0.08);
+      display: flex; align-items: center; justify-content: center; }
+    .cine .lecture { width: 44px; height: 44px; border-radius: 999px;
+      background: rgba(255,253,247,0.14); backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center; color: #f5f1e6; }
+    .cine .lecture svg { width: 17px; height: 17px; margin-left: 2px; }
+    .cine .k4 { position: absolute; right: 10px; bottom: 8px; font-size: 10px; font-weight: 800;
+      letter-spacing: 0.12em; color: rgba(245,241,230,0.75); }
+
+    .metier .ico { display: none; }
     .metier h2 { font-size: clamp(1.45rem, 3vw, 1.8rem); letter-spacing: -0.01em; line-height: 1.15; }
     .metier .pour { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
                     color: var(--muted); font-weight: 700; }
@@ -170,56 +228,70 @@
     <div class="wrap">
       <div class="metiers">
         <a class="metier" href="/offres?metier=celebration">
-          <span class="ico" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="13" r="4"/>
-            </svg>
+          <span class="visu">
+            <img src="/hover-mariage.webp" width="1600" height="1126"
+              alt="Des mariés sur le perron d'un château — une photo livrée dans une galerie La Loge" />
+            <span class="flotte"><span class="pt"></span>Galerie · Emma &amp; Jules</span>
           </span>
-          <span class="pour">Photographes &amp; vidéastes</span>
-          <h2 class="serif">Mariage &amp; célébrations</h2>
-          <ul>
-            <li>Galeries photos et films 4K, à votre marque</li>
-            <li>Les couples choisissent, valident, téléchargent</li>
-            <li>Factures, contrats et rappels — sans relance</li>
-          </ul>
-          <span class="aller">Voir les offres
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <span class="corps">
+            <span class="pour">Photographes &amp; vidéastes</span>
+            <h2 class="serif">Mariage &amp; célébrations</h2>
+            <ul>
+              <li>Galeries photos et films 4K, à votre marque</li>
+              <li>Les couples choisissent, valident, téléchargent</li>
+              <li>Factures, contrats et rappels — sans relance</li>
+            </ul>
+            <span class="aller">Voir les offres
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
           </span>
         </a>
 
         <a class="metier" href="/offres?metier=communication">
-          <span class="ico" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <path d="M16 2v4M8 2v4M3 10h18"/>
-            </svg>
+          <span class="visu comm" aria-hidden="true">
+            <span class="agenda-mini">
+              <span class="am-tete"><span>Août</span><span>Agenda</span></span>
+              <span class="am-grille">
+                <span class="am-j"></span><span class="am-j ev1"></span><span class="am-j"></span><span class="am-j ev2"></span><span class="am-j"></span><span class="am-j"></span><span class="am-j"></span>
+                <span class="am-j ev3"></span><span class="am-j"></span><span class="am-j auj"></span><span class="am-j"></span><span class="am-j ev2"></span><span class="am-j"></span><span class="am-j ev1"></span>
+                <span class="am-j"></span><span class="am-j ev2"></span><span class="am-j"></span><span class="am-j"></span><span class="am-j ev3"></span><span class="am-j"></span><span class="am-j"></span>
+              </span>
+              <span class="am-ligne"><span class="pt"></span>18:00 — Reel Bistro Nova<span class="ok">publié ✓</span></span>
+            </span>
+            <span class="flotte"><span class="pt"></span>Agenda · sorties programmées</span>
           </span>
-          <span class="pour">Agences &amp; créateurs de contenu</span>
-          <h2 class="serif">Communication &amp; marketing</h2>
-          <ul>
-            <li>Agenda éditorial : tournages et sorties programmées</li>
-            <li>Équipe, rôles, tâches, messages et Drive partagé</li>
-            <li>Vos clients valident les montages, tout est tracé</li>
-          </ul>
-          <span class="aller">Voir les offres
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <span class="corps">
+            <span class="pour">Agences &amp; créateurs de contenu</span>
+            <h2 class="serif">Communication &amp; marketing</h2>
+            <ul>
+              <li>Agenda éditorial : tournages et sorties programmées</li>
+              <li>Équipe, rôles, tâches, messages et Drive partagé</li>
+              <li>Vos clients valident les montages, tout est tracé</li>
+            </ul>
+            <span class="aller">Voir les offres
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
           </span>
         </a>
 
         <div class="metier bientot" aria-disabled="true">
-          <span class="ico" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/>
-            </svg>
+          <span class="visu film" aria-hidden="true">
+            <span class="cine">
+              <span class="lecture">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              </span>
+              <span class="k4">4K</span>
+            </span>
           </span>
-          <span class="pour">Films de marque &amp; documentaires</span>
-          <h2 class="serif">Filmmaker</h2>
-          <ul>
-            <li>Livraison de masters intacts, jamais recompressés</li>
-            <li>Corporate, clips, événements, documentaires</li>
-          </ul>
-          <span class="aller"><span class="badge-bientot">Bientôt</span></span>
+          <span class="corps">
+            <span class="pour">Films de marque &amp; documentaires</span>
+            <h2 class="serif">Filmmaker</h2>
+            <ul>
+              <li>Livraison de masters intacts, jamais recompressés</li>
+              <li>Corporate, clips, événements, documentaires</li>
+            </ul>
+            <span class="aller"><span class="badge-bientot">Bientôt</span></span>
+          </span>
         </div>
       </div>
     </div>

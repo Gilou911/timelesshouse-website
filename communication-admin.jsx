@@ -2121,6 +2121,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [tour, setTour] = useState(0);          // force le rechargement de la chaîne
       const [urgents, setUrgents] = useState(null); // sorties du jour + en retard
       const [sauterA, setSauterA] = useState('');   // jour à rejoindre en planning
+      const [jourOuvert, setJourOuvert] = useState(null);  // jour déplié sous la grille (vue mois)
 
       const lundiDe = (d) => {
         const x = new Date(d);
@@ -2210,6 +2211,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       }, [sauterA, agenda, vue]);
 
       const creerAuJour = (cle) => { setPrefJour(cle); setNouveau(true); };
+      useEffect(() => { setJourOuvert(null); }, [cleJour(debut), vue]);
 
       // Les cases de la grille mensuelle (lundi → dimanche, toujours).
       const cases = useMemo(() => {
@@ -2401,9 +2403,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                             borderTop: iCase < 7 ? 'none' : '1px solid rgba(127,127,127,0.12)',
                             borderLeft: iCase % 7 === 0 ? 'none' : '1px solid rgba(127,127,127,0.12)',
                           }}>
-                          <button type="button" onClick={() => voirJour(d)}
-                            aria-label={`Voir le ${d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}`}
-                            className={`tap-ext mx-auto mb-1 text-[11px] font-semibold flex items-center justify-center w-6 h-6 rounded-full active:scale-90 transition-transform ${cestAujourdhui ? 'bg-stone-900 text-white' : dedans ? 'text-stone-700' : 'text-stone-400'}`}>
+                          <button type="button"
+                            onClick={() => setJourOuvert(jourOuvert === cle ? null : cle)}
+                            aria-expanded={jourOuvert === cle}
+                            aria-label={`${jourOuvert === cle ? 'Replier' : 'Déplier'} le ${d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}`}
+                            className={`tap-ext mx-auto mb-1 text-[11px] font-semibold flex items-center justify-center w-6 h-6 rounded-full active:scale-90 transition-transform ${cestAujourdhui ? 'bg-stone-900 text-white' : jourOuvert === cle ? 'bg-stone-300 text-stone-800' : dedans ? 'text-stone-700' : 'text-stone-400'}`}>
                             {d.getDate()}
                           </button>
                           <div className="flex flex-col gap-[3px]">
@@ -2422,7 +2426,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                               </button>
                             ))}
                             {surplus > 0 && (
-                              <button type="button" onClick={() => voirJour(d)}
+                              <button type="button" onClick={() => setJourOuvert(cle)}
                                 className="text-[9.5px] font-semibold text-stone-500 hover:text-stone-800 text-left px-1 py-0.5">
                                 +{surplus} autre{surplus > 1 ? 's' : ''}
                               </button>
@@ -2433,6 +2437,77 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     })}
                   </div>
                 </div>
+
+                {/* Le panneau du jour : il GLISSE sous la grille (geste
+                    Google Agenda mobile) — on voit ce qui est programmé
+                    sans quitter la vue mois. Mêmes lignes que le
+                    planning, l'animation maison, reduced-motion couvert
+                    par le filet global. */}
+                {jourOuvert && (() => {
+                  const dJ = new Date(`${jourOuvert}T12:00:00`);
+                  const j = parJour[jourOuvert] || { tournages: [], sorties: [] };
+                  const lignes = [
+                    ...j.tournages.map((t) => ({ genre: 't', tri: minutesTexte(t.debut) ?? -1, x: t })),
+                    ...j.sorties.map((s) => ({ genre: 's', tri: minutesIso(s.prevue_le), x: s })),
+                  ].sort((a, b) => a.tri - b.tri);
+                  const libelleJ = dJ.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+                  return (
+                    <div role="region" aria-label={`Programme du ${libelleJ}`}
+                      style={{ ...neu.pressedSm, animation: 'th-entre 0.28s cubic-bezier(0.32,0.72,0,1) backwards' }}
+                      className="mt-3 rounded-2xl p-3.5">
+                      <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
+                        <div className="text-[13px] font-semibold capitalize">{libelleJ}</div>
+                        <div className="flex items-center gap-1.5">
+                          {peutPublier && (
+                            <Btn icon={Plus} onClick={() => creerAuJour(jourOuvert)}>Programmer</Btn>
+                          )}
+                          <button type="button" onClick={() => setJourOuvert(null)} aria-label="Replier le jour"
+                            className="w-11 h-11 rounded-full flex items-center justify-center text-stone-500 hover:text-stone-800">
+                            <X size={15} />
+                          </button>
+                        </div>
+                      </div>
+                      {!lignes.length ? (
+                        <p className="text-[12.5px] text-stone-500">Rien de programmé ce jour-là.</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {lignes.map(({ genre, x }) => genre === 't' ? (
+                            <div key={`t-${x.id}`} style={neu.raisedXs}
+                              className="rounded-xl px-3 py-2.5 flex items-center gap-2.5">
+                              <span className="w-1 self-stretch rounded-full bg-stone-800 shrink-0" />
+                              <span className="text-[12px] font-semibold tabular-nums shrink-0 w-[76px]">
+                                {x.debut ? `${String(x.debut).slice(0, 5)}${x.fin ? '–' + String(x.fin).slice(0, 5) : ''}` : 'Journée'}
+                              </span>
+                              <span className="min-w-0">
+                                <span className="text-[13px] block truncate">{x.type === 'video' ? '🎥' : '📸'} {x.titre}</span>
+                                {(x.lieu || x.client) && (
+                                  <span className="text-[11px] text-stone-500 block truncate">
+                                    {[x.client, x.lieu].filter(Boolean).join(' · ')}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          ) : (
+                            <button key={`s-${x.id}`} type="button" onClick={() => ouvrirPost(x.post_id)}
+                              style={neu.raisedXs}
+                              className="w-full rounded-xl px-3 py-2.5 min-h-[48px] flex items-center gap-2.5 text-left active:scale-[0.99] transition-transform">
+                              <span className="w-1 self-stretch rounded-full shrink-0"
+                                style={{ background: RESEAUX[x.reseau]?.c || '#6b6357' }} />
+                              <span className="text-[12px] font-semibold tabular-nums shrink-0 w-[76px]">{hhmm(x.prevue_le)}</span>
+                              <span className="min-w-0 flex-1">
+                                <span className="text-[13px] block truncate">{x.titre}</span>
+                                <span className="text-[11px] text-stone-500 block truncate">
+                                  {[RESEAUX[x.reseau]?.l || x.reseau, x.client].filter(Boolean).join(' · ')}
+                                  {x.publie_le ? ' · publié ✓' : ''}
+                                </span>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 {!nTournages && !nSorties && !err && (
                   <p className="text-[12.5px] text-stone-500 text-center mt-5 leading-relaxed">
                     Rien de prévu ce mois-ci. Les tournages arrivent des fiches clients ;

@@ -2018,18 +2018,59 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     };
 
+    /* ══════════════════════════════════════════════════════════════
+       AGENDA façon Google Agenda (demande de Gil, 02/08/2026)
+       ══════════════════════════════════════════════════════════════
+       L'UX de référence, traduite dans le langage maison (rail en
+       creux, relief, jamais l'identité Material) :
+       · TROIS VUES — Mois, Semaine (grille horaire, trait « heure
+         actuelle »), Planning (liste chronologique, la vue par
+         défaut sur téléphone) — retenues sur l'appareil ;
+       · « Aujourd'hui », flèches qui avancent d'un mois OU d'une
+         semaine selon la vue, libellé de période adapté ;
+       · un jour se TAPE (numéro → son planning), un événement se
+         TAPE (sortie → sa fiche de post), un jour du planning offre
+         son « + » de création préremplie ;
+       · débordement « +N » en vue mois : trois chips maximum, le
+         reste bascule sur le planning du jour. */
     function AgendaTab({ clients }) {
-      const [mois, setMois] = useState(() => { const d = new Date(); d.setDate(1); return d; });
+      const [vue, setVueBrut] = useState(() => {
+        try {
+          const v = localStorage.getItem('th_agenda_vue');
+          if (v === 'mois' || v === 'semaine' || v === 'planning') return v;
+        } catch (_) {}
+        return (typeof window !== 'undefined' && window.innerWidth < 640) ? 'planning' : 'mois';
+      });
+      const poserVue = (v) => { setVueBrut(v); try { localStorage.setItem('th_agenda_vue', v); } catch (_) {} };
+      const [ancre, setAncre] = useState(() => new Date());
       const [agenda, setAgenda] = useState(null);   // null = chargement
       const [err, setErr] = useState('');
       const [nouveau, setNouveau] = useState(false);
+      const [prefJour, setPrefJour] = useState('');  // création préremplie depuis un jour
       const [ouvert, setOuvert] = useState(null);   // post dont la fiche est ouverte
       const [tour, setTour] = useState(0);          // force le rechargement de la chaîne
       const [urgents, setUrgents] = useState(null); // sorties du jour + en retard
+      const [sauterA, setSauterA] = useState('');   // jour à rejoindre en planning
 
-      // Les bornes du mois affiché, en dates locales.
-      const debut = useMemo(() => new Date(mois.getFullYear(), mois.getMonth(), 1), [mois]);
-      const fin   = useMemo(() => new Date(mois.getFullYear(), mois.getMonth() + 1, 0), [mois]);
+      const lundiDe = (d) => {
+        const x = new Date(d);
+        x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+        x.setHours(0, 0, 0, 0);
+        return x;
+      };
+
+      // Les bornes de la période affichée, en dates locales.
+      const { debut, fin } = useMemo(() => {
+        if (vue === 'semaine') {
+          const du = lundiDe(ancre);
+          const au = new Date(du); au.setDate(du.getDate() + 6);
+          return { debut: du, fin: au };
+        }
+        return {
+          debut: new Date(ancre.getFullYear(), ancre.getMonth(), 1),
+          fin: new Date(ancre.getFullYear(), ancre.getMonth() + 1, 0),
+        };
+      }, [vue, ancre]);
 
       const charger = async () => {
         setErr('');
@@ -2045,14 +2086,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         }
         setAgenda(data || { tournages: [], sorties: [] });
       };
-      useEffect(() => { setAgenda(null); charger(); }, [mois]);
+      useEffect(() => { setAgenda(null); charger(); }, [cleJour(debut), cleJour(fin)]);
 
       /* Ce qui n'attend pas le calendrier : les sorties à publier
          AUJOURD'HUI et celles dont l'heure est passée sans que
-         personne ne coche « publié ». Le calendrier est mensuel — une
-         sortie en retard du mois dernier en serait invisible : cette
-         requête-ci regarde tout le passé, quel que soit le mois
-         affiché. La RLS borne à l'agence, comme partout. */
+         personne ne coche « publié ». La période affichée n'y change
+         rien : cette requête regarde tout le passé. */
       const chargerUrgents = async () => {
         const finJour = new Date(); finJour.setHours(23, 59, 59, 999);
         const { data } = await sb.from('post_sorties')
@@ -2071,27 +2110,41 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
       useEffect(() => { chargerUrgents(); }, [tour]);
 
-      /* Cocher « publié » sans ouvrir la fiche : c'est LE geste que le
-         rappel du matin demande — il doit tenir en un tap. */
       const cocherPubliee = async (s) => {
         const { error } = await sb.from('post_sorties')
           .update({ publie_le: new Date().toISOString() }).eq('id', s.id);
         if (!error) { chargerUrgents(); setTour((t) => t + 1); }
       };
 
-      /* L'éditorial est un privilège (audit du 01/08/2026) : un
-         plancher LIT l'agenda — programmer et cocher appartiennent
-         aux privilégiés, et la base tient la même règle. */
+      /* L'éditorial est un privilège : un plancher LIT l'agenda. */
       const peutPublier = MON_ROLE.value !== 'membre' || MES_PRIVILEGES.includes('posts');
 
-      /* Les cases de la grille : on remonte au lundi qui précède le 1er
-         et on descend jusqu'au dimanche qui suit le dernier. Une grille
-         qui commencerait au 1er ferait glisser les colonnes de semaine
-         en semaine, et on ne lirait plus « tous mes mardis ». */
+      /* Une chip de sortie ouvre SA fiche : la ligne du calendrier ne
+         porte que l'essentiel, la fiche complète se recharge. */
+      const ouvrirPost = async (postId) => {
+        const { data } = await sb.from('posts').select('*').eq('id', postId).maybeSingle();
+        if (data) setOuvert(data);
+      };
+
+      /* Taper un jour = voir SON planning (le geste Google Agenda). */
+      const voirJour = (d) => {
+        setAncre(new Date(d));
+        setSauterA(cleJour(d));
+        poserVue('planning');
+      };
+      useEffect(() => {
+        if (!sauterA || agenda === null || vue !== 'planning') return;
+        const el = document.getElementById(`jour-${sauterA}`);
+        if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        setSauterA('');
+      }, [sauterA, agenda, vue]);
+
+      const creerAuJour = (cle) => { setPrefJour(cle); setNouveau(true); };
+
+      // Les cases de la grille mensuelle (lundi → dimanche, toujours).
       const cases = useMemo(() => {
-        const premier = new Date(debut);
-        const recul = (premier.getDay() + 6) % 7;          // 0 = lundi
-        premier.setDate(premier.getDate() - recul);
+        if (vue === 'semaine') return [];
+        const premier = lundiDe(debut);
         const liste = [];
         for (let i = 0; i < 42; i++) {
           const d = new Date(premier);
@@ -2100,7 +2153,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           if (i >= 34 && d >= fin && d.getDay() === 0) break;
         }
         return liste;
-      }, [debut, fin]);
+      }, [vue, debut, fin]);
+
+      const joursSemaine = useMemo(() => {
+        const du = lundiDe(vue === 'semaine' ? ancre : new Date());
+        return Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(du); d.setDate(du.getDate() + i); return d;
+        });
+      }, [vue, ancre]);
 
       // Rangement par jour, une seule passe.
       const parJour = useMemo(() => {
@@ -2113,18 +2173,41 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         return m;
       }, [agenda]);
 
-      const moisLabel = debut.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
       const aujourdhui = cleJour(new Date());
       const nTournages = (agenda?.tournages || []).length;
       const nSorties = (agenda?.sorties || []).length;
 
+      const pas = (dir) => setAncre((a) => {
+        const x = new Date(a);
+        if (vue === 'semaine') x.setDate(x.getDate() + 7 * dir);
+        else { x.setMonth(x.getMonth() + dir); x.setDate(1); }
+        return x;
+      });
+
+      const libelle = vue === 'semaine'
+        ? (debut.getMonth() === fin.getMonth()
+            ? `${debut.getDate()} – ${fin.getDate()} ${fin.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`
+            : `${debut.getDate()} ${debut.toLocaleDateString('fr-FR', { month: 'short' })} – ${fin.getDate()} ${fin.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}`)
+        : debut.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+      /* ── La grille horaire de la semaine ── */
+      const H0 = 7, H1 = 22, HPX = 44;   // 7 h → 22 h, 44 px par heure
+      const minutesTexte = (t) => {
+        const m = String(t || '').match(/^(\d{1,2}):(\d{2})/);
+        return m ? (+m[1]) * 60 + (+m[2]) : null;
+      };
+      const minutesIso = (iso) => { const d = new Date(iso); return d.getHours() * 60 + d.getMinutes(); };
+      const yDe = (min) => Math.max(0, ((Math.min(Math.max(min, H0 * 60), H1 * 60) - H0 * 60) / 60) * HPX);
+      const maintenant = new Date();
+      const minMaintenant = maintenant.getHours() * 60 + maintenant.getMinutes();
+
+      const CHIP_TOURNAGE = 'text-[9.5px] leading-tight rounded-md px-1.5 py-1 bg-stone-800 text-white truncate w-full text-left';
+
       return (
         <div>
-          {/* Le titre « Agenda » vit dans l'en-tête général (titles),
-              comme pour toutes les sections — ici, seulement l'action. */}
           <div className="flex justify-end mb-5">
             {peutPublier && (
-              <Btn kind="dark" icon={Plus} onClick={() => setNouveau(true)}>Programmer un post</Btn>
+              <Btn kind="dark" icon={Plus} onClick={() => { setPrefJour(''); setNouveau(true); }}>Programmer un post</Btn>
             )}
           </div>
 
@@ -2177,24 +2260,32 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           )}
 
           <div style={neu.raised} className="rounded-[24px] lg:rounded-[28px] p-5 lg:p-6">
+            {/* ─── L'en-tête Google Agenda : période, Aujourd'hui, vues ─── */}
             <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
-              <div className="flex items-center gap-2">
-                <button onClick={() => setMois(new Date(mois.getFullYear(), mois.getMonth() - 1, 1))}
-                  aria-label="Mois précédent" style={neu.raisedXs}
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => pas(-1)}
+                  aria-label={vue === 'semaine' ? 'Semaine précédente' : 'Mois précédent'} style={neu.raisedXs}
                   className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-transform">
                   <ChevronRight size={15} style={{ transform: 'rotate(180deg)' }} />
                 </button>
-                <div className="text-[15px] font-semibold min-w-[150px] text-center capitalize">{moisLabel}</div>
-                <button onClick={() => setMois(new Date(mois.getFullYear(), mois.getMonth() + 1, 1))}
-                  aria-label="Mois suivant" style={neu.raisedXs}
+                <button onClick={() => pas(1)}
+                  aria-label={vue === 'semaine' ? 'Semaine suivante' : 'Mois suivant'} style={neu.raisedXs}
                   className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-transform">
                   <ChevronRight size={15} />
                 </button>
-                <Btn onClick={() => { const d = new Date(); d.setDate(1); setMois(d); }}>Ce mois-ci</Btn>
+                <Btn onClick={() => setAncre(new Date())}>Aujourd'hui</Btn>
+                <div className="text-[15px] font-semibold capitalize px-1">{libelle}</div>
               </div>
-              <div className="flex items-center gap-4 text-[11.5px] text-stone-500">
-                <span className="flex items-center gap-1.5"><Camera size={12} /> {nTournages} tournage{nTournages > 1 ? 's' : ''}</span>
-                <span className="flex items-center gap-1.5"><Send size={12} /> {nSorties} sortie{nSorties > 1 ? 's' : ''}</span>
+              {/* Le rail des vues — en creux, l'actif en pilule sombre. */}
+              <div style={neu.pressed} className="rounded-full p-1 flex items-center">
+                {[['mois', 'Mois'], ['semaine', 'Semaine'], ['planning', 'Planning']].map(([v, l]) => (
+                  <button key={v} type="button" onClick={() => poserVue(v)}
+                    aria-pressed={vue === v}
+                    style={vue === v ? neu.dark : undefined}
+                    className={`px-3.5 min-h-[36px] rounded-full text-[12px] font-semibold transition ${vue === v ? 'text-white' : 'text-stone-500'}`}>
+                    {l}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -2206,7 +2297,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
             {agenda === null ? (
               <div className="py-16 flex justify-center"><Loader2 size={18} className="animate-spin text-stone-400" /></div>
-            ) : (
+            ) : vue === 'mois' ? (
               <>
                 <div className="grid grid-cols-7 gap-1.5 mb-1.5">
                   {JOURS_COURTS.map((j) => (
@@ -2219,27 +2310,41 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     const dedans = d.getMonth() === debut.getMonth();
                     const jour = parJour[cle] || { tournages: [], sorties: [] };
                     const cestAujourdhui = cle === aujourdhui;
+                    const tout = [...jour.tournages.map((t) => ({ ...t, genre: 'tournages' })),
+                                  ...jour.sorties.map((s) => ({ ...s, genre: 'sorties' }))];
+                    const visibles = tout.slice(0, 3);
+                    const surplus = tout.length - visibles.length;
                     return (
                       <div key={cle}
-                        style={jour.tournages.length || jour.sorties.length ? neu.pressedSm : undefined}
-                        className={`rounded-xl p-1.5 min-h-[84px] ${dedans ? '' : 'opacity-35'}`}>
-                        <div className={`text-[11px] font-semibold mb-1 flex items-center justify-center w-6 h-6 rounded-full ${cestAujourdhui ? 'bg-stone-900 text-white' : 'text-stone-500'}`}>
+                        style={tout.length ? neu.pressedSm : undefined}
+                        className={`rounded-xl p-1.5 min-h-[96px] ${dedans ? '' : 'opacity-35'}`}>
+                        {/* Le numéro se TAPE : il ouvre le planning du jour. */}
+                        <button type="button" onClick={() => voirJour(d)}
+                          aria-label={`Voir le ${d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}`}
+                          className={`tap-ext text-[11px] font-semibold mb-1 flex items-center justify-center w-7 h-7 rounded-full active:scale-90 transition-transform ${cestAujourdhui ? 'bg-stone-900 text-white' : 'text-stone-500'}`}>
                           {d.getDate()}
-                        </div>
+                        </button>
                         <div className="flex flex-col gap-1">
-                          {jour.tournages.map((t) => (
-                            <div key={t.id} title={`${t.titre}${t.lieu ? ' — ' + t.lieu : ''}${t.client ? ' · ' + t.client : ''}`}
-                              className="text-[9.5px] leading-tight rounded-md px-1.5 py-1 bg-stone-800 text-white truncate">
-                              {t.debut ? String(t.debut).slice(0, 5) + ' ' : ''}{t.type === 'video' ? '🎥' : '📸'} {t.titre}
-                            </div>
+                          {visibles.map((x) => x.genre === 'tournages' ? (
+                            <button key={`t-${x.id}`} type="button" onClick={() => voirJour(d)}
+                              title={`${x.titre}${x.lieu ? ' — ' + x.lieu : ''}${x.client ? ' · ' + x.client : ''}`}
+                              className={CHIP_TOURNAGE}>
+                              {x.debut ? String(x.debut).slice(0, 5) + ' ' : ''}{x.type === 'video' ? '🎥' : '📸'} {x.titre}
+                            </button>
+                          ) : (
+                            <button key={`s-${x.id}`} type="button" onClick={() => ouvrirPost(x.post_id)}
+                              title={`${x.titre} · ${RESEAUX[x.reseau]?.l || x.reseau}${x.client ? ' · ' + x.client : ''}`}
+                              className="text-[9.5px] leading-tight rounded-md px-1.5 py-1 text-white truncate w-full text-left"
+                              style={{ background: RESEAUX[x.reseau]?.c || '#6b6357' }}>
+                              {hhmm(x.prevue_le)} {x.titre}
+                            </button>
                           ))}
-                          {jour.sorties.map((s) => (
-                            <div key={s.id} title={`${s.titre} · ${RESEAUX[s.reseau]?.l || s.reseau}${s.client ? ' · ' + s.client : ''}`}
-                              className="text-[9.5px] leading-tight rounded-md px-1.5 py-1 text-white truncate"
-                              style={{ background: RESEAUX[s.reseau]?.c || '#6b6357' }}>
-                              {hhmm(s.prevue_le)} {s.titre}
-                            </div>
-                          ))}
+                          {surplus > 0 && (
+                            <button type="button" onClick={() => voirJour(d)}
+                              className="text-[9.5px] font-semibold text-stone-500 hover:text-stone-800 text-left px-1.5 py-0.5">
+                              +{surplus} autre{surplus > 1 ? 's' : ''}
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -2252,18 +2357,205 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   </p>
                 )}
               </>
+            ) : vue === 'semaine' ? (
+              /* ─── La grille horaire — le cœur de Google Agenda ─── */
+              <div className="overflow-x-auto no-scrollbar rounded-xl" style={{ overscrollBehaviorX: 'none' }}>
+                <div className="min-w-[640px]" style={{ display: 'block', paddingTop: 0, paddingBottom: 0 }}>
+                  {/* En-têtes de jours */}
+                  <div className="grid" style={{ gridTemplateColumns: '44px repeat(7, 1fr)' }}>
+                    <div />
+                    {joursSemaine.map((d) => {
+                      const cle = cleJour(d);
+                      return (
+                        <button key={cle} type="button" onClick={() => voirJour(d)}
+                          aria-label={`Voir le ${d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}`}
+                          className="flex flex-col items-center gap-0.5 py-1.5 min-h-[52px]">
+                          <span className="text-[9.5px] uppercase tracking-wider text-stone-400 font-semibold">
+                            {JOURS_COURTS[(d.getDay() + 6) % 7]}
+                          </span>
+                          <span className={`text-[13px] font-semibold w-7 h-7 rounded-full flex items-center justify-center ${cle === aujourdhui ? 'bg-stone-900 text-white' : ''}`}>
+                            {d.getDate()}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Rangée « sans heure » (tournages non horodatés) */}
+                  {joursSemaine.some((d) => (parJour[cleJour(d)]?.tournages || []).some((t) => !t.debut)) && (
+                    <div className="grid mb-1" style={{ gridTemplateColumns: '44px repeat(7, 1fr)' }}>
+                      <div className="text-[8.5px] text-stone-400 pr-1 text-right pt-1">journée</div>
+                      {joursSemaine.map((d) => (
+                        <div key={cleJour(d)} className="px-0.5 flex flex-col gap-0.5">
+                          {(parJour[cleJour(d)]?.tournages || []).filter((t) => !t.debut).map((t) => (
+                            <button key={t.id} type="button" onClick={() => voirJour(d)}
+                              title={`${t.titre}${t.client ? ' · ' + t.client : ''}`} className={CHIP_TOURNAGE}>
+                              {t.type === 'video' ? '🎥' : '📸'} {t.titre}
+                            </button>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Le corps horaire */}
+                  <div className="grid" style={{ gridTemplateColumns: '44px repeat(7, 1fr)' }}>
+                    {/* Gouttière des heures */}
+                    <div className="relative" style={{ height: (H1 - H0) * HPX }}>
+                      {Array.from({ length: H1 - H0 }, (_, i) => (
+                        <div key={i} className="absolute right-1.5 text-[9px] text-stone-400 tabular-nums"
+                          style={{ top: i * HPX - 6 }}>
+                          {i === 0 ? '' : `${H0 + i} h`}
+                        </div>
+                      ))}
+                    </div>
+                    {joursSemaine.map((d, iJour) => {
+                      const cle = cleJour(d);
+                      const jour = parJour[cle] || { tournages: [], sorties: [] };
+                      return (
+                        <div key={cle} className="relative border-l"
+                          style={{ height: (H1 - H0) * HPX, borderColor: 'rgba(127,119,104,0.14)' }}>
+                          {Array.from({ length: H1 - H0 }, (_, i) => (
+                            <div key={i} className="absolute left-0 right-0 border-t"
+                              style={{ top: i * HPX, borderColor: 'rgba(127,119,104,0.1)' }} />
+                          ))}
+                          {/* Le trait « maintenant » — la signature Google. */}
+                          {cle === aujourdhui && minMaintenant >= H0 * 60 && minMaintenant <= H1 * 60 && (
+                            <div aria-hidden="true" className="absolute left-0 right-0 z-10 pointer-events-none"
+                              style={{ top: yDe(minMaintenant) }}>
+                              <div className="h-[2px] bg-rose-600" />
+                              <div className="w-2 h-2 rounded-full bg-rose-600 -mt-[5px]" />
+                            </div>
+                          )}
+                          {jour.tournages.filter((t) => t.debut).map((t) => {
+                            const du = minutesTexte(t.debut);
+                            let au = minutesTexte(t.fin);
+                            if (au == null || au <= du) au = Math.min(du + 120, H1 * 60);
+                            return (
+                              <button key={t.id} type="button" onClick={() => voirJour(d)}
+                                title={`${String(t.debut).slice(0, 5)}${t.fin ? '–' + String(t.fin).slice(0, 5) : ''} ${t.titre}${t.lieu ? ' — ' + t.lieu : ''}`}
+                                className="absolute left-0.5 right-0.5 rounded-md bg-stone-800 text-white text-[9.5px] leading-tight px-1.5 py-1 text-left overflow-hidden"
+                                style={{ top: yDe(du), height: Math.max(30, yDe(au) - yDe(du)) }}>
+                                <span className="font-semibold">{String(t.debut).slice(0, 5)}</span> {t.type === 'video' ? '🎥' : '📸'} {t.titre}
+                              </button>
+                            );
+                          })}
+                          {jour.sorties.map((s, iS) => {
+                            const min = minutesIso(s.prevue_le);
+                            return (
+                              <button key={s.id} type="button" onClick={() => ouvrirPost(s.post_id)}
+                                title={`${hhmm(s.prevue_le)} ${s.titre} · ${RESEAUX[s.reseau]?.l || s.reseau}`}
+                                className="absolute rounded-md text-white text-[9.5px] leading-tight px-1.5 py-1 text-left overflow-hidden"
+                                style={{
+                                  top: yDe(min), height: 30, zIndex: 3,
+                                  left: `${2 + (iS % 2) * 8}%`, right: '2%',
+                                  background: RESEAUX[s.reseau]?.c || '#6b6357',
+                                }}>
+                                <span className="font-semibold">{hhmm(s.prevue_le)}</span> {s.titre}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ─── Le planning — la liste chronologique de Google ─── */
+              (() => {
+                const jours = [];
+                for (let d = new Date(debut); d <= fin; d.setDate(d.getDate() + 1)) {
+                  const cle = cleJour(d);
+                  const j = parJour[cle];
+                  if (j && (j.tournages.length || j.sorties.length)) jours.push({ d: new Date(d), cle, ...j });
+                }
+                if (!jours.length) return (
+                  <p className="text-[12.5px] text-stone-500 text-center py-10 leading-relaxed">
+                    Rien de prévu sur cette période. Les tournages arrivent des fiches clients ;
+                    les publications se programment avec le bouton ci-dessus.
+                  </p>
+                );
+                return (
+                  <div className="space-y-4">
+                    {jours.map(({ d, cle, tournages, sorties }) => {
+                      const cestAujourdhui = cle === aujourdhui;
+                      const lignes = [
+                        ...tournages.map((t) => ({ genre: 't', tri: minutesTexte(t.debut) ?? -1, x: t })),
+                        ...sorties.map((s) => ({ genre: 's', tri: minutesIso(s.prevue_le), x: s })),
+                      ].sort((a, b) => a.tri - b.tri);
+                      return (
+                        <div key={cle} id={`jour-${cle}`} className="flex gap-3" style={{ scrollMarginTop: '90px' }}>
+                          <div className="w-12 shrink-0 text-center pt-1">
+                            <div className="text-[9.5px] uppercase tracking-wider text-stone-400 font-semibold">
+                              {d.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')}
+                            </div>
+                            <div className={`mx-auto mt-0.5 w-8 h-8 rounded-full flex items-center justify-center text-[14px] font-semibold ${cestAujourdhui ? 'bg-stone-900 text-white' : ''}`}>
+                              {d.getDate()}
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            {lignes.map(({ genre, x }) => genre === 't' ? (
+                              <div key={`t-${x.id}`} style={neu.pressedSm}
+                                className="rounded-xl px-3 py-2.5 flex items-center gap-2.5">
+                                <span className="w-1 self-stretch rounded-full bg-stone-800 shrink-0" />
+                                <span className="text-[12px] font-semibold tabular-nums shrink-0 w-[76px]">
+                                  {x.debut ? `${String(x.debut).slice(0, 5)}${x.fin ? '–' + String(x.fin).slice(0, 5) : ''}` : 'Journée'}
+                                </span>
+                                <span className="min-w-0">
+                                  <span className="text-[13px] block truncate">{x.type === 'video' ? '🎥' : '📸'} {x.titre}</span>
+                                  {(x.lieu || x.client) && (
+                                    <span className="text-[11px] text-stone-500 block truncate">
+                                      {[x.client, x.lieu].filter(Boolean).join(' · ')}
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            ) : (
+                              <button key={`s-${x.id}`} type="button" onClick={() => ouvrirPost(x.post_id)}
+                                style={neu.raisedXs}
+                                className="w-full rounded-xl px-3 py-2.5 min-h-[48px] flex items-center gap-2.5 text-left active:scale-[0.99] transition-transform">
+                                <span className="w-1 self-stretch rounded-full shrink-0"
+                                  style={{ background: RESEAUX[x.reseau]?.c || '#6b6357' }} />
+                                <span className="text-[12px] font-semibold tabular-nums shrink-0 w-[76px]">{hhmm(x.prevue_le)}</span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="text-[13px] block truncate">{x.titre}</span>
+                                  <span className="text-[11px] text-stone-500 block truncate">
+                                    {[RESEAUX[x.reseau]?.l || x.reseau, x.client].filter(Boolean).join(' · ')}
+                                    {x.publie_le ? ' · publié ✓' : ''}
+                                  </span>
+                                </span>
+                              </button>
+                            ))}
+                            {peutPublier && (
+                              <button type="button" onClick={() => creerAuJour(cle)}
+                                className="tap-ext min-h-[32px] px-2 text-[11px] font-semibold text-stone-400 hover:text-stone-700 inline-flex items-center gap-1">
+                                <Plus size={11} /> Programmer ce jour-là
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()
+            )}
+
+            {agenda !== null && (
+              <div className="flex items-center gap-4 text-[11.5px] text-stone-500 mt-5">
+                <span className="flex items-center gap-1.5"><Camera size={12} /> {nTournages} tournage{nTournages > 1 ? 's' : ''}</span>
+                <span className="flex items-center gap-1.5"><Send size={12} /> {nSorties} sortie{nSorties > 1 ? 's' : ''}</span>
+              </div>
             )}
           </div>
 
           <Pipeline clients={clients} rafraichir={tour}
             onOuvrir={(p2) => setOuvert(p2)} />
 
-          {/* Les tâches et l'équipe vivent dans l'onglet « Équipe »
-              (demande de Gil du 01/08/2026) — l'Agenda garde la grille
-              et la chaîne éditoriale. */}
+          {/* Les tâches et l'équipe vivent dans l'onglet « Équipe » —
+              l'Agenda garde le calendrier et la chaîne éditoriale. */}
 
           {nouveau && (
-            <PostForm clients={clients} onClose={() => setNouveau(false)}
+            <PostForm clients={clients} initialJour={prefJour} onClose={() => setNouveau(false)}
               onSaved={() => { setNouveau(false); charger(); setTour((t) => t + 1); }} />
           )}
           {ouvert && (
@@ -4795,11 +5087,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        les commentaires ne se dispersent pas, et le jour où Meta et
        TikTok valideront les apps, chaque sortie saura se publier seule
        sans qu'on touche au modèle. */
-    function PostForm({ clients, onClose, onSaved }) {
+    function PostForm({ clients, onClose, onSaved, initialJour }) {
       const [titre, setTitre] = useState('');
       const [client, setClient] = useState('');
       const [brief, setBrief] = useState('');
-      const [jour, setJour] = useState('');
+      const [jour, setJour] = useState(initialJour || '');
       const [heure, setHeure] = useState('18:00');
       const [reseaux, setReseaux] = useState(['instagram']);
       const [busy, setBusy] = useState(false);

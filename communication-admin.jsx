@@ -11921,8 +11921,17 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
        (juste pour la pastille). Le temps réel Supabase ferait mieux,
        mais il demande une configuration que je ne peux pas éprouver
        d'ici — à basculer plus tard si le rythme le justifie. */
-    function ChatBeta({ user, estPlateforme, agencyId, agencyNom }) {
-      const [ouvert, setOuvert] = useState(false);
+    /* `externe` (02/08/2026) : chez un LOCATAIRE bêta, le fil ne se
+       déclenche plus par la bulle flottante (elle chevauchait le
+       contenu, capture de Gil) mais par le bouton violet « Bêta
+       testeur » posé à côté du nom de l'agence — l'état vit alors
+       chez le parent, et la pastille de non-lus remonte par
+       onNonLus. La plateforme (Gil) garde sa bulle : c'est sa boîte
+       de réception, pas un bouton de signalement. */
+    function ChatBeta({ user, estPlateforme, agencyId, agencyNom, externe = null }) {
+      const [ouvertInt, setOuvertInt] = useState(false);
+      const ouvert = externe ? externe.ouvert : ouvertInt;
+      const setOuvert = externe ? externe.setOuvert : setOuvertInt;
       const [fils, setFils] = useState([]);          // Gil : la liste des agences
       const [filActif, setFilActif] = useState(estPlateforme ? null : agencyId);
       const [messages, setMessages] = useState([]);
@@ -11993,6 +12002,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (ouvert && filActif) { marquerLu(filActif); setNonLus(n => (estPlateforme ? Math.max(0, n - 1) : 0)); }
       }, [ouvert, filActif]);
 
+      // Mode commandé : le bouton violet du parent porte la pastille.
+      useEffect(() => { externe?.onNonLus?.(nonLus); }, [nonLus]);
+
       /* ── Envoi ────────────────────────────────────────────────── */
       const envoyer = async (e) => {
         e?.preventDefault?.();
@@ -12025,7 +12037,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           {/* Bouton flottant — discret par défaut (Gil : « translucide,
               qui ne gêne pas »), franc dès qu'un message attend. Au-dessus
               de la barre du bas sur téléphone. */}
-          {!ouvert && (
+          {!externe && !ouvert && (
             <button onClick={() => setOuvert(true)}
               aria-label={nonLus ? `Chat bêta — ${nonLus} non lu` : 'Chat bêta'}
               title="Chat bêta"
@@ -12043,8 +12055,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           {ouvert && (
             <div role="dialog" aria-label="Chat bêta"
                  style={neu.raised}
-                 className="fixed right-4 left-4 sm:left-auto bottom-[92px] lg:bottom-6 sm:right-5 z-40
-                            sm:w-[380px] max-h-[70vh] rounded-[24px] flex flex-col overflow-hidden">
+                 className={`fixed z-40 sm:w-[380px] max-h-[70vh] rounded-[24px] flex flex-col overflow-hidden ${externe
+                   ? 'left-4 right-4 sm:right-auto sm:left-[270px] top-[76px] lg:top-6'
+                   : 'right-4 left-4 sm:left-auto bottom-[92px] lg:bottom-6 sm:right-5'}`}>
               {/* En-tête */}
               <div className="flex items-center gap-2 px-4 py-3 shrink-0"
                    style={{ borderBottom: '1px solid rgba(127,127,127,0.15)' }}>
@@ -12551,6 +12564,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (featuresReady && section === 'portfolio' && !FEATURES.portfolio) setSection('overview');
       }, [featuresReady, section]);
 
+      /* 🟣 Fil bêta d'un locataire : ouvert/fermé et non-lus vivent
+         ici — le bouton violet (menu + en-tête mobile) et le panneau
+         partagent le même état. */
+      const [betaOuvert, setBetaOuvert] = useState(false);
+      const [betaNonLus, setBetaNonLus] = useState(0);
+
       /* 🔴 Messages non lus — la pastille sur l'onglet. Sans elle, un
          message reçu ne se voyait qu'en OUVRANT Messages : le même
          défaut que l'agenda avant les rappels. Même arithmétique que
@@ -12650,7 +12669,22 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <div className="text-[19px] tracking-tight leading-none truncate" style={{ ...SERIF, fontStyle: 'italic' }}>
                 {myAgency?.name || 'Ma loge'}<span className="text-stone-400">.</span>
               </div>
-              <div className="text-[10px] uppercase tracking-[0.16em] text-stone-400 mt-1 font-medium">Admin</div>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[10px] uppercase tracking-[0.16em] text-stone-400 font-medium">Admin</span>
+                {featuresReady && !FEATURES.allUniverses && AGENCY.betaChat && MON_ROLE.value !== 'membre' && (
+                  <button type="button" onClick={() => setBetaOuvert((o) => !o)}
+                    aria-expanded={betaOuvert}
+                    aria-label={betaNonLus ? `Bêta testeur — ${betaNonLus} message(s) non lu(s)` : 'Bêta testeur — écrire à La Loge'}
+                    style={{ background: '#7c3aed', color: '#ffffff' }}
+                    className="tap-ext min-h-[32px] px-2.5 rounded-full text-[9.5px] font-bold uppercase tracking-[0.08em] inline-flex items-center gap-1 active:scale-95 transition-transform shrink-0">
+                    Bêta testeur
+                    {betaNonLus > 0 && (
+                      <span className="min-w-[14px] h-3.5 px-1 rounded-full flex items-center justify-center text-[9px] font-bold"
+                        style={{ background: '#ffffff', color: '#7c3aed' }}>{betaNonLus}</span>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex gap-2 items-center shrink-0">
               <button onClick={() => { setSection('settings'); setSelectedClient(null); }} aria-label="Paramètres" title="Paramètres" style={neu.raisedXs} className="w-11 h-11 rounded-full flex items-center justify-center text-stone-600 active:scale-95 transition-transform">
@@ -12686,6 +12720,22 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   {myAgency?.name || 'Ma loge'}<span className="text-stone-400">.</span>
                 </div>
                 <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 mt-1.5 font-medium">Espace agence</div>
+                {/* Bêta testeur : le fil de signalement vers La Loge —
+                    violet assumé (5,7:1 sous blanc, couleurs en dur pour
+                    échapper aux bascules du thème sombre). */}
+                {featuresReady && !FEATURES.allUniverses && AGENCY.betaChat && MON_ROLE.value !== 'membre' && (
+                  <button type="button" onClick={() => setBetaOuvert((o) => !o)}
+                    aria-expanded={betaOuvert}
+                    aria-label={betaNonLus ? `Bêta testeur — ${betaNonLus} message(s) non lu(s)` : 'Bêta testeur — écrire à La Loge'}
+                    style={{ background: '#7c3aed', color: '#ffffff' }}
+                    className="tap-ext mt-2.5 min-h-[32px] px-3 rounded-full text-[10.5px] font-bold uppercase tracking-[0.1em] inline-flex items-center gap-1.5 active:scale-95 transition-transform">
+                    <MessageSquare size={11} /> Bêta testeur
+                    {betaNonLus > 0 && (
+                      <span className="min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-[9.5px] font-bold"
+                        style={{ background: '#ffffff', color: '#7c3aed' }}>{betaNonLus}</span>
+                    )}
+                  </button>
+                )}
               </div>
 
               <nav className="flex flex-col gap-1.5">
@@ -12815,7 +12865,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             ? agencies !== null
             : AGENCY.betaChat && MON_ROLE.value !== 'membre') && (
             <ChatBeta user={user} estPlateforme={agencies !== null}
-                      agencyId={AGENCY.id} agencyNom={AGENCY.name} />
+                      agencyId={AGENCY.id} agencyNom={AGENCY.name}
+                      externe={agencies !== null ? null
+                        : { ouvert: betaOuvert, setOuvert: setBetaOuvert, onNonLus: setBetaNonLus }} />
           )}
 
           {/* Bottom nav — mobile uniquement, 52px tactile, verre dépoli translucide */}

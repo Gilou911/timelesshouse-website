@@ -75,13 +75,14 @@ const CAS = [
   [VITRINE, "/assets/admin-9q1XcsOs.js", null],
 
   // ── LA VITRINE : ce qui est à sa place, et ce qui part ──
+  [VITRINE, "/metiers",          null],
   [VITRINE, "/offres",           null],
   [VITRINE, "/inscription",      null],
   [VITRINE, "/laloge-cgv.html",  null],
   [VITRINE, "/laloge-confidentialite.html", null],
   [VITRINE, "/reinitialiser",    null], // repli de account-recovery
-  [VITRINE, "/portfolio",        "https://laloge.app/offres"],
-  [VITRINE, "/inconnu",          "https://laloge.app/offres"],
+  [VITRINE, "/portfolio",        "https://laloge.app/metiers"],
+  [VITRINE, "/inconnu",          "https://laloge.app/metiers"],
   // un lien d'espace client sur la vitrine garde son chemin ET son code
   [VITRINE, "/galerie?c=abc123", "https://laloge.house/galerie?c=abc123"],
   [VITRINE, "/app",              "https://laloge.house/app"],

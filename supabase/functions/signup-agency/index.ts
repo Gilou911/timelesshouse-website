@@ -262,7 +262,9 @@ Deno.serve(async (req) => {
        encore « bientôt » — ils passeront par la caisse le moment venu.
        Best effort : si la table n'existe pas encore (migration non
        lancée), l'inscription aboutit quand même. */
-    const OUVERTS = ["celebration"];
+    // Communication & Marketing ouvert le 02/08/2026 (agenda, équipe,
+    // messages, Drive livrés) — Filmmaker reste « bientôt ».
+    const OUVERTS = ["celebration", "communication"];
     const metier = OUVERTS.includes(String(body.universe || "")) ? String(body.universe) : "celebration";
     try {
       await sbAdmin.from("agency_universes").insert({

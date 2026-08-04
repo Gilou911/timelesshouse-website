@@ -58,7 +58,7 @@ const PAGES_LOGE = new Set([
 
 /** Pages de la VITRINE La Loge : ce qu'on montre aux studios. */
 const PAGES_VITRINE = new Set([
-  "offres", "inscription",
+  "metiers", "offres", "inscription",
   "laloge-cgv", "laloge-confidentialite", "laloge-sous-traitance",
 ]);
 
@@ -105,7 +105,7 @@ function redirectionPortier(hostname, pathname, search) {
     // neutre des clients EN GARDANT le chemin et le code — un vieux
     // lien de galerie doit continuer de mener à la galerie.
     if (PAGES_LOGE.has(nom)) return `https://laloge.house${pathname}${search}`;
-    return "https://laloge.app/offres";
+    return "https://laloge.app/metiers";
   }
 
   // laloge.house et <slug>.laloge.house — les loges.
@@ -135,7 +135,8 @@ export default {
         return Response.redirect(`https://${url.hostname}/app`, 302);
       }
       if (url.hostname === "laloge.app") {
-        return Response.redirect(`https://${url.hostname}/offres`, 302);
+        // La porte de la vitrine : d'abord CHOISIR SON MÉTIER (02/08/2026).
+        return Response.redirect(`https://${url.hostname}/metiers`, 302);
       }
     }
 

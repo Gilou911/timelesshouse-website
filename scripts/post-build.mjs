@@ -45,6 +45,7 @@ const STUDIO = [
   "# ces deux chemins y répondaient par accident (un seul build servait",
   "# tout). Après la séparation ils rendraient une 404 — on les envoie",
   "# chez elles plutôt que dans le vide.",
+  "/metiers      https://laloge.app/metiers       301",
   "/offres       https://laloge.app/offres        301",
   "/inscription  https://laloge.app/inscription   301",
   "",

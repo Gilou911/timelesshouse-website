@@ -512,7 +512,7 @@
 
   <header class="top">
     <div class="wrap">
-      <a class="logo" href="/offres">La Loge<span>.</span></a>
+      <a class="logo" href="/metiers">La Loge<span>.</span></a>
       <nav class="top-nav">
         <a class="btn ghost" href="#offres">Offres</a>
         <a class="btn ghost" href="/inscription">Créer ma loge</a>
@@ -546,7 +546,7 @@
         <div class="univ-rail" role="tablist" aria-label="Choisir votre métier">
           <button type="button" role="tab" aria-selected="true"  data-univ="celebration">Mariage &amp; célébrations</button>
           <button type="button" role="tab" aria-selected="false" data-univ="filmmaker" disabled>Filmmaker<small>bientôt</small></button>
-          <button type="button" role="tab" aria-selected="false" data-univ="communication" disabled>Communication &amp; marketing<small>bientôt</small></button>
+          <button type="button" role="tab" aria-selected="false" data-univ="communication">Communication &amp; marketing</button>
         </div>
       </div>
 
@@ -1037,6 +1037,42 @@
           retour: 'Retour du client',
           cite: '« Le montage est exactement ce qu\'on voulait. »',
         },
+        communication: {
+          intro: "<strong>Votre côté.</strong> La console de votre agence, en cinq gestes — de l'espace du client au post publié.",
+          h1t: "Vous créez l'espace du client",
+          h1s: "Sa marque, un email — son accès est prêt.",
+          h2t: 'Vous déposez les montages',
+          h2s: 'Reels, visuels, films — au Drive de l\'équipe, puis chez le client.',
+          h3t: "Vous programmez les sorties",
+          h3s: "L'agenda éditorial : Instagram mardi 18 h, TikTok jeudi.",
+          h4t: 'Vous répartissez le travail',
+          h4s: 'Cadreur, monteur, CM — chacun ses tâches, chacun son compte.',
+          h5t: 'Vous suivez tout',
+          h5s: 'Validé, programmé, publié — rappels automatiques compris.',
+          nom: 'Bistro Nova',
+          ligne: 'contact@bistronova.fr · Restaurant',
+          code: 'BN-2026',
+          c1: 'Réseaux', c2: 'Corporate', c3: 'Événement', c4: 'Produit',
+          suivi1: 'Espace ouvert par Bistro Nova',
+          qui: 'vos clients',
+          sous: "De l'accès reçu aux montages validés — le parcours exact de votre client, sans inscription pour le voir.",
+          a1t: 'Leur accès arrive par email',
+          a1s: 'À votre nom, jamais au nôtre.',
+          a2t: 'Ils ouvrent leur espace',
+          a2s: 'Votre logo, vos couleurs, votre adresse.',
+          a3t: 'Ils découvrent les montages',
+          a3s: 'Reels, visuels, films — en pleine qualité.',
+          a4t: 'Ils valident ou commentent',
+          a4s: 'Chaque retour arrive au bon endroit, tracé.',
+          a5t: 'Vous publiez sereinement',
+          a5s: "L'agenda vous rappelle chaque sortie du jour.",
+          mail: 'Bonjour Bistro Nova, vos montages vous attendent — envoyé par Votre Agence.',
+          galtitre: 'Bistro Nova · Contenus d\'août',
+          nbphotos: '32 visuels',
+          filmtitre: 'Reel — Bistro Nova',
+          retour: 'Retour du client',
+          cite: '« Le reel est validé — publiez ! »',
+        },
       };
 
       function appliquer(metier) {
@@ -1062,6 +1098,18 @@
         });
         appliquer(b.getAttribute('data-univ'));
       });
+
+      /* Arrivée depuis /metiers : le choix fait là-bas s'applique ici
+         (?metier=communication|celebration) — et file jusqu'à
+         l'inscription via les liens « Créer ma loge ». */
+      try {
+        var voulu = new URLSearchParams(location.search).get('metier');
+        var cible = voulu && rail.querySelector('button[data-univ="' + voulu + '"]:not([disabled])');
+        if (cible) cible.click();
+        if (voulu) document.querySelectorAll('a[href="/inscription"]').forEach(function (a) {
+          a.href = '/inscription?metier=' + encodeURIComponent(voulu);
+        });
+      } catch (_) {}
     })();
 
     /* ── Aperçu animé du parcours des mariés ──

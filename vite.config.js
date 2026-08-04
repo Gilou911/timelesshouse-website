@@ -49,6 +49,7 @@ export default defineConfig({
         // — Espaces clients / agence —
         app:                    resolve(__dirname, 'app.html'),
         offres:                 resolve(__dirname, 'offres.html'),
+        metiers:                resolve(__dirname, 'metiers.html'),
         inscription:            resolve(__dirname, 'inscription.html'),
         reinitialiser:          resolve(__dirname, 'reinitialiser.html'),
         admin:                  resolve(__dirname, 'communication-admin.html'),

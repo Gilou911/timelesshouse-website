@@ -162,7 +162,7 @@
         <select id="metier">
           <option value="celebration" selected>Mariage &amp; célébrations</option>
           <option value="filmmaker" disabled>Filmmaker — bientôt</option>
-          <option value="communication" disabled>Communication &amp; Marketing — bientôt</option>
+          <option value="communication">Communication &amp; Marketing</option>
         </select>
         <div class="metier-hint" id="metier-hint">Galeries photos et films livrés à des couples et des familles.</div>
         <div class="addr">Vous pourrez en ajouter d'autres plus tard depuis vos paramètres.</div>
@@ -260,6 +260,14 @@
        de soumission, l'écouteur ne se serait activé qu'à l'envoi du
        formulaire — donc jamais au moment utile. */
     const metierChoisi = () => (el('metier') || {}).value || 'celebration';
+    /* Arrivée depuis /metiers ou /offres : le métier choisi en amont
+       est présélectionné (jamais une option fermée). */
+    try {
+      const voulu = new URLSearchParams(location.search).get('metier');
+      const sel = el('metier');
+      const opt = voulu && sel && sel.querySelector(`option[value="${voulu}"]:not([disabled])`);
+      if (opt) { sel.value = voulu; sel.dispatchEvent(new Event('change')); }
+    } catch (_) {}
     const HINTS = {
       celebration: 'Galeries photos et films livrés à des couples et des familles.',
       filmmaker: 'Films de marque, clips, documentaires.',

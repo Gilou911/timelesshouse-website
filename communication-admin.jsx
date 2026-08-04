@@ -2369,56 +2369,69 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <div className="py-16 flex justify-center"><Loader2 size={18} className="animate-spin text-stone-400" /></div>
             ) : vue === 'mois' ? (
               <>
-                <div className="grid grid-cols-7 gap-1.5 mb-1.5">
-                  {JOURS_COURTS.map((j) => (
-                    <div key={j} className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold text-center py-1">{j}</div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7 gap-1.5">
-                  {cases.map((d) => {
-                    const cle = cleJour(d);
-                    const dedans = d.getMonth() === debut.getMonth();
-                    const jour = parJour[cle] || { tournages: [], sorties: [] };
-                    const cestAujourdhui = cle === aujourdhui;
-                    const tout = [...jour.tournages.map((t) => ({ ...t, genre: 'tournages' })),
-                                  ...jour.sorties.map((s) => ({ ...s, genre: 'sorties' }))];
-                    const visibles = tout.slice(0, 3);
-                    const surplus = tout.length - visibles.length;
-                    return (
-                      <div key={cle}
-                        style={tout.length ? neu.pressedSm : undefined}
-                        className={`rounded-xl p-1.5 min-h-[96px] ${dedans ? '' : 'opacity-35'}`}>
-                        {/* Le numéro se TAPE : il ouvre le planning du jour. */}
-                        <button type="button" onClick={() => voirJour(d)}
-                          aria-label={`Voir le ${d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}`}
-                          className={`tap-ext text-[11px] font-semibold mb-1 flex items-center justify-center w-7 h-7 rounded-full active:scale-90 transition-transform ${cestAujourdhui ? 'bg-stone-900 text-white' : 'text-stone-500'}`}>
-                          {d.getDate()}
-                        </button>
-                        <div className="flex flex-col gap-1">
-                          {visibles.map((x) => x.genre === 'tournages' ? (
-                            <button key={`t-${x.id}`} type="button" onClick={() => voirJour(d)}
-                              title={`${x.titre}${x.lieu ? ' — ' + x.lieu : ''}${x.client ? ' · ' + x.client : ''}`}
-                              className={CHIP_TOURNAGE}>
-                              {x.debut ? String(x.debut).slice(0, 5) + ' ' : ''}{x.type === 'video' ? '🎥' : '📸'} {x.titre}
-                            </button>
-                          ) : (
-                            <button key={`s-${x.id}`} type="button" onClick={() => ouvrirPost(x.post_id)}
-                              title={`${x.titre} · ${RESEAUX[x.reseau]?.l || x.reseau}${x.client ? ' · ' + x.client : ''}`}
-                              className="text-[9.5px] leading-tight rounded-md px-1.5 py-1 text-white truncate w-full text-left"
-                              style={{ background: RESEAUX[x.reseau]?.c || '#6b6357' }}>
-                              {hhmm(x.prevue_le)} {x.titre}
-                            </button>
-                          ))}
-                          {surplus > 0 && (
-                            <button type="button" onClick={() => voirJour(d)}
-                              className="text-[9.5px] font-semibold text-stone-500 hover:text-stone-800 text-left px-1.5 py-0.5">
-                              +{surplus} autre{surplus > 1 ? 's' : ''}
-                            </button>
-                          )}
-                        </div>
+                {/* La grille façon Google Agenda (captures de Gil du
+                    02/08) : cellules UNIFORMES sur filets fins — fini
+                    les capsules flottantes des jours occupés — et des
+                    chips qui montrent LE TITRE, pas « 18… » tronqué :
+                    l'heure vit dans l'infobulle, la semaine et le
+                    planning. Les jours voisins du mois gardent leurs
+                    événements pleins, seul leur numéro s'estompe. */}
+                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(127,127,127,0.16)' }}>
+                  <div className="grid grid-cols-7">
+                    {JOURS_COURTS.map((j) => (
+                      <div key={j}
+                        className="text-[9.5px] lg:text-[10px] uppercase tracking-wider text-stone-400 font-semibold text-center py-1.5"
+                        style={{ borderBottom: '1px solid rgba(127,127,127,0.16)' }}>
+                        {j}
                       </div>
-                    );
-                  })}
+                    ))}
+                    {cases.map((d, iCase) => {
+                      const cle = cleJour(d);
+                      const dedans = d.getMonth() === debut.getMonth();
+                      const jour = parJour[cle] || { tournages: [], sorties: [] };
+                      const cestAujourdhui = cle === aujourdhui;
+                      const tout = [...jour.tournages.map((t) => ({ ...t, genre: 'tournages' })),
+                                    ...jour.sorties.map((s) => ({ ...s, genre: 'sorties' }))];
+                      const visibles = tout.slice(0, 3);
+                      const surplus = tout.length - visibles.length;
+                      return (
+                        <div key={cle}
+                          className="min-h-[92px] lg:min-h-[112px] p-1 lg:p-1.5 flex flex-col"
+                          style={{
+                            borderTop: iCase < 7 ? 'none' : '1px solid rgba(127,127,127,0.12)',
+                            borderLeft: iCase % 7 === 0 ? 'none' : '1px solid rgba(127,127,127,0.12)',
+                          }}>
+                          <button type="button" onClick={() => voirJour(d)}
+                            aria-label={`Voir le ${d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}`}
+                            className={`tap-ext mx-auto mb-1 text-[11px] font-semibold flex items-center justify-center w-6 h-6 rounded-full active:scale-90 transition-transform ${cestAujourdhui ? 'bg-stone-900 text-white' : dedans ? 'text-stone-700' : 'text-stone-400'}`}>
+                            {d.getDate()}
+                          </button>
+                          <div className="flex flex-col gap-[3px]">
+                            {visibles.map((x) => x.genre === 'tournages' ? (
+                              <button key={`t-${x.id}`} type="button" onClick={() => voirJour(d)}
+                                title={`${x.debut ? String(x.debut).slice(0, 5) + ' · ' : ''}${x.titre}${x.lieu ? ' — ' + x.lieu : ''}${x.client ? ' · ' + x.client : ''}`}
+                                className="text-[10px] lg:text-[10.5px] leading-[1.2] rounded px-1 lg:px-1.5 py-[3px] bg-stone-800 text-white truncate w-full text-left font-medium">
+                                {x.titre}
+                              </button>
+                            ) : (
+                              <button key={`s-${x.id}`} type="button" onClick={() => ouvrirPost(x.post_id)}
+                                title={`${hhmm(x.prevue_le)} · ${x.titre} · ${RESEAUX[x.reseau]?.l || x.reseau}${x.client ? ' · ' + x.client : ''}`}
+                                className="text-[10px] lg:text-[10.5px] leading-[1.2] rounded px-1 lg:px-1.5 py-[3px] text-white truncate w-full text-left font-medium"
+                                style={{ background: RESEAUX[x.reseau]?.c || '#6b6357' }}>
+                                {x.titre}
+                              </button>
+                            ))}
+                            {surplus > 0 && (
+                              <button type="button" onClick={() => voirJour(d)}
+                                className="text-[9.5px] font-semibold text-stone-500 hover:text-stone-800 text-left px-1 py-0.5">
+                                +{surplus} autre{surplus > 1 ? 's' : ''}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
                 {!nTournages && !nSorties && !err && (
                   <p className="text-[12.5px] text-stone-500 text-center mt-5 leading-relaxed">

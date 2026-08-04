@@ -167,8 +167,9 @@
                     color: var(--muted); font-weight: 700; }
     .metier ul { list-style: none; display: grid; gap: 7px; margin-top: 2px; }
     .metier li { font-size: 14px; color: var(--muted); padding-left: 22px; position: relative; }
+    /* Puce au seuil UI 3:1 (le --warm décoratif valait 2,64:1 ici). */
     .metier li::before { content: ""; position: absolute; left: 4px; top: 9px; width: 7px; height: 7px;
-                         border-radius: 999px; background: var(--warm); }
+                         border-radius: 999px; background: #9d7346; }
     .metier .aller {
       margin-top: auto; padding-top: 14px; font-weight: 700; font-size: 14.5px;
       display: inline-flex; align-items: center; gap: 8px; min-height: 44px;

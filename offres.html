@@ -45,6 +45,7 @@
   <link rel="preload" as="font" type="font/woff2" href="/fonts/instrument-serif-latin.woff2" crossorigin />
   <link rel="stylesheet" href="/fonts/fonts.css" />
   <style>
+    html, body { overflow-x: clip; }
     :root {
       --bg: #e9e4d9; --surface: #efeae0; --pressed: #e3ddd0;
       /* HIG §6 : 4.5:1 mini sous 18 px — #7c756a valait 3.6:1 et #a49b8d 2.2:1 */
@@ -625,10 +626,10 @@
 
             <div class="wk-nav">
               <div class="pill"></div>
-              <div class="it">Clients</div>
-              <div class="it">Galeries</div>
-              <div class="it">Factures</div>
-              <div class="it">Ma marque</div>
+              <div class="it" data-t="n1">Clients</div>
+              <div class="it" data-t="n2">Galeries</div>
+              <div class="it" data-t="n3">Factures</div>
+              <div class="it" data-t="n4">Ma marque</div>
             </div>
           </div>
         </div>
@@ -1049,6 +1050,8 @@
           h4s: 'Cadreur, monteur, CM — chacun ses tâches, chacun son compte.',
           h5t: 'Vous suivez tout',
           h5s: 'Validé, programmé, publié — rappels automatiques compris.',
+          n2: 'Agenda',
+          n3: 'Équipe',
           nom: 'Bistro Nova',
           ligne: 'contact@bistronova.fr · Restaurant',
           code: 'BN-2026',

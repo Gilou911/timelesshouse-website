@@ -375,6 +375,91 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     // Mutable pointer — reassigned by App on theme change
     let neu = NEU_LIGHT;
 
+    /* ════════════════════════════════════════════════════════════
+       🎨 LA CONSOLE AUX COULEURS DE LA LOGE (02/08/2026)
+       ════════════════════════════════════════════════════════════
+       Demande de Gil : la marque du locataire (Ma marque → couleurs)
+       peint aussi SA console — pas seulement ses espaces clients et
+       ses emails. Le relief néomorphique est RECALCULÉ depuis sa
+       couleur de fond (ombre = fond assombri, lumière = fond éclairci,
+       mêmes portées que les jetons maison — la règle « halo » tient) ;
+       ses boutons sombres prennent sa couleur d'accent.
+       Gardes, toutes CALCULÉES :
+       · fond trop sombre (les encres fixes deviendraient illisibles)
+         → on garde la crème maison, l'accent s'applique quand même ;
+       · encre du bouton accent choisie par contraste (crème ou encre
+         sombre), et l'accent est assombri pas à pas s'il ne porte
+         aucune encre à 4,5:1 ;
+       · la PLATEFORME garde la maison telle quelle ;
+       · thème sombre inchangé (graphite) — le sombre est une lecture
+         de nuit, pas une vitrine de marque. */
+    const hexVersRgb = (hex) => {
+      const h = String(hex || '').replace('#', '');
+      if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+      return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+    };
+    const rgbVersHex = ([r, g, b]) => '#' + [r, g, b].map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+    const melange = (a, b, t) => {
+      const ra = hexVersRgb(a), rb = hexVersRgb(b);
+      if (!ra || !rb) return a;
+      return rgbVersHex(ra.map((v, i) => v + (rb[i] - v) * t));
+    };
+    const luminance = (hex) => {
+      const rgb = hexVersRgb(hex);
+      if (!rgb) return 0;
+      const [r, g, b] = rgb.map((v) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const contraste = (a, b) => {
+      const la = luminance(a), lb = luminance(b);
+      return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    };
+    const hexVersRgba = (hex, alpha) => {
+      const rgb = hexVersRgb(hex);
+      return rgb ? `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})` : hex;
+    };
+
+    let NEU_TENANT = null;   // palette claire dérivée de la marque, posée par loadFeatures
+
+    function paletteDepuisMarque(bgBrut, accentBrut, slug) {
+      if (!slug || slug === 'timelesshouse') return null;
+      const bgOk = hexVersRgb(bgBrut) && luminance(bgBrut) >= 0.5;
+      const accentOk = !!hexVersRgb(accentBrut);
+      const bg = bgOk ? bgBrut.toLowerCase() : '#e9e4d9';
+      let accent = accentOk ? accentBrut.toLowerCase() : '#2a2620';
+      // Rien de personnalisé → la maison telle quelle (zéro recalcul).
+      if (bg === '#e9e4d9' && accent === '#2a2620') return null;
+      /* Toute la console écrit en BLANC sur les surfaces accent
+         (classe text-white, partout) : l'accent est donc assombri pas
+         à pas jusqu'à porter le blanc à 4,5:1 — un accent pastel
+         devient sa version profonde, et rien ne casse nulle part. */
+      for (let i = 0; i < 10 && contraste(accent, '#ffffff') < 4.5; i++) {
+        accent = melange(accent, '#000000', 0.12);
+      }
+      const encre = '#ffffff';
+      const carte = melange(bg, '#ffffff', 0.35);
+      const creux = melange(bg, '#000000', 0.035);
+      const ombre = melange(bg, '#000000', 0.38);
+      const lumiere = melange(bg, '#ffffff', 0.92);
+      const o = (a) => hexVersRgba(ombre, a);
+      const l = (a) => hexVersRgba(lumiere, a);
+      return {
+        base:      { backgroundColor: bg },
+        raised:    { backgroundColor: carte, boxShadow: `7px 7px 14px ${o(0.38)}, -7px -7px 14px ${l(0.92)}` },
+        raisedSm:  { backgroundColor: carte, boxShadow: `5px 5px 12px ${o(0.26)}, -5px -5px 12px ${l(0.88)}` },
+        raisedXs:  { backgroundColor: carte, boxShadow: `3px 3px 7px ${o(0.22)}, -3px -3px 7px ${l(0.82)}`, zIndex: 2 },
+        pressed:   { backgroundColor: creux, boxShadow: `inset 5px 5px 10px ${o(0.32)}, inset -5px -5px 10px ${l(0.9)}` },
+        pressedSm: { backgroundColor: creux, boxShadow: `inset 3px 3px 6px ${o(0.26)}, inset -3px -3px 6px ${l(0.85)}` },
+        dark:      { backgroundColor: accent, color: encre, boxShadow: `4px 4px 9px ${o(0.44)}, -2px -2px 6px ${l(0.6)}, inset 1px 1px 2px rgba(255,255,255,0.08)` },
+        darkSm:    { backgroundColor: accent, color: encre, boxShadow: `4px 4px 10px ${o(0.36)}, -2px -2px 6px ${l(0.5)}` },
+        accent,
+        accentText: encre,
+      };
+    }
+
     /* ---------- Thème : PILOTÉ PAR L'APPAREIL ----------
        Plus de bascule manuelle : le thème suit le réglage du système
        (clair / sombre / automatique au coucher du soleil). L'utilisateur
@@ -12367,8 +12452,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
     function App() {
       const [isDark] = useDarkMode();
-      // Reassign the module-level mutable neu pointer
-      neu = isDark ? NEU_DARK : NEU_LIGHT;
+      // Reassign the module-level mutable neu pointer.
+      // Thème clair : la palette de la LOGE si elle a personnalisé sa
+      // marque ; thème sombre : le graphite maison, toujours.
+      neu = isDark ? NEU_DARK : (NEU_TENANT || NEU_LIGHT);
+      // Le fond du document suit (zones d'overscroll, derrière les coins).
+      useEffect(() => {
+        document.body.style.backgroundColor = isDark ? '' : neu.base.backgroundColor;
+        return () => { document.body.style.backgroundColor = ''; };
+      }, [isDark, neu]);
 
       const [user, setUser] = useState(undefined); // undefined = checking, null = logged out, object = logged in
       // Retour de Stripe Checkout (?abonnement=ok|annule) : on ouvre
@@ -12542,6 +12634,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           MES_PRIVILEGES.length = 0;
           (Array.isArray(moiEq?.privileges) ? moiEq.privileges : []).forEach((p) => MES_PRIVILEGES.push(p));
         } catch (_) { MON_ROLE.value = null; MES_PRIVILEGES.length = 0; }
+        // La console prend les couleurs de la loge (jamais la plateforme).
+        NEU_TENANT = paletteDepuisMarque(data?.bg_color, data?.accent_color, data?.slug);
         setMyAgency(data || null);
         // Titre de l'onglet : le studio, pas nous. L'onglet du navigateur
         // affichait « TimelessHouse — Admin » chez tous les locataires.
@@ -12658,7 +12752,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           <header
             className="lg:hidden flex items-center justify-between px-5 py-3.5 sticky top-0 z-30"
             style={{
-              backgroundColor: isDark ? 'rgba(34,38,45,0.85)' : 'rgba(239,234,224,0.85)',
+              backgroundColor: isDark ? 'rgba(34,38,45,0.85)' : hexVersRgba(neu.raised.backgroundColor, 0.85),
               backdropFilter: 'saturate(180%) blur(20px)',
               WebkitBackdropFilter: 'saturate(180%) blur(20px)',
               borderBottom: isDark ? '0.5px solid rgba(255,255,255,0.06)' : '0.5px solid rgba(0,0,0,0.06)',
@@ -12910,7 +13004,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 className="lg:hidden fixed bottom-4 left-4 right-4 z-30 rounded-[28px] px-2 py-2 flex items-center justify-around"
                 style={{
                   boxShadow: neu.raised.boxShadow,
-                  background: isDark ? 'rgba(34,38,45,0.5)' : 'rgba(239,234,224,0.5)',
+                  background: isDark ? 'rgba(34,38,45,0.5)' : hexVersRgba(neu.raised.backgroundColor, 0.5),
                   border: isDark ? '0.5px solid rgba(255,255,255,0.06)' : '0.5px solid rgba(255,255,255,0.55)',
                   backdropFilter: 'saturate(180%) blur(22px)',
                   WebkitBackdropFilter: 'saturate(180%) blur(22px)',

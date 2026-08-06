@@ -12060,6 +12060,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       useEffect(() => { chargerBeta(); }, [agencies]);
 
       const [busy2fa, setBusy2fa] = useState(null);
+      const [busyEssais, setBusyEssais] = useState(null);
 
       /* 💼 Édition des métiers d'une loge existante. On n'édite que les
          métiers « inclus » actifs : les options Stripe et les sursis
@@ -12143,6 +12144,31 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             : `${email} n'avait pas de double vérification active — rien à retirer.`);
         } catch (e) { alert(humaniseErreur(e.message)); }
         setBusy2fa(null);
+      };
+
+      /* Un locataire a martelé « Mot de passe oublié ? » : après 5
+         demandes en une heure, l'envoi se met en pause (l'anti-
+         bombardement d'account-recovery). Ce geste efface ses demandes
+         enregistrées — l'email repart dès le clic suivant. */
+      const libererEssaisMdp = async (agency) => {
+        if (!confirm(`Remettre à 0 le compteur « Mot de passe oublié ? » de « ${agency.name} » ?\n\n`
+          + `Après 5 demandes en une heure, l'envoi d'email se met en pause pour protéger la boîte `
+          + `du destinataire. Ce geste libère immédiatement le patron et les membres de la loge.`)) return;
+        setBusyEssais(agency.id);
+        try {
+          const { data: { session } } = await sb.auth.getSession();
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/create-agency`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ action: 'reset-recovery', agency_id: agency.id }),
+          });
+          const j = await res.json().catch(() => ({}));
+          if (!res.ok || !j.ok) throw new Error(j.error || `Échec (${res.status})`);
+          alert(j.purges > 0
+            ? `✓ Compteur remis à 0 (${j.purges} demande${j.purges > 1 ? 's' : ''} effacée${j.purges > 1 ? 's' : ''}). Le prochain « Mot de passe oublié ? » enverra l'email.`
+            : `Aucune demande enregistrée pour cette loge — le compteur était déjà à 0.`);
+        } catch (e) { alert(humaniseErreur(e.message)); }
+        setBusyEssais(null);
       };
 
       const basculerBeta = async (agency) => {
@@ -12470,6 +12496,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         propriétaire de la plateforme peut appuyer ici. */}
                     <Btn icon={ShieldCheck} onClick={() => retirer2fa(a)} disabled={busy2fa === a.id}>
                       {busy2fa === a.id ? '…' : 'Retirer la 2FA'}
+                    </Btn>
+                    {/* Un locataire a épuisé ses 5 « Mot de passe
+                        oublié ? » de l'heure : remise à 0 immédiate,
+                        sans attendre la fin de la fenêtre glissante. */}
+                    <Btn icon={RefreshCw} onClick={() => libererEssaisMdp(a)} disabled={busyEssais === a.id}>
+                      {busyEssais === a.id ? '…' : 'Essais mdp à 0'}
                     </Btn>
                     {/* Accorder / retirer des métiers à cette loge */}
                     <Btn icon={Building2}

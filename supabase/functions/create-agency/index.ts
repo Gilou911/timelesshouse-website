@@ -104,6 +104,31 @@ Deno.serve(async (req) => {
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json(400, { error: "JSON invalide" }); }
 
+  // ── Remise à zéro des essais « Mot de passe oublié » (06/08/2026) ──
+  // account-recovery met l'envoi en pause après 5 demandes par heure
+  // et par email (auth_recovery_log). Quand un locataire s'est bloqué
+  // en martelant le bouton, le fondateur le libère ici : on efface les
+  // demandes enregistrées de TOUS les comptes de la loge (patron et
+  // membres) — le prochain clic renvoie un email immédiatement.
+  if (body.action === "reset-recovery") {
+    const agencyId = String(body.agency_id || "");
+    if (!agencyId) return json(400, { error: "agency_id manquant" });
+    const { data: membres, error: mErr } = await sbAdmin
+      .from("agency_members").select("user_id").eq("agency_id", agencyId);
+    if (mErr) return json(500, { error: mErr.message });
+    const emails: string[] = [];
+    for (const m of membres || []) {
+      const { data } = await sbAdmin.auth.admin.getUserById(m.user_id);
+      const em = data?.user?.email;
+      if (em) emails.push(em.toLowerCase());
+    }
+    if (!emails.length) return json(200, { ok: true, purges: 0 });
+    const { data: effacees, error: dErr } = await sbAdmin
+      .from("auth_recovery_log").delete().in("email", emails).select("id");
+    if (dErr) return json(500, { error: dErr.message });
+    return json(200, { ok: true, purges: (effacees || []).length });
+  }
+
   // ── Changement d'offre d'une loge (upgrade/downgrade manuel) ──
   // Depuis la console fondateur : deals spéciaux, offres offertes, tests.
   // ⚠️ Si la loge a un abonnement Stripe ACTIF, le prochain webhook

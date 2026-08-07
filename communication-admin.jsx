@@ -5908,12 +5908,19 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       /* Deux métiers = deux mondes : la liste ne montre que les espaces
          du monde affiché. Sans ça, l'interrupteur ne séparerait que les
          menus, et les couples se mêleraient aux marques dans la même
-         grille (demande de Gil, 07/08). */
-      const filtered = useMemo(() =>
-        clients.filter(c => espaceDuMetierActif(c.universe)
-          && (c.name.toLowerCase().includes(search.toLowerCase()) || (c.code || '').includes(search.toLowerCase()))),
-        [clients, search]
-      );
+         grille (demande de Gil, 07/08).
+
+         ⚠️ SURTOUT PAS DE useMemo ICI. Les métiers de la loge ne sont pas
+         un état React : ils vivent dans MES_METIERS / METIER_ACTIF, que
+         loadFeatures remplit APRÈS loadClients (les deux partent ensemble,
+         mais la liste des clients est une seule requête quand les métiers
+         en demandent quatre). Une liste mémorisée sur [clients, search]
+         se calculait donc AVANT que les métiers soient connus — filtre
+         inerte — et ne se recalculait jamais : les deux mondes restaient
+         mélangés à l'écran (constaté par Gil le 07/08). Filtrer une
+         poignée d'espaces à chaque rendu ne coûte rien ; se tromper, si. */
+      const filtered = clients.filter(c => espaceDuMetierActif(c.universe)
+        && (c.name.toLowerCase().includes(search.toLowerCase()) || (c.code || '').includes(search.toLowerCase())));
 
       // Plafond d'espaces clients de l'offre (null = illimité).
       const quotaAtteint = AGENCY.maxClients != null && clients.length >= AGENCY.maxClients;
@@ -6091,7 +6098,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         return list.some(o => o.value === form.universe)
           ? list
           : [...list, { value: form.universe, label: `${universeLabel(form.universe)} (univers actuel)` }];
-      }, [form.universe, existing]);
+        // METIER_ACTIF dans les dépendances : il n'est pas un état React,
+        // et sans lui la liste des choix se figerait comme la grille l'a fait.
+      }, [form.universe, existing, METIER_ACTIF.value, MES_METIERS.length]);
 
       const isCouple = isCelebration(form.universe);
       const currentHint = options.find(o => o.value === form.universe)?.hint;

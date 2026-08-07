@@ -3675,37 +3675,66 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
    dépendent (vocabulaire, listes, menus). Recharger est net et
    sans surprise — bien mieux qu'un demi-rafraîchissement où un
    écran garderait l'ancien monde. */
-    function SelecteurMetier({ compact = false }) {
+    function SelecteurMetier({ compact = false, onChange }) {
       if (FEATURES.allUniverses) return null;          // la plateforme voit tout
       const miens = METIERS.filter((m) => MES_METIERS.includes(m.value));
       if (miens.length < 2) return null;               // un seul monde : rien à choisir
       const actif = METIER_ACTIF.value || miens[0].value;
+      const iActif = Math.max(0, miens.findIndex((m) => m.value === actif));
       const changer = (u) => {
         if (u === actif) return;
         poserMetierActif(u);
-        window.location.reload();
+        // Plus de rechargement : la console se redessine, la pastille
+        // glisse. Recharger coupait le geste net et rendait la bascule
+        // brutale (retour de Gil, 07/08).
+        if (onChange) onChange(u);
       };
+      /* LA FORME. Un rail en creux avec UNE pastille qui glisse — le motif
+         de la barre du bas, réutilisé tel quel : deux pastilles qui
+         s'allument et s'éteignent chacune de leur côté font deux fondus
+         croisés sans continuité, là où une seule qui se déplace raconte le
+         mouvement.
+         Le SENS suit la place, MESURÉE et non devinée (banc d'essai,
+         Manrope 11,5 px semi-gras) :
+           · barre latérale, empilé   → 142 px par ligne ;
+           · barre latérale, côte à côte → 67 px seulement ;
+           · téléphone, côte à côte   → 140 px.
+         « Communication » en demande 90 : il tient empilé et sur
+         téléphone, jamais côte à côte dans la barre latérale — c'est là
+         qu'il se faisait tronquer, et c'est ce que Gil a vu. D'où : empilé
+         sur bureau, côte à côte sur téléphone.
+         Le libellé est le PREMIER MOT — le nom du monde, tel que Gil en
+         parle. Le titre entier reste dans l'infobulle et pour les lecteurs
+         d'écran : « Communication & Marketing » demanderait 162 px, il ne
+         tient nulle part sans rétrécir le texte sous le lisible. */
+      const empile = !compact;
       return (
-        <div className={compact ? 'mt-2' : 'mt-3'}>
+        <div className={compact ? 'mt-2.5' : 'mt-3'}>
           {!compact && (
             <div className="text-[9.5px] uppercase tracking-[0.16em] text-stone-400 font-semibold mb-1.5">Métier</div>
           )}
-          <div role="tablist" aria-label="Choisir le métier affiché"
-            style={neu.pressedSm} className="rounded-full p-1 flex gap-1">
+          <div role="tablist" aria-label="Métier affiché" style={neu.pressedSm}
+            className={`relative p-1 flex ${empile ? 'flex-col rounded-[22px]' : 'rounded-full'}`}>
+            <div aria-hidden="true"
+              className={`th-indicateur absolute pointer-events-none ${empile ? 'rounded-[18px]' : 'rounded-full'}`}
+              style={empile
+                ? { ...neu.darkSm, left: 4, right: 4, top: 4,
+                    height: `calc((100% - 8px) / ${miens.length})`,
+                    transform: `translateY(${iActif * 100}%)` }
+                : { ...neu.darkSm, top: 4, bottom: 4, left: 4,
+                    width: `calc((100% - 8px) / ${miens.length})`,
+                    transform: `translateX(${iActif * 100}%)` }} />
             {miens.map((m) => {
               const cestLui = m.value === actif;
-              // Le libellé complet est long : sur l'interrupteur on garde
-              // le premier mot, le titre entier reste dans l'infobulle.
-              const court = m.label.split(' ')[0].replace('&', '');
               return (
                 <button key={m.value} type="button" role="tab" aria-selected={cestLui}
                   onClick={() => changer(m.value)} title={m.label}
-                  style={cestLui ? neu.darkSm : {}}
                   /* 44 px : c'est un vrai bouton, pas une étiquette — et
                      stone-600 plutôt que 500 sur le creux clair, où 500
                      tombait à 3,96:1 (mesuré au banc d'essai). */
-                  className={`flex-1 min-h-[44px] px-2.5 rounded-full text-[11.5px] font-semibold transition ${cestLui ? 'text-white' : 'text-stone-600'}`}>
-                  {court}
+                  aria-label={m.label}
+                  className={`th-onglet relative z-10 flex-1 min-w-0 min-h-[44px] px-3 ${empile ? 'rounded-[18px] text-left' : 'rounded-full'} text-[11.5px] font-semibold truncate active:scale-[0.98] ${cestLui ? 'text-white' : 'text-stone-600'}`}>
+                  {m.label.split(' ')[0].replace('&', '')}
                 </button>
               );
             })}
@@ -13555,6 +13584,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
          l'onglet quand il marque un fil comme lu. */
       const [nonLusMsg, setNonLusMsg] = useState(0);
       const [repliOuvert, setRepliOuvert] = useState(false);   // feuille « Plus » de la barre mobile
+      /* Le métier affiché n'est pas un état React (il vit dans
+         METIER_ACTIF, lu par du code hors composants). Ce compteur est
+         son ÉCHO : le bousculer redessine toute la console — menus,
+         listes, compteurs — sans recharger la page. */
+      const [metierTick, setMetierTick] = useState(0);
+      const changerMetier = () => setMetierTick((n) => n + 1);
       const chargerNonLus = async () => {
         if (!surLeMetier('communication')) { setNonLusMsg(0); return; }
         try {
@@ -13593,6 +13628,18 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
          l'ancienne version y renvoyait quand même — le membre atterrissait
          sur un Agenda introuvable, avec une barre d'onglets vide sur
          téléphone (audit du 07/08). */
+      /* Basculer de métier peut emporter l'écran ouvert : on regardait
+         l'Agenda, on passe en Mariage, l'Agenda n'existe plus. On revient
+         alors à un écran qui, lui, existe — plutôt que de laisser une page
+         orpheline sans entrée de menu. */
+      useEffect(() => {
+        if (!featuresReady) return;
+        const editorial = ['agenda', 'taches', 'equipe', 'messages'];
+        if (editorial.includes(section) && !surLeMetier('communication')) {
+          setSection(MON_ROLE.value === 'membre' ? 'drive' : 'overview');
+        }
+      }, [featuresReady, metierTick, section]);
+
       useEffect(() => {
         if (!featuresReady || MON_ROLE.value !== 'membre') return;
         const comm = surLeMetier('communication');
@@ -13603,7 +13650,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           ...(comm ? ['agenda', 'taches', 'equipe', 'messages'] : []),
           ...(clients ? ['clients'] : [])]);
         if (!permis.has(section)) setSection(comm ? 'agenda' : (clients ? 'clients' : 'drive'));
-      }, [featuresReady, section]);
+      }, [featuresReady, section, metierTick]);
 
       const logout = async () => { await sb.auth.signOut(); };
 
@@ -13661,7 +13708,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               </div>
               {/* L'interrupteur de métier, en version courte : sur
                   téléphone il vaut mieux qu'il tienne sous le nom. */}
-              {featuresReady && <SelecteurMetier compact />}
+              {featuresReady && <SelecteurMetier compact onChange={changerMetier} />}
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-[10px] uppercase tracking-[0.16em] text-stone-400 font-medium">Admin</span>
                 {featuresReady && !FEATURES.allUniverses && AGENCY.betaChat && MON_ROLE.value !== 'membre' && (
@@ -13713,7 +13760,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   {myAgency?.name || 'Ma loge'}<span className="text-stone-400">.</span>
                 </div>
                 <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 mt-1.5 font-medium">Espace agence</div>
-                {featuresReady && <SelecteurMetier />}
+                {featuresReady && <SelecteurMetier onChange={changerMetier} />}
                 {/* Bêta testeur : le fil de signalement vers La Loge —
                     violet assumé (5,7:1 sous blanc, couleurs en dur pour
                     échapper aux bascules du thème sombre). */}

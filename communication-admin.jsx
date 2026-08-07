@@ -129,14 +129,33 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       METIER_ACTIF.value = u || null;
       try { if (u) localStorage.setItem(cleMetier(), u); } catch (_) {}
     };
-    /* Cet espace client appartient-il au monde affiché ? Un espace SANS
-       métier enregistré (créé avant les métiers) reste visible partout :
-       mieux vaut le montrer deux fois que le faire disparaître. */
-    const espaceDuMetierActif = (universe) => !METIER_ACTIF.value
-      || FEATURES.allUniverses
-      || MES_METIERS.length < 2
-      || !universe
-      || universe === METIER_ACTIF.value;
+    /* DANS QUEL MÉTIER RANGER CET ESPACE ?
+       Les valeurs modernes se répondent d'elles-mêmes. Les HÉRITÉES
+       (« mariage », « anniversaire-mariage », « autre »… d'avant les
+       métiers) n'en portent aucune : on les range d'après leur FORME —
+       une livraison de galeries est un mariage, un tableau de bord est
+       de la communication. C'est déjà ainsi que la console décide de
+       leurs écrans, donc rien ne bouge pour elles. */
+    const metierDeLEspace = (universe) => {
+      const m = metierOf(universe);
+      if (m) return m.value;
+      return isDelivery(universe) ? 'celebration' : 'communication';
+    };
+    /* La séparation est STRICTE (demande de Gil) : un espace de mariage
+       ne s'affiche QUE dans le métier mariage, et réciproquement. On ne
+       filtre évidemment que là où il y a deux mondes à séparer. */
+    const separationParMetier = () => !FEATURES.allUniverses && MES_METIERS.length >= 2;
+    const espaceDuMetierActif = (universe) => {
+      if (!separationParMetier() || !METIER_ACTIF.value) return true;
+      const m = metierDeLEspace(universe);
+      /* Un espace rangé dans un métier que la loge N'EXERCE PLUS (métier
+         résilié, valeur posée jadis par le fondateur) n'appartiendrait à
+         aucun onglet : il disparaîtrait de partout. On le montre alors
+         dans TOUS — perdre un espace client est bien pire que le voir
+         deux fois. */
+      if (!MES_METIERS.includes(m)) return true;
+      return m === METIER_ACTIF.value;
+    };
 
     /* La question que posent les menus : « travaille-t-on DANS ce métier
        en ce moment ? » — et non plus « la loge l'exerce-t-elle ? ». */
@@ -1761,7 +1780,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         <div className="space-y-5 lg:space-y-6">
           {/* Stats — 2 col mobile, 4 col desktop */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
-            <StatCard dark label="Clients actifs" value={clients.filter(c => c.active).length} />
+            {/* Le compte suit la SÉPARATION des métiers : afficher « 12 »
+                au-dessus d'une liste qui en montre 3 sèmerait le doute. */}
+            <StatCard dark label="Clients actifs" value={clients.filter(c => c.active && espaceDuMetierActif(c.universe)).length} />
             <StatCard label="Revenus totaux" value={`${totalRevenue.toLocaleString('fr-FR')} €`} />
             <StatCard label="Médias livrés" value={totalMedia} />
             <StatCard label="Tournages prévus" value={upcomingShoots} />
@@ -4996,7 +5017,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     <div className="space-y-2">
                       <Select value={envoiClient} onChange={(e) => { setEnvoiClient(e.target.value); setOkEnvoi(''); }}>
                         <option value="">— choisir un espace client —</option>
-                        {clients.filter((c) => c.active !== false).map((c) => (
+                        {/* Le Drive est commun aux deux métiers — mais les
+                            ESPACES CLIENTS, eux, restent séparés : on
+                            n'envoie qu'aux clients du métier affiché, comme
+                            partout ailleurs (demande de Gil, 07/08). */}
+                        {clients.filter((c) => c.active !== false && espaceDuMetierActif(c.universe)).map((c) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </Select>
@@ -5465,7 +5490,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             <Field label="Pour quelle marque">
               <Select value={client} onChange={(e) => setClient(e.target.value)}>
                 <option value="">— aucune en particulier —</option>
-                {(clients || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {/* Un post éditorial parle à une marque du métier
+                    communication : les espaces de mariage n'ont rien à
+                    faire dans cette liste (demande de Gil, 07/08). */}
+                {(clients || []).filter((c) => espaceDuMetierActif(c.universe))
+                  .map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
             </Field>
             <Field label="Intention, script, angle">
@@ -6046,15 +6075,23 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // console : MES_METIERS vide → rien n'est bridé ; et l'univers du
       // client en cours d'édition reste toujours dans la liste, pour ne
       // jamais le réécrire à son insu (espaces créés avant, valeurs héritées).
+      /* Quand la loge sépare ses métiers, on ne crée QUE dans le métier
+         affiché : l'onglet est le classeur, on ne range pas une pièce
+         dans le mauvais tiroir depuis l'autre pièce (demande de Gil).
+         Le champ reste offert en ÉDITION d'un espace existant — déplacer
+         un espace d'un métier à l'autre doit rester possible. */
       const options = useMemo(() => {
-        const list = MES_METIERS.length
+        const tous = MES_METIERS.length
           ? metiersDisponibles(MES_METIERS, FEATURES.allUniverses)
               .map(m => ({ value: m.value, label: m.label, hint: m.hint }))
           : universeOptions(FEATURES.allUniverses);
+        const list = (!existing && separationParMetier() && METIER_ACTIF.value)
+          ? tous.filter(o => o.value === METIER_ACTIF.value)
+          : tous;
         return list.some(o => o.value === form.universe)
           ? list
           : [...list, { value: form.universe, label: `${universeLabel(form.universe)} (univers actuel)` }];
-      }, [form.universe]);
+      }, [form.universe, existing]);
 
       const isCouple = isCelebration(form.universe);
       const currentHint = options.find(o => o.value === form.universe)?.hint;
@@ -6127,6 +6164,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </Select>
               {currentHint && <div className="text-[11px] text-stone-500 mt-1.5">{currentHint}</div>}
+              {/* Un menu à un seul choix n'est pas un menu : on explique
+                  pourquoi, plutôt que de laisser croire à une panne. */}
+              {!existing && separationParMetier() && options.length === 1 && (
+                <div className="text-[11px] text-stone-500 mt-1.5">
+                  Vous créez dans le métier affiché. Pour un espace d'un autre métier,
+                  basculez d'abord l'interrupteur en haut de la barre latérale.
+                </div>
+              )}
               {isCelebration(form.universe) && (
                 <div className="text-[11px] text-stone-500 mt-1.5">
                   💡 Le style de rendu (mariage, fiançailles, anniversaire…) se choisit
@@ -13579,7 +13624,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         equipe:   { t: 'Équipe', s: 'Vos coéquipiers, leurs rôles et leurs tâches.' },
         taches:   { t: 'Mes tâches', s: 'Tout ce qui vous est confié, et où ça en est.' },
         messages: { t: 'Messages', s: 'Le fil de l’équipe, et vos conversations privées.' },
-        drive:    { t: 'Drive', s: 'Le disque commun de l’équipe : déposez, rangez, retrouvez.' },
+        drive:    { t: 'Drive', s: separationParMetier()
+                    ? 'Le disque commun de l’équipe — le même pour tous vos métiers : déposez, rangez, retrouvez.'
+                    : 'Le disque commun de l’équipe : déposez, rangez, retrouvez.' },
         portfolio:{ t: 'Portfolio', s: 'Vitrine et espaces de prospection.' },
         agences:  { t: 'Agences', s: 'Les locataires de votre plateforme marque blanche.' },
         settings: { t: 'Paramètres', s: 'Votre marque, votre abonnement et la sécurité de votre compte.' },

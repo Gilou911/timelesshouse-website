@@ -290,3 +290,41 @@ finitions désormais intégrées. Ce qu'elle laisse ouvert :
 - Trois fonctions restent sans juge `aal` : `measure-storage`,
   `sync-social`, `scheduled-notifications` — elles tournent sur jeton
   interne ou cron, pas sur session humaine.
+
+
+---
+
+## Vague 3 — appliquée le 07/08/2026
+
+Le peloton P2, plus deux pannes silencieuses découvertes en route :
+
+- **`notify-lead` expédiait depuis un domaine mort** (`@noreply.timelesshouse.org`,
+  échangé chez Resend le 22/07) : aucune alerte de nouveau prospect
+  n'arrivait depuis. Vérifié après correctif par un envoi réel.
+- **Le téléchargement d'un montage venu du Drive n'en était pas un** :
+  `dispositionFor` ne reconnaissait pas le nom `original-…` (tiret), donc
+  pas de `Content-Disposition`, donc ouverture dans un onglet. Corrigé aux
+  deux bouts — la signature d'upload, et l'espace client qui passe
+  désormais par `/telecharger/` (réparant aussi les fichiers déjà là).
+- **Le PDF de facture** porte en dur l'identité et l'IBAN de TimelessHouse :
+  il refuse maintenant toute loge autre que la plateforme.
+
+Plus : quatre `reply_to` manquants, la console annoncée sur `www.`, le Drive
+non compté à sa loge dans `measure-storage`, les champs « coller une URL »
+rendus au seul fondateur, le métier propagé aux boutons payants, les analyses
+sociales annoncées « bientôt », deux favicons, `prefers-reduced-motion` sur
+la page d'accueil, les dernières encres du thème sombre et la cloche à 52 px.
+
+### Restent ouverts (non traités, par choix)
+
+- **Photobooth et portfolio_leads** : leurs migrations rouvrent des PII à tout
+  compte authentifié si on les rejoue. La production est saine ; ces fichiers
+  n'ont pas reçu de garde-fou car l'app Photobooth vit hors de ce dépôt.
+- **Deux fiches Médias créées depuis le même fichier Drive** : le second
+  encodage purge le HLS du premier (lecteur cassé). Cas rare, correctif non
+  trivial (il faut une clé d'encodage par fiche).
+- **Encodage des fiches Médias muet dans la console** (ni badge ni bouton
+  Réessayer, contrairement au Drive), et le client voit « en préparation »
+  pour toujours si l'encodage a échoué.
+- **`social-oauth`** renvoie toujours sur `timelesshouse.org` pour toutes les
+  loges ; **trois portes internes** comparent leur secret avec `===`.

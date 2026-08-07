@@ -66,3 +66,4 @@ workers/encoder/launchd.err.log
 # Cache et bundles temporaires de wrangler (jamais versionnés)
 .wrangler/
 workers/encoder/rapport-orphelins.txt
+deno.lock

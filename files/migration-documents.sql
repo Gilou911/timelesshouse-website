@@ -52,8 +52,9 @@ create policy "auth write documents"
 -- ════════════════════════════════════════════════════════════
 -- ✅ TERMINÉ
 -- ════════════════════════════════════════════════════════════
--- Astuce : pour héberger les fichiers directement dans Supabase,
--- crée un bucket public "documents" (Storage → New bucket → public),
--- glisse-y le PDF, puis copie son URL publique dans le champ
--- "URL du fichier" du formulaire admin.
+-- ⚠️ L'« astuce » qui vivait ici — un bucket Supabase PUBLIC pour les
+-- PDF — a été retirée le 07/08/2026 : un contrat ou un devis dans un
+-- seau public se lit avec la seule URL. Les documents passent par
+-- l'upload de la console (dépôt B2 sous le préfixe de la loge, servi
+-- par URL signée).
 -- ════════════════════════════════════════════════════════════

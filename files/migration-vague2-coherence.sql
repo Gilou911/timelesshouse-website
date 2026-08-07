@@ -75,14 +75,22 @@ create or replace function update_media_approval(p_media_id uuid, p_status text)
 language plpgsql security definer set search_path = public as $$
 declare v_agence uuid;
 begin
+  /* ⚠️ CORRECTIF DE FOND (trouvé en écrivant cette vague) : la version
+     déployée le 21/07 n'acceptait que ('pending','approved','changes')
+     alors que la console envoie 'changes_requested' — le bouton
+     « Demander des changements » échouait donc EN SILENCE depuis, et
+     l'appel n'inspectait pas l'erreur. Le vocabulaire de l'application
+     fait foi ; 'changes' est accepté par indulgence pour d'éventuelles
+     lignes anciennes. */
+  if p_status = 'changes' then p_status := 'changes_requested'; end if;
   if p_status not in ('pending', 'approved', 'changes_requested') then
-    raise exception 'statut invalide';
+    raise exception 'Statut de validation inconnu : %', p_status;
   end if;
   select m.agency_id into v_agence
     from media m
    where m.id = p_media_id and m.agency_id in (select my_agency_ids());
   if v_agence is null then
-    raise exception 'non autorisé';
+    raise exception 'Ce montage n''appartient pas à votre loge.';
   end if;
   -- Le rang plancher LIT les livrables, il ne les valide pas.
   if exists (
@@ -90,7 +98,7 @@ begin
      where am.user_id = auth.uid() and am.agency_id = v_agence
        and am.role = 'membre' and not ('clients' = any(am.privileges))
   ) then
-    raise exception 'privilege_manquant';
+    raise exception 'Il vous manque le privilège « espaces clients » pour valider un montage.';
   end if;
   update media set approval_status = p_status where id = p_media_id;
 end $$;
@@ -141,6 +149,22 @@ grant execute on function equipe_agence(uuid) to authenticated;
 --  été rejoué entre-temps.
 
 drop policy if exists "public read documents"              on documents;
+-- …et les policies AVEUGLES À L'AGENCE de l'ère mono-locataire : « for
+-- all using (auth.role() = 'authenticated') » veut dire « tout compte
+-- connecté voit et écrit TOUT », toutes loges confondues. La capture du
+-- 21/07 (supabase/migrations/00000000000000_baseline_rls.sql) montre
+-- qu'elles ont disparu de la production — ces lignes sont donc un filet,
+-- pour le jour où un vieux fichier serait rejoué (schema.sql les
+-- recréerait toutes).
+drop policy if exists "auth write clients"        on clients;
+drop policy if exists "auth write analytics"      on analytics;
+drop policy if exists "auth write documents"      on documents;
+drop policy if exists "auth write event_pages"    on event_pages;
+drop policy if exists "auth write invoices"       on invoices;
+drop policy if exists "auth write media"          on media;
+drop policy if exists "auth write media_comments" on media_comments;
+drop policy if exists "auth write notifications"  on notifications;
+drop policy if exists "auth write shoots"         on shoots;
 drop policy if exists "public read media_comments"         on media_comments;
 drop policy if exists "public read social_stat_snapshots"  on social_stat_snapshots;
 drop policy if exists "anon read social_stat_snapshots"    on social_stat_snapshots;
@@ -171,6 +195,13 @@ select tablename, policyname, roles
                      'gallery_photos','event_pages','strategies','analytics')
    and 'anon' = any(roles);
 
--- 3) L'équipe se demande loge par loge.
+-- 3) Aucune policy aveugle à l'agence ne subsiste.
+--    Attendu : 0 ligne.
+select tablename, policyname
+  from pg_policies
+ where schemaname = 'public'
+   and (qual like '%auth.role()%' or with_check like '%auth.role()%');
+
+-- 4) L'équipe se demande loge par loge.
 --    Attendu : la liste de VOTRE équipe (identique à avant).
 select jsonb_array_length(equipe_agence()) as coequipiers;

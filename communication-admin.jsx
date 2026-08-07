@@ -5792,6 +5792,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       // Plafond d'espaces clients de l'offre (null = illimité).
       const quotaAtteint = AGENCY.maxClients != null && clients.length >= AGENCY.maxClients;
+      /* Les deux conditions qui décident du bouton « Nouveau client »
+         se lisent côte à côte : le plafond de l'offre, et le privilège.
+         Écrit en EXCLUSION du membre sans privilège plutôt qu'en liste
+         de rôles : un rôle encore inconnu (la RPC peut renvoyer null
+         avant la migration) ne doit jamais bloquer un patron. */
+      const peutClients = MON_ROLE.value !== 'membre' || MES_PRIVILEGES.includes('clients');
 
       return (
         <div className="space-y-5 lg:space-y-6">
@@ -5820,9 +5826,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             {/* Offre Découverte : 1 espace client. On désactive le bouton
                 AVANT le clic et on dit quoi faire (HIG §10 : l'erreur est
                 formulée en solution) — la base refuse de toute façon. */}
-            {/* Ouvrir ou fermer un espace client engage le studio : pas
-                pour un « membre » (le rabot des rôles, 01/08/2026). */}
-            {MON_ROLE.value !== 'membre' && (quotaAtteint ? (
+            {/* Ouvrir un espace client, c'est exactement ce que promet
+                le privilège « Espaces clients » montré au patron — et
+                c'est ce que la base autorise. L'écran exigeait en plus de
+                ne pas être un membre : une règle qu'aucune couche
+                n'appliquait, et qui rendait le privilège menteur (audit
+                du 07/08). */}
+            {peutClients && (quotaAtteint ? (
               <div style={neu.pressedSm} className="rounded-2xl px-4 py-3 text-[12.5px] text-stone-600 leading-relaxed w-full sm:w-auto sm:max-w-sm">
                 Votre offre Découverte comprend 1 espace client.{' '}
                 <a href="/offres" target="_blank" rel="noopener" className="font-semibold underline underline-offset-2">
@@ -5871,7 +5881,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             {/* Même action, même nom que le bouton du haut (HIG §15 : un
                 concept = un mot). Et elle disparaît au plafond de l'offre,
                 comme le bouton — sinon le clic menait droit à une erreur. */}
-            {!quotaAtteint && MON_ROLE.value !== 'membre' && (
+            {!quotaAtteint && peutClients && (
               <button onClick={() => setShowNew(true)} style={neu.pressed} className="rounded-[22px] lg:rounded-[24px] p-6 flex flex-col items-center justify-center text-center min-h-[200px] hover:scale-[1.01] active:scale-[0.99] transition-transform">
                 <div style={neu.dark} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-4">
                   <Plus size={20} />
@@ -9604,8 +9614,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
 
       const setApproval = async (id, status) => {
-        await sb.rpc('update_media_approval', { p_media_id: id, p_status: status });
+        const { error } = await sb.rpc('update_media_approval', { p_media_id: id, p_status: status });
+        if (error) {
+          alert(/statut invalide/i.test(error.message || '')
+            ? "La validation n'est pas encore à jour côté base : exécutez files/migration-vague2-coherence.sql dans Supabase."
+            : humaniseErreur(error.message));
+          return false;
+        }
         load();
+        return true;
       };
 
       const notifyClient = async (media) => {
@@ -9749,8 +9766,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
 
       const setApprovalStatus = async (s) => {
-        await onApprove(media.id, s);
-        setStatus(s);
+        // `onApprove` renvoie faux si la base a refusé : l'écran ne doit
+        // pas afficher un statut qui n'a pas été enregistré.
+        const ok = await onApprove(media.id, s);
+        if (ok !== false) setStatus(s);
       };
 
       const fmt = (iso) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -13711,6 +13730,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             const visibles = deborde
               ? [...onglets.slice(0, MAX_ONGLETS - 1), { id: '__plus', icon: List, label: 'Plus' }]
               : onglets;
+            /* Une pastille de non-lus qui tombe dans le repli ne se
+               verrait plus nulle part : « Plus » la porte à sa place. */
+            const nonLusReplies = caches.some(o => o.id === 'messages') ? nonLusMsg : 0;
             const dansLeRepli = caches.some(o => o.id === section);
             const actif = selectedClient ? -1
               : (dansLeRepli ? MAX_ONGLETS - 1 : visibles.findIndex(o => o.id === section));
@@ -13764,7 +13786,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       className={`th-onglet relative z-10 flex-1 flex flex-col items-center justify-center gap-1 min-h-[52px] py-2 px-1 rounded-2xl active:scale-95 ${active ? 'text-white' : 'text-stone-500'}`}>
                       <span className="relative">
                         <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
-                        {n.id === 'messages' && nonLusMsg > 0 && (
+                        {((n.id === 'messages' && nonLusMsg > 0)
+                          || (n.id === '__plus' && nonLusReplies > 0)) && (
                           <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white text-[9.5px] font-bold flex items-center justify-center">
                             {nonLusMsg > 99 ? '99+' : nonLusMsg}
                           </span>
@@ -13801,6 +13824,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                             className="w-full flex items-center gap-3.5 px-4 min-h-[52px] rounded-2xl text-left text-stone-700">
                             <n.icon size={18} />
                             <span className="text-[14px] font-medium tracking-tight">{n.label}</span>
+                            {n.id === 'messages' && nonLusMsg > 0 && (
+                              <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10.5px] font-bold flex items-center justify-center">
+                                {nonLusMsg > 99 ? '99+' : nonLusMsg}
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>

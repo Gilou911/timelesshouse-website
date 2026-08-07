@@ -2,7 +2,17 @@
 -- 📊 TIMELESSHOUSE — SCHÉMA SUPABASE COMPLET (v2 — mai 2026)
 -- ════════════════════════════════════════════════════════════
 -- Généré à partir de l'introspection réelle de la base de données.
--- Fidèle à 100% à ce qui tourne en production.
+--
+-- ⚠️ PÉRIMÉ DEPUIS LE PASSAGE EN MARQUE BLANCHE (audit du 07/08/2026).
+--    Ce fichier date de l'époque où la base servait UN SEUL studio : ses
+--    policies « auth write … » (lignes 292-300) disent « tout compte
+--    connecté voit et écrit TOUT ». Sur une base multi-locataires, ce
+--    serait la fuite totale : chaque loge lirait les clients, les
+--    factures et les documents des autres. La production, elle, est
+--    cloisonnée par agence depuis (voir
+--    supabase/migrations/00000000000000_baseline_rls.sql).
+--    NE PAS EXÉCUTER sur la base actuelle. Pour une base neuve, partir
+--    de baseline_rls.sql puis des migrations de files/, dans l'ordre.
 --
 -- À exécuter UNE SEULE FOIS dans Supabase :
 --   Dashboard Supabase → SQL Editor → coller ce fichier → Run

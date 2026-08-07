@@ -42,9 +42,12 @@ Supabase → SQL Editor → coller **`migration-documents.sql`** → Run.
 - `communication-dashboard.html`
 - `schema.sql`
 
-> Astuce hébergement des fichiers : créez un bucket **public** « documents »
-> dans Supabase Storage, déposez vos PDF/images, copiez l'URL publique et
-> collez-la dans le champ « URL du fichier » du formulaire admin.
+> ⚠️ **N'hébergez pas un contrat dans un seau public.** Cette page
+> conseillait un bucket Supabase « public » : n'importe qui connaissant
+> l'URL — ou la devinant — lit alors le contrat, le devis, le RIB. Les
+> documents passent aujourd'hui par l'**upload** de la console, qui les
+> dépose sur B2 sous le préfixe de la loge et les sert par URL signée.
+> (Règle maison : un locataire ne colle jamais une URL, il téléverse.)
 
 ---
 

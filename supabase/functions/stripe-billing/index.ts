@@ -37,6 +37,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { aalSatisfait } from "../_shared/aal.ts";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -72,15 +73,32 @@ async function stripe(method: string, path: string, form?: Record<string, string
 
 // ─── Garde : owner d'une agence ─────────────────────────────
 type Caller = { userId: string; email: string; agencyId: string };
-async function requireOwner(req: Request): Promise<Caller | null> {
+/* Le verrou 2FA (audit du 07/08) : une session au mot de passe seul ne
+   pilote pas l'abonnement d'un compte protégé. Séparé de requireOwner
+   pour que le refus dise sa vraie raison. */
+async function refusDeuxFacteurs(req: Request): Promise<boolean> {
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  return !(await aalSatisfait(token));
+}
+async function requireOwner(req: Request, agenceDemandee: string): Promise<Caller | null> {
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   if (!token) return null;
   const { data, error } = await sbAdmin.auth.getUser(token);
   if (error || !data?.user) return null;
+  /* La loge n'est plus tirée au sort (audit du 07/08, même défaut que
+     team-member) : un compte peut être patron de plusieurs loges, et
+     `limit(1)` sans tri rendait une ligne arbitraire — de quoi ouvrir
+     un abonnement, ou en résilier un, sur une AUTRE loge que celle
+     affichée. La console nomme la sienne ; à défaut, on n'agit que si
+     l'appelant n'en dirige qu'une. */
   const { data: rows } = await sbAdmin
-    .from("agency_members").select("agency_id").eq("user_id", data.user.id).eq("role", "owner").limit(1);
+    .from("agency_members").select("agency_id").eq("user_id", data.user.id).eq("role", "owner");
   if (!rows?.length) return null;
-  return { userId: data.user.id, email: data.user.email || "", agencyId: rows[0].agency_id as string };
+  const ligne = agenceDemandee
+    ? rows.find((r) => r.agency_id === agenceDemandee)
+    : (rows.length === 1 ? rows[0] : null);
+  if (!ligne) return null;
+  return { userId: data.user.id, email: data.user.email || "", agencyId: ligne.agency_id as string };
 }
 
 // ─── Webhook : vérification de signature Stripe ─────────────
@@ -282,11 +300,19 @@ Deno.serve(async (req) => {
   }
 
   // ── Actions authentifiées (owner d'agence) ──
-  const caller = await requireOwner(req);
-  if (!caller) return json(403, { error: "Réservé au propriétaire de l'agence." });
-
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json(400, { error: "JSON invalide" }); }
+
+  const caller = await requireOwner(req, String(body.agency_id || "").trim());
+  if (!caller) {
+    return json(403, { error: "Réservé au propriétaire de l'agence — rechargez la console si vous dirigez plusieurs loges." });
+  }
+  if (await refusDeuxFacteurs(req)) {
+    return json(403, {
+      error: "Double vérification requise : reconnectez-vous avec votre code à 6 chiffres.",
+      code: "aal2_requis",
+    });
+  }
 
   const { data: agency } = await sbAdmin.from("agencies")
     .select("id, name, slug, contact_email, plan, stripe_customer_id, stripe_subscription_id")

@@ -27,6 +27,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { refusAal } from "../_shared/aal.ts";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -65,16 +66,40 @@ Deno.serve(async (req) => {
   if (!jwt) return json(401, { error: "Session requise." });
   const { data: who, error: wErr } = await sbAdmin.auth.getUser(jwt);
   if (wErr || !who?.user) return json(401, { error: "Session invalide." });
-  const { data: mienRows } = await sbAdmin
-    .from("agency_members").select("agency_id, role")
-    .eq("user_id", who.user.id).in("role", ["owner", "admin"]).limit(1);
-  const mien = mienRows?.[0];
-  if (!mien) return json(403, { error: "Réservé au propriétaire ou à un admin de l'agence." });
-  const agencyId = mien.agency_id as string;
-  const patron = mien.role === "owner";
+  // Le verrou 2FA vaut ici aussi (audit du 07/08).
+  const refus2fa = await refusAal(jwt, cors);
+  if (refus2fa) return refus2fa;
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json(400, { error: "JSON invalide" }); }
+
+  /* ── SUR QUELLE LOGE agit-on ? (audit du 07/08) ──
+     L'agence était tirée au sort : `limit(1)` sans tri sur les
+     appartenances de l'appelant. Un patron de la loge A qui est aussi
+     admin de la loge B pouvait donc, sans rien voir venir, inviter,
+     changer un rôle ou retirer quelqu'un DANS L'AUTRE LOGE que celle
+     affichée par sa console — l'ordre du heap Postgres change au moindre
+     UPDATE. La console nomme désormais la loge qu'elle affiche ; à
+     défaut, on n'agit que si l'appelant n'en dirige qu'une seule. */
+  const agenceDemandee = String(body.agency_id || "").trim();
+  const { data: mesDirections } = await sbAdmin
+    .from("agency_members").select("agency_id, role")
+    .eq("user_id", who.user.id).in("role", ["owner", "admin"]);
+  if (!mesDirections || mesDirections.length === 0) {
+    return json(403, { error: "Réservé au propriétaire ou à un admin de l'agence." });
+  }
+  const mien = agenceDemandee
+    ? mesDirections.find((m) => m.agency_id === agenceDemandee)
+    : (mesDirections.length === 1 ? mesDirections[0] : null);
+  if (!mien) {
+    return json(403, {
+      error: agenceDemandee
+        ? "Vous ne dirigez pas cette loge."
+        : "Plusieurs loges vous ont pour patron : rechargez la console pour préciser laquelle.",
+    });
+  }
+  const agencyId = mien.agency_id as string;
+  const patron = mien.role === "owner";
   const action = String(body.action || "");
 
   const displayName = String(body.display_name ?? "").trim().slice(0, 60) || null;

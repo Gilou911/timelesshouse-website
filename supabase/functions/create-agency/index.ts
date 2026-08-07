@@ -28,6 +28,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { refusAal } from "../_shared/aal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -100,6 +101,10 @@ Deno.serve(async (req) => {
 
   const caller = await requirePlatformOwner(req);
   if (!caller) return json(403, { error: "Réservé au propriétaire de la plateforme." });
+  // Le verrou 2FA franchit aussi cette porte (audit du 07/08).
+  const refus2fa = await refusAal(
+    (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, ""), corsHeaders);
+  if (refus2fa) return refus2fa;
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json(400, { error: "JSON invalide" }); }

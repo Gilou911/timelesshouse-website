@@ -23,6 +23,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { aalSatisfait } from "../_shared/aal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,15 +59,35 @@ async function sha1Hex(str: string): Promise<string> {
 // sont pas cloisonnés par agence — et que « destroy » supprime
 // n'importe quel visuel — cette fonction est réservée aux MEMBRES DE
 // L'AGENCE PLATEFORME uniquement.
+/* Audit du 07/08 : cette fonction se dit « même modèle de sécurité que
+   b2-sign » — elle ne l'était plus. Elle ne lisait ni le rang ni le
+   niveau de session : un membre au rang plancher de la plateforme, avec
+   une session au mot de passe seul, pouvait signer la SUPPRESSION
+   définitive de n'importe quelle photo. Elle rejoint le modèle. */
 async function requireAdmin(req: Request): Promise<boolean> {
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   if (!token) return false;
   const { data, error } = await sbAdmin.auth.getUser(token);
   if (error || !data?.user) return false;
-  const { data: rows } = await sbAdmin
-    .from("agency_members").select("agency_id, agencies!inner(slug)")
-    .eq("user_id", data.user.id).eq("agencies.slug", "timelesshouse").limit(1);
-  return !!rows && rows.length > 0;
+  if (!(await aalSatisfait(token))) return false;
+  /* `privileges` est une colonne ajoutée après coup : demandée dans un
+     select qui l'ignore, PostgREST refuserait TOUTE la requête. */
+  let rows = (await sbAdmin
+    .from("agency_members").select("role, privileges, agencies!inner(slug)")
+    .eq("user_id", data.user.id).eq("agencies.slug", "timelesshouse").limit(1)).data as
+    Array<Record<string, unknown>> | null;
+  if (!rows) {
+    rows = (await sbAdmin
+      .from("agency_members").select("role, agencies!inner(slug)")
+      .eq("user_id", data.user.id).eq("agencies.slug", "timelesshouse").limit(1)).data as
+      Array<Record<string, unknown>> | null;
+  }
+  if (!rows || rows.length === 0) return false;
+  const role = (rows[0].role as string) || "membre";
+  const privileges = Array.isArray(rows[0].privileges) ? (rows[0].privileges as string[]) : [];
+  // Les visuels d'un client ne se signent — ni surtout ne s'effacent —
+  // qu'avec le privilège qui ouvre les espaces clients.
+  return role === "owner" || role === "admin" || privileges.includes("clients");
 }
 
 Deno.serve(async (req) => {

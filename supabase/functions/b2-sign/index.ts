@@ -54,6 +54,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { aalSatisfait } from "../_shared/aal.ts";
 import {
   S3Client,
   PutObjectCommand,
@@ -130,20 +131,36 @@ function dispositionFor(key: string): string | undefined {
 // SES clients, invoices|documents/<clientId> idem ; photobooth/ est
 // réservé aux membres TimelessHouse — le compte machine photobooth
 // est membre admin de l'agence).
-type Caller = { userId: string; email: string; agencyIds: string[] };
+type Caller = { userId: string; email: string; agencyIds: string[]; rangs: Record<string, { role: string; privileges: string[] }> };
 
 async function requireAgencyMember(req: Request): Promise<Caller | null> {
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   if (!token) return null;
   const { data, error } = await sbAdmin.auth.getUser(token);
   if (error || !data?.user) return null;
-  const { data: rows } = await sbAdmin
-    .from("agency_members").select("agency_id").eq("user_id", data.user.id);
-  if (!rows || rows.length === 0) return null;
+  /* Le RANG voyage avec l'appelant. `privileges` est une colonne
+     ajoutée après coup : demandée dans un select qui l'ignore, PostgREST
+     refuserait TOUTE la requête — d'où le repli sans elle. */
+  type LigneMembre = { agency_id: string; role?: string; privileges?: string[] };
+  const complet = await sbAdmin
+    .from("agency_members").select("agency_id, role, privileges").eq("user_id", data.user.id);
+  const simple = complet.error
+    ? await sbAdmin.from("agency_members").select("agency_id, role").eq("user_id", data.user.id)
+    : complet;
+  const rows = (simple.data || []) as LigneMembre[];
+  if (rows.length === 0) return null;
+  const rangs: Record<string, { role: string; privileges: string[] }> = {};
+  for (const r of rows) {
+    rangs[r.agency_id] = {
+      role: r.role || "membre",
+      privileges: Array.isArray(r.privileges) ? r.privileges : [],
+    };
+  }
   return {
     userId: data.user.id,
     email: (data.user.email || "").toLowerCase(),
-    agencyIds: rows.map((r) => r.agency_id as string),
+    agencyIds: rows.map((r) => r.agency_id),
+    rangs,
   };
 }
 
@@ -317,6 +334,15 @@ Deno.serve(async (req) => {
     if (!token) return json(401, { error: "Session requise — reconnectez-vous." });
     const { data: u, error: eU } = await sbAdmin.auth.getUser(token);
     if (eU || !u?.user) return json(401, { error: "Session requise — reconnectez-vous." });
+    // Cette branche sort AVANT la garde d'agence : le verrou 2FA doit
+    // donc être posé ici aussi, sinon l'espace perso reste la porte
+    // ouverte que la vague voulait fermer.
+    if (!(await aalSatisfait(token))) {
+      return json(403, {
+        error: "Double vérification requise : reconnectez-vous avec votre code à 6 chiffres.",
+        code: "aal2_requis",
+      });
+    }
     const racineId = parts[1];
     const [proprio, editeur, racine] = await Promise.all([
       sbAdmin.from("perso_proprietaires").select("user_id")
@@ -349,6 +375,15 @@ Deno.serve(async (req) => {
 
   const caller = await requireAgencyMember(req);
   if (!caller) return json(401, { error: "Session admin requise — reconnecte-toi." });
+  /* Le verrou 2FA vaut ici aussi (audit du 07/08) : une session ouverte
+     avec le mot de passe SEUL ne signe plus rien sur B2 pour un compte
+     protégé. Le message dit la vraie raison plutôt qu'un vague refus. */
+  if (!(await aalSatisfait((req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "")))) {
+    return json(403, {
+      error: "Double vérification requise : reconnectez-vous avec votre code à 6 chiffres.",
+      code: "aal2_requis",
+    });
+  }
 
   if (!validKey(key)) {
     return json(400, { error: "Chemin de fichier invalide (préfixes autorisés : media/, weddings/, invoices/, documents/, photobooth/, agencies/)" });
@@ -356,6 +391,42 @@ Deno.serve(async (req) => {
   const keyAgency = await keyAgencyScope(caller, key);
   if (!keyAgency) {
     return json(403, { error: "Chemin hors du périmètre de votre agence." });
+  }
+  /* ── Le rang, pas seulement le périmètre (audit du 07/08) ──
+     Jusqu'ici la seule question posée était « ce chemin est-il chez
+     toi ? ». Un membre au rang plancher — qui garde la LECTURE des
+     espaces clients, donc connaît les codes et les identifiants —
+     pouvait ainsi signer la SUPPRESSION d'un film de mariage que la
+     base lui interdit pourtant de toucher. La règle appliquée ici est
+     celle de la base (files/migration-privileges.sql) :
+       · agencies/…  → le Drive et le logo : toute l'équipe (voulu) ;
+       · invoices/…  → les factures ne regardent jamais un membre ;
+       · le reste    → livrables clients : patron, admin, ou membre
+                       porteur du privilège « clients ». */
+  const rang = caller.rangs[keyAgency] || { role: "membre", privileges: [] };
+  const patronOuAdmin = rang.role === "owner" || rang.role === "admin";
+  const prefixe = key.split("/")[0];
+  if (prefixe === "agencies") {
+    /* Le Drive et le logo vivent ici. DÉPOSER est ouvert à toute
+       l'équipe — c'est le disque partagé, c'est voulu. EFFACER, non :
+       la base dit « ses propres dépôts, ou owner/admin — le plancher
+       n'efface pas les rushes du patron » (files/migration-drive.sql).
+       Sans cette ligne, l'exemption de préfixe rendait par la fenêtre
+       la suppression que la porte refuse. */
+    if (action === "sign-delete" && !patronOuAdmin) {
+      return json(403, { error: "Seul le patron de la loge peut supprimer définitivement un fichier du Drive." });
+    }
+  } else {
+    const permis = prefixe === "invoices"
+      ? patronOuAdmin
+      : patronOuAdmin || rang.privileges.includes("clients");
+    if (!permis) {
+      return json(403, {
+        error: prefixe === "invoices"
+          ? "Les factures sont réservées au patron de la loge."
+          : "Il vous manque le privilège « espaces clients » pour agir sur ces fichiers.",
+      });
+    }
   }
 
   try {

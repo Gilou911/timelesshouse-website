@@ -1197,7 +1197,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           const res = await fetch(`${SUPABASE_URL}/functions/v1/stripe-billing`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-            body: JSON.stringify({ action, ...payload }),
+            // La loge affichée voyage avec la demande : le serveur ne
+            // devine plus laquelle facturer (audit du 07/08).
+            body: JSON.stringify({ agency_id: AGENCY.id, action, ...payload }),
           });
           const json = await res.json().catch(() => ({}));
           if (!res.ok || !json.url) throw new Error(json.error || `Échec (${res.status})`);
@@ -2122,6 +2124,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [urgents, setUrgents] = useState(null); // sorties du jour + en retard
       const [sauterA, setSauterA] = useState('');   // jour à rejoindre en planning
       const [jourOuvert, setJourOuvert] = useState(null);  // jour déplié sous la grille (vue mois)
+      const refPanneauJour = useRef(null);
+      useEffect(() => {
+        if (!jourOuvert || !refPanneauJour.current) return;
+        const brusque = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        refPanneauJour.current.scrollIntoView({ block: 'nearest', behavior: brusque ? 'auto' : 'smooth' });
+      }, [jourOuvert]);
 
       const lundiDe = (d) => {
         const x = new Date(d);
@@ -2273,7 +2281,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const maintenant = new Date();
       const minMaintenant = maintenant.getHours() * 60 + maintenant.getMinutes();
 
-      const CHIP_TOURNAGE = 'text-[9.5px] leading-tight rounded-md px-1.5 py-1 bg-stone-800 text-white truncate w-full text-left';
+      const CHIP_TOURNAGE = 'text-[9.5px] leading-tight rounded-md px-1.5 py-1 bg-stone-900 text-white truncate w-full text-left';
 
       return (
         <div>
@@ -2398,29 +2406,38 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       const surplus = tout.length - visibles.length;
                       return (
                         <div key={cle}
-                          className="min-h-[92px] lg:min-h-[112px] p-1 lg:p-1.5 flex flex-col"
+                          className="relative min-h-[92px] lg:min-h-[112px] p-1 lg:p-1.5 flex flex-col"
                           style={{
                             borderTop: iCase < 7 ? 'none' : '1px solid rgba(127,127,127,0.12)',
                             borderLeft: iCase % 7 === 0 ? 'none' : '1px solid rgba(127,127,127,0.12)',
                           }}>
+                          {/* Sur téléphone, la CASE ENTIÈRE ouvre le jour —
+                              c'est ce que fait Google Agenda, et pour la
+                              même raison : une pastille d'événement fait
+                              18 px de haut, très en dessous des 44 px
+                              d'une cible tactile (audit du 07/08). Les
+                              pastilles restent cliquables à la souris. */}
+                          <button type="button" onClick={() => setJourOuvert(cle)}
+                            aria-hidden="true" tabIndex={-1}
+                            className="hidden pointer-coarse:block absolute inset-0 z-[1] rounded-lg active:bg-black/5" />
                           <button type="button"
                             onClick={() => setJourOuvert(jourOuvert === cle ? null : cle)}
                             aria-expanded={jourOuvert === cle}
                             aria-label={`${jourOuvert === cle ? 'Replier' : 'Déplier'} le ${d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}`}
-                            className={`tap-ext mx-auto mb-1 text-[11px] font-semibold flex items-center justify-center w-6 h-6 rounded-full active:scale-90 transition-transform ${cestAujourdhui ? 'bg-stone-900 text-white' : jourOuvert === cle ? 'bg-stone-300 text-stone-800' : dedans ? 'text-stone-700' : 'text-stone-400'}`}>
+                            className={`tap-ext relative z-[2] mx-auto mb-1 text-[11px] font-semibold flex items-center justify-center w-8 h-8 rounded-full active:scale-90 transition-transform ${cestAujourdhui ? 'bg-stone-900 text-white' : jourOuvert === cle ? 'bg-stone-300 text-stone-800' : dedans ? 'text-stone-700' : 'text-stone-400'}`}>
                             {d.getDate()}
                           </button>
-                          <div className="flex flex-col gap-[3px]">
+                          <div className="relative z-[2] flex flex-col gap-[3px] pointer-coarse:pointer-events-none">
                             {visibles.map((x) => x.genre === 'tournages' ? (
                               <button key={`t-${x.id}`} type="button" onClick={() => voirJour(d)}
                                 title={`${x.debut ? String(x.debut).slice(0, 5) + ' · ' : ''}${x.titre}${x.lieu ? ' — ' + x.lieu : ''}${x.client ? ' · ' + x.client : ''}`}
-                                className="text-[10px] lg:text-[10.5px] leading-[1.2] rounded px-1 lg:px-1.5 py-[3px] bg-stone-800 text-white truncate w-full text-left font-medium">
+                                className="text-[10px] lg:text-[10.5px] leading-[1.2] rounded px-1 lg:px-1.5 py-[3px] bg-stone-900 text-white truncate w-full text-left font-medium">
                                 {x.titre}
                               </button>
                             ) : (
                               <button key={`s-${x.id}`} type="button" onClick={() => ouvrirPost(x.post_id)}
                                 title={`${hhmm(x.prevue_le)} · ${x.titre} · ${RESEAUX[x.reseau]?.l || x.reseau}${x.client ? ' · ' + x.client : ''}`}
-                                className="text-[10px] lg:text-[10.5px] leading-[1.2] rounded px-1 lg:px-1.5 py-[3px] text-white truncate w-full text-left font-medium"
+                                className="text-[10px] lg:text-[10.5px] leading-[1.2] rounded px-1 lg:px-1.5 py-[3px] encre-blanche truncate w-full text-left font-medium"
                                 style={{ background: RESEAUX[x.reseau]?.c || '#6b6357' }}>
                                 {x.titre}
                               </button>
@@ -2452,7 +2469,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   ].sort((a, b) => a.tri - b.tri);
                   const libelleJ = dJ.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
                   return (
-                    <div role="region" aria-label={`Programme du ${libelleJ}`}
+                    <div role="region" aria-label={`Programme du ${libelleJ}`} ref={refPanneauJour}
                       style={{ ...neu.pressedSm, animation: 'th-entre 0.28s cubic-bezier(0.32,0.72,0,1) backwards' }}
                       className="mt-3 rounded-2xl p-3.5">
                       <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
@@ -2590,8 +2607,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                             return (
                               <button key={t.id} type="button" onClick={() => voirJour(d)}
                                 title={`${String(t.debut).slice(0, 5)}${t.fin ? '–' + String(t.fin).slice(0, 5) : ''} ${t.titre}${t.lieu ? ' — ' + t.lieu : ''}`}
-                                className="absolute left-0.5 right-0.5 rounded-md bg-stone-800 text-white text-[9.5px] leading-tight px-1.5 py-1 text-left overflow-hidden"
-                                style={{ top: yDe(du), height: Math.max(30, yDe(au) - yDe(du)) }}>
+                                className="absolute left-0.5 right-0.5 rounded-md bg-stone-900 text-white text-[9.5px] leading-tight px-1.5 py-1 text-left overflow-hidden"
+                                style={{ top: yDe(du), height: Math.max(36, yDe(au) - yDe(du)) }}>
                                 <span className="font-semibold">{String(t.debut).slice(0, 5)}</span> {t.type === 'video' ? '🎥' : '📸'} {t.titre}
                               </button>
                             );
@@ -2601,9 +2618,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                             return (
                               <button key={s.id} type="button" onClick={() => ouvrirPost(s.post_id)}
                                 title={`${hhmm(s.prevue_le)} ${s.titre} · ${RESEAUX[s.reseau]?.l || s.reseau}`}
-                                className="absolute rounded-md text-white text-[9.5px] leading-tight px-1.5 py-1 text-left overflow-hidden"
+                                className="absolute rounded-md encre-blanche text-[9.5px] leading-tight px-1.5 py-1 text-left overflow-hidden"
                                 style={{
-                                  top: yDe(min), height: 30, zIndex: 3,
+                                  top: yDe(min), height: 36, zIndex: 3,
                                   left: `${2 + (iS % 2) * 8}%`, right: '2%',
                                   background: RESEAUX[s.reseau]?.c || '#6b6357',
                                 }}>
@@ -4979,7 +4996,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         const res = await fetch(`${SUPABASE_URL}/functions/v1/team-member`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-          body: JSON.stringify(corps),
+          // La loge AFFICHÉE voyage avec la demande : le serveur n'a plus
+          // à deviner laquelle, il vérifie qu'on la dirige (audit 07/08).
+          body: JSON.stringify({ agency_id: AGENCY.id, ...corps }),
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error || `Échec (${res.status})`);
@@ -6983,6 +7002,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const m = String(brut || '');
       const detail = FEATURES.allUniverses && m ? ` (détail : ${m})` : '';
       if (/quota|palier|offre|découverte/i.test(m) && /[éèàç ]/.test(m)) return m;
+      /* Nos propres refus sont DÉJÀ écrits pour un humain : les traduire
+         une seconde fois les changeait en « Quelque chose n'a pas
+         fonctionné », qui n'apprend rien — c'est exactement le piège où
+         un refus RLS avait été rebaptisé « offre actuelle » (02/08). */
+      if (/double vérification|code à 6 chiffres|privilège|patron de la loge|dirigez pas cette loge|réservées au patron/i.test(m)) return m;
       if (/row-level security|violates row-level|permission denied|not.?allowed/i.test(m))
         return (contexte === 'client'
           ? 'Votre offre actuelle ne permet pas de créer un espace client supplémentaire. Passez au palier supérieur (Paramètres → Abonnement), ou supprimez un espace existant.'
@@ -13137,7 +13161,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           sb.from('invoices').select('amount'),
           sb.from('shoots').select('id', { count: 'exact', head: true }),
           sb.rpc('my_agency_storage'),
-          sb.from('agencies').select('plan, subscription_status, stripe_subscription_id, billing_interval').limit(1).maybeSingle(),
+          // L'abonnement lu est celui de la loge AFFICHÉE, jamais « la
+          // première venue » (audit du 07/08).
+          (AGENCY.id
+            ? sb.from('agencies').select('plan, subscription_status, stripe_subscription_id, billing_interval').eq('id', AGENCY.id)
+            : sb.from('agencies').select('plan, subscription_status, stripe_subscription_id, billing_interval').order('created_at').limit(1)
+          ).maybeSingle(),
         ]);
         const totalRevenue = (i.data || []).reduce((a, b) => a + parseFloat(b.amount || 0), 0);
         setOverviewData({
@@ -13178,14 +13207,32 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
            migration du chat n'est pas appliquée. Ici, au pire, le chat
            n'apparaît pas. */
         const CHAMPS = 'id, name, slug, active, status, plan, contact_email, logo_url, accent_color, bg_color, features_analytics, features_portfolio, features_all_universes';
-        const { data } = await sb.from('agencies').select(CHAMPS).limit(1).maybeSingle();
+        /* QUELLE loge ? Sur <slug>.laloge.house, c'est celle du domaine —
+           on la NOMME. Un même compte peut diriger plusieurs loges (les
+           comptes sont réutilisés à la création), et « la première venue »
+           changeait au gré de l'ordre des lignes en base : la console
+           pouvait afficher une loge et agir sur l'autre (audit du 07/08).
+           Repli sans filtre si le slug ne donne rien — mieux vaut une
+           console qui s'ouvre qu'un écran vide. */
+        const hoteSlug = (window.location.hostname.match(/^([a-z0-9-]+)\.laloge\.house$/i) || [])[1];
+        let data = null;
+        if (hoteSlug && hoteSlug.toLowerCase() !== 'www') {
+          const { data: d } = await sb.from('agencies').select(CHAMPS).eq('slug', hoteSlug.toLowerCase()).maybeSingle();
+          data = d || null;
+        }
+        // Repli ORDONNÉ : sans tri, PostgREST rend une ligne arbitraire et
+        // l'ordre du tas Postgres change au moindre UPDATE — la console
+        // pouvait changer de loge d'un rechargement à l'autre.
+        if (!data) ({ data } = await sb.from('agencies').select(CHAMPS).order('created_at').limit(1).maybeSingle());
         FEATURES.analytics    = data?.features_analytics === true;
         FEATURES.portfolio    = data?.features_portfolio === true;
         FEATURES.allUniverses = data?.features_all_universes === true;
         AGENCY.id   = data?.id || null;
         AGENCY.slug = data?.slug || null;
         try {
-          const { data: b } = await sb.from('agencies').select('beta_chat').limit(1).maybeSingle();
+          let q = sb.from('agencies').select('beta_chat');
+          q = AGENCY.id ? q.eq('id', AGENCY.id) : q.limit(1);
+          const { data: b } = await q.maybeSingle();
           AGENCY.betaChat = b?.beta_chat === true;
         } catch (_) { AGENCY.betaChat = false; }
         AGENCY.name = data?.name || null;

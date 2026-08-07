@@ -23,6 +23,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { refusAal } from "../_shared/aal.ts";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -61,6 +62,12 @@ Deno.serve(async (req) => {
   if (eProprio || estProprio !== true) {
     return json(403, { error: "Réservé au propriétaire de la plateforme." });
   }
+  /* Le verrou 2FA vaut ICI aussi (audit du 07/08) : sans ce contrôle,
+     une session ouverte avec le mot de passe SEUL pouvait appeler cette
+     fonction et supprimer les facteurs — la double vérification se
+     désarmait elle-même. C'est le même juge qu'en base. */
+  const refus2fa = await refusAal(jeton, cors);
+  if (refus2fa) return refus2fa;
 
   // ── 2. Le compte visé ──
   const { email } = await req.json().catch(() => ({}));

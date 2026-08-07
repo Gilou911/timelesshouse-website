@@ -32,6 +32,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { aalSatisfait } from "../_shared/aal.ts";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -200,6 +201,14 @@ Deno.serve(async (req) => {
     const sbAppelant = createClient(SB_URL, SB_ANON_KEY, {
       global: { headers: { Authorization: `Bearer ${jeton}` } },
     });
+    // Le verrou 2FA vaut ici aussi (audit du 07/08) : cette fonction crée
+    // des comptes et accorde le rang éditeur.
+    if (!(await aalSatisfait(jeton))) {
+      return json(403, {
+        error: "Double vérification requise : reconnectez-vous avec votre code à 6 chiffres.",
+        code: "aal2_requis",
+      });
+    }
     const { data: estProprio, error: eProprio } = await sbAppelant.rpc("perso_est_proprietaire");
     if (eProprio || estProprio !== true) {
       return json(403, { error: "Réservé au propriétaire." });

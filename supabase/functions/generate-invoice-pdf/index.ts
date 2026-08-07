@@ -28,6 +28,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { refusAal } from "../_shared/aal.ts";
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import fontkit from "npm:@pdf-lib/fontkit@1.1.1";
 import { S3Client, PutObjectCommand } from "npm:@aws-sdk/client-s3@3.620.0";
@@ -96,6 +97,21 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authErr } = await userClient.auth.getUser();
     if (authErr || !user) return json({ error: "Non autorisé : connectez-vous à l'admin." }, 401);
 
+    /* ── 1 bis. …et il faut être PATRON DE LA LOGE DE CETTE FACTURE ──
+       Audit du 07/08 : « connecté » était TOUT le contrôle. N'importe
+       quel compte du projet — un patron inscrit en libre-service, un
+       invité de l'espace perso membre d'aucune agence — pouvait faire
+       générer le PDF d'une facture d'une AUTRE loge (nom, adresse de
+       facturation, téléphone du client final, montant) et écraser le
+       lien que ce client voit dans son espace. Deux étages à franchir
+       désormais : la double vérification si le compte la porte, puis
+       owner/admin sur l'agence de la facture — les factures ne
+       regardent jamais un membre, c'est déjà la règle en base
+       (files/migration-privileges.sql). */
+    const jeton = authHeader.replace(/^Bearer\s+/i, "");
+    const refus2fa = await refusAal(jeton, CORS);
+    if (refus2fa) return refus2fa;
+
     // ── 2. Charger la facture + le client (service role) ──
     const { invoice_id } = await req.json().catch(() => ({}));
     if (!invoice_id) return json({ error: "invoice_id manquant" }, 400);
@@ -110,6 +126,12 @@ Deno.serve(async (req) => {
       .eq("id", invoice_id)
       .single();
     if (invErr || !inv) return json({ error: "Facture introuvable" }, 404);
+
+    const { data: droit } = await admin
+      .from("agency_members").select("role")
+      .eq("user_id", user.id).eq("agency_id", inv.agency_id)
+      .in("role", ["owner", "admin"]).maybeSingle();
+    if (!droit) return json({ error: "Cette facture n'appartient pas à votre loge." }, 403);
 
     let shootLine = "";
     if (inv.shoot_id) {

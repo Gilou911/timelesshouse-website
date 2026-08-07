@@ -92,6 +92,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     const chargerEquipe = async () => {
       const avecLoge = await sb.rpc('equipe_agence', { p_agence: AGENCY.id });
       if (!avecLoge.error) return avecLoge;
+      /* On ne retombe QUE sur « PostgREST ne connaît pas cette
+         signature » (SQL de la vague 2 pas encore passé). Sur une panne
+         réseau, retomber rendrait l'équipe de TOUTES les loges du compte
+         — pire que d'échouer franchement. */
+      const m = `${avecLoge.error.code || ''} ${avecLoge.error.message || ''}`;
+      if (!/PGRST202|does not exist|not find the function|schema cache/i.test(m)) return avecLoge;
       return await sb.rpc('equipe_agence');
     };
 
@@ -4374,7 +4380,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           .select('id, nom, parent_id').eq('genre', 'dossier').order('nom');
         setDossiers(data || []);
       };
-      useEffect(() => { setItems(null); charger(); }, [dossier]);
+      useEffect(() => { setItems(null); setSels(new Set()); charger(); }, [dossier]);
       useEffect(() => { chargerDossiers(); }, []);
 
       // Des versions allégées se préparent ? On repasse voir.
@@ -4474,7 +4480,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       useEffect(() => { sb.auth.getUser().then(({ data }) => setMonId(data?.user?.id || null)); }, []);
       const peutSupprimer = (it) => !it
         || MON_ROLE.value !== 'membre'
-        || !it.cree_par || it.cree_par === monId;
+        || (!!it.cree_par && it.cree_par === monId);
 
       const supprimer = async (it) => {
         const avert = it.genre === 'dossier'
@@ -4609,7 +4615,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 /* En sélection multiple, on ne propose la corbeille que si
                    TOUT ce qui est coché est effaçable par cette personne —
                    un lot à moitié supprimé est le pire des deux mondes. */
-                const tout = [...sels].every((id) => peutSupprimer(items.find((x) => x.id === id)));
+                const tout = [...sels].every((id) => peutSupprimer((items || []).find((x) => x.id === id)));
                 return tout ? (
                   <Btn icon={Trash2} onClick={supprimerLot} disabled={!sels.size} className="text-rose-600">Supprimer</Btn>
                 ) : null;
@@ -13325,9 +13331,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
            Ici, au pire, on ne bride rien — le comportement d'avant.
            Un métier résilié reste utilisable jusqu'à son échéance. */
         try {
-          const { data: mets } = await sb
-            .from('agency_universes')
-            .select('universe, source, status, valid_until');
+          let q = sb.from('agency_universes').select('universe, source, status, valid_until');
+          // La loge AFFICHÉE, pas l'union de celles du compte.
+          if (AGENCY.id) q = q.eq('agency_id', AGENCY.id);
+          const { data: mets } = await q;
           MES_METIERS.length = 0;
           MES_METIERS_DETAIL.length = 0;
           (mets || []).forEach((m) => {
@@ -13385,7 +13392,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [nonLusMsg, setNonLusMsg] = useState(0);
       const [repliOuvert, setRepliOuvert] = useState(false);   // feuille « Plus » de la barre mobile
       const chargerNonLus = async () => {
-        if (!aLeMetier('communication')) { setNonLusMsg(0); return; }
+        // Les messages d'équipe ne dépendent d'aucun métier (audit 07/08).
         try {
           const { data } = await sb.from('team_messages')
             .select('auteur_id, dest_id, created_at')
@@ -13426,10 +13433,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (!featuresReady || MON_ROLE.value !== 'membre') return;
         const comm = aLeMetier('communication');
         const clients = MES_PRIVILEGES.includes('clients');
-        const permis = new Set(['settings',
-          ...(comm ? ['agenda', 'taches', 'equipe', 'messages', 'drive'] : []),
+        // Le socle d'équipe est là quel que soit le métier ; seul
+        // l'agenda éditorial dépend de Communication.
+        const permis = new Set(['settings', 'taches', 'equipe', 'messages', 'drive',
+          ...(comm ? ['agenda'] : []),
           ...(clients ? ['clients'] : [])]);
-        if (!permis.has(section)) setSection(comm ? 'agenda' : (clients ? 'clients' : 'settings'));
+        if (!permis.has(section)) setSection(comm ? 'agenda' : 'taches');
       }, [featuresReady, section]);
 
       const logout = async () => { await sb.auth.signOut(); };
@@ -13565,16 +13574,20 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   /* L'agenda est l'outil du métier Communication & Marketing :
                      il n'a rien à faire chez un photographe de mariage.
                      FEATURES.allUniverses = la plateforme, qui voit tout. */
+                  /* L'AGENDA ÉDITORIAL est l'outil du métier Communication :
+                     il n'a rien à faire chez un photographe de mariage. */
                   ...(aLeMetier('communication')
-                    ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' },
-                       /* L'onglet du MEMBRE : ses tâches en un seul
-                          endroit (demande de Gil) — le patron garde
-                          les siennes dans Équipe, avec la gestion. */
-                       ...(MON_ROLE.value === 'membre'
-                         ? [{ id: 'taches', icon: ClipboardList, label: 'Mes tâches' }] : []),
-                       { id: 'equipe', icon: UsersRound, label: 'Équipe' },
-                       { id: 'messages', icon: MessageSquare, label: 'Messages' },
-                       { id: 'drive', icon: FolderOpen, label: 'Drive' }] : []),
+                    ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' }] : []),
+                  /* Le SOCLE D'ÉQUIPE, lui, ne dépend d'aucun métier : ses
+                     policies parlent d'agence, jamais d'univers, et le rang
+                     plancher promet précisément ces écrans-là. Les avoir
+                     rangés sous « Communication » enfermait le membre d'une
+                     loge de mariage dans ses seuls Paramètres (audit 07/08). */
+                  ...(MON_ROLE.value === 'membre'
+                    ? [{ id: 'taches', icon: ClipboardList, label: 'Mes tâches' }] : []),
+                  { id: 'equipe', icon: UsersRound, label: 'Équipe' },
+                  { id: 'messages', icon: MessageSquare, label: 'Messages' },
+                  { id: 'drive', icon: FolderOpen, label: 'Drive' },
                   /* Les Revenus ne regardent pas un « membre » (cadreur,
                      monteur…) : c'est la comptabilité du studio. */
                   ...(MON_ROLE.value === 'membre' ? [] : [{ id: 'revenus', icon: TrendingUp, label: 'Revenus' }]),
@@ -13699,16 +13712,16 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                  et Messages restent au menu desktop : huit onglets
                  feraient des cibles sous les 44 px du HIG. */
               ...(aLeMetier('communication')
-                ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' },
-                   ...(agencies !== null ? [] : [
-                     ...(MON_ROLE.value === 'membre'
-                       ? [{ id: 'taches', icon: ClipboardList, label: 'Tâches' }] : []),
-                     { id: 'equipe', icon: UsersRound, label: 'Équipe' },
-                     { id: 'messages', icon: MessageSquare, label: 'Messages' },
-                     /* 7 onglets locataire : 46,7 px la cible — au-dessus
-                        du plancher HIG de 44 px, vérifié au calcul. */
-                     { id: 'drive', icon: FolderOpen, label: 'Drive' },
-                   ])] : []),
+                ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' }] : []),
+              /* Le socle d'équipe, comme au menu latéral : il ne dépend
+                 d'aucun métier. Au-delà de six onglets, le repli « Plus »
+                 prend le relais — plus besoin de priver la plateforme
+                 d'Équipe et de Messages sur téléphone. */
+              ...(MON_ROLE.value === 'membre'
+                ? [{ id: 'taches', icon: ClipboardList, label: 'Tâches' }] : []),
+              { id: 'equipe', icon: UsersRound, label: 'Équipe' },
+              { id: 'messages', icon: MessageSquare, label: 'Messages' },
+              { id: 'drive', icon: FolderOpen, label: 'Drive' },
               ...(MON_ROLE.value === 'membre' ? [] : [{ id: 'revenus', icon: TrendingUp, label: 'Revenus' }]),
               ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),
               ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),

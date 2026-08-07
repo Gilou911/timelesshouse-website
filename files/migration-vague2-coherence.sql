@@ -71,6 +71,31 @@ end $$;
 --  touchée : c'est elle que la page client appelle pour valider ses
 --  montages, et elle ne doit rien connaître des privilèges de l'équipe.
 
+/* La table peut porter une CONTRAINTE écrite du temps où le statut
+   s'appelait 'changes' (files/schema.sql:198). La production accepte
+   pourtant 'changes_requested' — une ligne en porte déjà un. Ce bloc ne
+   fait donc rien dans le cas normal, et élargit la contrainte si une
+   vieille version traîne : sans lui, la fonction ci-dessous écrirait un
+   statut que la table refuse. */
+do $$
+declare c_nom text;
+begin
+  select con.conname into c_nom
+    from pg_constraint con
+    join pg_class t on t.oid = con.conrelid
+    join pg_namespace n on n.oid = t.relnamespace
+   where n.nspname = 'public' and t.relname = 'media' and con.contype = 'c'
+     and pg_get_constraintdef(con.oid) ilike '%approval_status%'
+     and pg_get_constraintdef(con.oid) not ilike '%changes_requested%';
+  if c_nom is not null then
+    execute format('alter table public.media drop constraint %I', c_nom);
+    alter table public.media
+      add constraint media_approval_status_check
+      check (approval_status in ('pending', 'approved', 'changes_requested'));
+    raise notice 'Contrainte de statut élargie à changes_requested.';
+  end if;
+end $$;
+
 create or replace function update_media_approval(p_media_id uuid, p_status text) returns void
 language plpgsql security definer set search_path = public as $$
 declare v_agence uuid;
@@ -165,6 +190,19 @@ drop policy if exists "auth write media"          on media;
 drop policy if exists "auth write media_comments" on media_comments;
 drop policy if exists "auth write notifications"  on notifications;
 drop policy if exists "auth write shoots"         on shoots;
+-- Et celles qui disent la même chose avec « auth.uid() is not null » —
+-- la contre-épreuve a montré que le premier filet, écrit sur les seuls
+-- noms « auth write … », les laissait passer.
+drop policy if exists "comments auth update"      on media_comments;
+drop policy if exists "comments auth delete"      on media_comments;
+drop policy if exists "notif auth all"            on notifications;
+drop policy if exists "public read clients"       on clients;
+drop policy if exists "public read analytics"     on analytics;
+drop policy if exists "public read event_pages"   on event_pages;
+drop policy if exists "public read invoices"      on invoices;
+drop policy if exists "public read media"         on media;
+drop policy if exists "public read notifications" on notifications;
+drop policy if exists "public read shoots"        on shoots;
 drop policy if exists "public read media_comments"         on media_comments;
 drop policy if exists "public read social_stat_snapshots"  on social_stat_snapshots;
 drop policy if exists "anon read social_stat_snapshots"    on social_stat_snapshots;
@@ -195,13 +233,23 @@ select tablename, policyname, roles
                      'gallery_photos','event_pages','strategies','analytics')
    and 'anon' = any(roles);
 
--- 3) Aucune policy aveugle à l'agence ne subsiste.
+-- 3) Aucune policy aveugle à l'agence ne subsiste. On cherche les TROIS
+--    formes que prennent ces vieilles policies : « auth.role() », le nu
+--    « auth.uid() is not null », et le « using (true) » ouvert à tous.
 --    Attendu : 0 ligne.
-select tablename, policyname
+select tablename, policyname, roles, cmd
   from pg_policies
  where schemaname = 'public'
-   and (qual like '%auth.role()%' or with_check like '%auth.role()%');
+   and (coalesce(qual, '') || ' ' || coalesce(with_check, '')) ~
+       '(auth\.role\(\)|auth\.uid\(\) is not null)'
+   and policyname not like 'exige aal2%';
 
--- 4) L'équipe se demande loge par loge.
---    Attendu : la liste de VOTRE équipe (identique à avant).
-select jsonb_array_length(equipe_agence()) as coequipiers;
+-- 4) La fonction d'équipe existe bien avec son nouveau paramètre.
+--    (On ne l'APPELLE pas ici : dans l'éditeur SQL vous n'êtes pas un
+--    utilisateur connecté — auth.uid() est nul —, la réponse serait
+--    toujours vide et ne prouverait rien. C'est la console qui la vérifie
+--    vraiment : votre équipe doit s'y afficher comme avant.)
+--    Attendu : une ligne, « equipe_agence(p_agence uuid) ».
+select p.proname || '(' || pg_get_function_arguments(p.oid) || ')' as signature
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.proname = 'equipe_agence';

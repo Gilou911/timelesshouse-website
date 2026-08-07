@@ -1,3 +1,25 @@
+-- ═══════════════════════════════════════════════════════════════════
+-- ⛔  FICHIER HISTORIQUE — NE PLUS EXÉCUTER (audit du 07/08/2026)
+-- ═══════════════════════════════════════════════════════════════════
+--  Ce fichier date d'AVANT la marque blanche, quand la base servait un
+--  seul studio. Le rejouer aujourd'hui rouvrirait la base ENTIÈRE : ses policies « public read … » rendent
+--  clients, factures, documents et médias lisibles par n'importe quel
+--  visiteur, et ses « auth write … » laissent tout compte connecté
+--  écrire chez tous les locataires.
+--
+--  Le garde-fou ci-dessous ARRÊTE le script dès la première ligne :
+--  l'éditeur SQL de Supabase exécute tout dans une transaction, donc
+--  rien ne s'applique. Il est là parce qu'un commentaire d'avertissement
+--  ne suffit pas — on colle un fichier sans le lire jusqu'au bout.
+--
+--  Ce fichier reste dans le dépôt comme ARCHIVE : il raconte d'où vient
+--  le schéma. Pour agir sur la base d'aujourd'hui, voir
+--  files/AUDIT-COHERENCE-2026-08.md et les migrations récentes.
+-- ═══════════════════════════════════════════════════════════════════
+do $$ begin
+  raise exception 'ARCHIVE — ne pas exécuter : ce schéma est mono-locataire, il rouvrirait la base à tout le monde (voir l''en-tête du fichier).';
+end $$;
+
 -- ════════════════════════════════════════════════════════════
 -- 📊 TIMELESSHOUSE — SCHÉMA SUPABASE COMPLET (v2 — mai 2026)
 -- ════════════════════════════════════════════════════════════

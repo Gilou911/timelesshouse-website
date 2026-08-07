@@ -160,6 +160,12 @@ Deno.serve(async (req) => {
     }
     const th = agencies.find((a) => a.slug === "timelesshouse")?.id ?? agencies[0].id;
     const byMediaId  = new Map((medias  || []).map((m) => [m.id, m.agency_id]));
+    // agencies/<slug>/… : le Drive et le logo d'une loge. Ce préfixe est
+    // né APRÈS cette fonction : tout le Drive était compté à la
+    // plateforme, alors que b2-sign le facture à la loge à chaque dépôt
+    // — le scan de réconciliation défaisait donc chaque nuit ce que le
+    // compteur avait fait dans la journée (audit du 07/08).
+    const bySlug     = new Map(agencies.map((a) => [a.slug, a.id]));
     const byCode     = new Map((clients || []).map((c) => [c.code, c.agency_id]));
     const byClientId = new Map((clients || []).map((c) => [c.id, c.agency_id]));
 
@@ -168,6 +174,7 @@ Deno.serve(async (req) => {
       if (prefix === "media")     return byMediaId.get(second)  ?? th;
       if (prefix === "weddings")  return byCode.get(second)     ?? th;
       if (prefix === "invoices" || prefix === "documents") return byClientId.get(second) ?? th;
+      if (prefix === "agencies")  return bySlug.get(second)     ?? th;
       return th; // photobooth/ et tout le reste = plateforme
     };
 

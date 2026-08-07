@@ -133,6 +133,22 @@ Deno.serve(async (req) => {
       .in("role", ["owner", "admin"]).maybeSingle();
     if (!droit) return json({ error: "Cette facture n'appartient pas à votre loge." }, 403);
 
+    /* ⚠️ L'ÉMETTEUR EST EN DUR (voir EMETTEUR/RIB en tête) : société,
+       adresse et IBAN de TimelessHouse. Générer ce PDF pour la facture
+       d'un LOCATAIRE enverrait donc à SON client une facture au nom et
+       au RIB de la plateforme — son client paierait sur le mauvais
+       compte. Tant que l'identité de facturation n'est pas une donnée de
+       la loge, cette fonction ne sert que la plateforme (audit 07/08). */
+    const { data: laLoge } = await admin
+      .from("agencies").select("slug, name").eq("id", inv.agency_id).maybeSingle();
+    if (laLoge?.slug !== "timelesshouse") {
+      return json({
+        error: "Le PDF de facture n'est pas encore disponible pour votre loge : "
+             + "il porterait l'identité de facturation de la plateforme. "
+             + "Envoyez votre facture depuis votre propre outil pour l'instant.",
+      }, 501);
+    }
+
     let shootLine = "";
     if (inv.shoot_id) {
       const { data: shoot } = await admin

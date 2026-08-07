@@ -109,7 +109,10 @@
     /* En nuit, une pastille très sombre (le noir TikTok) se fondait dans
        le graphite : son texte restait lisible mais la pastille n'avait
        plus de contour. Un liseré la redessine sans toucher à l'encre. */
-    [data-theme="dark"] .encre-blanche { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28); }
+    /* Le liseré ne concerne que les pastilles de l'Agenda, posées sur
+       des couleurs proches du graphite. Sur un voile noir (vignettes du
+       Drive), il ferait un cadre inutile — d'où la classe compagnon. */
+    [data-theme="dark"] .encre-blanche:not(.sans-lisere) { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28); }
     [data-theme="dark"] .placeholder\:text-stone-400::placeholder { color: #8b909a !important; }
     [data-theme="dark"] .border-stone-200 { border-color: rgba(255,255,255,0.07) !important; }
     [data-theme="dark"] .border-stone-300 { border-color: rgba(232,216,190,0.22) !important; }
@@ -127,6 +130,21 @@
     [data-theme="dark"] .bg-emerald-100 { background-color: rgba(16,185,129,0.18) !important; }
     [data-theme="dark"] .text-emerald-700, [data-theme="dark"] .text-emerald-600 { color: #7fdcab !important; }
     [data-theme="dark"] .bg-violet-100 { background-color: rgba(139,92,246,0.18) !important; }
+    /* Les teintes oubliées de l'audit du 07/08 — mêmes mesures que
+       leurs sœurs, sur la carte sombre #22262d : indigo 6,5:1,
+       fuchsia 7,2:1, sky 6,3:1, emerald 7,1:1. */
+    [data-theme="dark"] .bg-indigo-100  { background-color: rgba(99,102,241,0.18) !important; }
+    [data-theme="dark"] .text-indigo-700  { color: #a5b4fc !important; }
+    [data-theme="dark"] .bg-fuchsia-100 { background-color: rgba(217,70,239,0.18) !important; }
+    [data-theme="dark"] .text-fuchsia-700 { color: #f0abfc !important; }
+    [data-theme="dark"] .bg-sky-100     { background-color: rgba(14,165,233,0.18) !important; }
+    [data-theme="dark"] .text-sky-700     { color: #7dc4f5 !important; }
+    [data-theme="dark"] .bg-emerald-50  { background-color: rgba(16,185,129,0.14) !important; }
+    [data-theme="dark"] .text-emerald-800 { color: #7fdcab !important; }
+    /* Les blocs de commande : leur fond bascule en crème via
+       .bg-stone-900, mais leur encre restait blanche — 1,3:1, illisible.
+       Elle suit son fond (12,7:1 mesuré). */
+    [data-theme="dark"] .text-stone-100 { color: #1a1410 !important; }
     [data-theme="dark"] .text-violet-700 { color: #c4b0fa !important; }
     /* Le badge de non-lus s'ÉCLAIRCIT en sombre (l'encre y devient
        sombre via .text-white) : 4,97:1 mesuré. */

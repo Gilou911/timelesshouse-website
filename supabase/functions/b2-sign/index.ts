@@ -117,9 +117,13 @@ function publicUrl(key: string): string {
 // charger plusieurs Go en mémoire pour contourner ça).
 // Nom assaini côté serveur : jamais d'injection d'en-tête depuis le client.
 function dispositionFor(key: string): string | undefined {
-  // `/original/…` (vidéos) ET `…/original.jpg` (photos de galerie) : tout
-  // fichier « original » est destiné au téléchargement, pas à l'affichage.
-  if (!/\/original[./]/.test(key)) return undefined;
+  /* `/original/…` (vidéos), `…/original.jpg` (photos de galerie) ET
+     `…/original-mon-film.mp4` (dépôts du Drive, qui collent le nom
+     d'origine après un TIRET) : tout fichier « original » est destiné au
+     téléchargement, pas à l'affichage. Le tiret manquait — un montage
+     livré depuis le Drive s'ouvrait donc dans un onglet au lieu de se
+     télécharger chez le client (audit du 07/08). */
+  if (!/\/original[./-]/.test(key)) return undefined;
   const name = (key.split("/").pop() || "fichier").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
   return `attachment; filename="${name}"`;
 }

@@ -688,6 +688,19 @@
       .logo { font-size: 12px; }
     }
 
+
+    /* Animations réduites : la règle manquait sur cette page alors que
+       tout le reste du site la respecte (audit du 07/08). Certains
+       vestibulaires ne supportent pas le mouvement — ce n'est pas une
+       préférence esthétique, c'est un besoin. */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
   </style>
 </head>
 <body>

@@ -157,6 +157,11 @@
     }
     .card .ico svg { width: 23px; height: 23px; }
     .pill svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+    /* Pastille « bientôt » : même vocabulaire que le rail des métiers. */
+    .bientot-pastille { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px;
+      background: var(--pressed); color: var(--muted); font-family: 'Manrope', sans-serif;
+      font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+      vertical-align: middle; }
     .card h3 { font-size: 17px; margin-top: 14px; letter-spacing: -0.01em; }
     .card p { font-size: 13.5px; color: var(--muted); margin-top: 8px; }
 
@@ -829,8 +834,8 @@
           </div>
           <div class="card reveal">
             <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.2h16"/><path d="M6.4 15.2l3.7-3.8 3 2.5 4.6-5.6"/><path d="M18.2 8.3H14.6M18.2 8.3v3.6"/></svg></div>
-            <h3>Analyses sociales</h3>
-            <p>Pour vos clients entreprises : Instagram &amp; TikTok connectés, audience, engagement et synthèses — directement dans leur espace.</p>
+            <h3>Analyses sociales <span class="bientot-pastille">bientôt</span></h3>
+            <p>Pour vos clients entreprises : Instagram &amp; TikTok connectés, audience, engagement et synthèses — directement dans leur espace. Cet écran s'ouvre loge par loge, sur demande.</p>
           </div>
         </div>
       </div>
@@ -850,7 +855,7 @@
             <div class="p-store">3 Go</div>
             <ul>
               <li>1 espace client</li>
-              <li>Toutes les fonctionnalités</li>
+              <li>Toutes les fonctionnalités livrées</li>
               <li>Badge « propulsé par La Loge »</li>
               <li>Rétention 90 jours</li>
             </ul>
@@ -1109,8 +1114,15 @@
         var voulu = new URLSearchParams(location.search).get('metier');
         var cible = voulu && rail.querySelector('button[data-univ="' + voulu + '"]:not([disabled])');
         if (cible) cible.click();
-        if (voulu) document.querySelectorAll('a[href="/inscription"]').forEach(function (a) {
-          a.href = '/inscription?metier=' + encodeURIComponent(voulu);
+        /* TOUS les chemins vers l'inscription portent le métier choisi —
+           y compris les quatre boutons « Choisir ce palier », qui
+           partaient avec le seul ?plan= : une agence de communication
+           arrivait alors sur un formulaire présélectionné « Mariage &
+           célébrations » (audit du 07/08). */
+        if (voulu) document.querySelectorAll('a[href^="/inscription"]').forEach(function (a) {
+          var u = new URL(a.getAttribute('href'), location.origin);
+          u.searchParams.set('metier', voulu);
+          a.setAttribute('href', u.pathname + u.search);
         });
       } catch (_) {}
     })();

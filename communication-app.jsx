@@ -462,8 +462,24 @@ async function smartDownload(url, filename, type) {
   //    se contentait d'ouvrir la vidéo dans un onglet au lieu de la télécharger.
   //    Bonus : marche aussi sur iOS, et le navigateur gère progression + reprise.
   if (isB2Url(url)) {
+    /* On passe par /telecharger/ quand c'est possible : ce chemin force
+       la pièce jointe au niveau du CDN, sans rien devoir à la métadonnée
+       stockée sur l'objet. C'est ce qui répare les fichiers venus du
+       Drive, dont l'original s'appelle « original-mon-film.mp4 » — un
+       nom que la signature d'upload ne reconnaissait pas, si bien que la
+       vidéo s'ouvrait dans un onglet au lieu de se télécharger (audit du
+       07/08). Les fichiers plus anciens en profitent aussi. */
+    let cible = noCacheUrl;
+    try {
+      const u = new URL(noCacheUrl);
+      if (u.hostname === 'media.timelesshouse.org' && u.pathname.startsWith('/file/')) {
+        u.pathname = '/telecharger/' + u.pathname.slice('/file/'.length);
+        u.searchParams.set('nom', fullName);
+        cible = u.toString();
+      }
+    } catch (e) { /* on garde l'URL telle quelle */ }
     const a = document.createElement('a');
-    a.href = noCacheUrl;
+    a.href = cible;
     a.rel = 'noopener';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     return true;

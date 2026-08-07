@@ -261,7 +261,8 @@ serve(async (req) => {
     const ag: any = (c as any).agencies;
     const consoleUrl = ag?.slug
       ? `https://${ag.slug}.laloge.house/communication-admin`
-      : "https://www.timelesshouse.org/communication-admin";
+      // La console de la plateforme vit sur app., pas sur www. (audit 07/08).
+      : "https://app.timelesshouse.org/communication-admin";
 
     // a) Le client final — seulement s'il a un email
     if (c.client_email) {

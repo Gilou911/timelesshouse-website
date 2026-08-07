@@ -1317,7 +1317,9 @@ serve(async (req)=>{
           status: 200, headers: { ...CORS, "Content-Type": "application/json" },
         });
       }
-      const outgoing = { to, brand, ...buildAdminPublishToday(brand, extra ?? {}) };
+      // Répondre à ce digest doit atteindre la loge, pas le vide
+      // (noreply@…). Audit du 07/08.
+      const outgoing = { to, brand, replyTo: brand?.email || undefined, ...buildAdminPublishToday(brand, extra ?? {}) };
       if (body.dry_run) {
         return new Response(JSON.stringify({
           ok: true, dry_run: true, to: outgoing.to, subject: outgoing.subject,
@@ -1402,7 +1404,9 @@ serve(async (req)=>{
         slug: agence?.slug || null,
         site: agence?.slug === "timelesshouse" ? DEFAULT_BRAND.site : null,
       };
-      const outgoing = { to, brand, ...buildMemberTaskAssigned(brand, extra ?? {}, parNom) };
+      // Un coéquipier qui répond à « on t'a confié une tâche » doit
+      // écrire à sa loge, pas à une adresse morte (audit du 07/08).
+      const outgoing = { to, brand, replyTo: brand?.email || undefined, ...buildMemberTaskAssigned(brand, extra ?? {}, parNom) };
       if (body.dry_run) {
         return new Response(JSON.stringify({
           ok: true, dry_run: true, to: outgoing.to, subject: outgoing.subject,

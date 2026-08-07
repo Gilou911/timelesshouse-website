@@ -210,6 +210,9 @@ Deno.serve(async (req) => {
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: `La Loge <${FROM_ADDR}>`, to: ag.contact_email,
+          // Un studio qui répond à son email de bienvenue doit tomber
+          // sur un humain, pas sur noreply@ (audit du 07/08).
+          reply_to: "service@timelesshouse.org",
           subject: "Votre loge est ouverte 🎭",
           html: `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/></head>
 <body style="margin:0;padding:0;background:#f5f0e8;font-family:Georgia,serif;color:#2a2620">

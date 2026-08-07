@@ -19,8 +19,12 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Adresse d'envoi vérifiée (identique à notify-client) + destinataire des alertes.
-const FROM        = "TimelessHouse <service@noreply.timelesshouse.org>";
+/* Adresse d'envoi : le SECRET, comme partout ailleurs. Cette fonction
+   gardait en dur `@noreply.timelesshouse.org` — le domaine ÉCHANGÉ chez
+   Resend le 22/07 contre laloge.house (le plan gratuit n'en autorise
+   qu'un). Depuis, Resend refusait chaque envoi : les alertes de nouveaux
+   prospects n'arrivaient plus, sans que rien ne le dise (audit 07/08). */
+const FROM        = Deno.env.get("FROM_EMAIL") ?? "La Loge <noreply@laloge.house>";
 const ALERT_TO    = "service@timelesshouse.org";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";

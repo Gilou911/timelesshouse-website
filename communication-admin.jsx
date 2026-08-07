@@ -713,7 +713,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         aria-label={title}
         title={title}
         style={neu.raisedXs}
-        className={`w-10 h-10 rounded-full flex items-center justify-center text-stone-600 disabled:opacity-50 active:scale-95 transition-transform ${className}`}
+        /* tap-ext porte la cible de 40 à 52 px : le bouton reste discret
+           dans la barre, la zone tactile respecte le plancher HIG. */
+        className={`tap-ext w-10 h-10 rounded-full flex items-center justify-center text-stone-600 disabled:opacity-50 active:scale-95 transition-transform ${className}`}
       >
         {busy ? <Loader2 size={15} className="animate-spin" /> : <Bell size={15} />}
       </button>
@@ -4702,7 +4704,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         </div>
                       )}
                       {f.genre === 'video' && (
-                        <span className="absolute inset-0 flex items-center justify-center text-white text-[10px]">▶</span>
+                        <span className="absolute inset-0 flex items-center justify-center encre-blanche sans-lisere text-[10px]">▶</span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -4775,11 +4777,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                           )}
                           {f.genre === 'video' && (
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <span className="w-11 h-11 rounded-full bg-black/55 text-white flex items-center justify-center backdrop-blur-sm">▶</span>
+                              <span className="w-11 h-11 rounded-full bg-black/55 encre-blanche sans-lisere flex items-center justify-center backdrop-blur-sm">▶</span>
                             </div>
                           )}
                           {f.genre === 'video' && f.duree != null && (
-                            <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/60 text-white text-[10.5px] tabular-nums">
+                            <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/60 encre-blanche sans-lisere text-[10.5px] tabular-nums">
                               {fmtDuree(f.duree)}
                             </span>
                           )}
@@ -4801,7 +4803,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       ) : (
                         <button type="button" onClick={() => { setGere(f); setDest(''); }}
                           aria-label={`Options de ${f.nom}`}
-                          className="absolute top-1.5 right-1.5 tap-ext w-9 h-9 rounded-full bg-black/45 text-white flex items-center justify-center backdrop-blur-sm">
+                          className="absolute top-1.5 right-1.5 tap-ext w-9 h-9 rounded-full bg-black/45 encre-blanche sans-lisere flex items-center justify-center backdrop-blur-sm">
                           ⋯
                         </button>
                       )}
@@ -10814,7 +10816,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               ) : (
                 <div className="text-[11px] text-stone-500 mt-1.5">Le PDF part directement du navigateur vers B2.</div>
               )}
-              <Input value={form.pdf_url} onChange={e => setForm({...form, pdf_url: e.target.value})} placeholder="… ou coller une URL" style={{ marginTop: '8px' }} />
+              {/* Coller une URL est réservé à la PLATEFORME : un locataire
+                  téléverse ou choisit dans son Drive, jamais une adresse
+                  extérieure qu'il faudrait maintenir (règle maison,
+                  rappelée par l'audit du 07/08). */}
+              {FEATURES.allUniverses && (
+                <Input value={form.pdf_url} onChange={e => setForm({...form, pdf_url: e.target.value})} placeholder="… ou coller une URL" style={{ marginTop: '8px' }} />
+              )}
               {/* Le PDF que l'équipe a déjà déposé au Drive : on le
                   pointe, on ne le re-téléverse pas. */}
               <div className="mt-2">
@@ -11069,7 +11077,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               ) : (
                 <div className="text-[11px] text-stone-500 mt-1.5">Le fichier part directement du navigateur vers B2.</div>
               )}
-              <Input value={form.file_url} onChange={e => setForm({...form, file_url: e.target.value})} placeholder="… ou coller une URL publique" style={{ marginTop: '8px' }} />
+              {/* Même règle : le locataire téléverse ou pioche au Drive. */}
+              {FEATURES.allUniverses && (
+                <Input value={form.file_url} onChange={e => setForm({...form, file_url: e.target.value})} placeholder="… ou coller une URL publique" style={{ marginTop: '8px' }} />
+              )}
               <div className="mt-2">
                 <Btn icon={FolderOpen} onClick={() => setMontrerDrive(true)}>Choisir dans le Drive</Btn>
               </div>

@@ -290,7 +290,9 @@ Deno.serve(async (req) => {
   }).select().single();
   if (aErr || !agency) {
     // rollback best-effort : ne pas laisser un compte orphelin qu'on vient de créer
-    if (!existing && ownerId) await sbAdmin.auth.admin.deleteUser(ownerId).catch(() => {});
+    if (!existing && ownerId) {
+      try { await sbAdmin.auth.admin.deleteUser(ownerId); } catch (_) { /* rien à faire de plus */ }
+    }
     return json(500, { error: `Création de l'agence impossible : ${aErr?.message || "?"}` });
   }
 
@@ -298,8 +300,14 @@ Deno.serve(async (req) => {
     agency_id: agency.id, user_id: ownerId, role: "owner",
   });
   if (mErr) {
-    await sbAdmin.from("agencies").delete().eq("id", agency.id).catch(() => {});
-    if (!existing && ownerId) await sbAdmin.auth.admin.deleteUser(ownerId).catch(() => {});
+    /* Retour arrière. Le constructeur de requête PostgREST est « then-able »
+       mais n'a PAS de .catch() : l'appeler ici levait une SECONDE erreur qui
+       masquait la vraie et laissait l'agence à moitié créée (audit du 07/08).
+       Un try/catch fait le travail sans rien supposer de l'objet. */
+    try { await sbAdmin.from("agencies").delete().eq("id", agency.id); } catch (_) { /* déjà signalé plus bas */ }
+    if (!existing && ownerId) {
+      try { await sbAdmin.auth.admin.deleteUser(ownerId); } catch (_) { /* compte orphelin, tracé ci-dessous */ }
+    }
     return json(500, { error: `Rattachement du propriétaire impossible : ${mErr.message}` });
   }
 

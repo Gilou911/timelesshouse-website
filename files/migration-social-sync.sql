@@ -27,7 +27,10 @@ create table if not exists social_stat_snapshots (
 );
 alter table social_stat_snapshots enable row level security;
 drop policy if exists "public read snapshots" on social_stat_snapshots;
-create policy "public read snapshots" on social_stat_snapshots for select using (true);
+-- ⚠️ NEUTRALISÉE (07/08/2026) : les statistiques sociales d'un locataire
+-- ne regardent pas les visiteurs — et surtout pas ceux des autres loges.
+-- Le `drop` reste : rejouer ce fichier nettoie au lieu d'ouvrir.
+-- create policy "public read snapshots" on social_stat_snapshots for select using (true);
 
 -- 3) Upsert des posts par identifiant externe (la sync repasse toutes les 6 h)
 create unique index if not exists social_posts_external_uq

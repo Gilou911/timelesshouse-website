@@ -3,7 +3,14 @@
 -- ════════════════════════════════════════════════════════════
 -- À exécuter UNE SEULE FOIS dans Supabase :
 --   Dashboard Supabase → SQL Editor → coller ce fichier → Run
--- Idempotent : peut être relancé sans risque.
+-- Idempotent, MAIS voir l'avertissement juste en dessous.
+-- ⚠️  NE REJOUEZ PAS CE FICHIER TEL QUEL (audit du 07/08/2026).
+--     Il date d'AVANT le cloisonnement par agence : les lectures
+--     publiques qu'il posait ont été supprimées depuis
+--     (migration-saas-b2.sql). Les rejouer rouvrirait à n'importe quel
+--     visiteur des données de TOUS les locataires. Les lignes fautives
+--     sont désormais neutralisées ci-dessous, et expliquées sur place.
+
 -- ════════════════════════════════════════════════════════════
 
 -- 1 — Nouveau module activable par client (comme media / invoices)
@@ -27,8 +34,14 @@ create table if not exists documents (
 alter table documents enable row level security;
 
 drop policy if exists "public read documents" on documents;
-create policy "public read documents"
-  on documents for select using (true);
+-- ⚠️ NEUTRALISÉE (07/08/2026). Cette policy rendait TOUS les documents
+-- clients — contrats, devis, chartes, avec leurs URL de fichier —
+-- lisibles par n'importe quel visiteur, tous locataires confondus.
+-- La page client passe aujourd'hui par des RPC scellées par le code
+-- d'accès. Le `drop` ci-dessus reste : rejouer ce fichier NETTOIE au
+-- lieu d'ouvrir.
+-- create policy "public read documents"
+--   on documents for select using (true);
 
 drop policy if exists "auth write documents" on documents;
 create policy "auth write documents"

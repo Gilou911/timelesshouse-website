@@ -85,6 +85,29 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     // Les mêmes, en détail (source / statut / échéance) — pour l'écran Paramètres.
     const MES_METIERS_DETAIL = [];
 
+    /* L'équipe de LA loge affichée. Le paramètre est neuf : tant que le
+       SQL de la vague 2 n'est pas passé, PostgREST ne connaît pas cette
+       signature et refuse TOUT l'appel — d'où le repli sans lui, comme
+       pour toute colonne ou fonction nouvelle dans cette maison. */
+    const chargerEquipe = async () => {
+      const avecLoge = await sb.rpc('equipe_agence', { p_agence: AGENCY.id });
+      if (!avecLoge.error) return avecLoge;
+      return await sb.rpc('equipe_agence');
+    };
+
+    /* « Cette loge exerce-t-elle ce métier ? » — LA question, posée d'un
+       seul endroit (audit du 07/08). Elle distingue deux silences que le
+       code confondait : « je SAIS que cette loge n'a pas ce métier » (des
+       lignes existent, il n'y figure pas ou n'y est plus valide) et « je
+       n'ai pas RÉUSSI à savoir » (aucune ligne : migration non passée,
+       requête en échec, loge d'avant les métiers). Le second ne bride
+       rien — c'est l'invariant déclaré juste au-dessus, que les deux
+       menus contredisaient en amputant la console sur un simple échec de
+       lecture. La plateforme, elle, voit tout. */
+    const aLeMetier = (u) => FEATURES.allUniverses
+      || MES_METIERS_DETAIL.length === 0
+      || MES_METIERS.includes(u);
+
     /* 💼 Métiers de CHAQUE agence — vue fondateur uniquement (la police
        d'accès `agency_universes_read_platform` n'ouvre cette lecture qu'à
        TimelessHouse). Rempli par loadAgencies juste avant setAgencies, donc
@@ -1852,7 +1875,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           desc: 'Vos clients sont prévenus 7 jours puis 1 jour avant leur tournage.' },
         { id: 'factures', icon: FileText, titre: 'Factures',
           desc: "Vos clients sont relancés autour de l'échéance d'une facture impayée." },
-        ...(MES_METIERS.includes('communication') || FEATURES.allUniverses
+        ...(aLeMetier('communication')
           ? [{ id: 'sorties', icon: Send, titre: 'Sorties à publier',
               desc: 'Votre équipe reçoit la liste de ce qui doit sortir dans la journée.' }]
           : []),
@@ -2859,7 +2882,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
       useEffect(() => {
         chargerTaches();
-        sb.rpc('equipe_agence').then(({ data }) => setEquipe(data || [])).catch(() => {});
+        chargerEquipe().then(({ data }) => setEquipe(data || [])).catch(() => {});
       }, [post.id]);
 
       const ajouterTache = async () => {
@@ -3637,7 +3660,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const grandEcran = useRef(typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
 
       useEffect(() => {
-        sb.rpc('equipe_agence').then(({ data }) => setEquipe(data || [])).catch(() => {});
+        chargerEquipe().then(({ data }) => setEquipe(data || [])).catch(() => {});
       }, []);
 
       const charger = async () => {
@@ -4442,6 +4465,17 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setGere(null); setDest(''); charger(); chargerDossiers();
       };
 
+      /* La base tranche : « ses propres dépôts, ou owner/admin — le
+         plancher n'efface pas les rushes du patron » (migration-drive.sql),
+         et depuis la vague 1 b2-sign dit la même chose. L'écran l'ignorait
+         et proposait « Supprimer » à tout le monde : on cliquait, on
+         confirmait, et la base refusait. Il le dit maintenant AVANT. */
+      const [monId, setMonId] = useState(null);
+      useEffect(() => { sb.auth.getUser().then(({ data }) => setMonId(data?.user?.id || null)); }, []);
+      const peutSupprimer = (it) => !it
+        || MON_ROLE.value !== 'membre'
+        || !it.cree_par || it.cree_par === monId;
+
       const supprimer = async (it) => {
         const avert = it.genre === 'dossier'
           ? `Supprimer le dossier « ${it.nom} » ?\n\nTOUT son contenu part avec. Irréversible.`
@@ -4571,7 +4605,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 </Select>
               </div>
               <Btn kind="dark" onClick={deplacerLot} disabled={!sels.size}>Déplacer</Btn>
-              <Btn icon={Trash2} onClick={supprimerLot} disabled={!sels.size} className="text-rose-600">Supprimer</Btn>
+              {(() => {
+                /* En sélection multiple, on ne propose la corbeille que si
+                   TOUT ce qui est coché est effaçable par cette personne —
+                   un lot à moitié supprimé est le pire des deux mondes. */
+                const tout = [...sels].every((id) => peutSupprimer(items.find((x) => x.id === id)));
+                return tout ? (
+                  <Btn icon={Trash2} onClick={supprimerLot} disabled={!sels.size} className="text-rose-600">Supprimer</Btn>
+                ) : null;
+              })()}
             </div>
           )}
 
@@ -4835,7 +4877,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   {gere.genre !== 'dossier' && (
                     <Btn icon={MessageSquare} onClick={() => annoncerDansChat(gere)}>Annoncer dans le chat</Btn>
                   )}
-                  <Btn icon={Trash2} onClick={() => supprimer(gere)} className="text-rose-600">Supprimer</Btn>
+                  {peutSupprimer(gere) && (
+                    <Btn icon={Trash2} onClick={() => supprimer(gere)} className="text-rose-600">Supprimer</Btn>
+                  )}
                 </div>
                 {okAnnonce && (
                   <div className="text-[12px] text-emerald-700 flex items-center gap-1.5">
@@ -4939,7 +4983,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
     function MesTachesTab({ clients }) {
       const [equipe, setEquipe] = useState([]);
       useEffect(() => {
-        sb.rpc('equipe_agence').then(({ data }) => setEquipe(data || [])).catch(() => {});
+        chargerEquipe().then(({ data }) => setEquipe(data || [])).catch(() => {});
       }, []);
       return <MesTaches equipe={equipe} clients={clients} />;
     }
@@ -4957,7 +5001,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [busyLigne, setBusyLigne] = useState(null);
 
       const charger = async () => {
-        const { data, error } = await sb.rpc('equipe_agence');
+        const { data, error } = await chargerEquipe();
         if (error) {
           setErr(/equipe_agence/.test(error.message || '')
             ? "L'équipe n'est pas encore activée : exécutez files/migration-comm-calendrier.sql dans Supabase."
@@ -4987,8 +5031,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       const monRole = (equipe || []).find((m) => m.user_id === user?.id)?.role || MON_ROLE.value;
       const patron = monRole === 'owner';
-      // Qui ai-je le droit de gérer ? (le serveur revérifie tout)
-      const gerable = (m) => m.user_id !== user?.id && m.role !== 'owner'
+      /* Qui ai-je le droit de gérer ? (le serveur revérifie tout)
+         Le cas du SPECTATEUR manquait : un membre voyait « Modifier » et
+         « Retirer » sur ses pairs, et le serveur refusait à chaque fois —
+         il faut être patron ou admin pour gérer qui que ce soit (audit du
+         07/08). */
+      const gerable = (m) => (patron || monRole === 'admin')
+        && m.user_id !== user?.id && m.role !== 'owner'
         && (patron || m.role === 'membre');
 
       const appel = async (corps) => {
@@ -11683,7 +11732,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 ml-auto">
-                    <button onClick={() => setInvoiceFor(s)} aria-label="Facturer ce tournage" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-transform" title="Créer une facture liée à ce tournage"><FileText size={14} /></button>
+                    {/* Les factures ne regardent JAMAIS un membre, quel que
+                        soit son privilège — c'est écrit en base
+                        (files/migration-privileges.sql). Le bouton le disait
+                        pas : on cliquait, la base refusait (audit du 07/08). */}
+                    {MON_ROLE.value !== 'membre' && (
+                      <button onClick={() => setInvoiceFor(s)} aria-label="Facturer ce tournage" style={neu.raisedXs} className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-transform" title="Créer une facture liée à ce tournage"><FileText size={14} /></button>
+                    )}
                     {client?.client_email && (
                       <BellBtn onClick={() => notifyScheduled(s)} busy={notifying === s.id} title="Prévenir le client de ce tournage par email" />
                     )}
@@ -13266,7 +13321,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         /* 👤 Mon rôle — même prudence : la RPC peut ne pas exister
            (migration comm non lancée), et un échec ne bride rien. */
         try {
-          const { data: eq } = await sb.rpc('equipe_agence');
+          const { data: eq } = await chargerEquipe();
           const moiEq = (eq || []).find((m) => m.user_id === user?.id);
           MON_ROLE.value = moiEq?.role || null;
           MES_PRIVILEGES.length = 0;
@@ -13309,8 +13364,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
          nourrie par sondage 30 s + Realtime, et rafraîchie par
          l'onglet quand il marque un fil comme lu. */
       const [nonLusMsg, setNonLusMsg] = useState(0);
+      const [repliOuvert, setRepliOuvert] = useState(false);   // feuille « Plus » de la barre mobile
       const chargerNonLus = async () => {
-        if (!(MES_METIERS.includes('communication') || FEATURES.allUniverses)) { setNonLusMsg(0); return; }
+        if (!aLeMetier('communication')) { setNonLusMsg(0); return; }
         try {
           const { data } = await sb.from('team_messages')
             .select('auteur_id, dest_id, created_at')
@@ -13339,14 +13395,22 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       }, [user, featuresReady]);
 
       /* Un « membre » n'atterrit jamais sur un écran qui ne le regarde
-         pas : son monde, c'est l'agenda, l'équipe (ses tâches), les
-         messages, ses réglages de compte — et les clients si le
-         privilège lui est accordé. Tout le reste ramène à l'agenda. */
+         pas : son monde, c'est l'agenda, ses tâches, l'équipe, les
+         messages, le Drive et ses réglages de compte — et les clients si
+         le privilège lui est accordé. Tout le reste ramène chez lui.
+         Cette liste suit EXACTEMENT ses menus : sans le métier
+         Communication, ces six écrans n'existent dans aucun menu, et
+         l'ancienne version y renvoyait quand même — le membre atterrissait
+         sur un Agenda introuvable, avec une barre d'onglets vide sur
+         téléphone (audit du 07/08). */
       useEffect(() => {
         if (!featuresReady || MON_ROLE.value !== 'membre') return;
-        const permis = new Set(['agenda', 'taches', 'equipe', 'messages', 'drive', 'settings',
-          ...(MES_PRIVILEGES.includes('clients') ? ['clients'] : [])]);
-        if (!permis.has(section)) setSection('agenda');
+        const comm = aLeMetier('communication');
+        const clients = MES_PRIVILEGES.includes('clients');
+        const permis = new Set(['settings',
+          ...(comm ? ['agenda', 'taches', 'equipe', 'messages', 'drive'] : []),
+          ...(clients ? ['clients'] : [])]);
+        if (!permis.has(section)) setSection(comm ? 'agenda' : (clients ? 'clients' : 'settings'));
       }, [featuresReady, section]);
 
       const logout = async () => { await sb.auth.signOut(); };
@@ -13482,7 +13546,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   /* L'agenda est l'outil du métier Communication & Marketing :
                      il n'a rien à faire chez un photographe de mariage.
                      FEATURES.allUniverses = la plateforme, qui voit tout. */
-                  ...(MES_METIERS.includes('communication') || FEATURES.allUniverses
+                  ...(aLeMetier('communication')
                     ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' },
                        /* L'onglet du MEMBRE : ses tâches en un seul
                           endroit (demande de Gil) — le patron garde
@@ -13615,7 +13679,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                  SUR LA PLATEFORME (Portfolio + Agences déjà là), Équipe
                  et Messages restent au menu desktop : huit onglets
                  feraient des cibles sous les 44 px du HIG. */
-              ...(MES_METIERS.includes('communication') || FEATURES.allUniverses
+              ...(aLeMetier('communication')
                 ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' },
                    ...(agencies !== null ? [] : [
                      ...(MON_ROLE.value === 'membre'
@@ -13630,7 +13694,26 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),
               ...(agencies !== null ? [{ id: 'agences', icon: Building2, label: 'Agences' }] : []),
             ];
-            const actif = selectedClient ? -1 : onglets.findIndex(o => o.id === section);
+            /* Une barre VIDE se rendait quand même — et calculait alors
+               `calc((100% - 16px) / 0)`, une division par zéro (audit du
+               07/08). Cas réel : un membre d'une loge sans le métier
+               Communication. Plus de barre du tout, plutôt qu'une pilule
+               de verre vide. */
+            if (!onglets.length) return null;
+            /* Au-delà de six, la cible tactile passe sous les 44 px du
+               guide (huit onglets sur un écran de 320 px : 34 px). Les
+               cinq premiers restent, le reste se replie sous « Plus » —
+               le motif iOS, qui garde tout accessible sans rétrécir
+               personne. */
+            const MAX_ONGLETS = 6;
+            const deborde = onglets.length > MAX_ONGLETS;
+            const caches = deborde ? onglets.slice(MAX_ONGLETS - 1) : [];
+            const visibles = deborde
+              ? [...onglets.slice(0, MAX_ONGLETS - 1), { id: '__plus', icon: List, label: 'Plus' }]
+              : onglets;
+            const dansLeRepli = caches.some(o => o.id === section);
+            const actif = selectedClient ? -1
+              : (dansLeRepli ? MAX_ONGLETS - 1 : visibles.findIndex(o => o.id === section));
             return (
               /* PAS de `relative` sur la barre : `fixed` la positionne DÉJÀ,
                  et suffit donc à ancrer la pastille absolue. En ajouter un
@@ -13638,6 +13721,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                  couche — `relative` l'emportait, la barre perdait son
                  ancrage à l'écran et retombait en bas du document
                  (constaté par Gil sur téléphone). */
+              <>
               <nav
                 className="lg:hidden fixed bottom-4 left-4 right-4 z-30 rounded-[28px] px-2 py-2 flex items-center justify-around"
                 style={{
@@ -13661,18 +13745,21 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   style={{
                     ...neu.darkSm,
                     top: 8, bottom: 8, left: 8,
-                    width: `calc((100% - 16px) / ${onglets.length})`,
+                    width: `calc((100% - 16px) / ${visibles.length})`,
                     transform: `translateX(${Math.max(actif, 0) * 100}%)`,
                     opacity: actif < 0 ? 0 : 1,
                   }}
                 />
-                {onglets.map((n, i) => {
+                {visibles.map((n, i) => {
                   const Icon = n.icon;
                   const active = i === actif;
                   return (
                     <button
                       key={n.id}
-                      onClick={() => { setSection(n.id); setSelectedClient(null); }}
+                      onClick={() => {
+                        if (n.id === '__plus') { setRepliOuvert(true); return; }
+                        setSection(n.id); setSelectedClient(null);
+                      }}
                       aria-current={active ? 'page' : undefined}
                       className={`th-onglet relative z-10 flex-1 flex flex-col items-center justify-center gap-1 min-h-[52px] py-2 px-1 rounded-2xl active:scale-95 ${active ? 'text-white' : 'text-stone-500'}`}>
                       <span className="relative">
@@ -13687,7 +13774,40 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     </button>
                   );
                 })}
-              </nav>
+                </nav>
+                {/* Le repli : ce qui ne tient pas dans la barre sans
+                    descendre sous 44 px. Rangées de 52 px, fermeture au
+                    voile comme à la croix. */}
+                {repliOuvert && (
+                  <div className="lg:hidden fixed inset-0 z-40 flex items-end"
+                    onClick={() => setRepliOuvert(false)}>
+                    <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.35)' }} />
+                    <div role="dialog" aria-label="Autres sections" onClick={(e) => e.stopPropagation()}
+                      style={{ ...neu.raised, animation: 'th-entre 0.28s cubic-bezier(0.32,0.72,0,1) backwards' }}
+                      className="relative w-full rounded-t-[28px] p-4 pb-8">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[15px] font-semibold tracking-tight">Autres sections</div>
+                        <button type="button" onClick={() => setRepliOuvert(false)} aria-label="Fermer"
+                          className="w-11 h-11 rounded-full flex items-center justify-center text-stone-500">
+                          <X size={17} />
+                        </button>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        {caches.map((n) => (
+                          <button key={n.id} type="button"
+                            onClick={() => { setSection(n.id); setSelectedClient(null); setRepliOuvert(false); }}
+                            aria-current={n.id === section ? 'page' : undefined}
+                            style={n.id === section ? neu.pressedSm : {}}
+                            className="w-full flex items-center gap-3.5 px-4 min-h-[52px] rounded-2xl text-left text-stone-700">
+                            <n.icon size={18} />
+                            <span className="text-[14px] font-medium tracking-tight">{n.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             );
           })()}
         </div>

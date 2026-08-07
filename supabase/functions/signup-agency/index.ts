@@ -276,8 +276,12 @@ Deno.serve(async (req) => {
       agency_id: agency.id, user_id: userId, role: "owner",
     });
     if (mErr) {
-      await sbAdmin.from("agencies").delete().eq("id", agency.id).catch(() => {});
-      await sbAdmin.auth.admin.deleteUser(userId).catch(() => {});
+      /* Même piège qu'en create-agency : le constructeur PostgREST est
+         « then-able » mais n'a pas de .catch() — l'appeler levait une
+         seconde erreur au moment le plus fragile, l'inscription en libre
+         service, et laissait une loge sans patron (audit du 07/08). */
+      try { await sbAdmin.from("agencies").delete().eq("id", agency.id); } catch (_) { /* rien de plus à faire */ }
+      try { await sbAdmin.auth.admin.deleteUser(userId); } catch (_) { /* rien de plus à faire */ }
       return json(500, { error: "Rattachement impossible. Réessayez dans un instant." });
     }
 

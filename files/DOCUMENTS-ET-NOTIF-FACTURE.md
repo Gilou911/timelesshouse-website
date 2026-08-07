@@ -28,8 +28,13 @@ Deux ajouts à l'espace client, livrés sur le même modèle que vos modules exi
 
 ### Étape A — Base de données
 Supabase → SQL Editor → coller **`migration-documents.sql`** → Run.
-(Fichier idempotent : peut être relancé sans risque. Pour une nouvelle install,
-`schema.sql` contient déjà tout.)
+(Pour une nouvelle install, `schema.sql` contient déjà tout.)
+
+> ⚠️ **Cette étape est faite depuis longtemps — ne la rejouez pas machinalement.**
+> Le fichier date d'avant le cloisonnement par agence : il posait une lecture
+> publique sur `documents`, supprimée depuis. La ligne fautive est neutralisée
+> dans le fichier (audit du 07/08/2026), donc le rejouer NETTOIE désormais au
+> lieu d'ouvrir — mais rien n'oblige à le rejouer.
 
 ### Étape B — Remplacer les 4 fichiers
 - `communication-admin.html`

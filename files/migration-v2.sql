@@ -32,8 +32,13 @@ drop policy if exists "comments public insert" on media_comments;
 drop policy if exists "comments auth update"   on media_comments;
 drop policy if exists "comments auth delete"   on media_comments;
 
-create policy "comments public select" on media_comments for select using (true);
-create policy "comments public insert" on media_comments for insert with check (true);
+-- ⚠️ NEUTRALISÉES (07/08/2026) : la lecture ET l'écriture publiques des
+-- commentaires traversaient toutes les loges. Le client final passe
+-- aujourd'hui par get_media_comments / add_media_comment, scellées par
+-- son code d'accès. Les `drop` ci-dessus restent : rejouer ce fichier
+-- nettoie au lieu d'ouvrir.
+-- create policy "comments public select" on media_comments for select using (true);
+-- create policy "comments public insert" on media_comments for insert with check (true);
 create policy "comments auth update"   on media_comments for update using (auth.uid() is not null) with check (auth.uid() is not null);
 create policy "comments auth delete"   on media_comments for delete using (auth.uid() is not null);
 
@@ -55,7 +60,12 @@ end;
 $$;
 
 revoke all on function update_media_approval(uuid, text) from public;
-grant execute on function update_media_approval(uuid, text) to anon, authenticated;
+-- ⚠️ Le `grant ... to anon` a été RETIRÉ (durcissement du 21/07/2026,
+-- supabase/migrations/20260721000000_security_hardening.sql) : cette
+-- signature est celle de l'ADMIN, elle n'a jamais rien à faire entre les
+-- mains d'un visiteur. Le client final a la sienne, scellée par son code
+-- (update_media_approval(text, uuid, text)).
+grant execute on function update_media_approval(uuid, text) to authenticated;
 
 -- 6) Notifications envoyées (pour éviter les doublons + historique)
 create table if not exists notifications (

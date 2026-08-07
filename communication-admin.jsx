@@ -114,6 +114,36 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       || MES_METIERS_DETAIL.length === 0
       || MES_METIERS.includes(u);
 
+    /* 🎭 LE MÉTIER SUR LEQUEL ON TRAVAILLE EN CE MOMENT.
+       Une loge peut en exercer deux (mariage ET communication) : ce sont
+       deux mondes qui n'ont ni les mêmes écrans, ni le même vocabulaire,
+       ni les mêmes clients. Les mélanger dans une seule console rend les
+       deux illisibles — d'où cet interrupteur, demandé par Gil : on ne
+       voit qu'un métier à la fois, et on bascule d'un geste.
+       · un seul métier → aucun interrupteur, rien ne change ;
+       · la plateforme → voit tout, sans interrupteur ;
+       · le choix se retient par loge (localStorage). */
+    const METIER_ACTIF = { value: null };
+    const cleMetier = () => `th_metier_${AGENCY.slug || 'loge'}`;
+    const poserMetierActif = (u) => {
+      METIER_ACTIF.value = u || null;
+      try { if (u) localStorage.setItem(cleMetier(), u); } catch (_) {}
+    };
+    /* Cet espace client appartient-il au monde affiché ? Un espace SANS
+       métier enregistré (créé avant les métiers) reste visible partout :
+       mieux vaut le montrer deux fois que le faire disparaître. */
+    const espaceDuMetierActif = (universe) => !METIER_ACTIF.value
+      || FEATURES.allUniverses
+      || MES_METIERS.length < 2
+      || !universe
+      || universe === METIER_ACTIF.value;
+
+    /* La question que posent les menus : « travaille-t-on DANS ce métier
+       en ce moment ? » — et non plus « la loge l'exerce-t-elle ? ». */
+    const surLeMetier = (u) => FEATURES.allUniverses
+      || MES_METIERS_DETAIL.length === 0
+      || (METIER_ACTIF.value ? METIER_ACTIF.value === u : MES_METIERS.includes(u));
+
     /* 💼 Métiers de CHAQUE agence — vue fondateur uniquement (la police
        d'accès `agency_universes_read_platform` n'ouvre cette lecture qu'à
        TimelessHouse). Rempli par loadAgencies juste avant setAgencies, donc
@@ -1883,7 +1913,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           desc: 'Vos clients sont prévenus 7 jours puis 1 jour avant leur tournage.' },
         { id: 'factures', icon: FileText, titre: 'Factures',
           desc: "Vos clients sont relancés autour de l'échéance d'une facture impayée." },
-        ...(aLeMetier('communication')
+        ...(surLeMetier('communication')
           ? [{ id: 'sorties', icon: Send, titre: 'Sorties à publier',
               desc: 'Votre équipe reçoit la liste de ce qui doit sortir dans la journée.' }]
           : []),
@@ -3610,6 +3640,59 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       { id: 'taches', icon: CheckCircle2, titre: 'Donner des tâches',
         desc: 'Assigner aux autres et gérer leurs tâches — sans lui : les siennes seulement.' },
     ];
+/* ════════════════════════════════════════════════════════════
+   🎭 L'INTERRUPTEUR DE MÉTIER
+   ════════════════════════════════════════════════════════════
+   Une loge qui exerce deux métiers travaille dans DEUX mondes :
+   des couples d'un côté, des marques de l'autre — vocabulaire,
+   écrans et clients différents. Les afficher ensemble rend les
+   deux confus. Cet interrupteur n'apparaît que là où il sert
+   (deux métiers ou plus) et se retient d'une visite à l'autre.
+
+   Il RECHARGE la page : la console lit les métiers une seule
+   fois, au démarrage, et une bonne moitié de ses écrans en
+   dépendent (vocabulaire, listes, menus). Recharger est net et
+   sans surprise — bien mieux qu'un demi-rafraîchissement où un
+   écran garderait l'ancien monde. */
+    function SelecteurMetier({ compact = false }) {
+      if (FEATURES.allUniverses) return null;          // la plateforme voit tout
+      const miens = METIERS.filter((m) => MES_METIERS.includes(m.value));
+      if (miens.length < 2) return null;               // un seul monde : rien à choisir
+      const actif = METIER_ACTIF.value || miens[0].value;
+      const changer = (u) => {
+        if (u === actif) return;
+        poserMetierActif(u);
+        window.location.reload();
+      };
+      return (
+        <div className={compact ? 'mt-2' : 'mt-3'}>
+          {!compact && (
+            <div className="text-[9.5px] uppercase tracking-[0.16em] text-stone-400 font-semibold mb-1.5">Métier</div>
+          )}
+          <div role="tablist" aria-label="Choisir le métier affiché"
+            style={neu.pressedSm} className="rounded-full p-1 flex gap-1">
+            {miens.map((m) => {
+              const cestLui = m.value === actif;
+              // Le libellé complet est long : sur l'interrupteur on garde
+              // le premier mot, le titre entier reste dans l'infobulle.
+              const court = m.label.split(' ')[0].replace('&', '');
+              return (
+                <button key={m.value} type="button" role="tab" aria-selected={cestLui}
+                  onClick={() => changer(m.value)} title={m.label}
+                  style={cestLui ? neu.darkSm : {}}
+                  /* 44 px : c'est un vrai bouton, pas une étiquette — et
+                     stone-600 plutôt que 500 sur le creux clair, où 500
+                     tombait à 3,96:1 (mesuré au banc d'essai). */
+                  className={`flex-1 min-h-[44px] px-2.5 rounded-full text-[11.5px] font-semibold transition ${cestLui ? 'text-white' : 'text-stone-600'}`}>
+                  {court}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
     function PrivilegesMembre({ valeurs, onChange }) {
       return (
         <div className="space-y-2">
@@ -5793,8 +5876,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [showNew, setShowNew] = useState(false);
       const [search, setSearch] = useState('');
 
+      /* Deux métiers = deux mondes : la liste ne montre que les espaces
+         du monde affiché. Sans ça, l'interrupteur ne séparerait que les
+         menus, et les couples se mêleraient aux marques dans la même
+         grille (demande de Gil, 07/08). */
       const filtered = useMemo(() =>
-        clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.code || '').includes(search.toLowerCase())),
+        clients.filter(c => espaceDuMetierActif(c.universe)
+          && (c.name.toLowerCase().includes(search.toLowerCase()) || (c.code || '').includes(search.toLowerCase()))),
         [clients, search]
       );
 
@@ -5925,7 +6013,11 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         // le plus courant) — et une célébration démarre en livraison
         // épurée, modules éteints (même logique qu'au changement d'univers).
         // Par défaut : le métier de l'agence (le sien, pas un choix arbitraire).
-        universe:          existing?.universe          || (FEATURES.allUniverses ? 'communication' : (MES_METIERS[0] || 'celebration')),
+        /* Un nouvel espace naît dans le métier AFFICHÉ : on vient de
+           basculer sur « Mariage », on crée un mariage. Sans ça, il
+           tombait dans le premier métier de la loge et disparaissait
+           aussitôt de la liste qu'on regardait. */
+        universe:          existing?.universe          || (FEATURES.allUniverses ? 'communication' : (METIER_ACTIF.value || MES_METIERS[0] || 'celebration')),
         redirect_url:      existing?.redirect_url      || '',
         active:            existing?.active ?? true,
         analytics_enabled: existing?.analytics_enabled ?? false,
@@ -13354,6 +13446,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             MES_METIERS_DETAIL.push(m);
             if (encoreValide) MES_METIERS.push(m.universe);
           });
+          /* Le métier actif : celui retenu la dernière fois s'il est
+             toujours accordé, sinon le premier de la loge. */
+          let retenu = null;
+          try { retenu = localStorage.getItem(cleMetier()); } catch (_) {}
+          METIER_ACTIF.value = (retenu && MES_METIERS.includes(retenu))
+            ? retenu
+            : (MES_METIERS[0] || null);
         } catch (_) { MES_METIERS.length = 0; MES_METIERS_DETAIL.length = 0; }
         /* 👤 Mon rôle — même prudence : la RPC peut ne pas exister
            (migration comm non lancée), et un échec ne bride rien. */
@@ -13403,7 +13502,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [nonLusMsg, setNonLusMsg] = useState(0);
       const [repliOuvert, setRepliOuvert] = useState(false);   // feuille « Plus » de la barre mobile
       const chargerNonLus = async () => {
-        // Les messages d'équipe ne dépendent d'aucun métier (audit 07/08).
+        if (!surLeMetier('communication')) { setNonLusMsg(0); return; }
         try {
           const { data } = await sb.from('team_messages')
             .select('auteur_id, dest_id, created_at')
@@ -13442,14 +13541,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
          téléphone (audit du 07/08). */
       useEffect(() => {
         if (!featuresReady || MON_ROLE.value !== 'membre') return;
-        const comm = aLeMetier('communication');
+        const comm = surLeMetier('communication');
         const clients = MES_PRIVILEGES.includes('clients');
-        // Le socle d'équipe est là quel que soit le métier ; seul
-        // l'agenda éditorial dépend de Communication.
-        const permis = new Set(['settings', 'taches', 'equipe', 'messages', 'drive',
-          ...(comm ? ['agenda'] : []),
+        // L'atelier éditorial vit dans le métier Communication ; le Drive
+        // et les réglages du compte sont de toutes les loges.
+        const permis = new Set(['settings', 'drive',
+          ...(comm ? ['agenda', 'taches', 'equipe', 'messages'] : []),
           ...(clients ? ['clients'] : [])]);
-        if (!permis.has(section)) setSection(comm ? 'agenda' : 'taches');
+        if (!permis.has(section)) setSection(comm ? 'agenda' : (clients ? 'clients' : 'drive'));
       }, [featuresReady, section]);
 
       const logout = async () => { await sb.auth.signOut(); };
@@ -13504,6 +13603,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <div className="text-[19px] tracking-tight leading-none truncate" style={{ ...SERIF, fontStyle: 'italic' }}>
                 {myAgency?.name || 'Ma loge'}<span className="text-stone-400">.</span>
               </div>
+              {/* L'interrupteur de métier, en version courte : sur
+                  téléphone il vaut mieux qu'il tienne sous le nom. */}
+              {featuresReady && <SelecteurMetier compact />}
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-[10px] uppercase tracking-[0.16em] text-stone-400 font-medium">Admin</span>
                 {featuresReady && !FEATURES.allUniverses && AGENCY.betaChat && MON_ROLE.value !== 'membre' && (
@@ -13555,6 +13657,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   {myAgency?.name || 'Ma loge'}<span className="text-stone-400">.</span>
                 </div>
                 <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400 mt-1.5 font-medium">Espace agence</div>
+                {featuresReady && <SelecteurMetier />}
                 {/* Bêta testeur : le fil de signalement vers La Loge —
                     violet assumé (5,7:1 sous blanc, couleurs en dur pour
                     échapper aux bascules du thème sombre). */}
@@ -13585,19 +13688,23 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                   /* L'agenda est l'outil du métier Communication & Marketing :
                      il n'a rien à faire chez un photographe de mariage.
                      FEATURES.allUniverses = la plateforme, qui voit tout. */
-                  /* L'AGENDA ÉDITORIAL est l'outil du métier Communication :
-                     il n'a rien à faire chez un photographe de mariage. */
-                  ...(aLeMetier('communication')
-                    ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' }] : []),
-                  /* Le SOCLE D'ÉQUIPE, lui, ne dépend d'aucun métier : ses
-                     policies parlent d'agence, jamais d'univers, et le rang
-                     plancher promet précisément ces écrans-là. Les avoir
-                     rangés sous « Communication » enfermait le membre d'une
-                     loge de mariage dans ses seuls Paramètres (audit 07/08). */
-                  ...(MON_ROLE.value === 'membre'
-                    ? [{ id: 'taches', icon: ClipboardList, label: 'Mes tâches' }] : []),
-                  { id: 'equipe', icon: UsersRound, label: 'Équipe' },
-                  { id: 'messages', icon: MessageSquare, label: 'Messages' },
+                  /* L'AGENDA ÉDITORIAL et l'atelier d'équipe qui va avec —
+                     tâches, coéquipiers, messages — sont les outils du
+                     métier COMMUNICATION : ils n'ont rien à faire chez un
+                     photographe de mariage (décision de Gil, 07/08). Sur
+                     une loge à deux métiers, ils suivent l'interrupteur :
+                     on ne voit que le monde dans lequel on travaille. */
+                  ...(surLeMetier('communication')
+                    ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' },
+                       /* L'onglet du MEMBRE : ses tâches en un seul endroit
+                          — le patron garde les siennes dans Équipe. */
+                       ...(MON_ROLE.value === 'membre'
+                         ? [{ id: 'taches', icon: ClipboardList, label: 'Mes tâches' }] : []),
+                       { id: 'equipe', icon: UsersRound, label: 'Équipe' },
+                       { id: 'messages', icon: MessageSquare, label: 'Messages' }] : []),
+                  /* Le DRIVE est la seule exception : un disque dur partagé
+                     ne parle aucun métier, il range des fichiers. Il reste
+                     donc ouvert à toutes les loges. */
                   { id: 'drive', icon: FolderOpen, label: 'Drive' },
                   /* Les Revenus ne regardent pas un « membre » (cadreur,
                      monteur…) : c'est la comptabilité du studio. */
@@ -13722,16 +13829,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                  SUR LA PLATEFORME (Portfolio + Agences déjà là), Équipe
                  et Messages restent au menu desktop : huit onglets
                  feraient des cibles sous les 44 px du HIG. */
-              ...(aLeMetier('communication')
-                ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' }] : []),
-              /* Le socle d'équipe, comme au menu latéral : il ne dépend
-                 d'aucun métier. Au-delà de six onglets, le repli « Plus »
-                 prend le relais — plus besoin de priver la plateforme
-                 d'Équipe et de Messages sur téléphone. */
-              ...(MON_ROLE.value === 'membre'
-                ? [{ id: 'taches', icon: ClipboardList, label: 'Tâches' }] : []),
-              { id: 'equipe', icon: UsersRound, label: 'Équipe' },
-              { id: 'messages', icon: MessageSquare, label: 'Messages' },
+              /* Même partage qu'au menu latéral : l'atelier éditorial suit
+                 le métier actif, le Drive reste pour tout le monde.
+                 Au-delà de six onglets, le repli « Plus » prend le relais. */
+              ...(surLeMetier('communication')
+                ? [{ id: 'agenda', icon: CalendarIcon, label: 'Agenda' },
+                   ...(MON_ROLE.value === 'membre'
+                     ? [{ id: 'taches', icon: ClipboardList, label: 'Tâches' }] : []),
+                   { id: 'equipe', icon: UsersRound, label: 'Équipe' },
+                   { id: 'messages', icon: MessageSquare, label: 'Messages' }] : []),
               { id: 'drive', icon: FolderOpen, label: 'Drive' },
               ...(MON_ROLE.value === 'membre' ? [] : [{ id: 'revenus', icon: TrendingUp, label: 'Revenus' }]),
               ...(FEATURES.portfolio ? [{ id: 'portfolio', icon: ImageIcon, label: 'Portfolio' }] : []),

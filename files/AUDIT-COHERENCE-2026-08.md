@@ -245,3 +245,48 @@ Aucune correction appliquée : ce document sert à découper les vagues.
   - Le fichier se contredit sur le périmètre exact du rang plancher (avec ou sans Drive ? avec ou sans Mes tâches ? Équipe légitime ou pas ?) : toute évolution des rôles se fera sur une carte fausse, et la garde écran/serveur/RLS ne peut pas être vérifiée contre une définition stable.
 - **Barre mobile : un locataire communication avec le flag portfolio passe à 8 onglets, cible ~41 px — sous le plancher HIG de 44 px que le commentaire d'à côté déclare garanti** — `communication-admin.jsx`:13583
   - Dès qu'une agence locataire du métier communication reçoit `features_portfolio` en base, sa barre mobile viole la règle maison non négociable (cibles tactiles ≥ 44 px) que le code affirme, deux lignes plus haut, avoir vérifiée au calcul.
+
+
+---
+
+## Vague 1 — appliquée le 07/08/2026 (commit « Vague 1 de l'audit »)
+
+Corrigé et déployé : le verrou 2FA dans 8 Edge Functions (juge partagé
+`_shared/aal.ts` adossé à `public.aal_satisfait()`), la garde d'agence de
+`generate-invoice-pdf`, la garde de rang de `b2-sign` (et de sa jumelle
+oubliée `cloudinary-sign`), l'agence nommée dans `team-member` et
+`stripe-billing` (côté serveur ET console), les encres de l'Agenda en
+thème sombre, les cibles tactiles du calendrier (case entière au doigt,
+tri par POINTEUR et non par largeur), et la traduction des refus qui les
+changeait en « Quelque chose n'a pas fonctionné ».
+
+Une contre-épreuve adversariale (6 angles hostiles, 16 agents) a tourné
+sur ce correctif AVANT le commit. Elle a rattrapé un `corsHeaders`
+inexistant qui aurait tué l'onglet Équipe en production, et sept
+finitions désormais intégrées. Ce qu'elle laisse ouvert :
+
+### Reporté en vague 2 (demande du SQL)
+
+- **`equipe_agence()` mélange les loges d'un même compte** (`files/migration-privileges.sql:29-40` :
+  `where am.agency_id in (select my_agency_ids())`, sans paramètre d'agence).
+  Sans conséquence aujourd'hui — aucun compte ne dirige plusieurs loges —
+  mais dès que ce sera le cas, la liste d'équipe montrera les deux loges
+  alors que l'action est désormais épinglée à une seule : le serveur
+  refusera proprement, ce qui vaut mieux que l'écriture croisée
+  silencieuse d'avant, mais la RPC doit prendre un `p_agence`.
+- Les cinq tables encore en « agency write for all » (voir P1 plus haut).
+- `create-agency:301` : `.catch()` sur un builder PostgREST, qui n'en a
+  pas — le rollback lèverait une seconde erreur (chemin d'échec seulement).
+
+### Limites assumées, à dire plutôt qu'à masquer
+
+- **Vue semaine de l'Agenda** : les blocs passent de 30 à 36 px, toujours
+  sous 44. Les rendre conformes les ferait se chevaucher ; la vue par
+  défaut sur téléphone reste le planning, dont les lignes font 48 px.
+- **Mode de panne du juge 2FA** : une panne (base injoignable) laisse
+  passer en journalisant. C'est délibéré — la policy restrictive tient
+  déjà la porte de la base, et refuser sur un hoquet réseau enfermerait
+  une agence entière dehors.
+- Trois fonctions restent sans juge `aal` : `measure-storage`,
+  `sync-social`, `scheduled-notifications` — elles tournent sur jeton
+  interne ou cron, pas sur session humaine.

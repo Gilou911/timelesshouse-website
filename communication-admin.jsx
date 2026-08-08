@@ -744,7 +744,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           onClick={onClick}
           disabled={disabled}
           style={styles}
-          className={`px-5 py-3 min-h-[44px] rounded-full text-[13px] font-semibold flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-50 disabled:active:scale-100 whitespace-nowrap ${text} ${full ? 'w-full' : ''} ${className}`}
+          className={`px-5 py-3 min-h-[44px] rounded-full text-[13px] font-semibold flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-50 disabled:whitespace-nowrap ${text} ${full ? 'w-full' : ''} ${className}`}
         >
           {Icon && <Icon size={14} />}
           {children}
@@ -1416,7 +1416,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             )}
           </div>
           <div style={neu.pressedSm} className="h-2.5 rounded-full mt-2 overflow-hidden">
-            <div className="h-full rounded-full transition-all" style={{ width: (pct ?? 4) + '%', background: barColor }} />
+            <div className="th-jauge h-full rounded-full origin-left" style={{ transform: `scaleX(${(pct ?? 4) / 100})`, background: barColor }} />
           </div>
         </div>
       );
@@ -1851,7 +1851,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 {ACCENTS_SUGGERES.map((c) => (
                   <button key={c} type="button" onClick={() => poserCouleurs(form.bg_color, c)}
                     aria-label={`Accent suggéré ${c}`} title={c}
-                    className={`w-9 h-9 tap-ext rounded-full border-2 active:scale-90 transition-transform ${form.accent_color === c ? 'border-stone-900' : 'border-white/60'}`}
+                    className={`w-9 h-9 tap-ext rounded-full border-2 active:scale-95 transition-transform ${form.accent_color === c ? 'border-stone-900' : 'border-white/60'}`}
                     style={{ background: c }} />
                 ))}
               </div>
@@ -2669,7 +2669,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                             onClick={() => setJourOuvert(jourOuvert === cle ? null : cle)}
                             aria-expanded={jourOuvert === cle}
                             aria-label={`${jourOuvert === cle ? 'Replier' : 'Déplier'} le ${d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}`}
-                            className={`tap-ext relative z-[2] mx-auto mb-1 text-[11px] font-semibold flex items-center justify-center w-8 h-8 rounded-full active:scale-90 transition-transform ${cestAujourdhui ? 'bg-stone-900 text-white' : jourOuvert === cle ? 'bg-stone-300 text-stone-800' : dedans ? 'text-stone-700' : 'text-stone-400'}`}>
+                            className={`tap-ext relative z-[2] mx-auto mb-1 text-[11px] font-semibold flex items-center justify-center w-8 h-8 rounded-full active:scale-95 transition-transform ${cestAujourdhui ? 'bg-stone-900 text-white' : jourOuvert === cle ? 'bg-stone-300 text-stone-800' : dedans ? 'text-stone-700' : 'text-stone-400'}`}>
                             {d.getDate()}
                           </button>
                           <div className="relative z-[2] flex flex-col gap-[3px] pointer-coarse:pointer-events-none">
@@ -3358,7 +3358,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       {(peutDonner || t.assigne_a === moiId) ? (
                         <button type="button" onClick={() => basculerTache(t)}
                           aria-label={t.fait_le ? 'Rouvrir la tâche' : 'Marquer faite'}
-                          className="w-11 h-11 -m-2.5 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-transform">
+                          className="w-11 h-11 -m-2.5 rounded-full flex items-center justify-center shrink-0 active:scale-95 transition-transform">
                           <span aria-hidden="true" className="w-6 h-6 rounded-full border-2 flex items-center justify-center"
                             style={{ borderColor: t.fait_le ? '#3f9c6d' : '#b9b2a5', background: t.fait_le ? '#3f9c6d' : 'transparent' }}>
                             {t.fait_le && <Check size={12} className="text-white" />}
@@ -3760,7 +3760,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                         fait 44, le visuel ne bouge pas (marge négative). */}
                     <button type="button" onClick={() => basculer(t)}
                       aria-label={t.fait_le ? 'Rouvrir la tâche' : 'Marquer faite'}
-                      className="w-11 h-11 -m-2.5 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-transform">
+                      className="w-11 h-11 -m-2.5 rounded-full flex items-center justify-center shrink-0 active:scale-95 transition-transform">
                       <span aria-hidden="true" className="w-6 h-6 rounded-full border-2 flex items-center justify-center"
                         style={{ borderColor: t.fait_le ? '#3f9c6d' : '#b9b2a5', background: t.fait_le ? '#3f9c6d' : 'transparent' }}>
                         {t.fait_le && <Check size={12} className="text-white" />}
@@ -4937,7 +4937,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     <span className="text-stone-500 tabular-nums shrink-0">{Math.round((e2.pct || 0) * 100)} %</span>
                   </div>
                   <div style={neu.pressedSm} className="h-2 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-stone-800 transition-all" style={{ width: `${Math.round((e2.pct || 0) * 100)}%` }} />
+                    <div className="th-jauge h-full w-full rounded-full bg-stone-800 origin-left" style={{ transform: `scaleX(${(e2.pct || 0)})` }} />
                   </div>
                 </div>
               ))}
@@ -7795,8 +7795,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 role="progressbar" aria-valuemin={0} aria-valuemax={100}
                 aria-valuenow={progress} aria-label="Optimisation du film">
             <span className="w-16 h-1.5 rounded-full bg-amber-100 overflow-hidden">
-              <span className="block h-full rounded-full bg-amber-500 transition-[width] duration-700 ease-out"
-                    style={{ width: `${progress}%` }} />
+              <span className="th-jauge block h-full w-full rounded-full bg-amber-500 origin-left"
+                    style={{ transform: `scaleX(${progress / 100})` }} />
             </span>
             <span className="text-[9.5px] uppercase tracking-wider text-amber-700 font-semibold tabular-nums">
               Optimisation {progress} %
@@ -9037,7 +9037,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <div className="mt-2.5">
                   {up[cat.name].pct != null && !up[cat.name].err && (
                     <div className="h-1.5 rounded-full bg-stone-300/60 overflow-hidden mb-1.5">
-                      <div className="h-full bg-stone-900 transition-all" style={{ width: `${up[cat.name].pct}%` }} />
+                      <div className="th-jauge h-full w-full bg-stone-900 origin-left" style={{ transform: `scaleX(${up[cat.name].pct / 100})` }} />
                     </div>
                   )}
                   <div className={`text-[11.5px] font-medium ${up[cat.name].err ? 'text-rose-600' : 'text-stone-600'}`}>{up[cat.name].msg}</div>
@@ -9370,7 +9370,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               <div className="mt-2">
                 {st.pct != null && st.pct < 100 && (
                   <div className="h-1.5 rounded-full bg-stone-300/60 overflow-hidden mb-1.5">
-                    <div className="h-full bg-stone-900 transition-all" style={{ width: `${st.pct}%` }} />
+                    <div className="th-jauge h-full w-full bg-stone-900 origin-left" style={{ transform: `scaleX(${st.pct / 100})` }} />
                   </div>
                 )}
                 <div className="text-[11.5px] text-stone-600 font-medium">{st.msg}</div>

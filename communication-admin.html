@@ -325,11 +325,43 @@
       .th-retour[data-entre="non"], .th-retour[data-part="oui"] { transform: translateY(-40%); }
     }
 
-    /* Pression sur une surface cliquable qui n'est pas un bouton
-       (carte, tuile). Les boutons ont déjà leur `active:scale-95` ;
-       une carte sans état pressé paraît morte au doigt (§14). */
-    .th-press { transition: transform 0.16s cubic-bezier(0.23, 1, 0.32, 1); }
-    .th-press:active { transform: scale(0.985); }
+    /* Une jauge se remplit par TRANSFORM, jamais par width : `width`
+       relance la mise en page et la peinture à chaque image, `scaleX`
+       reste sur la couche de composition. La vitrine le faisait déjà
+       (barre `wkPlay` en scaleX), la console non — cinq jauges y
+       repeignaient à chaque pourcent, dont celle des envois de fichiers,
+       qui tourne pendant qu'on téléverse plusieurs gigaoctets. */
+    .th-jauge { transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1); will-change: transform; }
+
+    /* La pression d'une surface se fait par `active:scale-*` de Tailwind,
+       posé sur 75 éléments. Une classe maison `.th-press` a existé ici
+       et n'a JAMAIS été employée : deux façons de dire la même chose,
+       dont une morte. Retirée le 08/08/2026 — le vocabulaire de
+       mouvement ne vaut que s'il est unique.
+       L'échelle est unifiée : 0,95 pour un contrôle (54 sites), 0,97 à
+       0,99 pour une grande surface, où 5 % d'écrasement se verraient
+       trop. `scale-90` (4 sites) écrasait de 10 % — le bouton semblait
+       se dérober sous le doigt ; `scale-100` (1 site) ne faisait rien. */
+
+    /* ── LE SURVOL N'EXISTE PAS AU DOIGT ─────────────────────────
+       Sur un écran tactile, un appui déclenche un faux `:hover` qui
+       RESTE collé jusqu'au prochain appui ailleurs : une carte reste
+       soulevée, un bouton reste éclairci. La vitrine gardait déjà ses
+       effets (`@media (hover:hover) and (pointer:fine)`), la console
+       non — 58 classes `hover:` s'y appliquaient au doigt.
+       On neutralise le MOUVEMENT et l'OMBRE du survol quand le pointeur
+       est grossier ; les changements de couleur restent, ils ne collent
+       pas à l'œil de la même façon et aident à lire l'état. */
+    @media (hover: none), (pointer: coarse) {
+      /* Ciblé sur les seules classes qui DÉPLACENT au survol. Un
+         `*:hover { transform: none }` serait un piège : `:hover` touche
+         aussi les ancêtres et l'élément sous le doigt, donc il aurait
+         remis à zéro le transform des jauges (scaleX) au moindre
+         effleurement — la barre aurait sauté à 100 %. */
+      [class*="hover:scale"]:hover,
+      [class*="hover:translate"]:hover,
+      [class*="hover:-translate"]:hover { transform: none !important; }
+    }
 
     /* §16 — Respecter « réduire les animations ». */
     @media (prefers-reduced-motion: reduce) {

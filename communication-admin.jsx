@@ -3872,7 +3872,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
          tient nulle part sans rétrécir le texte sous le lisible. */
       const empile = !compact;
       return (
-        <div className={compact ? 'mt-2.5' : 'mt-3'}>
+        <div className={compact ? '' : 'mt-3'}>
           {!compact && (
             <div className="text-[9.5px] uppercase tracking-[0.16em] text-stone-400 font-semibold mb-1.5">Métier</div>
           )}
@@ -13769,6 +13769,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
          son ÉCHO : le bousculer redessine toute la console — menus,
          listes, compteurs — sans recharger la page. */
       const [metierTick, setMetierTick] = useState(0);
+      /* Nommées ici parce que la LIGNE elle-même doit disparaître quand
+         ni l'un ni l'autre n'a lieu d'être — une bande vide sous le nom
+         serait pire que pas de bande. */
+      const metierMultiple = !FEATURES.allUniverses
+        && METIERS.filter((m) => MES_METIERS.includes(m.value)).length >= 2;
+      const betaVisible = !FEATURES.allUniverses && AGENCY.betaChat && MON_ROLE.value !== 'membre';
       const changerMetier = () => setMetierTick((n) => n + 1);
       const chargerNonLus = async () => {
         if (!surLeMetier('communication')) { setNonLusMsg(0); return; }
@@ -13872,38 +13878,38 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       return (
         <div className="min-h-screen w-full" style={neu.base}>
           {/* Header mobile — glass blur iOS-style */}
+          {/* AUDIT HIG DU 08/08 (capture de Gil). Six défauts dans cet
+              en-tête, tous de rangement :
+                · le sélecteur de métier était TRONQUÉ (« Comm… ») — il
+                  partageait sa ligne avec quatre boutons de 44 px, il ne
+                  lui restait que 127 px sur 335 ;
+                · rail de métier et boutons d'action formaient UNE SEULE
+                  bande de pastilles : rien ne distinguait un choix de vue
+                  d'une action (HIG §2, « des contrôles collés deviennent
+                  indistincts ») ;
+                · « BÊTA TESTEUR » en violet plein, majuscules, sur sa
+                  propre ligne, écrasait le nom de la loge — un bouton de
+                  signalement de bugs devenu l'élément le plus fort de
+                  l'écran (HIG §14, un seul bouton proéminent) ;
+                · le mot « ADMIN » n'apprend rien à quelqu'un qui EST dans
+                  sa console (HIG §15, chaque mot mérite sa place) ;
+                · l'ensemble mangeait 340 px de haut avant le contenu.
+              Deux lignes désormais : l'IDENTITÉ et les ACTIONS en haut,
+              les CHOIX en dessous. */}
           <header
-            className="lg:hidden flex items-center justify-between px-5 py-3.5 sticky top-0 z-30"
+            className="lg:hidden flex flex-col gap-2.5 px-5 py-3 sticky top-0 z-30"
             style={{
               backgroundColor: hexVersRgba(neu.raised.backgroundColor, 0.85),
               backdropFilter: 'saturate(180%) blur(20px)',
               WebkitBackdropFilter: 'saturate(180%) blur(20px)',
               borderBottom: isDark ? '0.5px solid rgba(255,255,255,0.06)' : '0.5px solid rgba(0,0,0,0.06)',
             }}>
+            <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               {/* Même règle qu'en barre latérale : l'en-tête mobile porte le
                   nom du studio connecté, jamais le nôtre. */}
               <div className="text-[19px] tracking-tight leading-none truncate" style={{ ...SERIF, fontStyle: 'italic' }}>
                 {myAgency?.name || 'Ma loge'}<span className="text-stone-400">.</span>
-              </div>
-              {/* L'interrupteur de métier, en version courte : sur
-                  téléphone il vaut mieux qu'il tienne sous le nom. */}
-              {featuresReady && <SelecteurMetier compact onChange={changerMetier} />}
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-[10px] uppercase tracking-[0.16em] text-stone-400 font-medium">Admin</span>
-                {featuresReady && !FEATURES.allUniverses && AGENCY.betaChat && MON_ROLE.value !== 'membre' && (
-                  <button type="button" onClick={() => setBetaOuvert((o) => !o)}
-                    aria-expanded={betaOuvert}
-                    aria-label={betaNonLus ? `Bêta testeur — ${betaNonLus} message(s) non lu(s)` : 'Bêta testeur — écrire à La Loge'}
-                    style={{ background: '#7c3aed', color: '#ffffff' }}
-                    className="tap-ext min-h-[32px] px-2.5 rounded-full text-[9.5px] font-bold uppercase tracking-[0.08em] inline-flex items-center gap-1 active:scale-95 transition-transform shrink-0">
-                    Bêta testeur
-                    {betaNonLus > 0 && (
-                      <span className="min-w-[14px] h-3.5 px-1 rounded-full flex items-center justify-center text-[9px] font-bold"
-                        style={{ background: '#ffffff', color: '#7c3aed' }}>{betaNonLus}</span>
-                    )}
-                  </button>
-                )}
               </div>
             </div>
             <div className="flex gap-2 items-center shrink-0">
@@ -13922,6 +13928,35 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 <LogOut size={16} />
               </button>
             </div>
+            </div>
+
+            {/* LIGNE 2 — les CHOIX, séparés des actions. Le sélecteur y a
+                enfin toute la largeur : 113 px par segment au lieu de 63,
+                de quoi écrire « Communication » en entier. Il ne se rend
+                que là où il sert (deux métiers ou plus), et la ligne
+                disparaît avec lui. */}
+            {featuresReady && (metierMultiple || betaVisible) && (
+              <div className="flex items-center gap-2">
+                {metierMultiple && (
+                  <div className="flex-1 min-w-0">
+                    <SelecteurMetier compact onChange={changerMetier} />
+                  </div>
+                )}
+                {betaVisible && (
+                  <button type="button" onClick={() => setBetaOuvert((o) => !o)}
+                    aria-expanded={betaOuvert}
+                    aria-label={betaNonLus ? `Bêta testeur — ${betaNonLus} message(s) non lu(s)` : 'Bêta testeur — écrire à La Loge'}
+                    style={{ background: '#7c3aed', color: '#ffffff' }}
+                    className="tap-ext min-h-[44px] px-3.5 rounded-full text-[9.5px] font-bold uppercase tracking-[0.08em] inline-flex items-center gap-1.5 active:scale-95 transition-transform shrink-0">
+                    Bêta
+                    {betaNonLus > 0 && (
+                      <span className="min-w-[15px] h-[15px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold"
+                        style={{ background: '#ffffff', color: '#7c3aed' }}>{betaNonLus}</span>
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
           </header>
 
           <div className="flex gap-5 px-4 pb-28 lg:p-5 lg:pb-5 min-h-screen">

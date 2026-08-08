@@ -276,6 +276,55 @@
       .th-modal-boite { animation: th-feuille 0.34s cubic-bezier(0.32, 0.72, 0, 1) backwards; }
     }
 
+    /* ── LES SORTIES ──────────────────────────────────────────────
+       Jusqu'ici tout ENTRAIT joliment et disparaissait d'un coup. Une
+       modale qu'on referme doit repartir par où elle est venue : c'est la
+       cohérence spatiale (HIG §9 « le mouvement suit le geste »), et
+       c'est ce qui distingue une interface soignée d'une interface qui
+       s'anime.
+       Trois différences volontaires avec l'entrée :
+         · plus COURT — l'utilisateur a décidé, on ne le fait pas attendre
+           (200 ms contre 320) ;
+         · même courbe, pour que l'aller et le retour se ressemblent ;
+         · `forwards` et non `backwards` — l'état final se garde jusqu'au
+           démontage, sinon la modale réapparaîtrait une image avant de
+           disparaître. */
+    @keyframes th-sort-fond    { to { opacity: 0; } }
+    @keyframes th-sort-boite   { to { opacity: 0; transform: translateY(10px) scale(0.99); } }
+    @keyframes th-sort-feuille { to { transform: translateY(100%); } }
+    .th-modal-fond-sort  { animation: th-sort-fond 0.18s ease-out forwards; }
+    .th-modal-boite-sort { animation: th-sort-boite 0.2s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
+    @media (max-width: 639px) {
+      /* Sur téléphone c'est une feuille : elle redescend par le bas,
+         exactement le chemin de son arrivée. */
+      .th-modal-boite-sort { animation: th-sort-feuille 0.22s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
+    }
+    /* Un panneau qui se replie (feuille « Plus », jour de l'agenda) :
+       même grammaire, en plus discret. */
+    @keyframes th-sort-panneau { to { opacity: 0; transform: translateY(6px); } }
+    .th-panneau-sort { animation: th-sort-panneau 0.16s ease-out forwards; }
+
+    /* ── LES RETOURS D'ACTION ─────────────────────────────────────
+       Remplacent les boîtes grises du navigateur (alert). Une bannière
+       maison, en bas à droite sur grand écran, en haut sur téléphone
+       (là où le pouce ne la masque pas).
+       TRANSITIONS et non keyframes : on peut en déclencher deux en une
+       seconde, et une transition se recible depuis la valeur courante là
+       où des keyframes repartiraient de zéro (règle d'Emil).
+       Elle part par où elle est venue — vers le bas sur bureau, vers le
+       haut sur téléphone. Courbe `ease` et 400 ms plutôt que la fenêtre
+       UI habituelle : c'est le tempo d'un message qu'on lit, pas d'un
+       contrôle qu'on manipule. */
+    .th-retour {
+      opacity: 1; transform: translateY(0);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    .th-retour[data-entre="non"] { opacity: 0; transform: translateY(40%); }
+    .th-retour[data-part="oui"]  { opacity: 0; transform: translateY(40%); }
+    @media (max-width: 639px) {
+      .th-retour[data-entre="non"], .th-retour[data-part="oui"] { transform: translateY(-40%); }
+    }
+
     /* Pression sur une surface cliquable qui n'est pas un bouton
        (carte, tuile). Les boutons ont déjà leur `active:scale-95` ;
        une carte sans état pressé paraît morte au doigt (§14). */

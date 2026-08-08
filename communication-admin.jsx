@@ -914,8 +914,170 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       );
     };
 
+    /* ════════════════════════════════════════════════════════════
+       🔔 LES RETOURS D'ACTION — remplacent alert() et confirm()
+       ════════════════════════════════════════════════════════════
+       Une console soignée ne peut pas répondre par une boîte grise du
+       navigateur : elle sort du cadre, elle ignore la marque du
+       locataire, elle bloque le fil, et sur téléphone elle affiche le
+       nom de domaine. 89 alert() et 38 confirm() vivaient encore ici.
+
+       Deux mécanismes, volontairement minuscules :
+         · `toast(message, genre)` — une bannière qui s'annonce puis
+           s'efface seule. Ne bloque rien. `role="status"` pour que les
+           lecteurs d'écran l'entendent sans voler le focus.
+         · `confirmer(...)` — une VRAIE question, qui rend une promesse.
+           Elle bloque, elle, parce que c'est son rôle : le geste est
+           destructeur et l'utilisateur doit trancher.
+
+       Un bus d'événements plutôt qu'un contexte React : ces fonctions
+       sont appelées depuis du code qui n'est pas un composant (poignées
+       async, gestionnaires d'erreur), et un contexte n'y serait pas
+       lisible. */
+    const BUS_RETOURS = { poser: null, demander: null };
+    let numeroRetour = 0;
+    const toast = (message, genre = 'info') => {
+      const texte = String(message || '').trim();
+      if (!texte) return;
+      if (BUS_RETOURS.poser) BUS_RETOURS.poser({ id: ++numeroRetour, texte, genre });
+      else console.warn('[retour]', texte);   // avant le montage : rien ne se perd en silence
+    };
+    /* Rend une promesse : `if (!(await confirmer('…'))) return;` remplace
+       mot pour mot `if (!(await confirmer('…'))) return;`. */
+    const confirmer = (message, options = {}) => new Promise((repondre) => {
+      if (!BUS_RETOURS.demander) { repondre(window.confirm(message)); return; }
+      BUS_RETOURS.demander({ message: String(message || ''), ...options, repondre });
+    });
+
+    /* `demander(...)` — la version « saisie » de confirmer(). Rend le
+       texte tapé, ou null si on annule. Remplace prompt(), qui a les
+       mêmes défauts que alert() : hors marque, hors cadre, et sur
+       téléphone elle affiche le nom de domaine. */
+    const demander = (message, options = {}) => new Promise((repondre) => {
+      if (!BUS_RETOURS.demander) { repondre(window.prompt(message, options.valeur || '')); return; }
+      BUS_RETOURS.demander({
+        message: String(message || ''), saisie: true,
+        valeur: options.valeur || '', ...options, repondre,
+      });
+    });
+
+    /* La question elle-même. Séparée de Retours pour qu'elle porte son
+       propre état de saisie — un champ contrôlé dans un composant qui se
+       redessine à chaque bannière perdrait ce qu'on tape. */
+    function Question({ q, fini }) {
+      const [valeur, setValeur] = useState(q.valeur || '');
+      const repondre = (r) => { q.repondre(r); fini(); };
+      return (
+        <Modal title={q.titre || (q.saisie ? 'Renseigner' : 'Confirmer')} kicker={q.kicker || null}
+          onClose={() => repondre(q.saisie ? null : false)}>
+          <p className="text-[13.5px] leading-relaxed text-stone-600 whitespace-pre-line">{q.message}</p>
+          {q.saisie && (
+            <div className="mt-4">
+              <Input value={valeur} onChange={(e) => setValeur(e.target.value)} autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter' && valeur.trim()) repondre(valeur); }} />
+            </div>
+          )}
+          <div className="flex gap-2 flex-wrap mt-6">
+            <Btn kind="dark"
+              disabled={q.saisie && !valeur.trim()}
+              onClick={() => repondre(q.saisie ? valeur : true)}>
+              {q.action || (q.saisie ? 'Valider' : 'Confirmer')}
+            </Btn>
+            <Btn onClick={() => repondre(q.saisie ? null : false)}>Annuler</Btn>
+          </div>
+        </Modal>
+      );
+    }
+
+    function Retours() {
+      const [liste, setListe] = useState([]);
+      const [question, setQuestion] = useState(null);
+      useEffect(() => {
+        BUS_RETOURS.poser = (r) => setListe((l) => [...l, { ...r, entre: false, part: false }]);
+        BUS_RETOURS.demander = (q) => setQuestion(q);
+        return () => { BUS_RETOURS.poser = null; BUS_RETOURS.demander = null; };
+      }, []);
+
+      /* Deux images pour poser l'état de départ, sinon la transition n'a
+         rien à interpoler et la bannière apparaît d'un bloc. */
+      useEffect(() => {
+        if (!liste.some((r) => !r.entre)) return;
+        const id = requestAnimationFrame(() => requestAnimationFrame(() =>
+          setListe((l) => l.map((r) => ({ ...r, entre: true })))));
+        return () => cancelAnimationFrame(id);
+      }, [liste]);
+
+      const retirer = (id) => setListe((l) => l.filter((r) => r.id !== id));
+      const partir = (id) => {
+        setListe((l) => l.map((r) => (r.id === id ? { ...r, part: true } : r)));
+        setTimeout(() => retirer(id), 450);
+      };
+      useEffect(() => {
+        // Une erreur reste plus longtemps : on la lit, on la comprend.
+        const minuteurs = liste.filter((r) => !r.part)
+          .map((r) => setTimeout(() => partir(r.id), r.genre === 'err' ? 7000 : 4200));
+        return () => minuteurs.forEach(clearTimeout);
+      }, [liste.length]);
+
+      const TONS = {
+        ok:   { icone: CheckCircle2, fond: 'bg-emerald-100', encre: 'text-emerald-700' },
+        err:  { icone: AlertCircle,  fond: 'bg-rose-100',    encre: 'text-rose-700' },
+        info: { icone: Bell,         fond: 'bg-stone-200',   encre: 'text-stone-700' },
+      };
+      return (
+        <>
+          {/* aria-live poli : annoncé, jamais interrompant. */}
+          <div role="status" aria-live="polite"
+            className="fixed z-[60] left-4 right-4 top-4 sm:top-auto sm:bottom-6 sm:right-6 sm:left-auto sm:w-[380px] flex flex-col gap-2 pointer-events-none">
+            {liste.map((r) => {
+              const ton = TONS[r.genre] || TONS.info;
+              const Icone = ton.icone;
+              return (
+                <div key={r.id} data-entre={r.entre ? 'oui' : 'non'} data-part={r.part ? 'oui' : 'non'}
+                  style={neu.raised}
+                  className="th-retour pointer-events-auto rounded-2xl p-3.5 flex items-start gap-3">
+                  <span className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${ton.fond} ${ton.encre}`}>
+                    <Icone size={15} />
+                  </span>
+                  <div className="text-[13px] leading-relaxed flex-1 min-w-0 whitespace-pre-line">{r.texte}</div>
+                  <button type="button" onClick={() => partir(r.id)} aria-label="Fermer ce message"
+                    className="tap-ext w-8 h-8 rounded-full flex items-center justify-center text-stone-500 shrink-0">
+                    <X size={14} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {question && <Question q={question} fini={() => setQuestion(null)} />}
+        </>
+      );
+    }
+
     const Modal = ({ title, kicker, onClose, children, size = 'md' }) => {
       const boxRef = useRef(null);
+      /* LA SORTIE. Fermer, c'est d'abord jouer le départ, et seulement
+         ensuite démonter. `sort` bascule les classes d'animation ; c'est
+         la fin de l'animation de la BOÎTE qui appelle le vrai onClose.
+         Un filet de 320 ms au cas où l'événement ne viendrait pas (onglet
+         d'arrière-plan, animation coupée par le système) : mieux vaut une
+         modale qui se ferme sans grâce qu'une modale qui ne se ferme pas.
+         En « animations réduites », la durée tombe à 0,01 ms et la
+         fermeture redevient instantanée — exactement ce qu'on veut. */
+      const [sort, setSort] = useState(false);
+      const partiRef = useRef(false);          // onClose ne part qu'UNE fois
+      const finir = useCallback(() => {
+        if (partiRef.current) return;
+        partiRef.current = true;
+        onClose?.();
+      }, [onClose]);
+      const fermer = useCallback(() => {
+        if (sort) return;                       // déjà en train de partir
+        setSort(true);
+        // Filet : si l'événement de fin d'animation ne vient pas (onglet
+        // d'arrière-plan, animation coupée par le système), on ferme quand
+        // même. `finir` garantit qu'un seul des deux chemins agit.
+        setTimeout(finir, 320);
+      }, [sort, finir]);
 
       // HIG §12 : une modale verrouille le scroll derrière elle, se ferme
       // par Échap, garde le focus clavier à l'intérieur, et le rend à
@@ -935,7 +1097,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         (premier || box)?.focus?.();
 
         const onKey = (e) => {
-          if (e.key === 'Escape') { e.stopPropagation(); onClose?.(); return; }
+          if (e.key === 'Escape') { e.stopPropagation(); fermer(); return; }
           if (e.key !== 'Tab') return;
           const f = focusables();
           if (!f.length) return;
@@ -953,7 +1115,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       }, [onClose]);
 
       return (
-      <div className="th-modal-fond fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6 bg-stone-900/40 backdrop-blur-sm" onClick={onClose}
+      <div className={`${sort ? 'th-modal-fond-sort' : 'th-modal-fond'} fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6 bg-stone-900/40 backdrop-blur-sm`} onClick={fermer}
            role="dialog" aria-modal="true" aria-label={title}>
         {/* dvh (pas vh) : tient compte de la barre d'URL iOS — sinon le bas de
             la modale (boutons Enregistrer) passe sous la barre.
@@ -962,7 +1124,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           ref={boxRef}
           tabIndex={-1}
           style={neu.raised}
-          className={`th-modal-boite rounded-t-[28px] sm:rounded-[32px] p-5 sm:p-7 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-7 max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto overflow-x-hidden overscroll-contain w-full ${size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
+          onAnimationEnd={(e) => { if (sort && e.target === e.currentTarget) finir(); }}
+          className={`${sort ? 'th-modal-boite-sort' : 'th-modal-boite'} rounded-t-[28px] sm:rounded-[32px] p-5 sm:p-7 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-7 max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto overflow-x-hidden overscroll-contain w-full ${size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
           onClick={e => e.stopPropagation()}
         >
           {/* Drag handle mobile */}
@@ -972,7 +1135,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               {kicker && <div className="text-[10.5px] sm:text-[11px] uppercase tracking-[0.2em] text-stone-400 font-semibold">{kicker}</div>}
               <h2 className="text-[20px] sm:text-[24px] tracking-tight mt-1 leading-tight" style={SERIF}>{title}</h2>
             </div>
-            <button style={neu.raisedXs} onClick={onClose} className="w-9 h-9 tap-ext rounded-full flex items-center justify-center shrink-0"><X size={15} /></button>
+            <button style={neu.raisedXs} onClick={fermer} className="w-9 h-9 tap-ext rounded-full flex items-center justify-center shrink-0"><X size={15} /></button>
           </div>
           {children}
         </div>
@@ -1484,7 +1647,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
 
       const desactiver = async (f) => {
-        if (!confirm('Désactiver la double vérification ?\n\nVotre mot de passe redeviendra la seule protection de la console.')) return;
+        if (!(await confirmer('Désactiver la double vérification ?\n\nVotre mot de passe redeviendra la seule protection de la console.'))) return;
         setBusy(true); setMsg(null);
         const { error } = await sb.auth.mfa.unenroll({ factorId: f.id });
         setBusy(false);
@@ -2969,7 +3132,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         chargerTaches();
       };
       const retirerTache = async (t) => {
-        if (!confirm(`Supprimer « ${t.titre} » ?`)) return;
+        if (!(await confirmer(`Supprimer « ${t.titre} » ?`))) return;
         await sb.from('tasks').delete().eq('id', t.id);
         chargerTaches();
       };
@@ -3028,13 +3191,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         chargerSorties();
       };
       const retirerSortie = async (x) => {
-        if (!confirm(`Retirer la sortie ${RESEAUX[x.reseau]?.l || x.reseau} ?`)) return;
+        if (!(await confirmer(`Retirer la sortie ${RESEAUX[x.reseau]?.l || x.reseau} ?`))) return;
         await sb.from('post_sorties').delete().eq('id', x.id);
         chargerSorties();
       };
 
       const supprimerPost = async () => {
-        if (!confirm(`Supprimer « ${post.title} » ?\n\nSes sorties programmées et ses tâches partent avec. Irréversible.`)) return;
+        if (!(await confirmer(`Supprimer « ${post.title} » ?\n\nSes sorties programmées et ses tâches partent avec. Irréversible.`))) return;
         await sb.from('posts').delete().eq('id', post.id);
         onSaved();
       };
@@ -3479,7 +3642,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
 
       const supprimer = async (t) => {
-        if (!confirm(`Supprimer « ${t.titre} » ?`)) return;
+        if (!(await confirmer(`Supprimer « ${t.titre} » ?`))) return;
         await sb.from('tasks').delete().eq('id', t.id);
         charger(); onChange?.();
       };
@@ -3913,7 +4076,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setTexte(''); charger();
       };
       const effacer = async (m) => {
-        if (!confirm('Effacer ce message ?')) return;
+        if (!(await confirmer('Effacer ce message ?'))) return;
         await sb.from('team_messages').delete().eq('id', m.id);
         charger();
       };
@@ -4340,7 +4503,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
       const supprimerLot = async () => {
         if (!sels.size) return;
-        if (!confirm(`Supprimer ${sels.size} élément${sels.size > 1 ? 's' : ''} ?\n\nLes dossiers partent avec leur contenu. Irréversible.`)) return;
+        if (!(await confirmer(`Supprimer ${sels.size} élément${sels.size > 1 ? 's' : ''} ?\n\nLes dossiers partent avec leur contenu. Irréversible.`))) return;
         const { data, error } = await sb.from('drive_items')
           .delete().in('id', [...sels]).select('id');
         if (error) { setErr(humaniseErreur(error.message)); return; }
@@ -4579,7 +4742,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
 
       const creerDossier = async () => {
-        const nom = prompt('Nom du dossier ?');
+        const nom = await demander('Comment s\'appelle ce dossier ?', { titre: 'Nouveau dossier', action: 'Créer' });
         if (!nom || !nom.trim()) return;
         const { error } = await sb.from('drive_items').insert({
           agency_id: AGENCY.id, parent_id: dossier, genre: 'dossier', nom: nom.trim().slice(0, 200),
@@ -4589,7 +4752,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
 
       const renommer = async (it) => {
-        const nom = prompt('Nouveau nom ?', it.nom);
+        const nom = await demander('Nouveau nom de cet élément.', { titre: 'Renommer', valeur: it.nom, action: 'Renommer' });
         if (!nom || !nom.trim() || nom.trim() === it.nom) return;
         const { error } = await sb.from('drive_items')
           .update({ nom: nom.trim().slice(0, 200) }).eq('id', it.id);
@@ -4621,7 +4784,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         const avert = it.genre === 'dossier'
           ? `Supprimer le dossier « ${it.nom} » ?\n\nTOUT son contenu part avec. Irréversible.`
           : `Supprimer « ${it.nom} » ?\n\nIrréversible.`;
-        if (!confirm(avert)) return;
+        if (!(await confirmer(avert))) return;
         const { error } = await sb.from('drive_items').delete().eq('id', it.id);
         if (error) {
           setErr(/policy|row-level/i.test(error.message || '')
@@ -5234,7 +5397,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       };
 
       const retirer = async (m) => {
-        if (!confirm(`Retirer ${m.nom} de l'équipe ?\n\nSes tâches restent visibles (non assignées à quelqu'un d'autre), et son compte n'est pas supprimé — seul son accès à cette agence s'arrête.`)) return;
+        if (!(await confirmer(`Retirer ${m.nom} de l'équipe ?\n\nSes tâches restent visibles (non assignées à quelqu'un d'autre), et son compte n'est pas supprimé — seul son accès à cette agence s'arrête.`))) return;
         setBusyLigne(m.user_id); setErr('');
         try {
           await appel({ action: 'remove', user_id: m.user_id });
@@ -5619,7 +5782,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           } } });
           setTauxVerifiesEn(annee);
           setSavedMsg(true); setTimeout(() => setSavedMsg(false), 2500);
-        } catch (e) { alert(humaniseErreur(e.message)); }
+        } catch (e) { toast(humaniseErreur(e.message), 'err'); }
         setSaving(false);
       };
       // « J'ai vérifié mes taux » — éteint l'alerte jusqu'à l'an prochain
@@ -6495,29 +6658,29 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // sans confirmation. On dit ce qui sera perdu, et on exige le code
       // de l'espace — impossible de tout effacer par mégarde.
       const deleteClient = async () => {
-        const saisie = prompt(
-          `Supprimer définitivement l'espace de ${client.name} ?\n\n` +
-          `Seront perdus : ses galeries et leurs liens de partage, ses médias, ` +
-          `factures, documents et tournages. Cette action est irréversible.\n\n` +
-          `Pour confirmer, tapez le code de l'espace : ${client.code}`
+        const saisie = await demander(
+          `Seront perdus : ses galeries et leurs liens de partage, ses médias, `
+          + `factures, documents et tournages. Cette action est irréversible.\n\n`
+          + `Pour confirmer, tapez le code de l'espace : ${client.code}`,
+          { titre: `Supprimer l'espace de ${client.name} ?`, kicker: 'Irréversible', action: 'Supprimer' }
         );
         if (saisie === null) return;
         if ((saisie || '').trim() !== client.code) {
-          alert('Le code saisi est différent — suppression annulée.');
+          toast('Le code saisi est différent — suppression annulée.', 'info');
           return;
         }
         const { error } = await sb.from('clients').delete().eq('id', client.id);
-        if (error) { alert(humaniseErreur(error.message)); return; }
+        if (error) { toast(humaniseErreur(error.message), 'err'); return; }
         refresh();
         onBack();
       };
 
       const sendWelcomeEmail = async () => {
         if (!client.client_email) {
-          alert("Ajoutez d'abord l'email du client (Modifier → champ Email).");
+          toast("Ajoutez d'abord l'email du client (Modifier → champ Email).", 'info');
           return;
         }
-        if (!confirm(`Envoyer l'email de bienvenue avec le code d'accès à ${client.client_email} ?`)) return;
+        if (!(await confirmer(`Envoyer l'email de bienvenue avec le code d'accès à ${client.client_email} ?`))) return;
         setSendingWelcome(true);
         try {
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
@@ -6526,10 +6689,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
             body:    JSON.stringify({ kind: 'welcome', client_id: client.id }),
           });
-          if (res.ok) alert(`✓ Email de bienvenue envoyé à ${client.client_email}`);
-          else if (res.status === 404) alert("La fonction de notification n'est pas déployée.");
-          else alert(`Erreur : ${await res.text()}`);
-        } catch (e) { alert("Erreur réseau : " + e.message); }
+          if (res.ok) toast(`✓ Email de bienvenue envoyé à ${client.client_email}`, 'ok');
+          else if (res.status === 404) toast("La fonction de notification n'est pas déployée.", 'info');
+          else toast(`Erreur : ${await res.text()}`, 'err');
+        } catch (e) { toast("Erreur réseau : " + e.message, 'err'); }
         setSendingWelcome(false);
       };
 
@@ -6883,24 +7046,24 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const hasAnyPage = !!(photosPage || videoPage);
 
       const removePage = async (id) => {
-        if (!confirm('Supprimer cette page ?')) return;
+        if (!(await confirmer('Supprimer cette page ?'))) return;
         await sb.from('event_pages').delete().eq('id', id);
         load();
       };
 
       const notifyClient = async () => {
         if (!client.client_email) {
-          alert("Ajoutez d'abord l'email du client (Modifier → champ Email).");
+          toast("Ajoutez d'abord l'email du client (Modifier → champ Email).", 'info');
           return;
         }
         if (!hasAnyPage) {
-          alert("Configurez d'abord au moins une page (galerie photos ou lecteur vidéo).");
+          toast("Configurez d'abord au moins une page (galerie photos ou lecteur vidéo).", 'info');
           return;
         }
         const contentLabel = photosPage && videoPage ? "vos photos et votre film"
           : videoPage ? "votre film"
           : "vos photos";
-        if (!confirm(`Envoyer un email à ${client.client_email} pour annoncer que ${contentLabel} ${photosPage && videoPage ? 'sont disponibles' : (videoPage ? 'est disponible' : 'sont disponibles')} ?`)) return;
+        if (!(await confirmer(`Envoyer un email à ${client.client_email} pour annoncer que ${contentLabel} ${photosPage && videoPage ? 'sont disponibles' : (videoPage ? 'est disponible' : 'sont disponibles')} ?`))) return;
 
         setNotifying(true);
         try {
@@ -6920,10 +7083,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               },
             }),
           });
-          if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
-          else if (res.status === 404) alert("La fonction de notification n'est pas déployée.");
-          else alert(`Erreur : ${await res.text()}`);
-        } catch (e) { alert("Erreur réseau : " + e.message); }
+          if (res.ok) toast(`✓ Email envoyé à ${client.client_email}`, 'ok');
+          else if (res.status === 404) toast("La fonction de notification n'est pas déployée.", 'info');
+          else toast(`Erreur : ${await res.text()}`, 'err');
+        } catch (e) { toast("Erreur réseau : " + e.message, 'err'); }
         setNotifying(false);
       };
 
@@ -7422,7 +7585,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             }
           }
           await load();
-        } catch (e) { alert(e.message); }
+        } catch (e) { toast(e.message, 'err'); }
         setBusy(false);
       };
 
@@ -7430,7 +7593,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         setBusy(true);
         const { error } = await sb.from('galleries')
           .update({ share_enabled: !g.share_enabled }).eq('id', g.id);
-        if (error) alert(error.message);
+        if (error) toast(error.message, 'err');
         await load();
         setBusy(false);
       };
@@ -7440,7 +7603,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // d'un espace client de l'agence (ceinture + bretelles).
       const regenCode = async (g) => {
         // Pas d'avertissement quand il n'y a RIEN à casser (première génération)
-        if (g.access_code && !confirm(`Régénérer le lien de « ${g.title} » ?\n\nL'ancien lien cessera immédiatement de fonctionner.`)) return;
+        if (g.access_code && !(await confirmer(`Régénérer le lien de « ${g.title} » ?\n\nL'ancien lien cessera immédiatement de fonctionner.`))) return;
         setBusy(true);
         try {
           const { data, error } = await sb.rpc('gallery_code_suggest', {
@@ -7450,7 +7613,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           const { error: e2 } = await sb.from('galleries').update({ access_code: data }).eq('id', g.id);
           if (e2) throw new Error(e2.message);
           await load();
-        } catch (e) { alert(e.message); }
+        } catch (e) { toast(e.message, 'err'); }
         setBusy(false);
       };
 
@@ -7459,14 +7622,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // un script de ménage plateforme balaiera les orphelins.
       const remove = async (g) => {
         const n = counts[g.id] || 0;
-        if (!confirm(
+        if (!(await confirmer(
           `Supprimer la galerie « ${g.title} » ?\n\n` +
           (n ? `Ses ${n} photo${n > 1 ? 's' : ''} seront retirée${n > 1 ? 's' : ''} de la livraison.\n` : '') +
           `Le lien de partage cessera de fonctionner. Cette action est irréversible.`
-        )) return;
+        ))) return;
         setBusy(true);
         const { error } = await sb.from('galleries').delete().eq('id', g.id);
-        if (error) alert(error.message);
+        if (error) toast(error.message, 'err');
         if (openId === g.id) setOpenId(null);
         await load();
         setBusy(false);
@@ -7706,10 +7869,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const [envoiGalerie, setEnvoiGalerie] = useState(false);
       const envoyerGalerie = async () => {
         if (!client?.client_email) {
-          alert("Ajoutez d'abord l'email du client (Modifier → champ Email) pour lui envoyer sa galerie.");
+          toast("Ajoutez d'abord l'email du client (Modifier → champ Email) pour lui envoyer sa galerie.", 'info');
           return;
         }
-        if (!confirm(`Envoyer « ${g.title} » par email à ${client.client_email} ?`)) return;
+        if (!(await confirmer(`Envoyer « ${g.title} » par email à ${client.client_email} ?`))) return;
         setEnvoiGalerie(true);
         try {
           const res = await fetch(`${SUPABASE_URL}/functions/v1/notify-client`, {
@@ -7718,9 +7881,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             body: JSON.stringify({ kind: 'gallery_ready', client_id: client.id, gallery_id: g.id }),
           });
           const j = await res.json().catch(() => ({}));
-          if (res.ok && j.ok && !j.skipped) alert(`✓ Galerie envoyée à ${client.client_email}`);
-          else alert(humaniseErreur(j.error || j.skipped || `Échec (${res.status})`));
-        } catch (e) { alert(humaniseErreur(e.message)); }
+          if (res.ok && j.ok && !j.skipped) toast(`✓ Galerie envoyée à ${client.client_email}`, 'ok');
+          else toast(humaniseErreur(j.error || j.skipped || `Échec (${res.status})`), 'err');
+        } catch (e) { toast(humaniseErreur(e.message), 'err'); }
         setEnvoiGalerie(false);
       };
 
@@ -8249,14 +8412,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const uploadVideo = async (i, file) => {
         if (!file) return;
         const codeSlug = slugify(client?.code || '');
-        if (!codeSlug) { alert("Le client doit avoir un code d'accès avant d'uploader une vidéo."); return; }
+        if (!codeSlug) { toast("Le client doit avoir un code d'accès avant d'uploader une vidéo.", 'info'); return; }
         try {
           setUpProgress({ i, pct: 0 });
           const key = `weddings/${codeSlug}/galerie/videos/${crypto.randomUUID()}/${b2SafeName(file.name)}`;
           const url = await b2UploadFile(file, key, (p) => setUpProgress({ i, pct: Math.round(p * 100) }));
           setVideo(i, { url, downloadUrl: url, fileName: file.name });
         } catch (e2) {
-          alert('✗ ' + (e2.message || "L'upload a échoué — rien n'a été mis en ligne."));
+          toast('✗ ' + (e2.message || "L'upload a échoué — rien n'a été mis en ligne."), 'info');
         }
         setUpProgress(null);
       };
@@ -8754,7 +8917,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const addCategory = () => {
         const name = newCat.trim();
         if (!name) return;
-        if (cats.some(c => c.name === name)) { alert('Cette catégorie existe déjà.'); return; }
+        if (cats.some(c => c.name === name)) { toast('Cette catégorie existe déjà.', 'info'); return; }
         setPendingCats(p => [...p, name]);
         setNewCat('');
       };
@@ -8762,12 +8925,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const renameCategory = async (oldName) => {
         const name = (renames[oldName] ?? oldName).trim();
         if (!name || name === oldName) { setRenames(r => ({ ...r, [oldName]: undefined })); return; }
-        if (cats.some(c => c.name === name)) { alert('Cette catégorie existe déjà.'); return; }
+        if (cats.some(c => c.name === name)) { toast('Cette catégorie existe déjà.', 'info'); return; }
         setPendingCats(p => p.map(n => n === oldName ? name : n));
         if (rows.some(r => r.category === oldName)) {
           const { error } = await sb.from('gallery_photos')
             .update({ category: name }).eq('gallery_id', gallery.id).eq('category', oldName);
-          if (error) { alert(error.message); return; }
+          if (error) { toast(error.message, 'err'); return; }
           await load();
         }
         setRenames(r => ({ ...r, [oldName]: undefined }));
@@ -8778,9 +8941,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // Suppression : ligne SQL seulement — la purge des fichiers B2 est
       // différée (orphelins nettoyables par un script de ménage plateforme).
       const deletePhoto = async (p) => {
-        if (!confirm('Supprimer cette photo ?\n\nElle disparaîtra de la galerie de votre client. Cette action est irréversible.')) return;
+        if (!(await confirmer('Supprimer cette photo ?\n\nElle disparaîtra de la galerie de votre client. Cette action est irréversible.'))) return;
         const { error } = await sb.from('gallery_photos').delete().eq('id', p.id);
-        if (error) { alert(error.message); return; }
+        if (error) { toast(error.message, 'err'); return; }
         setRows(rs => rs.filter(r => r.id !== p.id));
         onChanged?.();
       };
@@ -8804,14 +8967,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             }
           }
           await load();
-        } catch (e) { alert(e.message); }
+        } catch (e) { toast(e.message, 'err'); }
         setBusy(false);
       };
 
       const uploadFiles = async (cat, fileList) => {
         const files = Array.from(fileList || []).filter(f => f.type.startsWith('image/'));
         if (!files.length) return;
-        if (!client.code) { alert("Le client doit avoir un code d'accès avant d'uploader des photos."); return; }
+        if (!client.code) { toast("Le client doit avoir un code d'accès avant d'uploader des photos.", 'info'); return; }
         let position = cat.photos.length
           ? Math.max(...cat.photos.map(p => p.position ?? 0)) + 1 : 0;
         setBusy(true);
@@ -9069,7 +9232,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           : await sb.from('event_pages').insert(payload).select().single();
 
         if (result.error) {
-          alert(result.error.message);
+          toast(result.error.message, 'err');
           setLoading(false);
           return;
         }
@@ -9101,9 +9264,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const handleCategoryPhotos = async (i, fileList) => {
         const cat = (c.categories || [])[i] || {};
         const folderName = (cat.folder || slugify(cat.name)).trim();
-        if (!c.cloudName)  { alert('Renseigne le "Cloud name" Cloudinary plus haut.'); return; }
-        if (!c.rootFolder) { alert('Renseigne le "Dossier racine" plus haut.'); return; }
-        if (!folderName)   { alert('Donne un nom (ou un sous-dossier) à cette catégorie avant d\'ajouter des photos.'); return; }
+        if (!c.cloudName)  { toast('Renseigne le "Cloud name" Cloudinary plus haut.', 'info'); return; }
+        if (!c.rootFolder) { toast('Renseigne le "Dossier racine" plus haut.', 'info'); return; }
+        if (!folderName)   { toast('Donne un nom (ou un sous-dossier) à cette catégorie avant d\'ajouter des photos.', 'info'); return; }
         // Fixe le sous-dossier depuis le nom s'il était vide (cohérence galerie)
         if (!cat.folder) { const arr = [...(c.categories || [])]; arr[i] = { ...arr[i], folder: folderName }; updateConfig('categories', arr); }
         const files = Array.from(fileList || []);
@@ -9163,7 +9326,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const codeSlug = slugify(client?.code || '');
       const uploadEventVideo = async (key, file) => {
         if (!file) return;
-        if (!codeSlug) { alert("Le client doit avoir un code (fiche client) avant d'uploader une vidéo."); return; }
+        if (!codeSlug) { toast("Le client doit avoir un code (fiche client) avant d'uploader une vidéo.", 'info'); return; }
         const i = videos.findIndex(v => v.key === key);
         if (i === -1) return;
         try {
@@ -9791,7 +9954,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       useEffect(() => { load(); }, [clientId]);
 
       const remove = async (id) => {
-        if (!confirm('Supprimer ce média ?\n\nVotre client ne le verra plus dans son espace. Cette action est irréversible.')) return;
+        if (!(await confirmer('Supprimer ce média ?\n\nVotre client ne le verra plus dans son espace. Cette action est irréversible.'))) return;
         await sb.from('media').delete().eq('id', id);
         load();
       };
@@ -9799,9 +9962,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const setApproval = async (id, status) => {
         const { error } = await sb.rpc('update_media_approval', { p_media_id: id, p_status: status });
         if (error) {
-          alert(/statut invalide/i.test(error.message || '')
+          toast(/statut invalide/i.test(error.message || '')
             ? "La validation n'est pas encore à jour côté base : exécutez files/migration-vague2-coherence.sql dans Supabase."
-            : humaniseErreur(error.message));
+            : humaniseErreur(error.message), 'err');
           return false;
         }
         load();
@@ -9810,7 +9973,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       const notifyClient = async (media) => {
         if (!client?.client_email) {
-          alert("Ajoutez d'abord l'email du client (modifier le client → champ Email).");
+          toast("Ajoutez d'abord l'email du client (modifier le client → champ Email).", 'info');
           return;
         }
         setNotifying(media.id);
@@ -9825,15 +9988,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             body: JSON.stringify({ client_id: clientId, media_id: media.id, kind: 'new_media' }),
           });
           if (res.ok) {
-            alert(`✓ Email envoyé à ${client.client_email}`);
+            toast(`✓ Email envoyé à ${client.client_email}`, 'ok');
           } else if (res.status === 404) {
-            alert("La fonction de notification n'est pas encore déployée.\n\nVoir ÉMAILS-SETUP.md pour activer les notifications par email (5 min).");
+            toast("La fonction de notification n'est pas encore déployée.\n\nVoir ÉMAILS-SETUP.md pour activer les notifications par email (5 min).", 'info');
           } else {
             const txt = await res.text();
-            alert(`Erreur d'envoi : ${txt}`);
+            toast(`Erreur d'envoi : ${txt}`, 'err');
           }
         } catch (e) {
-          alert("Erreur réseau : " + e.message);
+          toast("Erreur réseau : " + e.message, 'err');
         }
         setNotifying(null);
       };
@@ -9938,12 +10101,12 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           comment:     newComment.trim(),
         });
         if (!error) { setNewComment(''); load(); }
-        else alert(error.message);
+        else toast(error.message, 'err');
         setPosting(false);
       };
 
       const removeComment = async (id) => {
-        if (!confirm('Supprimer ce commentaire ?')) return;
+        if (!(await confirmer('Supprimer ce commentaire ?'))) return;
         await sb.from('media_comments').delete().eq('id', id);
         load();
       };
@@ -10233,20 +10396,20 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // Capture l'image affichée dans l'aperçu comme vignette (canvas → jpeg).
       const captureFrame = () => {
         const v = pickerVideoRef.current;
-        if (!v || !v.videoWidth) { alert("L'image n'est pas encore prête — patiente une seconde puis réessaie."); return; }
+        if (!v || !v.videoWidth) { toast("L'image n'est pas encore prête — patiente une seconde puis réessaie.", 'err'); return; }
         const canvas = document.createElement('canvas');
         canvas.width = v.videoWidth; canvas.height = v.videoHeight;
         try {
           canvas.getContext('2d').drawImage(v, 0, 0, canvas.width, canvas.height);
           canvas.toBlob((blob) => {
-            if (!blob) { alert("Capture impossible sur ce format vidéo — utilise l'upload manuel."); return; }
+            if (!blob) { toast("Capture impossible sur ce format vidéo — utilise l'upload manuel.", 'err'); return; }
             setThumbFile(null);
             setForm(f => ({ ...f, thumb_url: '' }));
             setCapturedBlob(blob);
             setCapturedPreview(p => { if (p) URL.revokeObjectURL(p); return URL.createObjectURL(blob); });
           }, 'image/jpeg', 0.9);
         } catch (err) {
-          alert("Le navigateur ne sait pas décoder ce format (ex : ProRes/HEVC). Utilise l'upload manuel, ou la vignette générée automatiquement à l'encodage.");
+          toast("Le navigateur ne sait pas décoder ce format (ex : ProRes/HEVC). Utilise l'upload manuel, ou la vignette générée automatiquement à l'encodage.", 'info');
         }
       };
 
@@ -10262,10 +10425,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         // comme une autre (le dialogue criait à tort, capture de Gil
         // du 02/08).
         if (form.type === 'video' && !form.preview_url.trim() && !form.url.trim() && !videoFile && !driveVideo) {
-          if (!window.confirm('⚠️ Aucun fichier ni URL renseigné.\n\nLa vidéo sera invisible pour le client.\n\nVoulez-vous quand même enregistrer ?')) return;
+          if (!(await confirmer('⚠️ Aucun fichier ni URL renseigné.\n\nLa vidéo sera invisible pour le client.\n\nVoulez-vous quand même enregistrer ?'))) return;
         }
         if (form.type === 'photo' && !form.url.trim() && !photoFile && !drivePhoto) {
-          if (!window.confirm('⚠️ Aucune image sélectionnée.\n\nLe média sera invisible pour le client.\n\nVoulez-vous quand même enregistrer ?')) return;
+          if (!(await confirmer('⚠️ Aucune image sélectionnée.\n\nLe média sera invisible pour le client.\n\nVoulez-vous quand même enregistrer ?'))) return;
         }
         setLoading(true);
         const { date_iso_local, ...rest } = form;
@@ -10372,7 +10535,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           if (createdNow && rowId) { try { await sb.from('media').delete().eq('id', rowId); } catch (e2) {} }
           setUpProgress(null);
           setLoading(false);
-          alert(`✗ ${err.message || 'Erreur'} — la publication a été annulée, rien n'a été mis en ligne.`);
+          toast(`✗ ${err.message || 'Erreur'} — la publication a été annulée, rien n'a été mis en ligne.`, 'err');
         }
       };
 
@@ -10716,7 +10879,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         if (!saved || saved.status !== 'payée') return;
         if (avant === 'payée') return;
         if (!client?.client_email) return;
-        if (!confirm(`Facture ${saved.reference} marquée payée.\n\nEnvoyer un reçu de paiement à ${client.client_email} ?`)) return;
+        if (!(await confirmer(`Facture ${saved.reference} marquée payée.\n\nEnvoyer un reçu de paiement à ${client.client_email} ?`))) return;
         try {
           const res = await fetch(`${SUPABASE_URL}/functions/v1/notify-client`, {
             method: 'POST',
@@ -10724,8 +10887,8 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             body: JSON.stringify({ kind: 'invoice_paid', client_id: clientId, invoice_id: saved.id }),
           });
           const j = await res.json().catch(() => ({}));
-          alert(res.ok && j.ok ? `✓ Reçu envoyé à ${client.client_email}` : humaniseErreur(j.error || `Échec (${res.status})`));
-        } catch (e) { alert(humaniseErreur(e.message)); }
+          toast(res.ok && j.ok ? `✓ Reçu envoyé à ${client.client_email}` : humaniseErreur(j.error || `Échec (${res.status})`), 'ok');
+        } catch (e) { toast(humaniseErreur(e.message), 'err'); }
       };
       const [notifying, setNotifying] = useState(null);
 
@@ -10738,13 +10901,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const basculerStatut = async (inv) => {
         if (basculeEnCours) return;
         const versPayee = inv.status !== 'payée';
-        if (!versPayee && !confirm(`Repasser la facture ${inv.reference} en « en attente » ?`)) return;
+        if (!versPayee && !(await confirmer(`Repasser la facture ${inv.reference} en « en attente » ?`))) return;
         setBasculeEnCours(inv.id);
         const { data: saved, error } = await sb.from('invoices')
           .update({ status: versPayee ? 'payée' : 'en attente' })
           .eq('id', inv.id).select().single();
         setBasculeEnCours(null);
-        if (error) { alert(humaniseErreur(error.message)); return; }
+        if (error) { toast(humaniseErreur(error.message), 'err'); return; }
         await load();
         if (versPayee) proposerRecu(saved, inv.status);
       };
@@ -10774,17 +10937,17 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       useEffect(() => { load(); }, [clientId]);
 
       const remove = async (id) => {
-        if (!confirm('Supprimer cette facture ?\n\nElle disparaîtra aussi de l\'espace de votre client. Cette action est irréversible.')) return;
+        if (!(await confirmer('Supprimer cette facture ?\n\nElle disparaîtra aussi de l\'espace de votre client. Cette action est irréversible.'))) return;
         await sb.from('invoices').delete().eq('id', id);
         load();
       };
 
       const notifyInvoiceReady = async (inv) => {
         if (!client?.client_email) {
-          alert("Ajoutez d'abord l'email du client (Modifier → champ Email).");
+          toast("Ajoutez d'abord l'email du client (Modifier → champ Email).", 'info');
           return;
         }
-        if (!confirm(`Envoyer un email à ${client.client_email} pour annoncer que la facture ${inv.reference} est disponible sur son espace client ?`)) return;
+        if (!(await confirmer(`Envoyer un email à ${client.client_email} pour annoncer que la facture ${inv.reference} est disponible sur son espace client ?`))) return;
         setNotifying(inv.id);
         try {
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
@@ -10800,10 +10963,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               },
             }),
           });
-          if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
-          else if (res.status === 404) alert("La fonction de notification n'est pas déployée.\n\nVoir ÉMAILS-SETUP.md pour activer les notifications par email (5 min).");
-          else alert(`Erreur d'envoi : ${await res.text()}`);
-        } catch (e) { alert("Erreur réseau : " + e.message); }
+          if (res.ok) toast(`✓ Email envoyé à ${client.client_email}`, 'ok');
+          else if (res.status === 404) toast("La fonction de notification n'est pas déployée.\n\nVoir ÉMAILS-SETUP.md pour activer les notifications par email (5 min).", 'info');
+          else toast(`Erreur d'envoi : ${await res.text()}`, 'err');
+        } catch (e) { toast("Erreur réseau : " + e.message, 'err'); }
         setNotifying(null);
       };
 
@@ -10934,7 +11097,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           onSaved(result.data);
         } catch (err) {
           setUpPct(null); setLoading(false);
-          alert(`✗ ${err.message || 'Erreur'}`);
+          toast(`✗ ${err.message || 'Erreur'}`, 'err');
         }
       };
 
@@ -11063,7 +11226,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       useEffect(() => { load(); }, [clientId]);
 
       const remove = async (id) => {
-        if (!confirm('Supprimer ce document ?\n\nVotre client n\'y aura plus accès. Cette action est irréversible.')) return;
+        if (!(await confirmer('Supprimer ce document ?\n\nVotre client n\'y aura plus accès. Cette action est irréversible.'))) return;
         await sb.from('documents').delete().eq('id', id);
         load();
       };
@@ -11073,10 +11236,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // et il est connecté.
       const notifyDocument = async (doc) => {
         if (!client?.client_email) {
-          alert("Ajoutez d'abord l'email du client (Modifier → champ Email).");
+          toast("Ajoutez d'abord l'email du client (Modifier → champ Email).", 'info');
           return;
         }
-        if (!confirm(`Envoyer un email à ${client.client_email} pour annoncer que « ${doc.title} » est disponible sur son espace ?`)) return;
+        if (!(await confirmer(`Envoyer un email à ${client.client_email} pour annoncer que « ${doc.title} » est disponible sur son espace ?`))) return;
         setNotifying(doc.id);
         try {
           const res = await fetch(`${SUPABASE_URL}/functions/v1/notify-client`, {
@@ -11084,10 +11247,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
             body:    JSON.stringify({ kind: 'document_ready', client_id: clientId, document_id: doc.id }),
           });
-          if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
-          else if (res.status === 404) alert("La fonction de notification n'est pas déployée.");
-          else alert(`Erreur : ${humaniseErreur(await res.text(), 'email')}`);
-        } catch (e) { alert('Erreur réseau : ' + e.message); }
+          if (res.ok) toast(`✓ Email envoyé à ${client.client_email}`, 'ok');
+          else if (res.status === 404) toast("La fonction de notification n'est pas déployée.", 'info');
+          else toast(`Erreur : ${humaniseErreur(await res.text(), 'email')}`, 'err');
+        } catch (e) { toast('Erreur réseau : ' + e.message, 'err'); }
         setNotifying(null);
       };
 
@@ -11197,7 +11360,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       const submit = async (e) => {
         e.preventDefault();
-        if (!docFile && !form.file_url.trim()) { alert('Choisis un fichier ou colle une URL.'); return; }
+        if (!docFile && !form.file_url.trim()) { toast('Choisis un fichier ou colle une URL.', 'info'); return; }
         setLoading(true);
         try {
           const { date_iso_local, ...rest } = form;
@@ -11216,7 +11379,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           onSaved();
         } catch (err) {
           setUpPct(null); setLoading(false);
-          alert(`✗ ${err.message || 'Erreur'}`);
+          toast(`✗ ${err.message || 'Erreur'}`, 'err');
         }
       };
 
@@ -11359,14 +11522,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // Prévenir le client que sa stratégie est publiée (kind: strategy_ready)
       const notifyReady = async (s) => {
         if (!client?.client_email) {
-          alert("Ajoutez d'abord l'email du client (Modifier → champ Email).");
+          toast("Ajoutez d'abord l'email du client (Modifier → champ Email).", 'info');
           return;
         }
         if (s.status !== 'published') {
-          alert("Publiez d'abord la stratégie : un brouillon est invisible côté client.");
+          toast("Publiez d'abord la stratégie : un brouillon est invisible côté client.", 'info');
           return;
         }
-        if (!confirm(`Envoyer un email à ${client.client_email} pour annoncer la stratégie « ${s.subtitle || s.title} » ?`)) return;
+        if (!(await confirmer(`Envoyer un email à ${client.client_email} pour annoncer la stratégie « ${s.subtitle || s.title} » ?`))) return;
         setNotifying(s.id);
         try {
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
@@ -11375,10 +11538,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
             body:    JSON.stringify({ kind: 'strategy_ready', client_id: clientId, strategy_id: s.id }),
           });
-          if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
-          else if (res.status === 404) alert("La fonction de notification n'est pas déployée.");
-          else alert(`Erreur : ${await res.text()}`);
-        } catch (e) { alert("Erreur réseau : " + e.message); }
+          if (res.ok) toast(`✓ Email envoyé à ${client.client_email}`, 'ok');
+          else if (res.status === 404) toast("La fonction de notification n'est pas déployée.", 'info');
+          else toast(`Erreur : ${await res.text()}`, 'err');
+        } catch (e) { toast("Erreur réseau : " + e.message, 'err'); }
         setNotifying(null);
       };
 
@@ -11390,7 +11553,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       useEffect(() => { load(); }, [clientId]);
 
       const remove = async (id) => {
-        if (!confirm('Supprimer cette stratégie ? Le lien de partage cessera de fonctionner.')) return;
+        if (!(await confirmer('Supprimer cette stratégie ? Le lien de partage cessera de fonctionner.'))) return;
         await sb.from('strategies').delete().eq('id', id);
         load();
       };
@@ -11404,8 +11567,16 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       const shareLink = (s) => shareBase + '?s=' + s.share_token;
 
       const copyLink = async (s) => {
-        try { await navigator.clipboard.writeText(shareLink(s)); }
-        catch (e) { window.prompt('Copiez ce lien :', shareLink(s)); }
+        try {
+          await navigator.clipboard.writeText(shareLink(s));
+        } catch (e) {
+          /* Le presse-papier peut être refusé (Safari hors geste direct,
+             page non sécurisée). On montre alors le lien dans un champ
+             qu'on peut sélectionner, plutôt qu'une boîte du navigateur. */
+          await demander('Le presse-papier est refusé par votre navigateur — copiez ce lien à la main.',
+            { titre: 'Copier le lien', valeur: shareLink(s), action: 'Fermer' });
+          return;
+        }
         setCopiedId(s.id); setTimeout(() => setCopiedId(null), 2200);
       };
 
@@ -11418,7 +11589,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
 
       // Régénère le token (révoque l'ancien lien)
       const regenToken = async (s) => {
-        if (!confirm('Régénérer le lien ? L\'ancien lien partagé cessera immédiatement de fonctionner.')) return;
+        if (!(await confirmer('Régénérer le lien ? L\'ancien lien partagé cessera immédiatement de fonctionner.'))) return;
         setBusyId(s.id);
         const newToken = (crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random())).replace(/-/g, '');
         await sb.from('strategies').update({ share_token: newToken }).eq('id', s.id);
@@ -11436,7 +11607,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           share_enabled: false,
           status: 'draft',
         });
-        if (error) alert(error.message);
+        if (error) toast(error.message, 'err');
         await load(); setBusyId(null);
       };
 
@@ -11536,7 +11707,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               client={client}
               initial={{ strategy_id: shootFor.id }}
               onClose={() => setShootFor(null)}
-              onSaved={() => { setShootFor(null); alert('✓ Tournage programmé — retrouvez-le dans l\'onglet Tournages.'); }}
+              onSaved={() => { setShootFor(null); toast('✓ Tournage programmé — retrouvez-le dans l\'onglet Tournages.', 'ok'); }}
             />
           )}
         </div>
@@ -11861,7 +12032,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       useEffect(() => { load(); }, [clientId]);
 
       const remove = async (id) => {
-        if (!confirm('Supprimer ce tournage ?\n\nIl disparaîtra du calendrier et de l\'espace de votre client.')) return;
+        if (!(await confirmer('Supprimer ce tournage ?\n\nIl disparaîtra du calendrier et de l\'espace de votre client.'))) return;
         await sb.from('shoots').delete().eq('id', id);
         load();
       };
@@ -11869,10 +12040,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // Prévenir le client qu'un tournage est programmé (kind: shoot_scheduled)
       const notifyScheduled = async (shoot) => {
         if (!client?.client_email) {
-          alert("Ajoutez d'abord l'email du client (Modifier → champ Email).");
+          toast("Ajoutez d'abord l'email du client (Modifier → champ Email).", 'info');
           return;
         }
-        if (!confirm(`Envoyer un email à ${client.client_email} pour annoncer le tournage « ${shoot.title} » ?`)) return;
+        if (!(await confirmer(`Envoyer un email à ${client.client_email} pour annoncer le tournage « ${shoot.title} » ?`))) return;
         setNotifying(shoot.id);
         try {
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
@@ -11894,10 +12065,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               },
             }),
           });
-          if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
-          else if (res.status === 404) alert("La fonction de notification n'est pas déployée.\n\nVoir ÉMAILS-SETUP.md pour activer les notifications par email.");
-          else alert(`Erreur d'envoi : ${await res.text()}`);
-        } catch (e) { alert("Erreur réseau : " + e.message); }
+          if (res.ok) toast(`✓ Email envoyé à ${client.client_email}`, 'ok');
+          else if (res.status === 404) toast("La fonction de notification n'est pas déployée.\n\nVoir ÉMAILS-SETUP.md pour activer les notifications par email.", 'info');
+          else toast(`Erreur d'envoi : ${await res.text()}`, 'err');
+        } catch (e) { toast("Erreur réseau : " + e.message, 'err'); }
         setNotifying(null);
       };
 
@@ -11975,7 +12146,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                 description: `${invoiceFor.type === 'video' ? 'Production vidéo' : 'Production photo'} — ${invoiceFor.title}`,
               }}
               onClose={() => setInvoiceFor(null)}
-              onSaved={() => { setInvoiceFor(null); alert('✓ Facture créée — retrouvez-la dans l\'onglet Factures.'); }}
+              onSaved={() => { setInvoiceFor(null); toast('✓ Facture créée — retrouvez-la dans l\'onglet Factures.', 'ok'); }}
             />
           )}
         </div>
@@ -12013,7 +12184,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
         const label = kind === 'shoot_scheduled'
           ? `annoncer le tournage « ${shoot.title} »`
           : `prévenir du changement sur le tournage « ${shoot.title} »`;
-        if (!confirm(`Envoyer un email à ${client.client_email} pour ${label} ?`)) return;
+        if (!(await confirmer(`Envoyer un email à ${client.client_email} pour ${label} ?`))) return;
         try {
           const url = `${SUPABASE_URL}/functions/v1/notify-client`;
           const res = await fetch(url, {
@@ -12034,10 +12205,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               },
             }),
           });
-          if (res.ok) alert(`✓ Email envoyé à ${client.client_email}`);
-          else if (res.status === 404) alert("La fonction de notification n'est pas déployée (l'email n'a pas été envoyé, le tournage est enregistré).");
-          else alert(`Le tournage est enregistré, mais l'email a échoué : ${await res.text()}`);
-        } catch (e) { alert("Le tournage est enregistré, mais l'email a échoué (réseau) : " + e.message); }
+          if (res.ok) toast(`✓ Email envoyé à ${client.client_email}`, 'ok');
+          else if (res.status === 404) toast("La fonction de notification n'est pas déployée (l'email n'a pas été envoyé, le tournage est enregistré).", 'ok');
+          else toast(`Le tournage est enregistré, mais l'email a échoué : ${await res.text()}`, 'info');
+        } catch (e) { toast("Le tournage est enregistré, mais l'email a échoué (réseau) : " + e.message, 'info'); }
       };
 
       const submit = async (e) => {
@@ -12075,7 +12246,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           ? await sb.from('shoots').update(payload).eq('id', existing.id)
           : await sb.from('shoots').insert(payload);
 
-        if (result.error) { alert(result.error.message); setLoading(false); return; }
+        if (result.error) { toast(result.error.message, 'err'); setLoading(false); return; }
 
         // Réinitialiser les flags de rappel si la date a bougé (les rappels J-7/J-1 repartiront)
         if (existing && dateChanged) {
@@ -12203,14 +12374,14 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           if (typeof payload.engagement_by_day === 'string') payload.engagement_by_day = JSON.parse(payload.engagement_by_day || '[]');
           if (typeof payload.ai_summary === 'string') payload.ai_summary = payload.ai_summary ? JSON.parse(payload.ai_summary) : null;
         } catch (e) {
-          alert("Erreur de format JSON : " + e.message);
+          toast("Erreur de format JSON : " + e.message, 'err');
           setSaving(false);
           return;
         }
         payload.updated_at = new Date().toISOString();
 
         const { error } = await sb.from('analytics').update(payload).eq('client_id', clientId);
-        if (error) { alert(error.message); }
+        if (error) { toast(error.message, 'err'); }
         else {
           setSavedAt(new Date());
           load();
@@ -12376,10 +12547,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           .filter((m) => m.source === 'inclus' && m.status === 'active')
           .map((m) => m.universe);
         const retires = avant.filter((u) => !selMetiers.includes(u));
-        if (retires.length && !confirm(
+        if (retires.length && !(await confirmer(
           `Retirer ${retires.map((u) => (metierOf(u) || {}).label || u).join(', ')} de « ${a.name} » ?\n\n`
           + `Ses espaces clients existants continuent de fonctionner, mais l'agence ne pourra plus `
-          + `créer de nouveaux espaces dans ce métier.`)) return;
+          + `créer de nouveaux espaces dans ce métier.`))) return;
         setBusyMetiers(true); setError('');
         try {
           const { data: { session } } = await sb.auth.getSession();
@@ -12401,10 +12572,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
          réactive la 2FA depuis ses Paramètres quand il veut. */
       const retirer2fa = async (agency) => {
         const patrons = agency.owners || [];
-        if (!patrons.length) { alert("Cette agence n'a pas de propriétaire."); return; }
+        if (!patrons.length) { toast("Cette agence n'a pas de propriétaire.", 'info'); return; }
         let email = patrons[0];
         if (patrons.length > 1) {
-          email = prompt(`Plusieurs propriétaires — lequel ?\n${patrons.join('\n')}`, patrons[0]);
+          email = await demander(`Plusieurs propriétaires — lequel ?\n${patrons.join('\n')}`, { titre: 'Quel compte ?', valeur: patrons[0] });
           if (!email || !patrons.includes(email.trim())) return;
           email = email.trim();
         }
@@ -12413,13 +12584,13 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
            de test emportait SA vraie 2FA derrière un message anodin. */
         const { data: { session } } = await sb.auth.getSession();
         const cestMoi = (session?.user?.email || '').toLowerCase() === email.toLowerCase();
-        if (!confirm(cestMoi
+        if (!(await confirmer(cestMoi
           ? `⚠ ${email}, c'est VOTRE compte.\n\nCe bouton retirerait votre propre double `
             + `vérification. Pour la gérer normalement, passez par Paramètres → Double `
             + `vérification → Désactiver.\n\nRetirer quand même ?`
           : `Retirer la double vérification de ${email} ?\n\n`
             + `Son compte repassera en mot de passe seul — à faire uniquement s'il a perdu `
-            + `son application d'authentification. Il pourra la réactiver dans ses Paramètres.`)) return;
+            + `son application d'authentification. Il pourra la réactiver dans ses Paramètres.`))) return;
         setBusy2fa(agency.id);
         try {
           const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-mfa-reset`, {
@@ -12429,10 +12600,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           });
           const j = await res.json().catch(() => ({}));
           if (!res.ok || !j.ok) throw new Error(j.error || `Échec (${res.status})`);
-          alert(j.retires > 0
+          toast(j.retires > 0
             ? `✓ Double vérification retirée pour ${email} (${j.retires} facteur${j.retires > 1 ? 's' : ''}).`
-            : `${email} n'avait pas de double vérification active — rien à retirer.`);
-        } catch (e) { alert(humaniseErreur(e.message)); }
+            : `${email} n'avait pas de double vérification active — rien à retirer.`, 'ok');
+        } catch (e) { toast(humaniseErreur(e.message), 'err'); }
         setBusy2fa(null);
       };
 
@@ -12441,9 +12612,9 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
          bombardement d'account-recovery). Ce geste efface ses demandes
          enregistrées — l'email repart dès le clic suivant. */
       const libererEssaisMdp = async (agency) => {
-        if (!confirm(`Remettre à 0 le compteur « Mot de passe oublié ? » de « ${agency.name} » ?\n\n`
+        if (!(await confirmer(`Remettre à 0 le compteur « Mot de passe oublié ? » de « ${agency.name} » ?\n\n`
           + `Après 5 demandes en une heure, l'envoi d'email se met en pause pour protéger la boîte `
-          + `du destinataire. Ce geste libère immédiatement le patron et les membres de la loge.`)) return;
+          + `du destinataire. Ce geste libère immédiatement le patron et les membres de la loge.`))) return;
         setBusyEssais(agency.id);
         try {
           const { data: { session } } = await sb.auth.getSession();
@@ -12454,19 +12625,19 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
           });
           const j = await res.json().catch(() => ({}));
           if (!res.ok || !j.ok) throw new Error(j.error || `Échec (${res.status})`);
-          alert(j.purges > 0
+          toast(j.purges > 0
             ? `✓ Compteur remis à 0 (${j.purges} demande${j.purges > 1 ? 's' : ''} effacée${j.purges > 1 ? 's' : ''}). Le prochain « Mot de passe oublié ? » enverra l'email.`
-            : `Aucune demande enregistrée pour cette loge — le compteur était déjà à 0.`);
-        } catch (e) { alert(humaniseErreur(e.message)); }
+            : `Aucune demande enregistrée pour cette loge — le compteur était déjà à 0.`, 'ok');
+        } catch (e) { toast(humaniseErreur(e.message), 'err'); }
         setBusyEssais(null);
       };
 
       const basculerBeta = async (agency) => {
         const nouveau = !beta[agency.id];
-        if (!nouveau && !confirm(`Retirer « ${agency.name} » des bêta-testeurs ?\n\nLe chat disparaîtra de sa console. Les messages déjà échangés sont conservés.`)) return;
+        if (!nouveau && !(await confirmer(`Retirer « ${agency.name} » des bêta-testeurs ?\n\nLe chat disparaîtra de sa console. Les messages déjà échangés sont conservés.`))) return;
         setBusyBeta(agency.id);
         const { error } = await sb.rpc('beta_toggle', { p_agency: agency.id, p_on: nouveau });
-        if (error) alert(humaniseErreur(error.message, 'bêta'));
+        if (error) toast(humaniseErreur(error.message, 'bêta'), 'err');
         else setBeta(b => ({ ...b, [agency.id]: nouveau }));
         setBusyBeta(null);
       };
@@ -12485,7 +12656,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // Ouvrir (valider) ou suspendre une loge — l'Edge Function envoie
       // l'email de bienvenue au studio à l'ouverture.
       const setActive = async (agency, activate) => {
-        if (!activate && !confirm(`Suspendre l'accès de « ${agency.name} » ? Ses espaces clients resteront en ligne mais l'agence ne pourra plus rien publier.`)) return;
+        if (!activate && !(await confirmer(`Suspendre l'accès de « ${agency.name} » ? Ses espaces clients resteront en ligne mais l'agence ne pourra plus rien publier.`))) return;
         setBusyId(agency.id); setError('');
         try {
           const { data: { session } } = await sb.auth.getSession();
@@ -12507,7 +12678,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
       // prochain webhook — ce levier vise les loges sans abonnement payant.
       const setPlan = async (agency, plan) => {
         if (plan === agency.plan) return;
-        if (!confirm(`Passer « ${agency.name} » à l'offre ${PLAN_LABELS[plan] || plan} ?`)) { refresh(); return; }
+        if (!(await confirmer(`Passer « ${agency.name} » à l'offre ${PLAN_LABELS[plan] || plan} ?`))) { refresh(); return; }
         setBusyId(agency.id); setError('');
         try {
           const { data: { session } } = await sb.auth.getSession();
@@ -13584,6 +13755,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
          l'onglet quand il marque un fil comme lu. */
       const [nonLusMsg, setNonLusMsg] = useState(0);
       const [repliOuvert, setRepliOuvert] = useState(false);   // feuille « Plus » de la barre mobile
+      /* La feuille redescend par le bas avant de disparaître — même
+         grammaire que les modales (voir le composant Modal). */
+      const [repliSort, setRepliSort] = useState(false);
+      const fermerRepli = () => {
+        if (repliSort) return;
+        setRepliSort(true);
+        setTimeout(() => setRepliOuvert(false), 320);
+      };
+      useEffect(() => { if (repliOuvert) setRepliSort(false); }, [repliOuvert]);
       /* Le métier affiché n'est pas un état React (il vit dans
          METIER_ACTIF, lu par du code hors composants). Ce compteur est
          son ÉCHO : le bousculer redessine toute la console — menus,
@@ -13905,6 +14085,10 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
               montrer vaut mieux que décrire. */}
           {showGuide && <CentreAide onClose={fermerGuide} onAller={setSection} />}
 
+          {/* Les retours d'action, au-dessus de tout : ils remplacent les
+              boîtes grises du navigateur. */}
+          <Retours />
+
           {/* Chat bêta — Gil le voit toujours (c'est sa boîte de réception) ;
               un locataire seulement s'il est labellisé bêta-testeur. */}
           {/* Le fil bêta parle À LA PLATEFORME au nom de l'agence : une
@@ -14036,14 +14220,15 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                     voile comme à la croix. */}
                 {repliOuvert && (
                   <div className="lg:hidden fixed inset-0 z-40 flex items-end"
-                    onClick={() => setRepliOuvert(false)}>
+                    onClick={() => fermerRepli()}>
                     <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.35)' }} />
                     <div role="dialog" aria-label="Autres sections" onClick={(e) => e.stopPropagation()}
-                      style={{ ...neu.raised, animation: 'th-entre 0.28s cubic-bezier(0.32,0.72,0,1) backwards' }}
-                      className="relative w-full rounded-t-[28px] p-4 pb-8">
+                      style={neu.raised}
+                      className={`relative w-full rounded-t-[28px] p-4 pb-8 ${repliSort ? 'th-modal-boite-sort' : 'th-modal-boite'}`}
+                      onAnimationEnd={(e) => { if (repliSort && e.target === e.currentTarget) setRepliOuvert(false); }}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-[15px] font-semibold tracking-tight">Autres sections</div>
-                        <button type="button" onClick={() => setRepliOuvert(false)} aria-label="Fermer"
+                        <button type="button" onClick={() => fermerRepli()} aria-label="Fermer"
                           className="w-11 h-11 rounded-full flex items-center justify-center text-stone-500">
                           <X size={17} />
                         </button>
@@ -14051,7 +14236,7 @@ window.__ADMIN_BUILD = "2026-07-21T18"; // marqueur anti-cache CDN corrompu (voi
                       <div className="flex flex-col gap-1.5">
                         {caches.map((n) => (
                           <button key={n.id} type="button"
-                            onClick={() => { setSection(n.id); setSelectedClient(null); setRepliOuvert(false); }}
+                            onClick={() => { setSection(n.id); setSelectedClient(null); fermerRepli(); }}
                             aria-current={n.id === section ? 'page' : undefined}
                             style={n.id === section ? neu.pressedSm : {}}
                             className="w-full flex items-center gap-3.5 px-4 min-h-[52px] rounded-2xl text-left text-stone-700">
